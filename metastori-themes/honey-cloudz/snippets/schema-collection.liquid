@@ -1,0 +1,154 @@
+{% doc %}
+  Collection / PLP JSON-LD.
+  Outputs CollectionPage plus a Google carousel-ready ItemList of Products.
+  Each listed Product Offer includes shippingDetails and hasMerchantReturnPolicy.
+  @example
+  {% render 'schema-collection' %}
+{% enddoc %}
+
+{%- liquid
+  assign currency_code = cart.currency.iso_code | default: shop.currency
+  assign max_items = 24
+  assign listed_count = 0
+
+  assign include_shipping = true
+  if settings.schema_include_shipping_details == false
+    assign include_shipping = false
+  endif
+  assign include_returns = true
+  if settings.schema_include_return_policy == false
+    assign include_returns = false
+  endif
+
+  assign shipping_country = settings.schema_shipping_country | strip
+  if shipping_country == blank
+    assign shipping_country = localization.country.iso_code | default: shop.address.country_code
+  endif
+  if shipping_country == blank
+    assign include_shipping = false
+    assign include_returns = false
+  endif
+
+  for product in collection.products
+    if listed_count >= max_items
+      break
+    endif
+    if product.featured_image
+      assign listed_count = listed_count | plus: 1
+    endif
+  endfor
+-%}
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": {{ request.origin | append: collection.url | append: '#webpage' | json }},
+  "name": {{ collection.title | json }},
+  "url": {{ request.origin | append: collection.url | json }}
+  {%- if collection.description != blank -%}
+  ,"description": {{ collection.description | strip_html | json }}
+  {%- endif -%}
+  {%- if collection.image -%}
+  ,"image": {{ collection.image | image_url: width: 1920 | json }}
+  {%- endif -%}
+  ,"isPartOf": {
+    "@id": {{ request.origin | append: '/#website' | json }}
+  }
+  {%- if listed_count > 0 -%}
+  ,"mainEntity": {
+    "@id": {{ request.origin | append: collection.url | append: '#itemlist' | json }}
+  }
+  {%- endif -%}
+}
+</script>
+
+{%- if listed_count > 0 -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "@id": {{ request.origin | append: collection.url | append: '#itemlist' | json }},
+  "name": {{ collection.title | json }},
+  "numberOfItems": {{ listed_count }},
+  "itemListOrder": "https://schema.org/ItemListOrderAscending",
+  "itemListElement": [
+    {%- assign list_index = 0 -%}
+    {%- for product in collection.products -%}
+      {%- if list_index >= max_items -%}{% break %}{%- endif -%}
+      {%- unless product.featured_image -%}{% continue %}{%- endunless -%}
+      {%- liquid
+        assign list_index = list_index | plus: 1
+        assign product_image = product.featured_image
+        assign low_price = product.price_min | divided_by: 100.0
+        assign high_price = product.price_max | divided_by: 100.0
+
+        assign rating_value = blank
+        assign rating_count = 0
+        if product.metafields.loox.avg_rating != blank and product.metafields.loox.num_reviews != blank
+          assign rating_value = product.metafields.loox.avg_rating
+          assign rating_count = product.metafields.loox.num_reviews | plus: 0
+        elsif product.metafields.reviews.rating.value != blank and product.metafields.reviews.rating_count != blank
+          assign rating_value = product.metafields.reviews.rating.value.rating
+          assign rating_count = product.metafields.reviews.rating_count | plus: 0
+        endif
+      -%}
+      {
+        "@type": "ListItem",
+        "position": {{ list_index }},
+        "item": {
+          "@type": "Product",
+          "name": {{ product.title | json }},
+          "url": {{ request.origin | append: product.url | json }},
+          "image": [
+            {{ product_image | image_url: width: 1200, height: 1200, crop: 'center' | json }},
+            {{ product_image | image_url: width: 1200, height: 900, crop: 'center' | json }},
+            {{ product_image | image_url: width: 1600, height: 900, crop: 'center' | json }}
+          ]
+          {%- if product.vendor != blank -%}
+          ,"brand": {
+            "@type": "Brand",
+            "name": {{ product.vendor | json }}
+          }
+          {%- endif -%}
+          {%- if product.description != blank -%}
+          ,"description": {{ product.description | strip_html | truncate: 500 | json }}
+          {%- endif -%}
+          ,"offers": {
+            {%- if product.price_varies -%}
+            "@type": "AggregateOffer",
+            "lowPrice": {{ low_price }},
+            "highPrice": {{ high_price }},
+            "priceCurrency": {{ currency_code | json }},
+            "offerCount": {{ product.variants.size }},
+            "availability": {%- if product.available -%}{{ 'https://schema.org/InStock' | json }}{%- else -%}{{ 'https://schema.org/OutOfStock' | json }}{%- endif -%}
+            {%- else -%}
+            "@type": "Offer",
+            "price": {{ low_price }},
+            "priceCurrency": {{ currency_code | json }},
+            "availability": {%- if product.available -%}{{ 'https://schema.org/InStock' | json }}{%- else -%}{{ 'https://schema.org/OutOfStock' | json }}{%- endif -%},
+            "url": {{ request.origin | append: product.url | json }}
+            {%- endif -%}
+            {%- if include_shipping -%}
+            ,"shippingDetails": {% render 'schema-shipping-details', include_id: false %}
+            {%- endif -%}
+            {%- if include_returns -%}
+            ,"hasMerchantReturnPolicy": {% render 'schema-return-policy', include_id: false %}
+            {%- endif -%}
+          }
+          {%- if rating_count > 0 and rating_value != blank -%}
+          ,"aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": {{ rating_value | json }},
+            "reviewCount": {{ rating_count }},
+            "bestRating": 5,
+            "worstRating": 1
+          }
+          {%- endif -%}
+        }
+      }{% unless list_index >= listed_count %},{% endunless %}
+    {%- endfor -%}
+  ]
+}
+</script>
+{%- endif -%}

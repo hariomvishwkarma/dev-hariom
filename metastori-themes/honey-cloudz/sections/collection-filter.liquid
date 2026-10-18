@@ -1,0 +1,564 @@
+{%- liquid
+  assign has_filter_blocks = false
+  for block in section.blocks
+    if block.settings.title != blank
+      assign has_filter_blocks = true
+      break
+    endif
+  endfor
+-%}
+
+{%- if has_filter_blocks -%}
+  <div id="CollectionFilterSection-{{ section.id }}" class="collection-filter page-width">
+    {%- liquid
+      assign columns_desktop = section.settings.columns_desktop
+      if columns_desktop == blank
+        assign columns_desktop = section.blocks.size
+      endif
+      if columns_desktop == blank
+        assign columns_desktop = 4
+      endif
+    -%}
+
+    {%- style -%}
+      #CollectionFilterSection-{{ section.id }} {
+        --collection-filter-columns-desktop: {{ columns_desktop }};
+      }
+    {%- endstyle -%}
+
+    <div
+      class="collection-filter__cards"
+      role="tablist"
+      aria-label="Collection filters"
+    >
+      {%- for block in section.blocks -%}
+        {%- assign metafield_value = block.settings.metafield_value -%}
+        {%- assign metafield_value_stripped = metafield_value | strip -%}
+        {%- if metafield_value == blank or metafield_value_stripped == blank or metafield_value_stripped == 'AUTO' -%}
+          {%- assign metafield_value = block.settings.title -%}
+        {%- endif -%}
+
+        {%- assign option_description = block.settings.description -%}
+        {%- assign option_description_stripped = option_description | strip -%}
+
+        <button
+          type="button"
+          class="collection-filter__card"
+          data-collection-filter="{{ block.id }}"
+          data-metafield-value="{{ metafield_value | strip | escape }}"
+          {{ block.shopify_attributes }}
+        >
+          {%- if block.settings.icon != blank -%}
+            <div class="collection-filter__card-visual">
+              {{ block.settings.icon | image_url: width: 160 | image_tag: loading: 'lazy', widths: '80,120,160', alt: block.settings.title }}
+              <span class="collection-filter__option-title">{{ block.settings.title | escape }}</span>
+              {%- if option_description_stripped != '' and option_description_stripped != 'AUTO' -%}
+                <span class="collection-filter__option-description">{{ block.settings.description | escape }}</span>
+              {%- endif -%}
+            </div>
+          {%- else -%}
+            <div class="collection-filter__card-visual">
+              <span class="collection-filter__option-title">{{ block.settings.title | escape }}</span>
+              {%- if option_description_stripped != '' and option_description_stripped != 'AUTO' -%}
+                <span class="collection-filter__option-description">{{ block.settings.description | escape }}</span>
+              {%- endif -%}
+            </div>
+          {%- endif -%}
+
+          <div class="collection-filter__card-bottom">
+            <div class="collection-filter__bottom-row">
+              {%- assign shaping_level_scale_num = block.settings.shaping_level_scale | plus: 0 -%}
+              {%- assign show_shaping_level = shaping_level_scale_num -%}
+              {%- assign shaping_level_text_stripped = block.settings.shaping_level_value | strip -%}
+              {%- if shaping_level_text_stripped != '' and shaping_level_text_stripped != 'AUTO' -%}
+                <div class="collection-filter__meta-col">
+                  <div class="collection-filter__meta-label">{{ section.settings.shaping_level_label | escape }}</div>
+                  <div class="collection-filter__meta-value">{{ block.settings.shaping_level_value | escape }}</div>
+                </div>
+              {%- endif -%}
+
+              {%- assign wear_it_with_text_stripped = block.settings.wear_it_with_value | strip -%}
+              {%- if wear_it_with_text_stripped != '' and wear_it_with_text_stripped != 'AUTO' -%}
+                <div class="collection-filter__meta-col">
+                  <div class="collection-filter__meta-label">{{ section.settings.wear_it_with_label | escape }}</div>
+                  <div class="collection-filter__meta-value">{{ block.settings.wear_it_with_value | escape }}</div>
+                </div>
+              {%- endif -%}
+            </div>
+
+            {%- if show_shaping_level > 0 -%}
+              <div class="collection-filter__bottom-dots">
+                <div class="collection-filter__meta-label" style="text-transform: uppercase;font-weight: 600;">{{ section.settings.shaping_level_label | escape }}</div>
+                <div class="collection-filter__dots" aria-label="Shaping level {{ shaping_level_scale_num }} of 5">
+                  {%- for i in (1..5) -%}
+                    <span class="collection-filter__dot{% if i <= shaping_level_scale_num %} is-filled{% endif %}"></span>
+                  {%- endfor -%}
+                </div>
+              </div>
+            {%- endif -%}
+          </div>
+        </button>
+      {%- endfor -%}
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var sectionId = 'CollectionFilterSection-{{ section.id }}';
+
+      function init() {
+        var sectionEl = document.getElementById(sectionId);
+        if (!sectionEl) return false;
+        if (sectionEl.dataset.collectionFilterBound === '1') return true;
+
+        var filterButtons = sectionEl.querySelectorAll('[data-collection-filter]');
+        var productGrid = document.querySelector('#product-grid');
+
+        if (!filterButtons.length || !productGrid) return false;
+
+        // Product tiles only (not nested color-swatch nodes that also have data-product-handle).
+        var productItems = productGrid.querySelectorAll('.grid__item[data-product-handle]');
+        if (!productItems.length) return false;
+
+        sectionEl.dataset.collectionFilterBound = '1';
+
+        var normalize = function (s) {
+          return (s || '').toString().trim().toLowerCase();
+        };
+
+        var slugify = function (s) {
+          return normalize(s)
+            .replace(/['"]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        };
+
+        var notifyFiltersChanged = function () {
+          document.dispatchEvent(new CustomEvent('hc:collection-filters-changed', {
+            detail: { source: 'shape' }
+          }));
+        };
+
+        var clearFilter = function () {
+          productItems.forEach(function (item) {
+            item.classList.remove('collection-filter-hidden');
+          });
+          filterButtons.forEach(function (b) {
+            b.classList.remove('is-active');
+          });
+          notifyFiltersChanged();
+        };
+
+        clearFilter();
+
+        var applyFilter = function (targetButton) {
+          var selectedValue = normalize(targetButton.getAttribute('data-metafield-value'));
+
+          productItems.forEach(function (item) {
+            var raw = item.getAttribute('data-product-metafield') || '';
+            var values = raw.split('||').map(function (v) { return normalize(v); }).filter(Boolean);
+            var shouldShow = values.indexOf(selectedValue) !== -1;
+            item.classList.toggle('collection-filter-hidden', !shouldShow);
+          });
+
+          notifyFiltersChanged();
+        };
+
+        var setActiveShape = function (button) {
+          filterButtons.forEach(function (b) {
+            b.classList.toggle('is-active', b === button);
+          });
+          applyFilter(button);
+        };
+
+        filterButtons.forEach(function (button) {
+          button.addEventListener('click', function () {
+            var alreadyActive = button.classList.contains('is-active');
+            if (alreadyActive) {
+              clearFilter();
+              return;
+            }
+            setActiveShape(button);
+          });
+        });
+
+        var applyFilterFromHash = function () {
+          var rawHash = (window.location.hash || '').replace(/^#/, '');
+          if (!rawHash) return;
+
+          var decoded = '';
+          try { decoded = decodeURIComponent(rawHash); } catch (e) { decoded = rawHash; }
+          var hashKey = slugify(decoded);
+          if (!hashKey) return;
+
+          var match = null;
+          filterButtons.forEach(function (b) {
+            if (match) return;
+            var mf = b.getAttribute('data-metafield-value') || '';
+            var titleEl = b.querySelector('.collection-filter__option-title');
+            var title = titleEl ? titleEl.textContent : '';
+            if (slugify(mf) === hashKey || slugify(title) === hashKey) match = b;
+          });
+
+          // Direct apply — do not use .click() (toggle would clear on second fire).
+          if (match) setActiveShape(match);
+        };
+
+        applyFilterFromHash();
+        window.addEventListener('hashchange', applyFilterFromHash);
+
+        return true;
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        if (!init()) {
+          setTimeout(init, 250);
+          setTimeout(init, 750);
+        }
+      }
+    })();
+  </script>
+{%- endif -%}
+
+{% stylesheet %}
+  .collection-filter {
+    margin-top: 2.4rem;
+    margin-bottom: 2.4rem;
+  }
+
+  .collection-filter__cards {
+    display: grid;
+    grid-template-columns: repeat(var(--collection-filter-columns-desktop, 4), minmax(0, 1fr));
+  }
+
+  .collection-filter__card {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid rgba(var(--color-foreground), 0.2);
+    background: rgb(var(--color-background));
+    color: rgb(var(--color-foreground));
+    padding: .75rem;
+    cursor: pointer;
+    text-align: center;
+    /* Share both rows so the yellow panels align before JavaScript runs. */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: subgrid;
+    grid-row: span 2;
+    align-items: stretch;
+    gap: 0;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+    overflow: hidden;
+  }
+
+  @media (hover: hover) {
+    .collection-filter__card:hover {
+      border-color: #00b4e5;
+      box-shadow: 0 6px 18px rgba(0, 180, 229, 0.22);
+      transform: translateY(-3px);
+    }
+
+    .collection-filter__card:hover .collection-filter__card-visual {
+      background: #fff3b8;
+    }
+  }
+
+  .collection-filter__card:focus-visible {
+    outline: 2px solid #00b4e5;
+    outline-offset: 3px;
+    border-color: #00b4e5;
+  }
+
+  .collection-filter__card.is-active {
+    border-color: rgba(var(--color-foreground), 0.85);
+    box-shadow: 0 0 0 2px rgba(var(--color-foreground), 0.35);
+  }
+
+  .collection-filter__card.is-active:hover {
+    border-color: #00b4e5;
+    box-shadow: 0 6px 18px rgba(0, 180, 229, 0.22);
+  }
+
+  .collection-filter__card-visual {
+    background: #FFF9DC;
+    width: 100%;
+    padding: 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .5rem;
+  }
+
+  .collection-filter__card-visual img {
+    display: block;
+    /* A definite width lets image_tag's dimensions reserve the icon height. */
+    width: 4.55rem;
+    max-width: 4.55rem;
+    height: auto;
+    margin: 0 auto;
+    margin-top: 1rem;
+  }
+
+  .collection-filter__option-title {
+    font-size: 2.125rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .collection-filter__option-description {
+    display: block;
+    text-align: center;
+    font-size: 1.375rem;
+    opacity: 0.85;
+    line-height: 1.25;
+    margin-top: -0.2rem;
+    margin-bottom: -1rem;
+  }
+
+  .collection-filter__meta-label {
+    font-weight: 700;
+    font-size: 1.25rem;
+  }
+
+  .collection-filter__meta-value {
+    font-size: 1.125rem;
+    opacity: 0.85;
+    margin-top: 0.35rem;
+    white-space: pre-wrap;
+    line-height: 1.25;
+  }
+
+  .collection-filter__card-bottom {
+    width: 100%;
+    padding: 2rem 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .collection-filter__bottom-row {
+    width: 100%;
+    display: flex;
+    gap: 1.2rem;
+    justify-content: space-between;
+  }
+
+  .collection-filter__meta-col {
+    flex: 1;
+    text-align: left;
+  }
+
+  .collection-filter__bottom-row .collection-filter__meta-col:last-child {
+    text-align: left;
+  }
+
+  .collection-filter__bottom-dots {
+    width: 100%;
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .collection-filter__dots {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .collection-filter__dot {
+    width: 0.65rem;
+    height: 1rem;
+    border-radius: 2px;
+    background: #C8C8C8;
+  }
+
+  .collection-filter__dot.is-filled {
+    background: rgba(var(--color-foreground), 0.95);
+  }
+
+  .collection-filter-hidden {
+    display: none !important;
+  }
+
+  @media screen and (max-width: 900px) {
+    .collection-filter__cards {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media screen and (max-width: 900px) {
+    /* Edge-to-edge on mobile: override `page-width` padding */
+    .collection-filter.page-width {
+      padding-right: 0;
+      max-width: none;
+      width: auto;
+      margin-right: calc(50% - 50vw);
+    }
+
+    .collection-filter__cards {
+      display: grid;
+      grid-template-columns: none;
+      grid-template-rows: auto auto;
+      grid-auto-flow: column;
+      grid-auto-columns: 40%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scroll-snap-type: x mandatory;
+      gap: 1rem;
+      row-gap: 0;
+      padding-bottom: 0.5rem;
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE/Edge */
+    }
+
+    .collection-filter__cards::-webkit-scrollbar {
+      display: none; /* Chrome/Safari */
+    }
+
+    .collection-filter__card {
+      scroll-snap-align: start;
+    }
+
+    .collection-filter__card-visual {
+      padding: 2rem 1.25rem 2rem;
+      gap: 1rem;
+    }
+
+    .collection-filter__card-bottom {
+      padding: 2rem 0 0.5rem;
+    }
+
+    .collection-filter__bottom-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1.5rem;
+    }
+
+    .collection-filter__bottom-row .collection-filter__meta-col {
+      width: 100%;
+      text-align: left;
+    }
+
+    /* Override right-align rule so we can stack content cleanly */
+    .collection-filter__bottom-row .collection-filter__meta-col:last-child {
+      text-align: left;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Collection filter",
+  "enabled_on": {
+    "templates": ["collection"]
+  },
+  "settings": [
+    {
+      "type": "range",
+      "id": "columns_desktop",
+      "label": "Desktop columns",
+      "min": 2,
+      "max": 6,
+      "step": 1,
+      "default": 4
+    },
+    {
+      "type": "text",
+      "id": "shaping_level_label",
+      "label": "Shaping Level label",
+      "default": "Shaping Level"
+    },
+    {
+      "type": "text",
+      "id": "wear_it_with_label",
+      "label": "Wear it With label",
+      "default": "Wear it With"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "filter",
+      "name": "Filter option",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title",
+          "default": "Option"
+        },
+        {
+          "type": "text",
+          "id": "metafield_value",
+          "label": "Metafield match value",
+          "default": "AUTO"
+        },
+        {
+          "type": "textarea",
+          "id": "description",
+          "label": "Description (shown under title)",
+          "default": "AUTO"
+        },
+        {
+          "type": "textarea",
+          "id": "shaping_level_value",
+          "label": "Shaping Level text",
+          "default": "Light to Max"
+        },
+        {
+          "type": "select",
+          "id": "shaping_level_scale",
+          "label": "Shaping Level (dots)",
+          "default": "0",
+          "options": [
+            {
+              "value": "0",
+              "label": "Not visible"
+            },
+            {
+              "value": "1",
+              "label": "1"
+            },
+            {
+              "value": "2",
+              "label": "2"
+            },
+            {
+              "value": "3",
+              "label": "3"
+            },
+            {
+              "value": "4",
+              "label": "4"
+            },
+            {
+              "value": "5",
+              "label": "5"
+            }
+          ]
+        },
+        {
+          "type": "textarea",
+          "id": "wear_it_with_value",
+          "label": "Wear it With text",
+          "default": "Everyday bras, sports bras, swimsuits, and camisoles"
+        },
+        {
+          "type": "image_picker",
+          "id": "icon",
+          "label": "Icon"
+        },
+      ]
+    }
+  ],
+  "max_blocks": 8,
+  "presets": [
+    {
+      "name": "Collection filter"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,78 @@
+{%- comment -%}
+  Renders the add to cart button with product form.
+
+  Accepts:
+    - main_product: The product object
+    - section: The section object
+    - hide_button_label: Whether to hide the button label
+    - classes: Additional classes for the form
+
+  Usage:
+    {% render 'add-to-cart', main_product: product %}
+{%- endcomment -%}
+
+{% liquid
+  assign section_id = section.id
+  assign selected_variant = main_product.selected_or_first_available_variant
+  assign product_form_id = 'product-form-' | append: section_id | append: '-' | append: selected_variant.id
+
+  if hide_button_label
+    assign button_padding_classes = '!p-1.5 md:!p-2'
+  else
+    assign button_padding_classes = '!py-1 !pl-1 !pr-3 md:!py-3 md:!px-8'
+  endif
+  assign classes = classes | append: ' product-form'
+%}
+
+<product-form class="hidden">
+  {%- form 'product', main_product, id: product_form_id, novalidate: 'novalidate', class: classes -%}
+    <input type="hidden" name="id[]" value="{{ selected_variant.id }}">
+    <input
+      type="hidden"
+      name="quantity"
+      id="quantity-{{ section_id }}"
+      value="1"
+      min="1"
+      form="{{ product_form_id }}"
+    >
+
+    {%- capture custom_attributes -%}
+      {% if selected_variant.available == false %}
+        disabled
+      {% endif %}
+      {% if hide_button_label %}
+        aria-label="{{ 'products.product.add_to_cart' | t }}"
+      {% endif %}
+    {%- endcapture -%}
+
+    {%- capture add_to_cart_button_content -%}
+      <div class="flex items-center gap-1 relative">
+        {% render 'c-icon', icon: 'plus', classes: 'w-5 h-5 inline main_icon' %}
+        {%- unless hide_button_label -%}
+          {% if selected_variant.available == false %}
+            <span class="">Sold out</span>
+            {% else %}
+            <span class="">Add to cart</span>
+          {% endif %}
+        {%- endunless -%}
+        {% render 'c-spinner', size: 'add-to-cart-button-spinner leading-none absolute inset-0 invisible' %}
+      </div>
+    {%- endcapture -%}
+
+    {%- capture add_to_cart_id -%}Add-to-cart-{{ section_id }}{%- endcapture -%}
+
+    {%- assign button_classes = 'rounded-full h7-bold flex gap-2 items-center justify-center add-to-cart-button '
+      | append: button_padding_classes
+    -%}
+
+    {% render 'c-button',
+      type: 'submit',
+      name: 'add',
+      id: add_to_cart_id,
+      design: 'none',
+      custom_attributes: custom_attributes,
+      content: add_to_cart_button_content,
+      classes: button_classes
+    %}
+  {%- endform -%}
+</product-form>

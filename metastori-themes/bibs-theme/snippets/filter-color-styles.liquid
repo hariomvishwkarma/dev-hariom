@@ -1,0 +1,36 @@
+{% assign color_scheme_settings = section.settings.color_scheme | default: settings.color_schemes['background-1'] %}
+<style>
+  .facets__list .filter-color-sample {
+    {%- assign color_metaobject = shop.metaobjects.color_swatch.values -%}
+    {%- paginate color_metaobject by 600 -%}
+      {%-  for object in color_metaobject -%}
+        {%- assign object_name = object.name | downcase | replace: ' ', '-' | replace: '/', '-' | replace: '´', '-' | replace: '&#39;', '-' | replace: 'é', 'e' | downcase -%}
+
+        {%- if object.image -%}
+          --color_{{object_name}}: url({{ object.image.value | first | image_url }});
+
+        {%- elsif object.colors -%}
+          {%- assign color_contrast_1 = color_scheme_settings.settings.background | color_contrast: object.colors.value[0] -%}
+          {%- assign color_contrast_2 = color_scheme_settings.settings.background | color_contrast: object.colors.value[1] -%}
+
+          {%- if color_contrast_1 < 1.2 or color_contrast_2 < 1.2 -%}
+            --border_{{object_name}}: {{color_scheme_settings.settings.borders}};
+          {% else %}
+            --border_{{object_name}}: white;
+          {% endif %}
+          {%- assign connected_product_colors_size = object.colors.value.size -%}
+          {%- if connected_product_colors_size == 1 -%}
+          --color_{{object_name}}: {{object.colors.value}};
+
+          {%- elsif connected_product_colors_size > 1 -%}
+            --color_{{object_name}}: linear-gradient(90deg,
+                    {%- for connected_product_color in object.colors.value -%}
+                      {{ connected_product_color }} {{ '100' | divided_by: connected_product_colors_size | append: '%' }}{%- unless forloop.last -%},{%- endunless -%}
+                    {%- endfor -%}
+                    );
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endpaginate -%}
+  }
+</style>

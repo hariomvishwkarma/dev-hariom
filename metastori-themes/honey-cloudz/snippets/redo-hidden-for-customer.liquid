@@ -1,0 +1,33 @@
+{% doc %}
+Decides whether Redo (easy returns / Checkout+) is switched off for the current
+shopper, from Theme settings → Custom cart drawer → Redo easy returns.
+Outputs 'true' or 'false'. With script: true it instead outputs the
+window.blockRedo flag, which Redo's storefront script checks before it renders
+any widget, so it must be rendered in <head> before content_for_header.
+@param {boolean} [script] - Pass true to output the blockRedo flag script (only when hidden).
+@example
+{%- capture redo_hidden -%}{% render 'redo-hidden-for-customer' %}{%- endcapture -%}
+{% render 'redo-hidden-for-customer', script: true %}
+{% enddoc %}
+
+{%- liquid
+  assign redo_hidden = false
+  assign redo_visibility = settings.custom_cart_redo_visibility | default: 'hide_b2b'
+  if redo_visibility == 'hide_all'
+    assign redo_hidden = true
+  elsif redo_visibility == 'hide_b2b' and customer != blank
+    assign redo_b2b_tag = settings.b2b_mov_customer_tag | default: 'B2B Customer' | strip
+    if redo_b2b_tag != blank and customer.tags contains redo_b2b_tag
+      assign redo_hidden = true
+    endif
+  endif
+
+  unless script
+    echo redo_hidden
+  endunless
+-%}
+{%- if script and redo_hidden -%}
+  <script>
+    window.blockRedo = true;
+  </script>
+{%- endif -%}

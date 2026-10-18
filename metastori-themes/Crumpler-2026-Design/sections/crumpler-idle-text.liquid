@@ -1,0 +1,139 @@
+{% liquid
+  assign should_show = section.settings.enable_idle_text
+  if section.settings.index_only and template.name != 'index'
+    assign should_show = false
+  endif
+%}
+{% if should_show %}
+  <script src="{{ 'crumpler-idle-text.js' | asset_url }}" defer></script>
+  <link rel="stylesheet" href="{{ 'crumpler-idle-text.css' | asset_url }}">
+  <idle-text
+    class="idle-text"
+    data-idle-time="{{ section.settings.idle_text_idle_timer }}"
+    style="
+      display: none;
+      --text-color: {{ section.settings.idle_text_color }};
+      --text-size: {{ section.settings.idle_text_size }}px;
+      --text-size-mobile: {{ section.settings.idle_text_size_mobile }}px;
+      --top: {{ section.settings.idle_text_top }}%;
+      --left: {{ section.settings.idle_text_left }}%;
+    "
+  >
+    {% for block in section.blocks %}
+      {% case block.type %}
+        {% when 'text' %}
+          <div class="idle-text__text">
+            {{ block.settings.idle_text }}
+          </div>
+        {% when 'image_picker' %}
+          {%- assign widths = '198, 432, 642, 900, 1284, 1800, 2568, 3600' %}
+          {%- assign sizes = block.settings.idle_image_width | append: 'vw' %}
+
+          <div class="idle-text__image"
+               style="--image-width: {{ block.settings.idle_image_width }}vw;"
+            >
+          {{ block.settings.idle_image | image_url: width: 3600 | image_tag: widths: widths, sizes: sizes }}
+          </div>
+      {% endcase %}
+    {% endfor %}
+  </idle-text>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Idle text",
+  "blocks": [
+    {
+      "type": "text",
+      "name": "Text",
+      "settings": [
+        {
+          "type": "text",
+          "id": "idle_text",
+          "label": "Text",
+          "default": "click or move to dismiss"
+        }
+      ]
+    },
+    {
+      "type": "image_picker",
+      "name": "Image",
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "idle_image",
+          "label": "Image"
+        },
+        {
+          "type": "range",
+          "id": "idle_image_width",
+          "label": "Image Width (%)",
+          "min": 0,
+          "max": 100,
+          "step": 1,
+          "default": 50
+        }
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_idle_text",
+      "label": "enable idle text",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "index_only",
+      "label": "Show only on index page",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "idle_text_idle_timer",
+      "label": "idle timer (seconds)",
+      "min": 1,
+      "max": 60,
+      "step": 1,
+      "default": 5
+    },
+    {
+      "type": "color",
+      "id": "idle_text_color",
+      "label": "Text color",
+      "default": "#000000"
+    },
+    {
+      "type": "number",
+      "id": "idle_text_size",
+      "label": "Idle Text Size",
+      "default": 140
+    },
+    {
+      "type": "number",
+      "id": "idle_text_size_mobile",
+      "label": "Idle Text Size Mobile",
+      "default": 65
+    },
+    {
+      "type": "range",
+      "id": "idle_text_top",
+      "label": "Top position (%)",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "default": 50
+    },
+    {
+      "type": "range",
+      "id": "idle_text_left",
+      "label": "Left position (%)",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "default": 50
+    }
+  ]
+}
+{% endschema %}

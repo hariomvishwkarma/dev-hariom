@@ -1,0 +1,326 @@
+{% liquid
+  assign heading_tag = section.settings.heading_tag
+  assign font_size = section.settings.font_size
+  assign font_weight = section.settings.font_weight
+  assign heading_type = font_size | append: ' ' | append: font_weight
+  assign italic_header_text = section.settings.italic_header_text
+  if italic_header_text
+    assign heading_type = heading_type | append: ' !italic'
+  endif
+%}
+
+{%- capture customer_service -%}
+  <div class="customer-service--wrapper border border-foreground rounded-sm mt-6">
+    <div class="customer-service--content px-5 py-5 md:px-[30px] space-y-2.5 text-center md:text-left">
+      {% render 'c-title',
+        custom_tag: 'h6',
+        translatable_content: 'sections.page-faqs.customer_service.customer_service_title'
+      %}
+      {%- assign contact_us_link = routes.root_url | append: '/pages/contact-us' |  replace: '//', '/' -%}
+      {% render 'c-link',
+        type: 'button button_outline--primary leading-4 inline-block',
+        href: contact_us_link,
+        translatable_content: 'sections.page-faqs.customer_service.customer_service_button'
+      %}
+    </div>
+  </div>
+{%- endcapture -%}
+
+<faq-section data-url="{{ request.path }}">
+  <div class="color-{{ section.settings.color_scheme }}">
+    <div class="bg-secondary-background">
+      <div class="container-fluid text-center py-6 md:py-[60px] space-y-6 md:space-y-[30px]">
+        {% render 'c-title',
+          translatable_content: 'sections.page-faqs.popular.title',
+          custom_tag: heading_tag,
+          type: heading_type
+        %}
+
+        <div class="md:max-w-[80%] mx-auto">
+          <div class="popular-faqs">
+            {%- assign popular_faqs = shop.metaobjects.popular_faqs['popular-faqs'].faqs.value -%}
+            {% for popular_faq in popular_faqs %}
+              <a
+                class="popular-faq"
+                data-type="{{ popular_faq.type.value | handleize }}"
+                data-handle="{{ popular_faq.system.handle }}"
+                href="#"
+              >
+                {{- popular_faq.question -}}
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="py-6 md:py-10">
+      <div class="container-fluid flex items-center justify-between gap-8 pb-4 md:pb-5 relative">
+        {%- render 'c-text', translatable_content: 'sections.page-faqs.subtitle' -%}
+
+        <div id="FAQ-search-wrapper" class="w-full max-w-[267px]">
+          {%- capture search_icon -%}
+            {% render 'c-icon', icon: 'search', classes: 'w-4.5 h-4.5 absolute left-0.5 m-2' %}
+          {%- endcapture -%}
+          {%- render 'c-input',
+            input_classes: 'border border-grey-400 rounded-full pl-9 leading-4.5 overflow-hidden',
+            inline_btn: search_icon
+          -%}
+        </div>
+      </div>
+
+      {% comment %} TYPES {% endcomment %}
+      <div class="container-fluid py-4 md:border-y md:border-grey-300 bg-background sticky top-0 z-2">
+        {%- assign types = blank -%}
+        {% for faq in shop.metaobjects.faqs.values %}
+          {%- if types != blank -%}
+            {%- assign types = types | append: ',' | append: faq.type.value -%}
+          {%- else -%}
+            {%- assign types = types | append: faq.type.value -%}
+          {%- endif -%}
+        {% endfor %}
+
+        {%- assign final_types = types | split: ',' | uniq | sort -%}
+        {%- if final_types != blank -%}
+          <fieldset id="Fieldset-type" class="contents">
+            <div class="flex items-center gap-4 faq-types overflow-x-auto no-scrollbar">
+              {% for type in final_types %}
+                {%- assign type_handle = type | handleize -%}
+                <div class="faq-type">
+                  <input
+                    type="radio"
+                    id="FAQ-{{ type_handle }}-{{ forloop.index0 }}"
+                    name="faq_type"
+                    value="{{ type_handle }}"
+                    class="hidden"
+                  >
+                  <label
+                    for="FAQ-{{ type_handle }}-{{ forloop.index0 }}"
+                    class="block button button--pills leading-4 font-normal"
+                    data-type="{{ type_handle }}"
+                  >
+                    {%- assign type_icon = shop.metaobjects.faq_type_icons[type_handle].icon.value.icon -%}
+                    {{ type_icon }}
+                    {{- type -}}
+                  </label>
+                </div>
+              {% endfor %}
+            </div>
+          </fieldset>
+        {%- endif -%}
+      </div>
+
+      {% comment %} QUESTION ANSWERS {% endcomment %}
+      <div id="FAQs-wrapper" class="md:container !hidden md:grid md:grid-cols-[372px_1fr] md:gap-x-10 md:py-[50px]">
+        <div class="container-fluid sticky top-[65px] space-y-4 pb-4 md:py-7.5 bg-background z-1 border-b border-borders md:border-b-0">
+          {% render 'c-text', translatable_content: 'sections.page-faqs.questions.title', type: 'text-2-regular' %}
+          <fieldset id="Fieldset-questions">
+            <div class="faq-questions">
+              <div class="hidden md:flex md:flex-col md:gap-y-5">
+                {%- for faq in shop.metaobjects.faqs.values -%}
+                  {%- capture custom_attributes -%}
+                      data-type="{{ faq.type.value | handleize }}"
+                      data-handle="{{ faq.system.handle }}"
+                    {%- endcapture -%}
+                  <div class="faq-question hidden" {{ custom_attributes }}>
+                    <input
+                      type="radio"
+                      id="FAQ-{{ faq.system.handle }}-{{ forloop.index0 }}"
+                      name="faq_question"
+                      value="{{ faq.system.handle }}"
+                      class="hidden"
+                    >
+                    <label
+                      for="FAQ-{{ faq.system.handle }}-{{ forloop.index0 }}"
+                      class="h6-regular"
+                      data-type="{{ faq.system.handle }}"
+                    >
+                      {{- faq.question.value -}}
+                    </label>
+                  </div>
+                {%- endfor -%}
+              </div>
+
+              <div class="md:hidden">
+                <select class="button--pills text-2-medium w-full">
+                  {%- for faq in shop.metaobjects.faqs.values -%}
+                    <option
+                      class="faq-question hidden"
+                      value="{{ faq.system.handle }}"
+                      data-type="{{ faq.type.value | handleize }}"
+                    >
+                      {{ faq.question.value }}
+                    </option>
+                  {%- endfor -%}
+                </select>
+              </div>
+            </div>
+          </fieldset>
+        </div>
+        <div class="faq-answers container-fluid">
+          {%- for faq in shop.metaobjects.faqs.values -%}
+            <div class="faq-answer hidden flex flex-col gap-6 md:gap-[30px]" data-handle="{{ faq.system.handle }}">
+              {% render 'c-title', content: faq.question.value, custom_tag: 'h4' %}
+              {%- if faq.show_country_selector -%}
+                {% render 'faq-countries', field: faq.country_selector_field %}
+              {%- else -%}
+                {%- assign answer = faq.answer | metafield_tag -%}
+                {% render 'c-richtext', content: answer, classes: 'flex flex-col gap-6' %}
+              {%- endif -%}
+            </div>
+          {%- endfor -%}
+          {{ customer_service }}
+        </div>
+      </div>
+
+      <div id="FAQs-empty-wrapper" class="md:container !hidden py-[50px]">
+        <div class="flex flex-col gap-y-4 items-center justify-center h-full">
+          {% render 'c-title',
+            translatable_content: 'sections.page-faqs.no_results.no_results_title',
+            custom_tag: 'h4'
+          %}
+          {% render 'c-text',
+            translatable_content: 'sections.page-faqs.no_results.no_results_subtitle',
+            type: 'text-2-regular'
+          %}
+          {{ customer_service }}
+        </div>
+      </div>
+    </div>
+  </div>
+</faq-section>
+
+{% schema %}
+{
+  "name": "t:sections.page-faqs.name",
+  "tag": "section",
+  "class": "section-page-faqs",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.heading_tag.label",
+      "id": "heading_tag",
+      "default": "h4",
+      "options": [
+        {
+          "value": "h1",
+          "label": "t:sections.all.heading_tag.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.heading_tag.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.heading_tag.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.heading_tag.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.heading_tag.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.heading_tag.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_size.label",
+      "id": "font_size",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_size.options.default"
+        },
+        {
+          "value": "paragraph-1",
+          "label": "t:sections.all.font_size.options.paragraph"
+        },
+        {
+          "value": "h1",
+          "label": "t:sections.all.font_size.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.font_size.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.font_size.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.font_size.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.font_size.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.font_size.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_weight.label",
+      "id": "font_weight",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_weight.options.default"
+        },
+        {
+          "value": "!font-thin",
+          "label": "t:sections.all.font_weight.options.thin"
+        },
+        {
+          "value": "!font-light",
+          "label": "t:sections.all.font_weight.options.light"
+        },
+        {
+          "value": "!font-normal",
+          "label": "t:sections.all.font_weight.options.normal"
+        },
+        {
+          "value": "!font-medium",
+          "label": "t:sections.all.font_weight.options.medium"
+        },
+        {
+          "value": "!font-semibold",
+          "label": "t:sections.all.font_weight.options.semibold"
+        },
+        {
+          "value": "!font-bold",
+          "label": "t:sections.all.font_weight.options.bold"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "italic_header_text",
+      "label": "t:sections.all.italic_header_text.label",
+      "default": false
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.page-faqs.name"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,55 @@
+{%- comment -%}
+  Renders the top-level menu links that should sit next to the header icons on the
+  widths where the inline menu would otherwise run under the centred logo. The links
+  are matched against the menu by title, so the URL, active state and any translation
+  keep coming from the navigation set in the admin, and they are output in the order
+  they are listed in the setting.
+
+  The matching links stay in the inline menu too - `desktop-menu` flags them with
+  `header__menu-item--beside-icons` and the header stylesheet swaps which copy is
+  visible at the chosen width.
+
+  Accepts:
+  - menu: {Object} Linklist to pull the links from
+  - titles: {String} Comma separated top-level link titles, in the order to render them
+
+  Usage:
+  {% render 'header-menu-beside-icons', menu: section.settings.menu, titles: section.settings.menu_links_beside_icons %}
+{%- endcomment -%}
+
+{%- if menu != blank and titles != blank -%}
+  {%- assign beside_icons_titles = titles | split: ',' -%}
+  <nav class="header__inline-menu header__inline-menu--beside-icons">
+    <ul class="list-menu list-menu--inline" role="list">
+      {%- for beside_icons_title in beside_icons_titles -%}
+        {%- assign beside_icons_handle = beside_icons_title | strip | handle -%}
+        {%- if beside_icons_handle == blank -%}
+          {% continue %}
+        {%- endif -%}
+
+        {%- for link in menu.links -%}
+          {%- assign link_handle = link.title | handle -%}
+          {%- if link_handle != beside_icons_handle -%}
+            {% continue %}
+          {%- endif -%}
+
+{%- comment -%} Wholesale_Club_Product_Visibility_For_Loop Start {%- endcomment -%}
+{%- capture hide_resource -%}{% render "wc_product_visibility", resource: link %}{%- endcapture -%}
+{%- if hide_resource == "true" -%}
+  {% break %}
+{%- endif -%}
+{%- comment -%} Wholesale_Club_Product_Visibility_For_Loop End {%- endcomment -%}
+
+          <li>
+            <dropdown-menu>
+              <a href="{{ link.url }}" class="header__menu-item{% if link.current or link.child_active %} header__active-menu-item{% endif %} header__menu-item--top list-menu__item focus-inset"{% if link.current %} aria-current="page"{% endif %}>
+                <span class="label">{{ link.title | escape }}</span>
+              </a>
+            </dropdown-menu>
+          </li>
+          {%- break -%}
+        {%- endfor -%}
+      {%- endfor -%}
+    </ul>
+  </nav>
+{%- endif -%}

@@ -1,0 +1,368 @@
+{%- liquid
+  assign has_heading = false
+  if section.settings.heading_line_one != blank or section.settings.heading_line_two != blank
+    assign has_heading = true
+  endif
+
+  assign has_primary_button = false
+  if section.settings.primary_button_label != blank
+    assign has_primary_button = true
+  endif
+
+  assign has_secondary_button = false
+  if section.settings.secondary_button_label != blank
+    assign has_secondary_button = true
+  endif
+
+  # Same-page section links: "#donation_locator" (section ID in the template) → "#shopify-section-template--<id>__donation_locator".
+  # The template prefix is read from this section's own id at render time, so links keep working after a theme change.
+  assign template_section_prefix = section.id | split: '__' | first
+
+  assign primary_button_href = section.settings.primary_button_link
+  assign primary_target_section_id = ''
+  assign primary_link_start = primary_button_href | slice: 0
+  if primary_link_start == '#' and primary_button_href.size > 1
+    unless primary_button_href contains 'shopify-section-'
+      assign primary_section_key = primary_button_href | remove_first: '#'
+      assign primary_target_section_id = 'shopify-section-' | append: template_section_prefix | append: '__' | append: primary_section_key
+      assign primary_button_href = '#' | append: primary_target_section_id
+    endunless
+  endif
+
+  assign secondary_button_href = section.settings.secondary_button_link
+  assign secondary_target_section_id = ''
+  assign secondary_link_start = secondary_button_href | slice: 0
+  if secondary_link_start == '#' and secondary_button_href.size > 1
+    unless secondary_button_href contains 'shopify-section-'
+      assign secondary_section_key = secondary_button_href | remove_first: '#'
+      assign secondary_target_section_id = 'shopify-section-' | append: template_section_prefix | append: '__' | append: secondary_section_key
+      assign secondary_button_href = '#' | append: secondary_target_section_id
+    endunless
+  endif
+-%}
+
+{%- style -%}
+  #shopify-section-{{ section.id }} .custom-centered-hero {
+    --centered-hero-background: {{ section.settings.background_color }};
+    --centered-hero-content-max-width: {{ section.settings.content_max_width }}px;
+    --centered-hero-heading-color: {{ section.settings.heading_color }};
+    --centered-hero-heading-weight: {{ section.settings.heading_font_weight }};
+    --centered-hero-heading-size: {{ section.settings.heading_font_size_mobile }}px;
+    --centered-hero-heading-spacing: {{ section.settings.heading_spacing }}px;
+    --centered-hero-text-color: {{ section.settings.text_color }};
+    --centered-hero-text-size: {{ section.settings.text_font_size_mobile }}px;
+    --centered-hero-button-background: {{ section.settings.button_background }};
+    --centered-hero-button-text-color: {{ section.settings.button_text_color }};
+    --centered-hero-button-radius: {{ section.settings.button_radius }}px;
+    --centered-hero-padding-top: {{ section.settings.padding_top_mobile }}px;
+    --centered-hero-padding-bottom: {{ section.settings.padding_bottom_mobile }}px;
+  }
+
+  @media screen and (min-width: 750px) {
+    #shopify-section-{{ section.id }} .custom-centered-hero {
+      --centered-hero-heading-size: {{ section.settings.heading_font_size_desktop }}px;
+      --centered-hero-text-size: {{ section.settings.text_font_size_desktop }}px;
+      --centered-hero-padding-top: {{ section.settings.padding_top_desktop }}px;
+      --centered-hero-padding-bottom: {{ section.settings.padding_bottom_desktop }}px;
+    }
+  }
+
+  {%- comment -%} Keep jump-link targets clear of the sticky header {%- endcomment -%}
+  {%- if primary_target_section_id != blank -%}
+    #{{ primary_target_section_id }} { scroll-margin-top: 74px; }
+  {%- endif -%}
+  {%- if secondary_target_section_id != blank -%}
+    #{{ secondary_target_section_id }} { scroll-margin-top: 74px; }
+  {%- endif -%}
+{%- endstyle -%}
+
+{{ 'section-custom-centered-hero.css' | asset_url | stylesheet_tag }}
+
+<div class="custom-centered-hero">
+  <div class="page-width">
+    <div class="custom-centered-hero__content">
+      {%- if has_heading -%}
+        <{{ section.settings.heading_tag }} class="custom-centered-hero__heading">
+          {%- if section.settings.heading_line_one != blank -%}
+            <span class="custom-centered-hero__heading-line">{{ section.settings.heading_line_one }}</span>
+          {%- endif -%}
+          {%- if section.settings.heading_line_two != blank -%}
+            <span class="custom-centered-hero__heading-line">{{ section.settings.heading_line_two }}</span>
+          {%- endif -%}
+        </{{ section.settings.heading_tag }}>
+      {%- endif -%}
+
+      {%- if section.settings.text != blank -%}
+        <div class="custom-centered-hero__text">{{ section.settings.text }}</div>
+      {%- endif -%}
+
+      {%- if has_primary_button or has_secondary_button -%}
+        <div class="custom-centered-hero__buttons">
+          {%- if has_primary_button -%}
+            <a
+              class="custom-centered-hero__button"
+              {% if primary_button_href != blank %}
+                href="{{ primary_button_href }}"
+              {% else %}
+                role="link" aria-disabled="true"
+              {% endif %}
+            >
+              {{- section.settings.primary_button_label | escape -}}
+            </a>
+          {%- endif -%}
+          {%- if has_secondary_button -%}
+            <a
+              class="custom-centered-hero__button"
+              {% if secondary_button_href != blank %}
+                href="{{ secondary_button_href }}"
+              {% else %}
+                role="link" aria-disabled="true"
+              {% endif %}
+            >
+              {{- section.settings.secondary_button_label | escape -}}
+            </a>
+          {%- endif -%}
+        </div>
+      {%- endif -%}
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Custom centered hero",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Heading"
+    },
+    {
+      "type": "inline_richtext",
+      "id": "heading_line_one",
+      "label": "Heading line 1",
+      "default": "Comfort + Confidence"
+    },
+    {
+      "type": "inline_richtext",
+      "id": "heading_line_two",
+      "label": "Heading line 2",
+      "default": "Should Be <em>Within</em> Reach",
+      "info": "Use italic / bold formatting for emphasis."
+    },
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "Heading tag",
+      "options": [
+        { "value": "h1", "label": "H1" },
+        { "value": "h2", "label": "H2" },
+        { "value": "div", "label": "div" }
+      ],
+      "default": "h1"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#00b3e4"
+    },
+    {
+      "type": "select",
+      "id": "heading_font_weight",
+      "label": "Heading font weight",
+      "options": [
+        { "value": "400", "label": "Regular" },
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semibold" },
+        { "value": "700", "label": "Bold" }
+      ],
+      "default": "600"
+    },
+    {
+      "type": "range",
+      "id": "heading_font_size_desktop",
+      "label": "Heading size (desktop)",
+      "min": 24,
+      "max": 72,
+      "step": 1,
+      "unit": "px",
+      "default": 48
+    },
+    {
+      "type": "range",
+      "id": "heading_font_size_mobile",
+      "label": "Heading size (mobile)",
+      "min": 20,
+      "max": 48,
+      "step": 1,
+      "unit": "px",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "heading_spacing",
+      "label": "Space below heading",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "header",
+      "content": "Text"
+    },
+    {
+      "type": "richtext",
+      "id": "text",
+      "label": "Text",
+      "default": "<p>Every woman deserves access to solutions that help her feel <strong>comfortable, confident,</strong> and <strong><em>more</em> like herself</strong>.</p><p>That’s why we partner with organizations across the U.S. to donate Honey Cloudz breast forms, balancing solutions, and inserts to women who may otherwise have difficulty accessing them.</p>"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#212326"
+    },
+    {
+      "type": "range",
+      "id": "text_font_size_desktop",
+      "label": "Text size (desktop)",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "text_font_size_mobile",
+      "label": "Text size (mobile)",
+      "min": 12,
+      "max": 22,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "header",
+      "content": "Buttons"
+    },
+    {
+      "type": "paragraph",
+      "content": "To jump to a section on this page, enter # + the section's ID from the page template, e.g. #donation_locator. It keeps working after a theme change."
+    },
+    {
+      "type": "text",
+      "id": "primary_button_label",
+      "label": "First button label",
+      "default": "Find Support"
+    },
+    {
+      "type": "url",
+      "id": "primary_button_link",
+      "label": "First button link"
+    },
+    {
+      "type": "text",
+      "id": "secondary_button_label",
+      "label": "Second button label",
+      "default": "Partner With Us"
+    },
+    {
+      "type": "url",
+      "id": "secondary_button_link",
+      "label": "Second button link"
+    },
+    {
+      "type": "color",
+      "id": "button_background",
+      "label": "Button background",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button text",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "button_radius",
+      "label": "Button corner radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background",
+      "default": "#fdf7f4"
+    },
+    {
+      "type": "range",
+      "id": "content_max_width",
+      "label": "Content max width",
+      "min": 480,
+      "max": 1200,
+      "step": 20,
+      "unit": "px",
+      "default": 820
+    },
+    {
+      "type": "range",
+      "id": "padding_top_desktop",
+      "label": "Padding top (desktop)",
+      "min": 0,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "default": 80
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_desktop",
+      "label": "Padding bottom (desktop)",
+      "min": 0,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "default": 80
+    },
+    {
+      "type": "range",
+      "id": "padding_top_mobile",
+      "label": "Padding top (mobile)",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 48
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_mobile",
+      "label": "Padding bottom (mobile)",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 48
+    }
+  ],
+  "presets": [
+    {
+      "name": "Custom centered hero"
+    }
+  ]
+}
+{% endschema %}

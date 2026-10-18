@@ -1,0 +1,667 @@
+<div class="color-{{ section.settings.color_scheme }}">
+  <article
+    class="flex flex-col items-center gap-y-10 lg:gap-y-16"
+    itemscope
+    itemtype="http://schema.org/BlogPosting"
+  >
+    <div class="container-lg grid items-center grid-cols-1 lg:grid-cols-2 lg:gap-x-20 space-y-6">
+      <div class="lg:flex-1 pt-6">
+        <div class="space-y-6 lg:space-y-[30px]">
+          <!-- TAGS -->
+          <div class="flex items-center flex-wrap gap-1.5">
+            {% assign blog_category = article.metafields.custom.blog_category %}
+            {% if blog_category != blank %}
+              <span
+                style="--text: {{blog_category.value.label_text_color}}; --bg: {{blog_category.value.label_color}}"
+                class="py-1 px-2 border border-[var(--bg)] text-[var(--text)] bg-[var(--bg)] text-xs text-medium h-fit w-fit rounded-full whitespace-nowrap"
+              >
+                {{- blog_category.value.blog_name -}}
+              </span>
+            {% endif %}
+            {% for tag in article.tags %}
+              {% assign tag_lower = tag | downcase %}
+
+              {% unless tag_lower contains 'product_' %}
+                {% assign tag_edit = tag | replace: 'guides_', '' %}
+
+                <a
+                  class="py-1 px-2 border border-foreground text-foreground text-xs text-medium h-fit w-fit rounded-full whitespace-nowrap"
+                  href="{{ blog.url }}/tagged/{{ tag | handleize }}"
+                >
+                  {{- tag_edit -}}
+                </a>
+              {% endunless %}
+
+            {% endfor %}
+          </div>
+
+          <!-- TITLE -->
+          {% for block in section.blocks %}
+            {% if block.type == 'article_title' %}
+              {% liquid
+                assign heading_tag = block.settings.heading_tag
+                assign font_size = block.settings.font_size
+                assign font_weight = block.settings.font_weight
+                assign heading_type = font_size | append: ' ' | append: font_weight
+                assign italic_header_text = block.settings.italic_header_text
+                if italic_header_text
+                  assign heading_type = heading_type | append: ' !italic'
+                endif
+              %}
+              {% render 'c-title', content: article.title, custom_tag: heading_tag, type: heading_type %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+
+          <!-- EXCERPT -->
+          {% for block in section.blocks %}
+            {% if block.type == 'article_excerpt' %}
+              {% render 'c-text', content: article.excerpt, classes: 'text-base max-w-prose' %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+
+          <!-- AUTHOR AND PUBLISHED DATE -->
+          {% if section.settings.enable_author == true or section.settings.enable_published_date == true %}
+            <div class="flex items-center">
+              {% for block in section.blocks %}
+                {% if block.type == 'article_author' %}
+                  {% if article.user.name %}
+                    <span class="font-medium">
+                      {{ article.user.name }}
+                    </span>
+                  {% endif %}
+                  {% break %}
+                {% endif %}
+              {% endfor %}
+              {% for block in section.blocks %}
+                {% if block.type == 'article_published_date' %}
+                  <span class="font-normal text-grey-600">{{ article.published_at | date: '%B %d, %Y' }}</span>
+                  {% break %}
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- IMAGE -->
+      {% for block in section.blocks %}
+        {% if block.type == 'featured_image' %}
+          {%- assign image_height = 'h-80' -%}
+          {%- case block.settings.image_height -%}
+            {%- when 'auto' -%}
+              {%- assign image_height = image_height | append: ' md:h-auto' -%}
+            {%- when 'small' -%}
+              {%- assign image_height = image_height | append: ' md:h-96' -%}
+
+            {%- when 'medium' -%}
+              {%- assign image_height = image_height | append: ' md:h-128' -%}
+
+            {%- when 'large' -%}
+              {%- assign image_height = image_height | append: ' md:h-[650px]' -%}
+          {%- endcase -%}
+          <div class="md:flex-1" itemprop="image">
+            {% render 'c-image', image: article.image, classes: image_height %}
+          </div>
+          {% break %}
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <!-- CONTENT WITH TABLE OF CONTENTS -->
+    {%- for block in section.blocks -%}
+      {%- if block.type == 'article_content' -%}
+        <div class="container-fluid w-full">
+          <div class="blog-toc-layout flex items-start gap-8 relative">
+
+            <!-- ARTICLE BODY -->
+            <div class="blog__content blog-page-max-width flex-1 min-w-0">
+              {{ article.content }}
+            </div>
+
+            <!-- TABLE OF CONTENTS SIDEBAR -->
+            <aside class="toc-sidebar xl:block w-72 shrink-0">
+              <div
+                id="toc-container"
+                class="sticky top-24 border border-gray-200 rounded-xl p-5 bg-white max-h-[80vh] overflow-y-auto shadow-sm"
+              >
+                <p class="font-semibold text-sm mb-4 text-gray-900">{{ 'blog.table_of_contents_headline' | t }}</p>
+                <nav id="toc-nav" aria-label="Table of contents"></nav>
+              </div>
+            </aside>
+
+          </div>
+        </div>
+        {% break %}
+      {%- endif -%}
+    {%- endfor -%}
+
+    <style>
+      #toc-nav a {
+        display: block;
+        font-size: 0.8125rem;
+        line-height: 1.5;
+        color: rgba(var(--color-foreground));
+        text-decoration: none;
+        padding: 3px 0;
+        border-left: 2px solid transparent;
+        padding-left: 8px;
+        transition: color 0.15s, border-color 0.15s;
+      }
+      #toc-nav a:hover { color: rgba(var(--color-foreground)); }
+      #toc-nav a[data-level="2"] { padding-left: 8px;  font-weight: 600; }
+      #toc-nav a[data-level="3"] { padding-left: 20px; }
+      #toc-nav a[data-level="4"] { padding-left: 32px; }
+      #toc-nav a[data-level="5"] { padding-left: 44px; }
+      #toc-nav a[data-level="6"] { padding-left: 56px; }
+      #toc-nav a.toc-active {
+        color: rgba(var(--color-foreground));
+        border-left-color: rgba(var(--color-foreground));
+        font-weight: 600;
+      }
+      @media screen and (max-width: 989px) {
+        .blog-toc-layout.flex.items-start.gap-8.relative {
+          flex-direction: column-reverse;
+        }
+        aside.toc-sidebar{
+          width: 100%;
+        }
+      }
+    </style>
+
+    <script>
+      (function () {
+        document.addEventListener('DOMContentLoaded', function () {
+          var content = document.querySelector('.blog__content');
+          var nav     = document.getElementById('toc-nav');
+          var sidebar = document.getElementById('toc-container');
+
+          if (!content || !nav) return;
+
+          var headings = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+
+          if (headings.length === 0) {
+            if (sidebar) sidebar.style.display = 'none';
+            return;
+          }
+
+          // Auto-assign IDs to headings that don't have one
+          var slugCount = {};
+          headings.forEach(function (h) {
+            if (!h.id) {
+              var slug = h.textContent.trim().toLowerCase()
+                .replace(/[^\w\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-');
+              slugCount[slug] = (slugCount[slug] || 0) + 1;
+              h.id = slugCount[slug] > 1 ? slug + '-' + slugCount[slug] : slug;
+            }
+          });
+
+          // Build TOC links
+          var fragment = document.createDocumentFragment();
+          headings.forEach(function (h) {
+            var level = parseInt(h.tagName.charAt(1), 10);
+            var a = document.createElement('a');
+            a.href = '#' + h.id;
+            a.textContent = h.textContent.trim();
+            a.dataset.level = level;
+            a.dataset.id = h.id;
+            fragment.appendChild(a);
+          });
+          nav.appendChild(fragment);
+
+          // Smooth scroll on click
+          nav.addEventListener('click', function (e) {
+            var link = e.target.closest('a');
+            if (!link) return;
+            e.preventDefault();
+            var target = document.getElementById(link.dataset.id);
+            if (target) {
+              var offset = 96; // adjust to match your sticky header height
+              var top = target.getBoundingClientRect().top + window.scrollY - offset;
+              window.scrollTo({ top: top, behavior: 'smooth' });
+            }
+          });
+
+          // Highlight active section on scroll
+          var allLinks = Array.from(nav.querySelectorAll('a'));
+          function onScroll() {
+            var scrollY = window.scrollY;
+            var offset = 120;
+            var current = null;
+            headings.forEach(function (h) {
+              if (h.getBoundingClientRect().top + window.scrollY - offset <= scrollY) {
+                current = h.id;
+              }
+            });
+            allLinks.forEach(function (a) {
+              a.classList.toggle('toc-active', a.dataset.id === current);
+            });
+          }
+          window.addEventListener('scroll', onScroll, { passive: true });
+          onScroll();
+        });
+      })();
+    </script>
+
+    <!-- IMAGE GRID -->
+    {% if section.blocks.size > 0 %}
+      <div class="w-full flex md:flex-nowrap flex-wrap justify-center gap-4">
+        {% for block in section.blocks %}
+          {% if block.type == 'image_grid' %}
+            {% liquid
+              assign block_settings = block.settings
+            %}
+            {% style %}
+              .grid_text {
+                min-height: 72px;
+              }
+            {% endstyle %}
+
+            {% for i in (1..3) %}
+              {% assign image_key = 'image_' | append: i %}
+              {% assign text_key = 'text_' | append: i %}
+              {% assign link_key = 'link_' | append: i %}
+              {% assign grid_text_key = 'grid_text_' | append: i %}
+
+              {% assign image = block_settings[image_key] %}
+              {% assign text = block_settings[text_key] %}
+              {% assign link = block_settings[link_key] %}
+              {% assign grid_text = block_settings[grid_text_key] %}
+
+              {% if image != blank %}
+                <div class="wrapper flex flex-col justify-center max-w-xs w-full">
+                  <a
+                    href="{{ link }}"
+                    class="image_wrapper aspect-square flex flex-1 mx-auto my-0 justify-center items-center w-full relative overflow-hidden"
+                  >
+                    {% render 'c-image',
+                      image: image,
+                      alt: text,
+                      classes: 'object-cover h-full w-full mh-full mw-full align-top absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'
+                    %}
+                  </a>
+                  <div class="flex flex-col">
+                    {% render 'c-text', custom_tag: 'h3', content: text, classes: 'text-center text-xl py-4 px-0' %}
+                    <div class="grid_text">
+                      {% render 'c-richtext', classes: 'truncate-3 max-w-full w-full', content: grid_text %}
+                    </div>
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- RELATED ARTICLES -->
+    {% paginate blog.articles by 10 %}
+      {%- if blog.articles.size > 0 and section.settings.hide_you_might_also_like -%}
+        <div class="container-fluid--l">
+          {% render 'c-title', translatable_content: 'blog.might_like', custom_tag: 'h2', classes: 'sm:text-7xl ' %}
+          <div class="sm:flex sm:gap-4 sm:overflow-x-auto mt-6 sm:mt-6 pb-4">
+            {%- for article in blog.articles limit: 10 -%}
+              <div class="sm:shrink-0 w-3/4 md:w-[30%] bg-grey-100">
+                {% render 'card-article',
+                  article: article,
+                  image_height: 'w-full h-44 sm:h-96',
+                  text_size: 'text-base sm:text-7xl'
+                %}
+              </div>
+            {%- endfor -%}
+          </div>
+        </div>
+      {%- endif -%}
+    {% endpaginate %}
+  </article>
+</div>
+{% render 'divider',
+  height: section.settings.margin_bottom,
+  custom: section.settings.margin_bottom_custom,
+  color_scheme: section.settings.color_scheme
+%}
+
+<script type="application/ld+json">
+  {
+    "@context": "http://schema.org",
+    "@type": "BlogPosting",
+    "headline": {{ article.title | json }},
+    "articleBody": {{ article.content | strip_html | json }},
+    {% if article.excerpt != blank %}
+      "description": {{ article.excerpt | strip_html | json }},
+      {% endif %}
+      {% if article.image %}
+        "image" : [{{ article.image | image_url: width: 240, height: 240 | prepend: 'https:' | json }}],
+        {% endif %}
+        "datePublished": {{ article.published_at | date: format: "default" | json }},
+        "dateCreated": {{ article.created_at | date: format: "default" | json }},
+        "author": {
+          "@type": "Person",
+          "name": {{ article.author | json }}
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": {{ shop.name | json }}
+        }
+      }
+</script>
+
+{% schema %}
+{
+  "name": "t:sections.main-article.name",
+  "class": "section-main-article",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_author",
+      "default": true,
+      "label": "t:sections.main-article.settings.enable_author.label"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_published_date",
+      "default": true,
+      "label": "t:sections.main-article.settings.enable_published_date.label"
+    },
+    {
+      "type": "checkbox",
+      "id": "hide_you_might_also_like",
+      "default": false,
+      "label": "t:sections.main-article.settings.might_also_like.label"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.all.margin.heading"
+    },
+    {
+      "type": "select",
+      "id": "margin_bottom",
+      "label": "t:sections.all.margin.margin_bottom.label",
+      "options": [
+        {
+          "label": "t:sections.all.margin.margin_bottom.none",
+          "value": "none"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.small",
+          "value": "small"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.normal",
+          "value": "normal"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.large",
+          "value": "large"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.custom.label",
+          "value": "custom"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "default": 16,
+      "step": 1,
+      "label": "t:sections.all.margin.margin_bottom.custom.value",
+      "visible_if": "{{ section.settings.margin_bottom == 'custom' }}",
+      "unit": "px",
+      "id": "margin_bottom_custom"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "article_title",
+      "name": "t:sections.main-article.blocks.article_title.name",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "select",
+          "label": "t:sections.all.heading_tag.label",
+          "id": "heading_tag",
+          "default": "h3",
+          "options": [
+            {
+              "value": "h1",
+              "label": "t:sections.all.heading_tag.options.h1"
+            },
+            {
+              "value": "h2",
+              "label": "t:sections.all.heading_tag.options.h2"
+            },
+            {
+              "value": "h3",
+              "label": "t:sections.all.heading_tag.options.h3"
+            },
+            {
+              "value": "h4",
+              "label": "t:sections.all.heading_tag.options.h4"
+            },
+            {
+              "value": "h5",
+              "label": "t:sections.all.heading_tag.options.h5"
+            },
+            {
+              "value": "h6",
+              "label": "t:sections.all.heading_tag.options.h6"
+            }
+          ]
+        },
+        {
+          "type": "select",
+          "label": "t:sections.all.font_size.label",
+          "id": "font_size",
+          "default": "",
+          "options": [
+            {
+              "value": "",
+              "label": "t:sections.all.font_size.options.default"
+            },
+            {
+              "value": "paragraph-1",
+              "label": "t:sections.all.font_size.options.paragraph"
+            },
+            {
+              "value": "h1",
+              "label": "t:sections.all.font_size.options.h1"
+            },
+            {
+              "value": "h2",
+              "label": "t:sections.all.font_size.options.h2"
+            },
+            {
+              "value": "h3",
+              "label": "t:sections.all.font_size.options.h3"
+            },
+            {
+              "value": "h4",
+              "label": "t:sections.all.font_size.options.h4"
+            },
+            {
+              "value": "h5",
+              "label": "t:sections.all.font_size.options.h5"
+            },
+            {
+              "value": "h6",
+              "label": "t:sections.all.font_size.options.h6"
+            }
+          ]
+        },
+        {
+          "type": "select",
+          "label": "t:sections.all.font_weight.label",
+          "id": "font_weight",
+          "default": "",
+          "options": [
+            {
+              "value": "",
+              "label": "t:sections.all.font_weight.options.default"
+            },
+            {
+              "value": "!font-thin",
+              "label": "t:sections.all.font_weight.options.thin"
+            },
+            {
+              "value": "!font-light",
+              "label": "t:sections.all.font_weight.options.light"
+            },
+            {
+              "value": "!font-normal",
+              "label": "t:sections.all.font_weight.options.normal"
+            },
+            {
+              "value": "!font-medium",
+              "label": "t:sections.all.font_weight.options.medium"
+            },
+            {
+              "value": "!font-semibold",
+              "label": "t:sections.all.font_weight.options.semibold"
+            },
+            {
+              "value": "!font-bold",
+              "label": "t:sections.all.font_weight.options.bold"
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "id": "italic_header_text",
+          "label": "t:sections.all.italic_header_text.label",
+          "default": false
+        }
+      ]
+    },
+    {
+      "type": "article_excerpt",
+      "name": "t:sections.main-article.blocks.article_excerpt.name",
+      "limit": 1
+    },
+    {
+      "type": "article_author",
+      "name": "t:sections.main-article.blocks.article_author.name",
+      "limit": 1
+    },
+    {
+      "type": "article_published_date",
+      "name": "t:sections.main-article.blocks.article_published_date.name",
+      "limit": 1
+    },
+    {
+      "type": "featured_image",
+      "name": "t:sections.main-article.blocks.featured_image.name",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "select",
+          "id": "image_height",
+          "label": "t:sections.main-article.blocks.featured_image.settings.image_height.label",
+          "options": [
+            {
+              "value": "auto",
+              "label": "t:sections.main-article.blocks.featured_image.settings.image_height.options.auto.label"
+            },
+            {
+              "value": "small",
+              "label": "t:sections.main-article.blocks.featured_image.settings.image_height.options.small.label"
+            },
+            {
+              "value": "medium",
+              "label": "t:sections.main-article.blocks.featured_image.settings.image_height.options.medium.label"
+            },
+            {
+              "value": "large",
+              "label": "t:sections.main-article.blocks.featured_image.settings.image_height.options.large.label"
+            }
+          ],
+          "default": "medium"
+        }
+      ]
+    },
+    {
+      "type": "image_grid",
+      "name": "t:sections.main-article.blocks.image_grid.name",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "image_1",
+          "label": "t:sections.main-article.blocks.image_grid.settings.image_1.label"
+        },
+        {
+          "type": "text",
+          "id": "text_1",
+          "label": "t:sections.main-article.blocks.image_grid.settings.text_1.label"
+        },
+        {
+          "type": "url",
+          "id": "link_1",
+          "label": "t:sections.main-article.blocks.image_grid.settings.link_1.label"
+        },
+        {
+          "type": "richtext",
+          "id": "grid_text_1",
+          "label": "t:sections.main-article.blocks.image_grid.settings.grid_text_1.label"
+        },
+        {
+          "type": "image_picker",
+          "id": "image_2",
+          "label": "t:sections.main-article.blocks.image_grid.settings.image_2.label"
+        },
+        {
+          "type": "text",
+          "id": "text_2",
+          "label": "t:sections.main-article.blocks.image_grid.settings.text_2.label"
+        },
+        {
+          "type": "url",
+          "id": "link_2",
+          "label": "t:sections.main-article.blocks.image_grid.settings.link_2.label"
+        },
+        {
+          "type": "richtext",
+          "id": "grid_text_2",
+          "label": "t:sections.main-article.blocks.image_grid.settings.grid_text_2.label"
+        },
+        {
+          "type": "image_picker",
+          "id": "image_3",
+          "label": "t:sections.main-article.blocks.image_grid.settings.image_3.label"
+        },
+        {
+          "type": "text",
+          "id": "text_3",
+          "label": "t:sections.main-article.blocks.image_grid.settings.text_3.label"
+        },
+        {
+          "type": "url",
+          "id": "link_3",
+          "label": "t:sections.main-article.blocks.image_grid.settings.link_3.label"
+        },
+        {
+          "type": "richtext",
+          "id": "grid_text_3",
+          "label": "t:sections.main-article.blocks.image_grid.settings.grid_text_3.label"
+        }
+      ]
+    },
+    {
+      "type": "article_content",
+      "name": "t:sections.main-article.blocks.article_content.name",
+      "limit": 1
+    }
+  ]
+}
+{% endschema %}

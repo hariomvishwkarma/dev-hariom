@@ -1,0 +1,500 @@
+{% liquid
+  assign color_scheme = section.settings.color_scheme
+  assign section_header = section.settings.header
+  assign heading_tag = section.settings.heading_tag
+  assign font_size = section.settings.font_size
+  assign font_weight = section.settings.font_weight
+  assign heading_type = font_size | append: ' ' | append: font_weight
+  assign italic_header_text = section.settings.italic_header_text
+  if italic_header_text
+    assign heading_type = heading_type | append: ' !italic'
+  endif
+  assign description = section.settings.description
+  assign leaflet_value = product.metafields.custom.leaflet.value.section.value
+
+  assign all_blocks_empty = true
+  for block in section.blocks
+    assign dropdown_content = false
+    for i in (1..3)
+      assign index = forloop.index
+      assign icon = 'dropdown_icon_' | append: index
+      assign text = 'dropdown_text_' | append: index
+      assign content_header = 'dropdown_header_' | append: index
+      if block.settings[icon] != blank or block.settings[text] != blank or block.settings[content_header] != blank
+        assign dropdown_content = true
+      endif
+    endfor
+    if block.settings.dropdown_title != blank
+      if leaflet_value != blank or dropdown_content != blank
+        assign all_blocks_empty = false
+      endif
+    endif
+  endfor
+%}
+{%- unless all_blocks_empty -%}
+  <div class="color-{{ color_scheme }} flex md:flex-row flex-col-reverse w-full gap-0 md:gap-[60px] {% if section.settings.full_width_section == false %}image-section-grid max-w-[96rem] my-24 mx-auto{% endif %}">
+    <div class="w-full md:w-1/2">
+      <div class="container-fluid">
+        <div class="flex flex-col py-6 md:pb-[60px]">
+          {%- if section_header != blank -%}
+            {% render 'c-title', content: section_header, custom_tag: heading_tag, type: heading_type %}
+          {%- endif -%}
+          {%- if description != blank -%}
+            {% render 'c-richtext', content: description, classes: 'pt-5 paragraph-1' %}
+          {%- endif -%}
+        </div>
+        {%- for block in section.blocks -%}
+          {%- assign dropdown_title = block.settings.dropdown_title -%}
+          {%- if section.settings.open_first_accordion and forloop.index == 1 -%}
+            {% assign open_on_load = true %}
+          {%- else -%}
+            {% assign open_on_load = false %}
+          {%- endif -%}
+
+          {%- capture block_text_content -%}
+            {%- assign section_has_icons = false -%}
+            {%- if block.settings.dropdown_icon_1 != blank or block.settings.dropdown_icon_2 != blank or block.settings.dropdown_icon_3 != blank -%} 
+              {%- assign section_has_icons = true -%}
+            {%- endif -%}
+            <div class="flex flex-col gap-6 dropdown-content">
+              {%- assign dropdown_content = false -%}
+              {%- for i in (1..3) -%}
+                {% liquid
+                  assign index = forloop.index
+                  assign icon = 'dropdown_icon_' | append: index
+                  assign text = 'dropdown_text_' | append: index
+                  assign content_header = 'dropdown_header_' | append: index
+                  if block.settings[icon] != blank or block.settings[text] != blank or block.settings[content_header] != blank
+                    assign dropdown_content = true
+                  endif
+                %}
+                {%- if block.settings[icon] != blank or block.settings[text] != blank -%}
+                  <div class="flex flex-row gap-3">
+                    {%- if block.settings[icon] != blank -%} 
+                      {% render 'c-image', image: block.settings[icon], classes: 'min-w-[22px] min-h-[22px] h-[22px] w-[22px]', image_fit: 'contain' %}
+                    {%- elsif section_has_icons -%}
+                      <span class="h-[22px] w-[22px]"></span>
+                    {%- endif -%}
+                    {%- if block.settings[text] != blank or block.settings[content_header] != blank -%}
+                      <span class="flex flex-col">
+                        {% render 'c-richtext', content: block.settings[content_header], classes: 'text-base content-header pb-1.5' %}
+                        {% render 'c-richtext', content: block.settings[text], classes: 'paragraph-3 flex flex-col gap-3.5' %}
+                      </span>
+                    {%- endif -%}
+                  </div>
+                {%- endif -%}
+              {%- endfor -%}
+            </div>
+          {%- endcapture -%}
+
+          {%- capture block_content -%}
+            {{ block_text_content }}
+            {%- if block.settings.include_leaflet -%}
+              {%- capture leaflet_modal_trigger -%}
+                {% render 'c-button', classes: 'text-button mt-5', custom_attributes: 'data-drawer-target="product-leaflet"', translatable_content: 'products.product.leaflet.leaflet_label' %}
+              {%- endcapture -%}
+      
+              {%- capture leaflet_header -%}
+                {% render 'c-title', custom_tag: 'h5', translatable_content: 'products.product.leaflet.leaflet_label' %}
+              {%- endcapture -%}
+      
+              {%- capture leaflet_content -%}
+                {%- for leaflet_section in leaflet_value -%}
+                  <div>
+                    {% if leaflet_section.title %}
+                      {% render 'c-title', custom_tag: 'h6', content: leaflet_section.title, classes: 'pb-[10px]'  %}
+                    {% endif %}
+                    {% if leaflet_section.description %}
+                      {{ leaflet_section.description | metafield_tag }}
+                    {% endif %}
+                  </div>
+
+                  {%- if leaflet_section.list.value -%}
+                    <div class="flex flex-col gap-4">
+                      {%- for list_item in leaflet_section.list.value -%}
+                        <div class="flex gap-[14px] items-start">
+                          <div class="w-[29px] basis-[29px] shrink-0">
+                            {% render 'c-image', image: list_item.icon, image_width: 300 %}
+                          </div>
+                          {% render 'c-text', content: list_item.text %}
+                        </div>
+                      {%- endfor -%}
+                    </div>
+                  {%- endif -%}
+
+                  {%- if leaflet_section.title_2 or leaflet_section.description_2 -%}
+                    <div class="leaflet-second-section">
+                      {%- if leaflet_section.language_selector -%}
+                        <div class="leaflet-country-switcher">
+                          {% render 'markets-switcher', display_language: true, leaftlet_switcher: true %}
+                        </div>
+                      {%- endif -%}
+                      {%- if leaflet_section.title_2 -%}
+                        {% render 'c-title', custom_tag: 'h6', content: leaflet_section.title_2, classes: 'pb-[10px]'  %}
+                      {% endif %}
+                      {%- if leaflet_section.description_2 -%}
+                        {{ leaflet_section.description_2 | metafield_tag }}
+                      {%- endif -%}
+                    </div>
+                  {%- endif -%}
+                {%- endfor -%}
+              {%- endcapture -%}
+              {%- if leaflet_value != blank -%}
+                {% render 'c-drawer',
+                  toggle_button: leaflet_modal_trigger,
+                  drawer_id: 'product-leaflet',
+                  drawer_content: leaflet_content,
+                  drawer_header: leaflet_header,
+                  drawer_body_classes: 'drawer-content px-4 md:px-[30px] !flex flex-col gap-[30px] py-6 overflow-y-auto',
+                  drawer_content_classes: 'bg-background',
+                  drawer_width: 'lg'
+                %}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endcapture -%}
+
+          {%- if dropdown_title != blank -%}
+            {%- if leaflet_value != blank or dropdown_content != blank -%}
+              {% render 'c-accordion',
+                accordion_label: dropdown_title,
+                accordion_content: block_content,
+                accordion_borders: true,
+                open_on_load: open_on_load,
+                index: forloop.index,
+                accordion_label_padding: 'py-3 sm:py-6',
+                extra_classes: 'py-2',
+                full_width_section: section.settings.full_width_section
+              %}
+            {%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+      </div>
+    </div>
+    <div class="w-full md:w-1/2 {% if section.settings.full_width_section == false %}px-4 lg:pl-2 lg:pr-8{% endif %}">
+      {% liquid
+        assign media_max_height = section.settings.media_max_height
+        case media_max_height
+          when 'small'
+            assign media_max_height_class = 'max-h-[500px]'
+          when 'medium'
+            assign media_max_height_class = 'max-h-[600px]'
+          when 'large'
+            assign media_max_height_class = 'max-h-[700px]'
+          else
+            assign media_max_height_class = ''
+        endcase
+      %}
+      {% render 'c-image', image: section.settings.image, classes: 'h-full', image_classes: media_max_height_class %}
+    </div>
+  </div>
+  {%- render 'divider', height: section.settings.margin_bottom, color_scheme: color_scheme -%}
+{%- endunless -%}
+
+{% schema %}
+{
+  "name": "t:sections.image-dropdowns.name",
+  "class": "section-image-dropdowns",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    },
+    {
+      "type": "checkbox",
+      "id": "open_first_accordion",
+      "label": "t:sections.image-dropdowns.settings.open_first_accordion.label",
+      "default": true
+    },
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "t:sections.image-dropdowns.settings.image.label"
+    },
+    {
+      "type": "select",
+      "id": "media_max_height",
+      "label": "t:sections.image-dropdowns.settings.media_max_height.label",
+      "options": [
+        {
+          "value": "auto",
+          "label": "t:sections.image-dropdowns.settings.media_max_height.options.auto.label"
+        },
+        {
+          "value": "small",
+          "label": "t:sections.image-dropdowns.settings.media_max_height.options.small.label"
+        },
+        {
+          "value": "medium",
+          "label": "t:sections.image-dropdowns.settings.media_max_height.options.medium.label"
+        },
+        {
+          "value": "large",
+          "label": "t:sections.image-dropdowns.settings.media_max_height.options.large.label"
+        }
+      ],
+      "default": "auto"
+    },
+    {
+      "type": "text",
+      "id": "header",
+      "label": "t:sections.image-dropdowns.settings.header.label"
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.heading_tag.label",
+      "id": "heading_tag",
+      "default": "h2",
+      "options": [
+        {
+          "value": "h1",
+          "label": "t:sections.all.heading_tag.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.heading_tag.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.heading_tag.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.heading_tag.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.heading_tag.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.heading_tag.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_size.label",
+      "id": "font_size",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_size.options.default"
+        },
+        {
+          "value": "paragraph-1",
+          "label": "t:sections.all.font_size.options.paragraph"
+        },
+        {
+          "value": "h1",
+          "label": "t:sections.all.font_size.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.font_size.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.font_size.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.font_size.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.font_size.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.font_size.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_weight.label",
+      "id": "font_weight",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_weight.options.default"
+        },
+        {
+          "value": "!font-thin",
+          "label": "t:sections.all.font_weight.options.thin"
+        },
+        {
+          "value": "!font-light",
+          "label": "t:sections.all.font_weight.options.light"
+        },
+        {
+          "value": "!font-normal",
+          "label": "t:sections.all.font_weight.options.normal"
+        },
+        {
+          "value": "!font-medium",
+          "label": "t:sections.all.font_weight.options.medium"
+        },
+        {
+          "value": "!font-semibold",
+          "label": "t:sections.all.font_weight.options.semibold"
+        },
+        {
+          "value": "!font-bold",
+          "label": "t:sections.all.font_weight.options.bold"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "italic_header_text",
+      "label": "t:sections.all.italic_header_text.label",
+      "default": false
+    },
+    {
+      "type": "richtext",
+      "id": "description",
+      "label": "t:sections.image-dropdowns.settings.description.label"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.all.margin.heading"
+    },
+    {
+      "type": "select",
+      "id": "margin_bottom",
+      "label": "t:sections.all.margin.margin_bottom.label",
+      "options": [
+        {
+          "label": "t:sections.all.margin.margin_bottom.none",
+          "value": "none"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.small",
+          "value": "small"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.normal",
+          "value": "normal"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.large",
+          "value": "large"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.custom.label",
+          "value": "custom"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "default": 16,
+      "step": 1,
+      "label": "t:sections.all.margin.margin_bottom.custom.value",
+      "visible_if": "{{ section.settings.margin_bottom == 'custom' }}",
+      "unit": "px",
+      "id": "margin_bottom_custom"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.all.section_width.full_width"
+    },
+    {
+      "type": "checkbox",
+      "id": "full_width_section",
+      "label": "t:sections.all.section_width.full_width",
+      "default": true
+    }
+  ],
+  "presets": [
+    {
+      "name": "Image + dropdowns"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "dropdown",
+      "name": "t:sections.image-dropdowns.blocks.dropdown_item.name",
+      "settings": [
+        {
+          "type": "text",
+          "id": "dropdown_title",
+          "label": "t:sections.image-dropdowns.blocks.dropdown_item.settings.title.label"
+        },
+        {
+          "type": "checkbox",
+          "id": "include_leaflet",
+          "label": "t:sections.image-dropdowns.blocks.dropdown_item.settings.include_leaflet.label",
+          "default": false
+        },
+        {
+          "type": "header",
+          "content": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_1.content",
+          "info": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_1.info"
+        },
+        {
+          "type": "richtext",
+          "id": "dropdown_header_1",
+          "label": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_1.header"
+        },
+        {
+          "type": "richtext",
+          "id": "dropdown_text_1",
+          "label": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_1.text"
+        },
+        {
+          "type": "image_picker",
+          "id": "dropdown_icon_1",
+          "label": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_1.icon"
+        },
+        {
+          "type": "header",
+          "content": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_2.content"
+        },
+        {
+          "type": "richtext",
+          "id": "dropdown_header_2",
+          "label": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_2.header"
+        },
+        {
+          "type": "richtext",
+          "id": "dropdown_text_2",
+          "label": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_2.text"
+        },
+        {
+          "type": "image_picker",
+          "id": "dropdown_icon_2",
+          "label": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_2.icon"
+        },
+        {
+          "type": "header",
+          "content": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_3.content"
+        },
+        {
+          "type": "richtext",
+          "id": "dropdown_header_3",
+          "label": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_3.header"
+        },
+        {
+          "type": "richtext",
+          "id": "dropdown_text_3",
+          "label": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_3.text"
+        },
+        {
+          "type": "image_picker",
+          "id": "dropdown_icon_3",
+          "label": "t:sections.image-dropdowns.blocks.dropdown_item.settings.text_group_3.icon"
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

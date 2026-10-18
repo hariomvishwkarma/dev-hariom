@@ -1,0 +1,490 @@
+<csv-upload>
+  <div class="csv-input-container">
+    <div class="flex flex-col gap-4">
+      <p class="csv-upload-headline">{{ 'sections.csv_upload.headline.label' | t }}</p>
+      <form class="csv-input-wrapper" method="post" action="{{ routes.cart_add_url }}">
+        <label for="csv-input" class="csv-input-label">
+          <div class="csv-input-icon">
+            <svg viewBox="0 0 640 512" height="1em">
+              <path
+                d="M144 480C64.5 480 0 415.5 0 336c0-62.8 40.2-116.2 96.2-135.9c-.1-2.7-.2-5.4-.2-8.1c0-88.4 71.6-160 160-160c59.3 0 111 32.2 138.7 80.2C409.9 102 428.3 96 448 96c53 0 96 43 96 96c0 12.2-2.3 23.8-6.4 34.6C596 238.4 640 290.1 640 352c0 70.7-57.3 128-128 128H144zm79-217c-9.4 9.4-9.4 24.6 0 33.9s24.6 9.4 33.9 0l39-39V392c0 13.3 10.7 24 24 24s24-10.7 24-24V257.9l39 39c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-80-80c-9.4-9.4-24.6-9.4-33.9 0l-80 80z"
+              ></path>
+            </svg>
+            <div class="csv-drag-and-drop">
+              <p>{{ 'sections.csv_upload.drag_and_drop' | t }}</p>
+              <p>{{ 'sections.csv_upload.or' | t }}</p>
+              <span class="button browse-button">{{ 'sections.csv_upload.browse' | t }}</span>
+            </div>
+
+            <p class="csv-file-chosen" aria-live="polite" hidden></p>
+            <p class="csv-feedback" aria-live="polite" hidden></p>
+          </div>
+          <input id="csv-input" name="csv-input" type="file" accept=".csv">
+          <button type="button" id="csv-submit" class="button" hidden>Submit</button>
+        </label>
+      </form>
+    </div>
+    <div class="csv-template-wrapper">
+      <p class="csv-download-template">{{ 'sections.csv_upload.template_download' | t }}</p>
+      <a
+        href="{{ download_file |  default: "https://cdn.shopify.com/s/files/1/0596/9146/6951/files/bibs_csv_template.csv?v=1757575490" }}"
+        download
+        class="button csv-download-button"
+        >Download</a
+      >
+    </div>
+  </div>
+</csv-upload>
+
+{% stylesheet %}
+  .csv-input-container {
+    display: flex;
+    flex-direction: row-reverse;
+    gap: 2rem;
+  }
+  .cart__warnings .csv-input-container {
+    justify-content: center;
+  }
+  .csv-upload-headline,
+  .csv-download-template {
+    margin: 1rem auto;
+    font-weight: 600;
+    font-size: 2rem;
+    text-align: center;
+  }
+  .csv-template-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 1rem;
+  }
+  .csv-download-button {
+    width: 40%;
+    margin: 0 auto;
+  }
+  .csv-input-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .csv-drag-and-drop {
+    text-align: center;
+  }
+  #csv-input {
+    display: none;
+  }
+  .csv-input-label.is-dragover {
+    border-color: #4f46e5; /* indigo-600-ish */
+    background: rgba(79, 70, 229, 0.06);
+  }
+
+  .csv-input-label.is-dragover .browse-button {
+    transform: scale(1.03);
+  }
+  .csv-input-label svg {
+    height: 50px;
+    fill: rgb(143, 139, 144);
+    margin-bottom: 20px;
+  }
+  .csv-input-label {
+    cursor: pointer;
+    padding: 30px 70px;
+    border-radius: 40px;
+    border: 2px dashed rgb(143, 139, 144);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .csv-input-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+  .browse-button {
+    background-color: rgb(143, 139, 144);
+    padding: 5px 15px;
+    border-radius: 10px;
+    color: white;
+    transition: all 0.3s;
+  }
+  .browse-button:hover {
+    background-color: rgb(143, 139, 144);
+  }
+  .csv-file-chosen {
+    margin-top: 0.5rem;
+    color: rgb(var(--color-foreground));
+    font-weight: 500;
+  }
+  .csv-feedback {
+    margin-top: 0.25rem;
+    font-style: italic;
+    color: #6b7280;
+  }
+  .csv-input-label.is-dragover {
+    border-color: #4f46e5;
+    background: rgba(79, 70, 229, 0.06);
+  }
+{% endstylesheet %}
+
+<script type="module">
+  (() => {
+    if (customElements.get('csv-upload')) return;
+
+    class CsvUpload extends HTMLElement {
+      constructor() {
+        super();
+        this.onDragOver = this.onDragOver.bind(this);
+        this.onDragLeave = this.onDragLeave.bind(this);
+        this.onDrop = this.onDrop.bind(this);
+        this.updateChosenFileName = this.updateChosenFileName.bind(this);
+        this.setFeedback = this.setFeedback.bind(this);
+      }
+
+      connectedCallback() {
+        this.form = this.querySelector('form');
+        this.inputEl = this.querySelector('#csv-input');
+        this.submitBtn = this.querySelector('#csv-submit');
+        this.dropZone = this.querySelector('.csv-input-label') || this;
+
+        this.fileNameEl = this.querySelector('.csv-file-chosen');
+        this.feedbackEl = this.querySelector('.csv-feedback');
+        this.dragAndDrop = this.querySelector('.csv-drag-and-drop');
+
+        this.form?.addEventListener('submit', (e) => e.preventDefault());
+
+        // Ensure clicking the visual button opens the file dialog across all browsers
+        const browseBtn = this.querySelector('.browse-button');
+        browseBtn?.addEventListener('click', (e) => {
+          e.preventDefault();
+          this.inputEl?.click();
+        });
+
+        // Selection via file picker
+        this.inputEl?.addEventListener('change', (e) => {
+          const file = e.target.files?.[0] || null;
+          this.pendingFile = file || null;
+          this.updateChosenFileName(this.pendingFile);
+          if (this.pendingFile) this.setFeedback('Ready to upload.');
+        });
+
+        // Submit
+        this.submitBtn?.addEventListener('click', async () => {
+          if (!this.pendingFile) {
+            this.setFeedback('Please choose a CSV file first.');
+            this.inputEl?.focus();
+            this.inputEl?.click();
+            return;
+          }
+          await this.getData(this.pendingFile);
+        });
+
+        // ---- Drag & drop setup ----
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((evt) => {
+          this.dropZone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          });
+        });
+        this.dropZone.addEventListener('dragover', this.onDragOver);
+        this.dropZone.addEventListener('dragenter', this.onDragOver);
+        this.dropZone.addEventListener('dragleave', this.onDragLeave);
+        this.dropZone.addEventListener('drop', this.onDrop);
+      }
+
+      disconnectedCallback() {
+        if (!this.dropZone) return;
+        this.dropZone.removeEventListener('dragover', this.onDragOver);
+        this.dropZone.removeEventListener('dragenter', this.onDragOver);
+        this.dropZone.removeEventListener('dragleave', this.onDragLeave);
+        this.dropZone.removeEventListener('drop', this.onDrop);
+      }
+
+      // ---- UI helpers ----
+      updateChosenFileName(file) {
+        if (!this.fileNameEl) return;
+        if (file) {
+          this.fileNameEl.textContent = file.name;
+          this.fileNameEl.hidden = false;
+          this.submitBtn.hidden = false;
+          this.dragAndDrop.hidden = true;
+        } else {
+          this.fileNameEl.textContent = '';
+          this.fileNameEl.hidden = true;
+          this.submitBtn.hidden = true;
+          this.dragAndDrop.hidden = false;
+        }
+      }
+
+      setFeedback(msg) {
+        if (!this.feedbackEl) return;
+        this.feedbackEl.textContent = msg || '';
+        this.feedbackEl.hidden = !msg;
+      }
+
+      onDragOver(e) {
+        if (e?.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        this.dropZone.classList.add('is-dragover');
+      }
+
+      onDragLeave(e) {
+        // Only remove highlight when actually leaving the drop zone
+        if (e.target === this.dropZone) this.dropZone.classList.remove('is-dragover');
+      }
+
+      onDrop(e) {
+        this.dropZone.classList.remove('is-dragover');
+        const files = e.dataTransfer?.files;
+        if (!files?.length) return;
+
+        const file = this.pickCsv(files);
+        if (!file) {
+          this.setFeedback('Please drop a .csv file.');
+          return;
+        }
+
+        // Keep UI & input in sync: assign to the hidden input
+        if (this.inputEl) {
+          try {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            this.inputEl.files = dt.files;
+          } catch (_) {}
+        }
+
+        // store it until submit + show name
+        this.pendingFile = file;
+        this.updateChosenFileName(file);
+        this.setFeedback('Ready to upload.');
+      }
+
+      pickCsv(fileList) {
+        for (let i = 0; i < fileList.length; i++) {
+          const f = fileList[i];
+          const name = (f.name || '').toLowerCase();
+          const type = (f.type || '').toLowerCase();
+          const looksCsv = name.endsWith('.csv') || type.includes('csv') || type === 'text/plain';
+          if (looksCsv) return f;
+        }
+        return null;
+      }
+
+      // ---- Core ----
+      async getData(fileOverride) {
+        const file = fileOverride || this.inputEl?.files?.[0] || null;
+        if (!file) {
+          this.setFeedback('No file selected.');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onerror = () => this.setFeedback('Failed to read file.');
+        reader.onload = async (e) => {
+          let text = e.target.result;
+          // Strip UTF-8 BOM if present
+          if (typeof text === 'string') text = text.replace(/^\uFEFF/, '');
+
+          const rows = this.convertCsv(text);
+          if (rows?.error) {
+            this.setFeedback("Invalid CSV headers. Allowed: 'sku_barcode', 'quantity'.");
+            console.error('CSV header error:', rows);
+            return;
+          }
+
+          const items = rows
+            .map((row) => ({
+              id: String(row.sku_barcode || '').trim(),
+              quantity: Number(row.quantity),
+            }))
+            .filter(({ id, quantity }) => id && Number.isFinite(quantity) && quantity > 0);
+
+          if (!items.length) {
+            this.setFeedback('No valid rows found (check sku_barcode and quantity).');
+            return;
+          }
+
+          const SHOP_DOMAIN = (window.shop && window.shop.domain) || window.Shopify?.shop || location.hostname;
+          const url = `https://api-bibs.netlify.app/.netlify/functions/checkProductId?store=${encodeURIComponent(
+            SHOP_DOMAIN
+          )}`;
+
+          try {
+            this.setFeedback('Validating items…');
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ items }),
+            });
+            if (!res.ok) {
+              const t = await res.text().catch(() => '');
+              throw new Error(`HTTP ${res.status} ${res.statusText} — ${t}`);
+            }
+            const data = await res.json().catch(() => null);
+            if (Array.isArray(data?.received) && data.received.length) {
+              await this.addToCart(data.received);
+              this.setFeedback('Items added to cart.');
+            } else {
+              this.setFeedback('No matching variants found for the uploaded CSV.');
+            }
+          } catch (err) {
+            console.error('Fetch failed:', err);
+            this.setFeedback('Could not validate items. Please try again.');
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      stripVariantGid(id) {
+        if (!id) return null;
+        return String(id).replace(/^gid:\/\/shopify\/ProductVariant\//, '');
+      }
+
+      async addToCart(items) {
+        const list = Array.isArray(items) ? items : [items];
+        const cartItems = list
+          .map(({ variantId, quantity }) => {
+            const short = this.stripVariantGid(variantId);
+            const idNum = Number(short);
+            const qtyNum = Number(quantity);
+            if (!idNum || !qtyNum) return null;
+            return { id: idNum, quantity: qtyNum };
+          })
+          .filter(Boolean);
+
+        if (!cartItems.length) {
+          this.setFeedback('No valid items to add to cart.');
+          return;
+        }
+
+        const prevCount = await this.getCartCount();
+        const wasEmpty = prevCount === 0;
+
+        const res = await fetch(`${window.Shopify?.routes?.root || '/'}cart/add.js`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ items: cartItems }),
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`Cart add failed: ${res.status} ${res.statusText} — ${text}`);
+        }
+
+        await res.json();
+
+        if (wasEmpty) {
+          this.setFeedback('Items added. Updating cart…');
+          this.hardReloadCart();
+          return;
+        }
+
+        await this.replaceCartContent();
+      }
+
+      async replaceCartContent() {
+        const url = (window.routes?.root_url || '/') + 'cart';
+        try {
+          const res = await fetch(url, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            cache: 'no-store',
+          });
+          if (!res.ok) throw new Error(`Failed to load cart page: ${res.status} ${res.statusText}`);
+
+          const html = await res.text();
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, 'text/html');
+
+          const root = document.querySelector('cart-items');
+          const rootFromServer = htmlDoc.querySelector('cart-items');
+          if (root && rootFromServer) {
+            root.classList.toggle('is-empty', rootFromServer.classList.contains('is-empty'));
+          }
+
+          const destWarnings = document.querySelector('cart-items .cart__warnings');
+          const srcWarnings = htmlDoc.querySelector('cart-items .cart__warnings');
+          if (destWarnings && srcWarnings) {
+            destWarnings.innerHTML = srcWarnings.innerHTML;
+            destWarnings.hidden = srcWarnings.hidden;
+          }
+
+          const destContents = document.querySelector('cart-items .cart__contents');
+          const srcContents = htmlDoc.querySelector('cart-items .cart__contents');
+          if (destContents && srcContents) {
+            destContents.innerHTML = srcContents.innerHTML;
+            destContents.className = srcContents.className;
+          }
+
+          const destinationCartDrawerEl = document.querySelector('#cart-drawer .drawer-content-wrapper');
+          const sourceCartDrawerEl = htmlDoc.querySelector('#cart-drawer .drawer-content-wrapper');
+          if (destinationCartDrawerEl && sourceCartDrawerEl) {
+            destinationCartDrawerEl.innerHTML = sourceCartDrawerEl.innerHTML;
+          }
+
+          const destCount = document.querySelector('.text-cart_count');
+          const srcCount = htmlDoc.querySelector('.text-cart_count');
+          if (destCount && srcCount) destCount.replaceWith(srcCount);
+        } catch (err) {
+          console.error('Error updating cart:', err);
+        }
+      }
+
+      // Smarter CSV: tolerate BOM + auto-detect common delimiter
+      convertCsv(csv) {
+        const allowed = ['sku_barcode', 'quantity'];
+        const lines = csv.trim().split(/\r?\n/);
+        if (lines.length === 0) return [];
+
+        const rawHeader = lines[0].replace(/^\uFEFF/, ''); // BOM guard
+        // Detect delimiter: prioritize comma, fall back to semicolon if no commas present
+        const delimiter = rawHeader.includes(',') ? ',' : rawHeader.includes(';') ? ';' : ',';
+        const headers = rawHeader.split(delimiter).map((h) => h.trim().toLowerCase());
+
+        const extra = headers.filter((h) => !allowed.includes(h));
+        const missing = allowed.filter((h) => !headers.includes(h));
+        if (extra.length || missing.length) {
+          return { error: 'Invalid headers', extra, missing };
+        }
+
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const cols = line.split(delimiter).map((c) => c.trim());
+          const obj = {};
+          headers.forEach((h, idx) => (obj[h] = cols[idx] ?? ''));
+          rows.push(obj);
+        }
+        return rows;
+      }
+
+      async getCartCount() {
+        try {
+          const res = await fetch(`${window.Shopify?.routes?.root || '/'}cart.js`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+            cache: 'no-store',
+          });
+          if (!res.ok) throw new Error();
+          const json = await res.json();
+          return Number(json?.item_count || 0);
+        } catch {
+          // Fallback to DOM hint if cart.js fails
+          const isEmpty = document.querySelector('cart-items')?.classList.contains('is-empty');
+          return isEmpty ? 0 : NaN; // NaN = unknown, treat as non-empty below
+        }
+      }
+
+      hardReloadCart() {
+        // If you want to force the cart page specifically:
+        // window.location.href = (window.Shopify?.routes?.cart_url || '/cart');
+        window.location.reload(); // fastest for current page
+      }
+    }
+
+    customElements.define('csv-upload', CsvUpload);
+  })();
+</script>

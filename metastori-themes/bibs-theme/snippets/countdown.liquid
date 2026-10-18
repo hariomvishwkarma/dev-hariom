@@ -1,0 +1,358 @@
+{% doc %}
+  Renders a countdown timer
+
+  @param {string} end_time - Time for ending the countdown
+  @param {string} id - The section id
+  @param {string} [classes] - additional classes
+  @param {boolean} is_header - If it is for a header
+
+  @example
+  {% render 'countdown', end_time: '01/01/2025 23:00:00', id: section.id, classes: 'custom classes' %}
+{% enddoc %}
+
+<countdown-snippet class="flex  {% if is_header == true %}flex-col md:flex-row justify-center items-center{% else %} flex-col{% endif %} gap-2 {{ classes }}">
+  <span>
+    {% render 'c-text', translatable_content: 'sections.countdown-section.expiring' %}
+  </span>
+
+  <div
+    id="countdown-{{ id }}"
+    {% if is_header == true %}
+      data-is-header="header"
+    {% endif %}
+    class="countdown-wrapper flex items-end gap-2 {{ classes }}"
+    data-end-time="{{ end_time }}"
+    data-localize="visitor"
+    data-section-id="{{ id }}"
+    role="timer"
+    aria-label="Offer ends in DD days HH hours MM minutes SS seconds"
+    data-finished="{{ 'sections.countdown-section.finished' | t }}"
+    aria-live="polite"
+  >
+    <!-- DAYS -->
+    <span class="flex {% if is_header == true %} flex-row gap-1{% else %}flex-col{% endif  %} items-center">
+      <span id="days-{{ id }}" class="number-block flex tabular-nums"></span>
+      <span
+        class="time-unit time-unit__days text-sm font-semibold"
+        data-time-days="{{ 'sections.countdown-section.time-units.days' | t }}"
+        data-time-day="{{ 'sections.countdown-section.time-units.day' | t }}"
+      ></span>
+    </span>
+
+    <!-- HOURS -->
+    <span class="flex {% if is_header == true %} flex-row gap-1{% else %}flex-col{% endif  %} items-center">
+      <span id="hours-{{ id }}" class="number-block flex tabular-nums"></span>
+      <span
+        class="time-unit time-unit__hours text-sm font-semibold"
+        data-time-hours="{{ 'sections.countdown-section.time-units.hours' | t }}"
+        data-time-hour="{{ 'sections.countdown-section.time-units.hour' | t }}"
+      ></span>
+    </span>
+    <!-- MINUTES -->
+    <span class="flex {% if is_header == true %} flex-row gap-1{% else %}flex-col{% endif  %} items-center">
+      <span id="minutes-{{ id }}" class="number-block flex tabular-nums"></span>
+      <span
+        class="time-unit time-unit__minutes text-sm font-semibold"
+        data-time-minutes="{{ 'sections.countdown-section.time-units.minutes' | t }}"
+        data-time-minute="{{ 'sections.countdown-section.time-units.minute' | t }}"
+      ></span>
+    </span>
+
+    <!-- SECONDS -->
+    <span class="flex {% if is_header == true %} flex-row gap-1{% else %}flex-col{% endif  %} items-center">
+      <span id="seconds-{{ id }}" class="number-block flex tabular-nums"></span>
+      <span
+        class="time-unit time-unit__seconds text-sm font-semibold"
+        data-time-seconds="{{ 'sections.countdown-section.time-units.seconds' | t }}"
+        data-time-second="{{ 'sections.countdown-section.time-units.second' | t }}"
+      ></span>
+    </span>
+  </div>
+
+  <span id="headline-{{ id }}" class="hidden mt-2 font-semibold"></span>
+</countdown-snippet>
+
+{% style %}
+  .number-block {
+    width: 2ch;
+    justify-content: center;
+    font-variant-numeric: tabular-nums; /* fallback if Tailwind isn't present */
+    min-width: 2ch;
+    white-space: nowrap;
+    overflow: visible;
+  }
+
+  .time-unit {
+    display: inline-block;
+    min-width: var(--unit-min, 3ch);
+    text-align: center;
+  }
+{% endstyle %}
+
+<script>
+  (() => {
+    class CountdownSnippet extends HTMLElement {
+      static get observedAttributes() {
+        return ['data-end-time'];
+      }
+
+      connectedCallback() {
+        if (this._inited) return; // Make sure double init doesn't happen
+
+        const init = () => {
+          const wrapper = this.querySelector('.countdown-wrapper');
+          if (!wrapper) {
+            requestAnimationFrame(init);
+            return;
+          }
+          this._setup(wrapper);
+          this._inited = true;
+        };
+
+        init();
+      }
+
+      disconnectedCallback() {
+        if (this._raf) {
+          cancelAnimationFrame(this._raf);
+          this._raf = null;
+        }
+        if (this._onTick) {
+          CountdownTicker.unsubscribe(this._onTick);
+          this._onTick = null;
+        }
+        this._attrObserver?.disconnect();
+        this._attrObserver = null;
+        this._inited = false;
+      }
+
+      // All setup happens in here to make sure the wrapper exists
+      // and everything only happen once
+      // More reliable solution
+      _setup(wrapper) {
+        if (this._onTick) {
+          CountdownTicker.unsubscribe(this._onTick);
+          this._onTick = null;
+        }
+        this._attrObserver?.disconnect();
+        this._attrObserver = null;
+
+        this.sectionId = wrapper.dataset.sectionId;
+        this.countdownSection = this.querySelector(`#countdown-${this.sectionId}`);
+        this.headline = this.querySelector(`#headline-${this.sectionId}`);
+        this.countdownWrapper = this.closest('.shopify-section');
+        this.isHeader = wrapper.dataset.isHeader;
+
+        this.daysEl = this.querySelector(`#days-${this.sectionId}`);
+        this.hoursEl = this.querySelector(`#hours-${this.sectionId}`);
+        this.minutesEl = this.querySelector(`#minutes-${this.sectionId}`);
+        this.secondsEl = this.querySelector(`#seconds-${this.sectionId}`);
+
+        this.timeUnitDaysEl = this.querySelector(`.time-unit__days`);
+        this.timeUnitHoursEl = this.querySelector(`.time-unit__hours`);
+        this.timeUnitMinutesEl = this.querySelector(`.time-unit__minutes`);
+        this.timeUnitSecondsEl = this.querySelector(`.time-unit__seconds`);
+
+        this.daysTxt = this.textNode(this.daysEl);
+        this.hoursTxt = this.textNode(this.hoursEl);
+        this.minutesTxt = this.textNode(this.minutesEl);
+        this.secondsTxt = this.textNode(this.secondsEl);
+
+        this.timeUnitDays = this.textNode(this.timeUnitDaysEl);
+        this.timeUnitHours = this.textNode(this.timeUnitHoursEl);
+        this.timeUnitMinutes = this.textNode(this.timeUnitMinutesEl);
+        this.timeUnitSeconds = this.textNode(this.timeUnitSecondsEl);
+
+        this.l10n = {
+          day: this.timeUnitDaysEl?.dataset.timeDay || 'day',
+          days: this.timeUnitDaysEl?.dataset.timeDays || 'days',
+          hour: this.timeUnitHoursEl?.dataset.timeHour || 'hour',
+          hours: this.timeUnitHoursEl?.dataset.timeHours || 'hours',
+          minute: this.timeUnitMinutesEl?.dataset.timeMinute || 'minute',
+          minutes: this.timeUnitMinutesEl?.dataset.timeMinutes || 'minutes',
+          second: this.timeUnitSecondsEl?.dataset.timeSecond || 'second',
+          seconds: this.timeUnitSecondsEl?.dataset.timeSeconds || 'seconds',
+          finished: this.countdownSection?.dataset.finished || 'Countdown finished!',
+        };
+
+        this._setEndTimeFrom(wrapper.dataset.endTime ?? '');
+
+        this._attrObserver = new MutationObserver((muts) => {
+          for (const m of muts) {
+            if (m.type === 'attributes' && m.attributeName === 'data-end-time') {
+              this._setEndTimeFrom(wrapper.dataset.endTime ?? '');
+              this._tickOnce(true);
+            }
+          }
+        });
+        this._attrObserver.observe(wrapper, { attributes: true, attributeFilter: ['data-end-time'] });
+
+        // Subscribe once
+        this._onTick = () => this._tickOnce();
+        CountdownTicker.subscribe(this._onTick);
+
+        // First paint
+        this._tickOnce(true);
+      }
+
+      _setEndTimeFrom(raw) {
+        const parts = this._parseToParts(raw);
+        if (!parts) {
+          console.warn('[countdown] bad end_time:', raw);
+          this.endTime = Date.now();
+          return;
+        }
+
+        // If raw is ISO with an explicit offset or Z, treat it as a fixed global instant
+        if (parts.iso === true) {
+          this.endTime = parts.ts;
+          return;
+        }
+
+        // If `data-localize="visitor"`, interpret the wall time in the visitor's timezone
+        const localize = this.countdownSection?.dataset.localize === 'visitor';
+        if (localize) {
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+          this.endTime = this._zonedToUtcTs(parts, tz);
+          return;
+        }
+
+        // Otherwise (store timezone mode from previous message), use store tz or fallback to local
+        const tz = this.timeZone || 'UTC';
+        try {
+          this.endTime = this._zonedToUtcTs(parts, tz);
+        } catch {
+          this.endTime = new Date(parts.y, parts.m - 1, parts.d, parts.h, parts.mi, parts.s).getTime();
+        }
+      }
+
+      _tickOnce(initial = false) {
+        const now = Date.now();
+        const remainingMs = Math.max(0, this.endTime - now);
+        const totalSeconds = (remainingMs / 1000) | 0;
+
+        const d = (totalSeconds / 86400) | 0;
+        const h = ((totalSeconds % 86400) / 3600) | 0;
+        const mi = ((totalSeconds % 3600) / 60) | 0;
+        const s = totalSeconds % 60;
+
+        this.setText(this.daysTxt, String(d));
+        this.setText(this.hoursTxt, String(h).padStart(2, '0'));
+        this.setText(this.minutesTxt, String(mi).padStart(2, '0'));
+        this.setText(this.secondsTxt, String(s).padStart(2, '0'));
+
+        this.setText(this.timeUnitDays, d === 1 ? this.l10n.day : this.l10n.days);
+        this.setText(this.timeUnitHours, h === 1 ? this.l10n.hour : this.l10n.hours);
+        this.setText(this.timeUnitMinutes, mi === 1 ? this.l10n.minute : this.l10n.minutes);
+        this.setText(this.timeUnitSeconds, s === 1 ? this.l10n.second : this.l10n.seconds);
+
+        if (remainingMs === 0) {
+          if (this.headline) {
+            this.headline.textContent = this.l10n.finished;
+            this.headline.classList.remove('hidden');
+            this.countdownSection.classList.add('hidden');
+            if (this.isHeader === 'header') {
+              // Note: if you have multiple countdowns in one header section,
+              // consider gating this so only one hides the section.
+              this.countdownWrapper?.classList.add('hidden');
+            }
+          }
+          CountdownTicker.unsubscribe(this._onTick);
+        }
+      }
+
+      // utilities (unchanged from your approach)
+      textNode(el) {
+        if (!el) return null;
+        if (!el.firstChild || el.firstChild.nodeType !== Node.TEXT_NODE) {
+          while (el.firstChild) el.removeChild(el.firstChild);
+          el.appendChild(document.createTextNode(''));
+        }
+        return el.firstChild;
+      }
+
+      setText(textNode, next) {
+        if (textNode && textNode.data !== next) textNode.data = next;
+      }
+
+      _partsFrom(dtf, date) {
+        const parts = dtf.formatToParts(date);
+        const g = (t) => Number(parts.find((p) => p.type === t)?.value || 0);
+        return { y: g('year'), m: g('month'), d: g('day'), h: g('hour'), mi: g('minute'), s: g('second') };
+      }
+      _tzOffsetMsAt(ts, timeZone) {
+        const dtf = new Intl.DateTimeFormat('en-US', {
+          timeZone,
+          hour12: false,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+        const { y, m, d, h, mi, s } = this._partsFrom(dtf, new Date(ts));
+        return Date.UTC(y, m - 1, d, h, mi, s) - ts;
+      }
+      _zonedToUtcTs({ y, m, d, h, mi, s }, timeZone) {
+        const guess = Date.UTC(y, m - 1, d, h, mi, s);
+        let off = this._tzOffsetMsAt(guess, timeZone);
+        let ts = guess - off;
+        off = this._tzOffsetMsAt(ts, timeZone);
+        return guess - off;
+      }
+      // Parse "DD/MM/YYYY HH:mm:ss" or "YYYY-MM-DD HH:mm:ss" or ISO
+      _parseToParts(raw) {
+        if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) {
+          const d = new Date(raw);
+          if (!isNaN(d)) return { iso: true, ts: d.getTime() };
+        }
+        let m = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2}):(\d{2})$/);
+        if (m) return { y: +m[3], m: +m[2], d: +m[1], h: +m[4], mi: +m[5], s: +m[6] };
+        m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+        if (m) return { y: +m[1], m: +m[2], d: +m[3], h: +m[4], mi: +m[5], s: +m[6] };
+        const ts = Date.parse(raw.replace(' ', 'T'));
+        return isNaN(ts) ? null : { iso: true, ts };
+      }
+    }
+
+    // Shared 1Hz ticker for all instances
+    const CountdownTicker = (() => {
+      let subs = new Set();
+      let timer = null;
+
+      function start() {
+        if (timer) return;
+        const tick = () => {
+          subs.forEach((fn) => fn?.());
+          // align to the next whole second
+          const now = Date.now();
+          const delay = 1000 - (now % 1000);
+          timer = setTimeout(tick, delay);
+        };
+        tick();
+      }
+
+      function stop() {
+        if (!timer) return;
+        clearTimeout(timer);
+        timer = null;
+      }
+
+      return {
+        subscribe(fn) {
+          subs.add(fn);
+          if (subs.size === 1) start();
+        },
+        unsubscribe(fn) {
+          subs.delete(fn);
+          if (subs.size === 0) stop();
+        },
+      };
+    })();
+
+    if (!customElements.get('countdown-snippet')) {
+      customElements.define('countdown-snippet', CountdownSnippet);
+    }
+  })();
+</script>

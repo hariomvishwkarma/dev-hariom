@@ -1,0 +1,3306 @@
+{% doc %}
+  Simple Bundles infinite-options picker for bundle PDPs.
+
+  @param {object} product - Product object
+  @param {object} [io_block] - Buy buttons block (picker, size guide, and label settings)
+{% enddoc %}
+{% comment %}
+  Simple Bundles Infinite Options - Image Swatches via Metaobjects (store-agnostic)
+  With dynamic product image thumbnails next to each option group
+  WITH VARIANT SWITCHING SUPPORT - swatches update when variant changes
+  Metaobject definition type: product-swatches
+  Liquid access: shop.metaobjects.product_swatches.values
+  We DO NOT rely on metaobject handle (some stores block handle in Liquid).
+  Instead, we build a map keyed by normalized swatch name text and match by normalized option value.
+  Expected swatch metaobject fields:
+  - image (Image/File)  -> actual uploaded swatch image
+  - one text field that stores the swatch name (eg "Sugar Rush", "Red Apple Red")
+    Common keys: name, title, label, product_image, product_swatches, productSwatches, swatch_name
+  Cart:
+  - Submits line item properties: properties[optionName] = selected value
+  - Submits properties[_bundle_selection] = all selected values joined by " <> "
+  Place this snippet INSIDE the product form in the main product section file.
+{% endcomment %}
+
+{% comment %} Check if ANY variant has IO options (not just selected variant) {% endcomment %}
+{% assign has_any_io = false %}
+{% for v in product.variants %}
+  {% assign v_io = v.metafields.simple_bundles.variant_options.value %}
+  {% if v_io != blank %}
+    {% assign first_item = v_io.first %}
+    {% if first_item.optionValues != blank and first_item.optionName != blank %}
+      {% assign has_any_io = true %}
+      {% break %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
+
+{% unless has_any_io %}
+  {% assign p_io = product.metafields.simple_bundles.variant_options.value %}
+  {% if p_io != blank %}
+    {% assign first_item = p_io.first %}
+    {% assign io_name = first_item.optionName | default: first_item.option_name %}
+    {% assign io_values = first_item.optionValues | default: first_item.option_values %}
+    {% if io_name != blank and io_values != blank %}
+      {% assign has_any_io = true %}
+    {% endif %}
+  {% endif %}
+{% endunless %}
+
+{% if has_any_io %}
+  {% assign sw_list = shop.metaobjects.product_swatches.values %}
+  {% if sw_list == blank %}
+    {% assign sw_list = shop.metaobjects['product-swatches'].values %}
+  {% endif %}
+
+  {%- comment -%}
+    Build JSON map: normalized_name -> image_url (for swatches)
+    We try multiple possible text field keys for the swatch "name".
+    We also support both mo.image and mo.image.value depending on Shopify field behavior.
+
+    NORMALIZATION: We strip apostrophes and quotes in Liquid to match JS normalization.
+    This handles cases like "L'heure bleue" -> "lheure bleue"
+  {%- endcomment -%}
+
+  <script type="application/json" id="sb-swatch-map-{{ product.id }}">
+    {
+      {%- assign first = true -%}
+      {%- for mo in sw_list -%}
+        {%- comment -%} 1) Determine swatch label (text) {%- endcomment -%}
+        {%- assign label = '' -%}
+        {%- if mo.name != blank -%}{%- assign label = mo.name.value | default: mo.name -%}{%- endif -%}
+        {%- if label == blank and mo.title != blank -%}{%- assign label = mo.title.value | default: mo.title -%}{%- endif -%}
+        {%- if label == blank and mo.label != blank -%}{%- assign label = mo.label.value | default: mo.label -%}{%- endif -%}
+        {%- comment -%}
+          Your store mentioned a text field called "product-image".
+          Its key in Liquid is usually product_image (underscore), not product-image.
+        {%- endcomment -%}
+        {%- if label == blank and mo.product_image != blank -%}{%- assign label = mo.product_image.value | default: mo.product_image -%}{%- endif -%}
+        {%- if label == blank and mo.product_swatches != blank -%}{%- assign label = mo.product_swatches.value | default: mo.product_swatches -%}{%- endif -%}
+        {%- if label == blank and mo.swatch_name != blank -%}{%- assign label = mo.swatch_name.value | default: mo.swatch_name -%}{%- endif -%}
+        {%- assign label = label | strip -%}
+
+        {%- comment -%} NORMALIZE the label: lowercase + remove apostrophes/quotes {%- endcomment -%}
+        {%- assign label_normalized = label | downcase | replace: "'", "" | replace: "'", "" | replace: "'", "" | replace: "`", "" | replace: '"', "" | replace: '"', "" | replace: '"', "" -%}
+        {%- comment -%} 2) Determine image object/value {%- endcomment -%}
+        {%- assign img_obj = mo.image.value | default: mo.image -%}
+        {%- comment -%} 3) Build entry if we have both label + image {%- endcomment -%}
+        {%- if label != blank and img_obj != blank -%}
+          {%- unless first -%},{%- endunless -%}
+          {%- assign first = false -%}
+          "{{ label_normalized | escape }}": "{{ img_obj | image_url: width: 120 }}"
+        {%- endif -%}
+      {%- endfor -%}
+    }
+  </script>
+  {%- comment -%}
+    Build JSON map for ALL variants: variant_id -> { options: [...], bundled_variants: [...] }
+    This enables dynamic switching when customer changes variants
+  {%- endcomment -%}
+  <script type="application/json" id="sb-variant-options-map-{{ product.id }}">
+    {
+      {%- assign first_v = true -%}
+      {%- for v in product.variants -%}
+        {%- assign v_io = v.metafields.simple_bundles.variant_options.value -%}
+        {%- assign v_bv = v.metafields.simple_bundles.bundled_variants.value -%}
+        {%- if v_io != blank -%}
+          {%- unless first_v -%},{%- endunless -%}
+          {%- assign first_v = false -%}
+          "{{ v.id }}": {
+            "options": {{ v_io | json }},
+            "bundled_variants": {{ v_bv | default: "[]" | json }}
+          }
+        {%- endif -%}
+      {%- endfor -%}
+    }
+  </script>
+  {%- comment -%}
+    Prices of the bundle (parent) variants. Simple Bundles submits the parent variant
+    plus line item properties, so Shopify charges the parent variant price whatever
+    component sizes/colours are picked. The PDP price has to come from here.
+  {%- endcomment -%}
+  <script type="application/json" id="sb-parent-prices-{{ product.id }}">
+    {
+      {%- for v in product.variants -%}
+        {%- unless forloop.first -%},{%- endunless -%}
+        "{{ v.id }}": {
+          "price": {{ v.price | default: 0 | plus: 0 | json }},
+          "compare": {{ v.compare_at_price | default: 0 | plus: 0 | json }}
+        }
+      {%- endfor -%}
+    }
+  </script>
+  <script type="application/json" id="sb-theme-swatches-{{ product.id }}">
+    {
+      {%- assign sb_swatch_first = true -%}
+      {%- assign sb_swatch_seen = ',' -%}
+      {%- for v in product.variants -%}
+        {%- assign v_bv = v.metafields.simple_bundles.bundled_variants.value -%}
+        {%- if v_bv != blank -%}
+          {%- for bv in v_bv -%}
+            {%- assign h = bv.handle -%}
+            {%- if h != blank -%}
+              {%- assign child = all_products[h] -%}
+              {%- if child != blank -%}
+                {%- for option in child.options_with_values -%}
+                  {%- assign option_name = option.name | downcase -%}
+                  {%- if option_name contains 'color' or option_name contains 'colour' -%}
+                    {%- for value in option.values -%}
+                      {%- assign color_value = value.name | default: value -%}
+                      {%- assign color_value = color_value | strip -%}
+                      {%- if color_value != blank -%}
+                        {%- assign value_key = color_value | downcase -%}
+                        {%- assign value_token = ',' | append: value_key | append: ',' -%}
+                        {%- unless sb_swatch_seen contains value_token -%}
+                          {%- assign sb_swatch_seen = sb_swatch_seen | append: value_key | append: ',' -%}
+                          {%- assign color_file_name = color_value | handle | append: '.png' -%}
+                          {%- assign color_image = color_file_name | file_img_url: '50x50' | prepend: 'https:' | split: '?' | first -%}
+                          {%- assign color_swatch_fallback = color_value | split: ' ' | last | handle -%}
+                          {%- if value.swatch.color != blank -%}
+                            {%- assign color_swatch_fallback = value.swatch.color -%}
+                          {%- endif -%}
+                          {%- assign color_swatch_image = '' -%}
+                          {%- if images[color_file_name] != blank -%}
+                            {%- assign color_swatch_image = color_image -%}
+                          {%- elsif value.swatch.image != blank -%}
+                            {%- assign color_swatch_image = value.swatch.image | image_url: width: 50 -%}
+                          {%- endif -%}
+                          {%- unless sb_swatch_first -%},{%- endunless -%}
+                          {%- assign sb_swatch_first = false -%}
+                          {{ value_key | json }}: {
+                            "fallback": {{ color_swatch_fallback | json }}
+                            {%- if color_swatch_image != blank -%}
+                            ,"image": {{ color_swatch_image | json }}
+                            {%- endif -%}
+                          }
+                        {%- endunless -%}
+                      {%- endif -%}
+                    {%- endfor -%}
+                  {%- endif -%}
+                {%- endfor -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endif -%}
+      {%- endfor -%}
+    }
+  </script>
+  <script type="application/json" id="sb-child-products-{{ product.id }}">
+    {
+      {%- assign sb_child_first = true -%}
+      {%- assign sb_seen = ',' -%}
+      {%- for v in product.variants -%}
+        {%- assign v_bv = v.metafields.simple_bundles.bundled_variants.value -%}
+        {%- if v_bv != blank -%}
+          {%- for bv in v_bv -%}
+            {%- assign h = bv.handle -%}
+            {%- if h != blank -%}
+              {%- assign h_token = ',' | append: h | append: ',' -%}
+              {%- unless sb_seen contains h_token -%}
+                {%- assign sb_seen = sb_seen | append: h | append: ',' -%}
+                {%- assign child = all_products[h] -%}
+                {%- unless sb_child_first -%},{%- endunless -%}
+                {%- assign sb_child_first = false -%}
+                {{ h | json }}: {
+                  "title": {% if child.title != blank %}{{ child.title | json }}{% else %}{{ bv.product_title | json }}{% endif %},
+                  "type": {{ child.type | json }},
+                  "tags": {{ child.tags | join: ',' | json }},
+                  "image": {% if child.featured_image %}{{ child.featured_image | image_url: width: 200 | json }}{% else %}null{% endif %},
+                  {%- assign sb_child_level = child.metafields.custom.shaping_level.value | default: child.metafields.custom.shaping_level -%}
+                  {%- assign sb_child_shape = child.metafields.custom.shape.value | default: child.metafields.custom.shape | strip | handleize -%}
+                  "shaping_level": {{ sb_child_level | default: 0 | plus: 0 }},
+                  "shape": {{ sb_child_shape | json }},
+                  {%- capture sb_child_sg -%}
+                    {%- if child.metafields.custom.size_chart_description != blank -%}
+                      {{ child.metafields.custom.size_chart_description | metafield_tag }}
+                    {%- endif -%}
+                  {%- endcapture -%}
+                  {%- assign sb_child_sg_img = child.metafields.custom.size_information.value | default: child.metafields.custom.size_information -%}
+                  "size_guide_html": {{ sb_child_sg | strip | json }},
+                  "size_guide_image": {% if sb_child_sg_img.src != blank %}{{ sb_child_sg_img | image_url: width: 1600 | json }}{% else %}null{% endif %}
+                }
+              {%- endunless -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endif -%}
+      {%- endfor -%}
+    }
+  </script>
+
+  {%- assign sb_picker_type = 'dropdown' -%}
+  {%- assign sb_item_label = 'auto' -%}
+  {%- assign sb_show_shaping = true -%}
+  {%- assign sb_shaping_placement = 'each_item' -%}
+  {%- assign sb_show_size_guide = true -%}
+  {%- assign sb_color_swatches = true -%}
+  {%- assign sb_option_default = 'unselected' -%}
+  {%- assign sb_combine_size_color = false -%}
+  {%- assign sb_sg_1 = true -%}
+  {%- assign sb_sg_2 = true -%}
+  {%- assign sb_sg_3 = true -%}
+  {%- assign sb_sg_4 = true -%}
+  {%- assign sb_show_save_badge = true -%}
+  {%- assign sb_sg_page = false -%}
+  {%- if io_block -%}
+    {%- if io_block.settings.bundle_picker_type != blank -%}
+      {%- assign sb_picker_type = io_block.settings.bundle_picker_type -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_item_label != blank -%}
+      {%- assign sb_item_label = io_block.settings.bundle_item_label -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_show_shaping == false -%}
+      {%- assign sb_show_shaping = false -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_shaping_placement != blank -%}
+      {%- assign sb_shaping_placement = io_block.settings.bundle_shaping_placement -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_show_size_guide == false -%}
+      {%- assign sb_show_size_guide = false -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_enable_color_swatches == false -%}
+      {%- assign sb_color_swatches = false -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_option_default != blank -%}
+      {%- assign sb_option_default = io_block.settings.bundle_option_default -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_combine_size_color == true -%}
+      {%- assign sb_combine_size_color = true -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_size_guide_1 == false -%}
+      {%- assign sb_sg_1 = false -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_size_guide_2 == false -%}
+      {%- assign sb_sg_2 = false -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_size_guide_3 == false -%}
+      {%- assign sb_sg_3 = false -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_size_guide_4 == false -%}
+      {%- assign sb_sg_4 = false -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_show_save_badge == false -%}
+      {%- assign sb_show_save_badge = false -%}
+    {%- endif -%}
+    {%- if io_block.settings.bundle_size_chart != blank -%}
+      {%- assign sb_sg_page = io_block.settings.bundle_size_chart -%}
+    {%- endif -%}
+    {%- if sb_show_save_badge -%}
+      {%- if io_block.settings.bundle_save_badge_background != blank or io_block.settings.bundle_save_badge_text != blank -%}
+        {% style %}
+          #shopify-section-{{ section.id }} .price__badge-percent {
+            {%- if io_block.settings.bundle_save_badge_background != blank -%}
+              background-color: {{ io_block.settings.bundle_save_badge_background }};
+              border-color: {{ io_block.settings.bundle_save_badge_background }};
+            {%- endif -%}
+            {%- if io_block.settings.bundle_save_badge_text != blank -%}
+              color: {{ io_block.settings.bundle_save_badge_text }};
+            {%- endif -%}
+          }
+        {% endstyle %}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endif -%}
+  <script type="application/json" id="sb-size-guide-fallback-{{ product.id }}">
+    {
+      "title": {% if sb_sg_page != false and sb_sg_page != blank %}{{ sb_sg_page.title | json }}{% else %}{{ 'products.product.size_chart' | t | json }}{% endif %},
+      "html": {% if sb_sg_page != false and sb_sg_page != blank %}{{ sb_sg_page.content | json }}{% else %}""{% endif %}
+    }
+  </script>
+  <div
+    class="sb-io product-form__input"
+    data-sb-io
+    data-product-id="{{ product.id }}"
+    data-initial-variant-id="{{ product.selected_or_first_available_variant.id }}"
+    data-has-only-default-variant="{{ product.has_only_default_variant }}"
+    data-shaping-label="{{ 'products.product.shaping_level_label' | t | escape }}"
+    data-allow-sold-out="{{ settings.allow_sold_out_variant_selection }}"
+    data-atc-price="{{ product.selected_or_first_available_variant.price }}"
+    data-atc-compare="{{ product.selected_or_first_available_variant.compare_at_price | default: 0 }}"
+    data-atc-base-price="{{ product.selected_or_first_available_variant.price }}"
+    data-atc-base-compare="{{ product.selected_or_first_available_variant.compare_at_price | default: 0 }}"
+    data-picker-type="{{ sb_picker_type | escape }}"
+    data-item-label="{{ sb_item_label | escape }}"
+    data-show-shaping="{{ sb_show_shaping }}"
+    data-shaping-placement="{{ sb_shaping_placement | escape }}"
+    data-show-size-guide="{{ sb_show_size_guide }}"
+    data-show-save-badge="{{ sb_show_save_badge }}"
+    data-enable-color-swatches="{{ sb_color_swatches }}"
+    data-option-default="{{ sb_option_default | escape }}"
+    data-combine-size-color="{{ sb_combine_size_color }}"
+    data-size-color-label="{{ 'products.product.bundle_size_color_label' | t | escape }}"
+    data-size-guide-items="{{ sb_sg_1 }},{{ sb_sg_2 }},{{ sb_sg_3 }},{{ sb_sg_4 }}"
+    data-pair-label="{{ 'products.product.bundle_pair_label' | t | escape }}"
+    data-breast-form-label="{{ 'products.product.bundle_breast_form_label' | t | escape }}"
+    data-size-guide-label="{{ 'products.product.size_chart' | t | escape }}"
+    data-size-guide-title-template="{{ 'products.product.bundle_size_guide_title' | t: product_name: 'PRODUCT_NAME' | escape }}"
+    data-size-guide-missing="{{ 'products.product.bundle_size_guide_missing' | t | escape }}"
+    data-choose-label="{{ 'products.product.bundle_choose_options' | t | escape }}"
+    data-choose-one="{{ 'products.product.bundle_choose_one' | t | escape }}"
+    data-select-size="{{ 'products.product.bundle_select_size' | t | escape }}"
+    data-select-color="{{ 'products.product.bundle_select_color' | t | escape }}"
+    data-sold-out-label="{{ 'products.product.sold_out' | t | downcase | escape }}"
+    data-percent-off-template="{{ 'products.product.percent_off' | t: percent: 'SB_PCT' | escape }}"
+    data-size-guide-modal="SbIoSizeGuide-{{ product.id }}"
+  >
+    <style>
+      .sb-io {
+        display: block;
+        margin: 0rem 0 1.2rem;
+        width: 100%;
+        min-width: 0;
+      }
+      .sb-io:not(:has(.sb-io__shared-shaping:not([hidden]))) .sb-io__groups {
+        margin-top: 20px;
+      }
+      .sb-io__strip {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin: 0 0 1rem;
+        padding-bottom: 0.6rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      }
+      .sb-io__strip:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: 0;
+      }
+      .sb-io__product-thumb {
+        position: relative;
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 6px;
+        overflow: hidden;
+        background: #f7f7f7;
+      }
+      .sb-io__product-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .sb-io__product-thumb img:not([src]) {
+        opacity: 0;
+      }
+      .sb-io__thumb-shape {
+        position: absolute;
+        bottom: 4%;
+        left: 6%;
+        z-index: 2;
+        width: 11px;
+        max-width: 20%;
+        line-height: 0;
+        pointer-events: none;
+      }
+      .sb-io__thumb-shape[hidden] {
+        display: none !important;
+      }
+      .sb-io__thumb-shape svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .sb-io__strip-meta {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+      }
+      .sb-io__title {
+        font-weight: 700;
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.25;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+      .sb-io__strip-body {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .sb-io__shared-shaping {
+        margin: 0 0 2.2rem;
+      }
+      .aiod-widget-container.aiod-widget-container-page:empty {
+        display: none !important;
+      }
+      .sb-io__shared-shaping[hidden] {
+        display: none !important;
+      }
+      .sb-io__shared-shaping .sb-io__shaping-bar {
+        width: 100%;
+        max-width: 100%;
+      }
+      .sb-io__size-guide-row {
+        display: flex;
+        justify-content: flex-end;
+        width: 80%;
+        max-width: 80%;
+        margin: 0.1rem 0 0;
+      }
+      .sb-io__size-guide-row[hidden] {
+        display: none !important;
+      }
+      .sb-io__size-guide-row .variant-picker__text-link,
+      .sb-io__selected-label .variant-picker__text-link {
+        padding: 0;
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1.3;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      #SbIoSizeGuide-{{ product.id }} .product-popup-modal__content {
+        text-align: center;
+      }
+      #SbIoSizeGuide-{{ product.id }} [data-sb-io-size-guide-title] {
+        text-align: center;
+      }
+      .sb-io__shaping-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        width: 80%;
+        max-width: 80%;
+        min-width: 0;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0.25rem 0.7rem;
+        background: #f473b7;
+        color: #fff;
+        border: 0;
+        border-radius: 7px;
+        font-family: inherit;
+        font-size: 1.05rem;
+        font-weight: 600;
+        line-height: 1;
+        min-height: 0;
+        height: auto;
+        text-align: left;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+      }
+      .sb-io__shaping-bar:focus-visible {
+        outline: 2px solid #ffffff;
+        outline-offset: 2px;
+      }
+      .sb-io__shaping-bar[hidden] {
+        display: none !important;
+      }
+      .sb-io__shaping-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+        font-size: 1.05rem;
+        font-weight: 600;
+        letter-spacing: 0;
+        line-height: 1;
+        white-space: nowrap;
+      }
+      .sb-io__shaping-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 13px;
+        height: 13px;
+        flex-shrink: 0;
+      }
+      .sb-io__shaping-icon svg {
+        width: 13px;
+        height: 13px;
+        display: block;
+      }
+      .sb-io__shaping-squares {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        gap: 4px;
+      }
+      .sb-io__shaping-square {
+        width: 9px;
+        height: 15px;
+        border-radius: 2px;
+        background: transparent;
+        border: 1px solid #fff;
+      }
+      .sb-io__shaping-square.is-active {
+        background: #fff;
+      }
+      .sb-io__shared-shaping .sb-io__shaping-bar,
+      .product__shaping-slot .sb-io__shaping-bar,
+      .product__bundle-shaping .sb-io__shaping-bar {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 0.65rem 1.2rem;
+        border-radius: 10px;
+        font-size: 1.3rem;
+        line-height: 1;
+        min-height: 0;
+        height: auto;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      .sb-io__shared-shaping .sb-io__shaping-label,
+      .product__shaping-slot .sb-io__shaping-label,
+      .product__bundle-shaping .sb-io__shaping-label {
+        font-size: 1.3rem;
+        gap: 0.6rem;
+        letter-spacing: 0;
+        line-height: 1;
+      }
+      .sb-io__shared-shaping .sb-io__shaping-icon,
+      .sb-io__shared-shaping .sb-io__shaping-icon svg,
+      .product__shaping-slot .sb-io__shaping-icon,
+      .product__shaping-slot .sb-io__shaping-icon svg,
+      .product__bundle-shaping .sb-io__shaping-icon,
+      .product__bundle-shaping .sb-io__shaping-icon svg {
+        width: 16px;
+        height: 16px;
+      }
+      .sb-io__shared-shaping .sb-io__shaping-squares,
+      .product__shaping-slot .sb-io__shaping-squares,
+      .product__bundle-shaping .sb-io__shaping-squares {
+        gap: 5px;
+      }
+      .sb-io__shared-shaping .sb-io__shaping-square,
+      .product__shaping-slot .sb-io__shaping-square,
+      .product__bundle-shaping .sb-io__shaping-square {
+        width: 12px;
+        height: 20px;
+        border-radius: 3px;
+      }
+      .sb-io__shaping-bar--combined {
+        width: 100%;
+        max-width: 100%;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.65rem 1.2rem;
+        font-size: 1.3rem;
+      }
+      .sb-io__shaping-bar--combined > .sb-io__shaping-icon {
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+      }
+      .sb-io__shaping-bar--combined > .sb-io__shaping-icon svg {
+        width: 16px;
+        height: 16px;
+      }
+      .sb-io__shaping-combined {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        column-gap: 1.2rem;
+        min-width: 0;
+        flex: 1 1 auto;
+        width: 100%;
+        line-height: 1;
+      }
+      .sb-io__shaping-part {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        min-width: 0;
+        line-height: 1;
+      }
+      .sb-io__shaping-copy {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 0.35em;
+        min-width: 0;
+        flex: 1 1 auto;
+        overflow: hidden;
+        line-height: 1;
+      }
+      .sb-io__shaping-name,
+      .sb-io__shaping-level-text {
+        font-size: inherit;
+        font-weight: 600;
+        letter-spacing: 0;
+        white-space: nowrap;
+        line-height: 1;
+      }
+      .sb-io__shaping-plus {
+        flex: 0 0 auto;
+        font-size: inherit;
+        font-weight: 700;
+        opacity: 0.95;
+        padding: 0;
+        line-height: 1;
+      }
+      .sb-io__shaping-bar--combined .sb-io__shaping-squares {
+        flex: 0 0 auto;
+        position: relative;
+        z-index: 1;
+        gap: 5px;
+      }
+      .sb-io__shaping-bar--combined .sb-io__shaping-square {
+        width: 12px;
+        height: 20px;
+        border-radius: 3px;
+      }
+      /* Small heading above the combined shaping strip (mobile/tablet only, 2+ items) */
+      .sb-io__shaping-heading {
+        display: none;
+      }
+      @media screen and (max-width: 989px) {
+        .sb-io__shaping-heading {
+          display: block;
+          margin: 0 0 0.5rem;
+          text-align: left;
+          font-size: 1.2rem;
+          font-weight: 600;
+          line-height: 1.2;
+          color: #000;
+        }
+        .sb-io__shaping-bar--multi .sb-io__shaping-level-text {
+          display: none;
+        }
+      }
+      @media screen and (max-width: 989px) {
+        .sb-io__shaping-square,
+        .sb-io__shared-shaping .sb-io__shaping-square,
+        .sb-io__shaping-bar--combined .sb-io__shaping-square,
+        .product__shaping-slot .sb-io__shaping-square,
+        .product__bundle-shaping .sb-io__shaping-square {
+          width: 10px;
+          height: 15px;
+        }
+      }
+      @media screen and (max-width: 749px) {
+        .sb-io__shaping-bar--combined,
+        .sb-io__shared-shaping .sb-io__shaping-bar,
+        .product__shaping-slot .sb-io__shaping-bar,
+        .product__bundle-shaping .sb-io__shaping-bar {
+          font-size: 12px;
+          padding: 0.65rem 1.2rem;
+          gap: 1rem;
+        }
+        .sb-io__shaping-bar--combined > .sb-io__shaping-icon,
+        .sb-io__shaping-bar--combined > .sb-io__shaping-icon svg {
+          width: 16px;
+          height: 16px;
+        }
+        .sb-io__shaping-combined {
+          column-gap: 1.2rem;
+        }
+        .sb-io__shaping-part {
+          gap: 0.8rem;
+        }
+        .sb-io__shaping-bar--combined .sb-io__shaping-squares {
+          gap: 3px;
+        }
+        .sb-io__shaping-square {
+          width: 10px;
+          height: 15px;
+        }
+      }
+      @media screen and (max-width: 768px) {
+        .sb-io__product-thumb {
+          width: 42px;
+          height: 42px;
+          min-width: 42px;
+        }
+      }
+      @media screen and (max-width: 749px) {
+        .sb-io {
+          margin-top: 0rem;
+        }
+        .sb-io:not(:has(.sb-io__shared-shaping:not([hidden]))) .sb-io__groups {
+          margin-top: 2.2rem;
+        }
+        .sb-io__strip {
+          gap: 6px;
+          margin-bottom: 0.8rem;
+        }
+        .sb-io__strip .sb-io__shaping-bar {
+          padding: 0.22rem 0.55rem;
+          gap: 4px;
+          border-radius: 6px;
+        }
+        .sb-io__strip .sb-io__shaping-label {
+          font-size: 0.95rem;
+          gap: 0.4rem;
+        }
+        .sb-io__strip .sb-io__shaping-icon,
+        .sb-io__strip .sb-io__shaping-icon svg {
+          width: 12px;
+          height: 12px;
+        }
+        .sb-io__strip .sb-io__shaping-squares {
+          gap: 3px;
+        }
+        .sb-io__strip .sb-io__shaping-square {
+          width: 10px;
+          height: 15px;
+        }
+      }
+      .sb-io .product-form__input input[type='radio'] + .color__swatch {
+        width: 2.8rem;
+        height: 2.8rem;
+        min-width: 2.8rem;
+        min-height: 2.8rem;
+        padding: 0;
+        margin: 0;
+      }
+      .sb-io .product-form__input input[type='radio'] + label:not(.color__swatch) {
+        margin: 0;
+        padding: 0.35rem 0.9rem;
+        min-width: 3.2rem;
+        min-height: 3.2rem;
+        font-size: 1.2rem;
+        letter-spacing: 0.06rem;
+      }
+      .sb-io__strip-body,
+      .sb-io__strip-body > div,
+      .sb-io__group.product-form__input {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        column-gap: 0.8rem;
+      }
+      .sb-io__group.product-form__input {
+        flex: 1 1 auto;
+        margin: 0 0 0.4rem;
+        width: 50%;
+        max-width: 50%;
+      }
+      .sb-io__group:last-of-type {
+        margin-bottom: 0;
+      }
+      .product-form__input .form__label.sb-io__selected-label {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.8rem;
+        font-size: 10px;
+        margin: 0 0 4px;
+        color: #666;
+        width: 100%;
+        max-width: 100%;
+      }
+      .sb-io__selected-label-text {
+        min-width: 0;
+      }
+      .sb-io__selected-label span {
+        color: #000;
+      }
+      .sb-io__swatches {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .sb-io .select,
+      .sb-io .sb-io__dd {
+        display: block;
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        overflow: visible;
+      }
+      .sb-io .select > .select__select:not(.sb-io__dd-trigger) {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        height: calc(2.8rem - 3px);
+        min-height: calc(2.8rem - 3px);
+        box-sizing: border-box;
+      }
+      .sb-io .select__select.sb-io__dd-trigger,
+      .sb-io__dd-trigger {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        height: calc(2.8rem - 3px);
+        min-height: calc(2.8rem - 3px);
+        padding: 0 3.4rem 0 0.85rem;
+        box-sizing: border-box;
+        text-align: left;
+        cursor: pointer;
+        overflow: hidden;
+        font-family: inherit;
+        font-size: 1.1rem;
+        font-weight: inherit;
+        letter-spacing: 0.04rem;
+        line-height: calc(1 + 0.5 / var(--font-body-scale));
+        color: rgba(var(--color-foreground), 0.75);
+        background-color: transparent;
+      }
+      .sb-io__dd-trigger [data-sb-io-dd-label] {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .sb-io__dd-trigger .sb-io__dd-swatch {
+        flex: 0 0 auto;
+      }
+      .sb-io__dd-trigger .icon-caret,
+      .sb-io .select .icon-caret {
+        position: absolute;
+        width: 1.2rem;
+        height: 0.6rem;
+        right: 1.5rem;
+        top: calc(50% - 0.3rem);
+        pointer-events: none;
+      }
+      @media screen and (min-width: 750px) {
+        .sb-io .select > .select__select:not(.sb-io__dd-trigger),
+        .sb-io .select__select.sb-io__dd-trigger,
+        .sb-io__dd-trigger {
+          height: calc(2.8rem - 3px);
+          min-height: calc(2.8rem - 3px);
+        }
+      }
+      .sb-io__dd.is-open .sb-io__dd-trigger {
+        box-shadow: inset 0 0 0 0.2rem rgb(var(--color-border));
+      }
+      .sb-io__dd-list {
+        position: absolute;
+        z-index: 30;
+        left: 0;
+        right: 0;
+        top: calc(100% + 0.4rem);
+        margin: 0;
+        padding: 0.6rem 0;
+        list-style: none;
+        background: rgb(var(--color-background));
+        border: 0.1rem solid rgb(var(--color-border));
+        border-radius: var(--inputs-radius, 8px);
+        box-shadow: 0 0.8rem 2.4rem rgba(0, 0, 0, 0.08);
+        max-height: 22rem;
+        overflow: auto;
+      }
+      .sb-io__dd-list[hidden] {
+        display: none !important;
+      }
+      .sb-io__dd-option {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        width: 100%;
+        padding: 0.7rem 1.2rem;
+        border: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
+        font-size: 1.2rem;
+        text-align: left;
+        cursor: pointer;
+      }
+      .sb-io__dd-option:hover,
+      .sb-io__dd-option.is-active {
+        background: rgba(var(--color-foreground), 0.04);
+      }
+      .sb-io__dd-option.is-disabled,
+      .sb-io__dd-option.is-sold-out {
+        color: rgba(var(--color-foreground), 0.38);
+        background: rgba(var(--color-foreground), 0.04);
+        cursor: not-allowed;
+      }
+      .sb-io__dd-option.is-disabled:hover,
+      .sb-io__dd-option.is-sold-out:hover,
+      .sb-io__dd-option.is-sold-out.is-active {
+        background: rgba(var(--color-foreground), 0.04);
+      }
+      .sb-io__dd-option.is-sold-out .sb-io__dd-swatch,
+      .sb-io__dd-option.is-disabled .sb-io__dd-swatch {
+        opacity: 0.4;
+        filter: grayscale(0.7);
+      }
+      .sb-io__group[data-option-kind="size"] .sb-io__dd-swatch {
+        display: none !important;
+      }
+      .sb-io__dd-swatch {
+        width: 1.8rem;
+        height: 1.8rem;
+        min-width: 1.8rem;
+        border-radius: 50%;
+        border: 0.1rem solid rgba(var(--color-foreground), 0.15);
+        background-color: var(--swatch-background-color, #ccc);
+        background-image: var(--swatch-background-image, none);
+        background-size: cover;
+        background-position: center;
+      }
+      .sb-io__dd-trigger[data-empty='true'] .sb-io__dd-swatch {
+        display: none !important;
+      }
+      .sb-io__dd-trigger[data-empty='true'] {
+        gap: 0;
+        color: rgba(var(--color-foreground), 0.75);
+      }
+      .sb-io input[type='radio'][data-sb-io-swatch] {
+        clip: rect(0, 0, 0, 0);
+        overflow: hidden;
+        position: absolute;
+        height: 0.1rem;
+        width: 0.1rem;
+      }
+      .sb-io__sr {
+        position: absolute;
+        left: -9999px;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+      }
+      .sb-io--loading {
+        opacity: 0.5;
+        pointer-events: none;
+      }
+      .sb-io-qty-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 0 8px;
+      }
+      html.has-sb-io #simple-bundles-options,
+      html.has-sb-io .simple-bundles-options,
+      html.has-sb-io [class*='simple-bundles-option'],
+      html.has-sb-io [data-simple-bundles-options],
+      body:has(.sb-io) #simple-bundles-options,
+      body:has(.sb-io) .simple-bundles-options,
+      body:has(.sb-io) .shopify-block:has(#simple-bundles-options),
+      body:has(.sb-io) .shopify-block:has(.simple-bundles-options),
+      body:has(.sb-io) .shopify-app-block:has(#simple-bundles-options),
+      body:has(.sb-io) .shopify-block:has([class*='infinite-options']),
+      body:has(.sb-io) [id*='infinite_options'],
+      body:has(.sb-io) [id*='infinite-options'],
+      body:has(.sb-io) [id*='simple_bundles_kits'],
+      form:has(.sb-io) #simple-bundles-options,
+      form:has(.sb-io) .simple-bundles-options,
+      .shopify-section:has(.sb-io) variant-selects,
+      .shopify-section:has(.sb-io) variant-radios,
+      .shopify-section:has(.sb-io) variant-selects .product-form__input--dropdown,
+      .shopify-section:has(.sb-io) [data-option-slug^='product-'],
+      .product:has(.sb-io) variant-selects,
+      .product:has(.sb-io) variant-radios {
+        display: none !important;
+      }
+
+      {%- comment -%}
+        The title price now carries a struck-through total and a percent tag as well as
+        the price. That does not fit the narrow slot beside the heading, so below the
+        desktop breakpoint the whole row moves under the title instead of being clipped.
+      {%- endcomment -%}
+      html.has-sb-io .product__title .price--on-sale .price__compare bdi {
+        font-size: calc(var(--font-heading-scale) * 1.5rem);
+      }
+
+      html.has-sb-io .sticky-cart .price__badge-percent {
+        display: none;
+      }
+
+      @media screen and (min-width: 990px) {
+        html.has-sb-io .product__title > [id^='price-'] {
+          flex: 0 1 auto;
+          min-width: 0;
+        }
+      }
+
+      @media screen and (max-width: 989px) {
+        html.has-sb-io .product__title {
+          flex-wrap: wrap;
+          row-gap: 0.6rem;
+        }
+
+        html.has-sb-io .product__title > [id^='price-'],
+        html.has-sb-io .product__title > [id^='price-range-'] {
+          flex: 1 0 100%;
+          max-width: none;
+          margin-inline-start: 0;
+          text-align: left;
+        }
+
+        html.has-sb-io .product__title .price,
+        html.has-sb-io .product__title .price .price__sale,
+        html.has-sb-io .product__title .price .price__last {
+          justify-content: flex-start;
+        }
+      }
+    </style>
+
+    {%- comment -%} Groups are rendered by JS so size/color dropdowns match the live bundle variant. {%- endcomment -%}
+    <div class="sb-io__shared-shaping" data-sb-io-shared-shaping hidden></div>
+    <div class="sb-io__groups" data-sb-io-groups></div>
+
+    {%- comment -%} Hidden input for _bundle_selection - managed by JS {%- endcomment -%}
+    <input type="hidden" name="properties[_bundle_selection]" value="" data-sb-io-bundle-selection />
+  </div>
+  <modal-dialog id="SbIoSizeGuide-{{ product.id }}" class="product-popup-modal">
+    <div
+      role="dialog"
+      aria-label="{{ 'products.product.size_chart' | t | escape }}"
+      aria-modal="true"
+      class="product-popup-modal__content"
+      tabindex="-1"
+    >
+      <button
+        id="ModalClose-SbIoSizeGuide-{{ product.id }}"
+        type="button"
+        class="product-popup-modal__toggle"
+        aria-label="{{ 'accessibility.close' | t }}"
+      >
+        <span class="icon icon-plus-alt"></span>
+      </button>
+      <div class="product-popup-modal__content-info">
+        <div class="h2" data-sb-io-size-guide-title>{{ 'products.product.size_chart' | t }}</div>
+        <div class="rte" data-sb-io-size-guide-body></div>
+      </div>
+    </div>
+  </modal-dialog>
+
+  <script>
+    (function () {
+      var productId = {{ product.id | json }};
+      var themeSwatchMap = {};
+      
+      // Default HEX colors for common color names
+      var defaultColors = {
+        // Reds
+        'red': '#FF0000',
+        'scarlet': '#FF2400',
+        'scarlet red': '#FF2400',
+        'crimson': '#DC143C',
+        'cherry': '#DE3163',
+        'ruby': '#E0115F',
+        'burgundy': '#800020',
+        'maroon': '#800000',
+        'wine': '#722F37',
+        
+        // Pinks
+        'pink': '#FFC0CB',
+        'hot pink': '#FF69B4',
+        'magenta': '#FF00FF',
+        'fuchsia': '#FF00FF',
+        'rose': '#FF007F',
+        'dusty rose': '#DCAE96',
+        'blush': '#DE5D83',
+        'salmon': '#FA8072',
+        'coral': '#FF7F50',
+        'peach': '#FFCBA4',
+        'petal pink': '#FADADD',
+        'barely pink': '#F8E8E8',
+        'flutter': '#E8A0A0',
+        
+        // Oranges
+        'orange': '#FFA500',
+        'tangerine': '#FF9966',
+        'apricot': '#FBCEB1',
+        'amber': '#FFBF00',
+        'rust': '#B7410E',
+        'terracotta': '#E2725B',
+        
+        // Browns
+        'brown': '#964B00',
+        'mocha': '#8B4513',
+        'chocolate': '#7B3F00',
+        'coffee': '#6F4E37',
+        'espresso': '#4E312D',
+        'caramel': '#FFD59A',
+        'tan': '#D2B48C',
+        'beige': '#F5F5DC',
+        'taupe': '#483C32',
+        'nude': '#E3BC9A',
+        'natural': '#E3BC9A',
+        
+        // Yellows
+        'yellow': '#FFFF00',
+        'gold': '#FFD700',
+        'mustard': '#FFDB58',
+        'lemon': '#FFF44F',
+        'honey': '#EB9605',
+        'butter': '#FFFAA0',
+        
+        // Greens
+        'green': '#008000',
+        'lime': '#32CD32',
+        'olive': '#808000',
+        'mint': '#98FF98',
+        'sage': '#BCB88A',
+        'emerald': '#50C878',
+        'forest': '#228B22',
+        'teal': '#008080',
+        'seafoam': '#93E9BE',
+        'jade': '#00A86B',
+        'hunter green': '#355E3B',
+        
+        // Blues
+        'blue': '#0000FF',
+        'navy': '#000080',
+        'royal blue': '#4169E1',
+        'sky blue': '#87CEEB',
+        'baby blue': '#89CFF0',
+        'powder blue': '#B0E0E6',
+        'cobalt': '#0047AB',
+        'indigo': '#4B0082',
+        'turquoise': '#40E0D0',
+        'aqua': '#00FFFF',
+        'cyan': '#00FFFF',
+        'denim': '#1560BD',
+        'steel blue': '#4682B4',
+        
+        // Purples
+        'purple': '#800080',
+        'violet': '#EE82EE',
+        'lavender': '#E6E6FA',
+        'lilac': '#C8A2C8',
+        'plum': '#DDA0DD',
+        'mauve': '#E0B0FF',
+        'orchid': '#DA70D6',
+        'grape': '#6F2DA8',
+        'eggplant': '#614051',
+        'berry': '#8E4585',
+        'whispers': '#C9A9A9',
+        'vogue': '#8B6969',
+        
+        // Neutrals
+        'black': '#000000',
+        'white': '#FFFFFF',
+        'gray': '#808080',
+        'grey': '#808080',
+        'silver': '#C0C0C0',
+        'charcoal': '#36454F',
+        'slate': '#708090',
+        'ivory': '#FFFFF0',
+        'cream': '#FFFDD0',
+        'off-white': '#FAF9F6',
+        'bone': '#E3DAC9',
+        
+        // Metallics
+        'rose gold': '#B76E79',
+        'bronze': '#CD7F32',
+        'copper': '#B87333',
+        'champagne': '#F7E7CE',
+        'pewter': '#8F8F8F',
+        
+        // Other common
+        'spice n easy':'#a25033',
+        'mlady - matte mauve': '#000',
+        'heather grey': '#9AA297',
+        'heather gray': '#9AA297',
+        'oatmeal': '#D4C4A8',
+        'sand': '#C2B280',
+        'khaki': '#C3B091',
+        'stone': '#928E85',
+        'ash': '#B2BEB5',
+        'graphite': '#383838',
+        'tube': '#F5F5DC',
+        'twist': '#2F2F2F'
+      };
+      function parseMap(id) {
+        var el = document.getElementById(id);
+        if (!el) return {};
+        try { return JSON.parse(el.textContent || "{}"); } catch (e) { return {}; }
+      }
+      /**
+       * Normalize string for matching: lowercase, strip price suffixes, 
+       * remove ALL apostrophe/quote variants (straight, curly, backtick).
+       * This matches the Liquid-side normalization applied to metaobject keys.
+       */
+      function norm(str) {
+        return String(str || "").trim().toLowerCase()
+          // Remove price suffix like "(+CA$5.00)" or "(+$5.00)"
+          .replace(/\s*\([^)]*\)\s*$/, '')
+          // Remove ALL apostrophe and quote variants:
+          // ' (straight apostrophe U+0027)
+          // ' (right single quote U+2019)
+          // ' (left single quote U+2018)
+          // ` (backtick U+0060)
+          // " (straight double quote U+0022)
+          // " (left double quote U+201C)
+          // " (right double quote U+201D)
+          .replace(/['''`""\u2018\u2019\u201C\u201D]/g, '')
+          .trim();
+      }
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+      // Get default color for an option value
+      function getDefaultColor(val) {
+        var key = norm(val);
+        // Exact match first
+        if (defaultColors[key]) return defaultColors[key];
+        // Try partial match (e.g., "Dusty Rose Pink" contains "dusty rose")
+        for (var colorName in defaultColors) {
+          if (key.indexOf(colorName) !== -1) {
+            return defaultColors[colorName];
+          }
+        }
+        return null;
+      }
+      // Cache for fetched product images
+      var imageCache = {};
+      function fetchProductInfo(handle, callback) {
+        if (!handle) {
+          callback(null);
+          return;
+        }
+        if (imageCache[handle]) {
+          callback(imageCache[handle]);
+          return;
+        }
+        fetch('/products/' + handle + '.js')
+          .then(function(res) { return res.json(); })
+          .then(function(product) {
+            var imgUrl = null;
+            if (product.featured_image) {
+              imgUrl = product.featured_image.replace(/\.([^.]+)$/, '_200x.$1');
+            }
+            var info = {
+              imgUrl: imgUrl,
+              title: product.title || '',
+              colorImages: colorImagesFromProduct(product),
+              variants: (product.variants || []).map(function(v) {
+                return {
+                  id: v.id,
+                  available: !!v.available,
+                  price: typeof v.price === 'number' ? v.price : parseInt(v.price, 10) || 0,
+                  compare_at_price: typeof v.compare_at_price === 'number' ? v.compare_at_price : (parseInt(v.compare_at_price, 10) || 0),
+                  options: v.options || [v.option1, v.option2, v.option3],
+                  option1: v.option1 || '',
+                  option2: v.option2 || '',
+                  option3: v.option3 || ''
+                };
+              })
+            };
+            imageCache[handle] = info;
+            callback(info);
+          })
+          .catch(function() {
+            imageCache[handle] = { imgUrl: null, title: '', colorImages: {}, variants: [] };
+            callback(imageCache[handle]);
+          });
+      }
+      function colorImagesFromProduct(product) {
+        var map = {};
+        if (!product) return map;
+        var opts = product.options || [];
+        var colorIndex = -1;
+        for (var i = 0; i < opts.length; i++) {
+          var name = typeof opts[i] === 'string' ? opts[i] : (opts[i].name || '');
+          if (/\bcolou?r\b/i.test(name)) {
+            colorIndex = i;
+            break;
+          }
+        }
+        (product.variants || []).forEach(function(v) {
+          var colorVal = '';
+          if (v.options && colorIndex >= 0) colorVal = v.options[colorIndex] || '';
+          if (!colorVal && colorIndex === 0) colorVal = v.option1 || '';
+          if (!colorVal && colorIndex === 1) colorVal = v.option2 || '';
+          if (!colorVal && colorIndex === 2) colorVal = v.option3 || '';
+          var src = v.featured_image && (v.featured_image.src || v.featured_image);
+          if (colorVal && src && !map[norm(colorVal)]) {
+            map[norm(colorVal)] = String(src).replace(/\.([^.]+)$/, '_200x.$1');
+          }
+        });
+        (product.images || []).forEach(function(img) {
+          var alt = norm(img.alt || '');
+          var src = img.src || img;
+          if (alt && src && !map[alt]) {
+            map[alt] = String(src).replace(/\.([^.]+)$/, '_200x.$1');
+          }
+        });
+        return map;
+      }
+      function isSizeValue(val) {
+        var v = norm(val);
+        return /^(xxs|xs|s|m|l|xl|xxl|xxxl|\d+xl|[0-9]+|[a-k]|aa|dd|ddd|one size)$/.test(v);
+      }
+      function optionKind(optionName, values) {
+        var n = String(optionName || '').toLowerCase();
+        if (/\bsize\b/.test(n)) return 'size';
+        if (/\bfit\b|\btype\b|\bshape\b/.test(n)) return 'fit';
+        if (/\bcolou?r\b/.test(n)) return 'color';
+        var list = values || [];
+        var sizeCount = 0;
+        for (var i = 0; i < list.length; i++) {
+          if (isSizeValue(list[i])) sizeCount++;
+        }
+        if (list.length && sizeCount >= Math.ceil(list.length * 0.6)) return 'size';
+        return 'color';
+      }
+      function optionLabelPrefix(kind) {
+        if (kind === 'size') return 'Size';
+        if (kind === 'fit') return 'Type';
+        if (kind === 'combo') {
+          var el = currentIoContainer();
+          return (el && el.getAttribute('data-size-color-label')) || 'Size / Color';
+        }
+        return 'Color';
+      }
+      function placeholderLabel(kind, container) {
+        container = container || currentIoContainer();
+        if (kind === 'size') return (container && container.getAttribute('data-select-size')) || 'Select Size';
+        if (kind === 'combo') return (container && container.getAttribute('data-choose-label')) || 'Select size and color';
+        if (kind === 'color') return (container && container.getAttribute('data-select-color')) || 'Select Color';
+        return 'Select option';
+      }
+      function placeholderForGroup(group) {
+        var kind = (group && group.getAttribute('data-option-kind')) || 'color';
+        var container = group && group.closest('[data-sb-io]');
+        return placeholderLabel(kind, container);
+      }
+      function preselectEnabled(container) {
+        container = container || currentIoContainer();
+        return !!(container && container.getAttribute('data-option-default') === 'selected');
+      }
+      function optionStartValue(valuesArr, container) {
+        if (!preselectEnabled(container)) return '';
+        return String((valuesArr && valuesArr[0]) || '');
+      }
+      function isGenericOptionName(name) {
+        return /^product\s*\d+(\s*-.*)?$/i.test(String(name || '').trim());
+      }
+      function displayOptionTitle(optionName, productTitle) {
+        if (productTitle) return productTitle;
+        var name = String(optionName || '').trim();
+        if (isGenericOptionName(name)) return name.replace(/\s*-\s*(size|colou?r|fit|type).*$/i, '').trim() || name;
+        return name || 'Option';
+      }
+      function slashDashIndex(text) {
+        var parts = String(text || '').split('-');
+        for (var i = 0; i < parts.length; i++) {
+          if (parts[i].indexOf('/') !== -1) return i;
+        }
+        return -1;
+      }
+      function productNameFromCombined(text) {
+        var idx = slashDashIndex(text);
+        if (idx <= 0) return '';
+        return String(text || '').split('-').slice(0, idx).join('-').trim();
+      }
+      function optionTailFromCombined(text) {
+        var idx = slashDashIndex(text);
+        if (idx < 0) return String(text || '').trim();
+        return String(text || '').split('-').slice(idx).join('-').trim();
+      }
+      function uniqueValues(list) {
+        var out = [];
+        (list || []).forEach(function(v) {
+          var s = String(v || '').trim();
+          if (s && out.indexOf(s) === -1) out.push(s);
+        });
+        return out;
+      }
+      function axisNamesFrom(propKey, sample, axisCount) {
+        var names = [];
+        if (slashDashIndex(propKey) >= 0) {
+          names = optionTailFromCombined(propKey).split('/').map(function(s) { return s.trim(); });
+        } else if (/\s-\s/.test(propKey)) {
+          names = propKey.split(/\s-\s/).slice(1).join(' - ').split('/').map(function(s) { return s.trim(); });
+        }
+        var tailParts = optionTailFromCombined(sample).split('/').map(function(s) { return s.trim(); });
+        var out = [];
+        for (var i = 0; i < axisCount; i++) {
+          var name = names[i] || '';
+          if (!name) name = optionLabelPrefix(optionKind(tailParts[i] || '', [tailParts[i] || '']));
+          out.push(name);
+        }
+        return out;
+      }
+      function tryExpandCombined(propKey, valuesArr) {
+        if (!valuesArr.length) return null;
+        var sample = valuesArr[0];
+        var hasSlash = valuesArr.some(function(v) { return String(v).indexOf('/') !== -1; }) || String(propKey).indexOf('/') !== -1;
+        if (!hasSlash) return null;
+        var productName = productNameFromCombined(sample) || productNameFromCombined(propKey);
+        var tail = optionTailFromCombined(sample);
+        var axisCount = tail.split('/').length;
+        if (axisCount < 2) {
+          axisCount = optionTailFromCombined(propKey).split('/').length;
+        }
+        if (axisCount < 2) return null;
+        var axisNames = axisNamesFrom(propKey, sample, axisCount);
+        var axes = [];
+        for (var i = 0; i < axisCount; i++) {
+          var vals = [];
+          valuesArr.forEach(function(v) {
+            var parts = optionTailFromCombined(v).split('/').map(function(s) { return s.trim(); });
+            if (parts[i]) vals.push(parts[i]);
+          });
+          vals = uniqueValues(vals);
+          if (!vals.length) continue;
+          axes.push({
+            axisName: axisNames[i],
+            values: vals,
+            axisIndex: i,
+            kind: optionKind(axisNames[i], vals)
+          });
+        }
+        if (axes.length < 2) return null;
+        return { productName: productName, axes: axes, originalValues: valuesArr };
+      }
+      function matchOriginalValue(originalValues, selectedParts, productName) {
+        for (var i = 0; i < originalValues.length; i++) {
+          var parts = optionTailFromCombined(originalValues[i]).split('/').map(function(s) { return s.trim(); }).filter(Boolean);
+          if (parts.length !== selectedParts.length) continue;
+          var ok = true;
+          for (var j = 0; j < parts.length; j++) {
+            if (norm(parts[j]) !== norm(selectedParts[j])) { ok = false; break; }
+          }
+          if (ok) return originalValues[i];
+        }
+        return (productName ? productName + ' - ' : '') + selectedParts.join(' / ');
+      }
+      function buildBundleLookup(bundledVariants) {
+        var lookup = { byOptionName: {}, byValue: {}, byHandle: {}, products: uniqueProducts(bundledVariants) };
+        if (!bundledVariants || !Array.isArray(bundledVariants)) return lookup;
+        bundledVariants.forEach(function(bv) {
+          var info = {
+            handle: bv.handle || '',
+            title: bv.product_title || ''
+          };
+          if (info.handle) lookup.byHandle[info.handle] = info;
+          if (bv.variant_options && Array.isArray(bv.variant_options)) {
+            bv.variant_options.forEach(function(vo) {
+              var optionName = vo.name || vo.optionName || vo.option_name || '';
+              var val = vo.value;
+              if (optionName) lookup.byOptionName[norm(optionName)] = info;
+              if (val) {
+                var key = norm(val);
+                if (!lookup.byValue[key]) lookup.byValue[key] = [];
+                lookup.byValue[key].push(info);
+              }
+            });
+          }
+        });
+        return lookup;
+      }
+      /** One entry per bundled PRODUCT, in bundle order — not one per bundled variant. */
+      function uniqueProducts(bundledVariants) {
+        var list = [];
+        var seen = {};
+        (bundledVariants || []).forEach(function(bv) {
+          if (!bv || (!bv.handle && !bv.product_title)) return;
+          var key = bv.handle || bv.product_title;
+          if (seen[key]) return;
+          seen[key] = true;
+          list.push({ handle: bv.handle || '', title: bv.product_title || '' });
+        });
+        return list;
+      }
+      function slotProductInfo(bucketIndex, bucketCount, products) {
+        if (!products || !products.length) return null;
+        if (bucketIndex < products.length && bucketCount <= products.length) return products[bucketIndex];
+        if (bucketCount > products.length && bucketCount % products.length === 0) {
+          var copies = bucketCount / products.length;
+          return products[Math.floor(bucketIndex / copies)] || products[0];
+        }
+        return products[bucketIndex % products.length];
+      }
+      function optionSlotKind(propKey, valuesArr, expanded) {
+        if (expanded) return 'combo';
+        return optionKind(propKey, valuesArr);
+      }
+      function findGroupInfo(propKey, valuesArr, lookup, productIndex) {
+        var named = lookup.byOptionName[norm(propKey)];
+        if (named && (named.title || named.handle)) return named;
+        var counts = {};
+        (valuesArr || []).forEach(function(v) {
+          var list = lookup.byValue[norm(v)] || [];
+          list.forEach(function(info) {
+            if (!info.handle) return;
+            if (!counts[info.handle]) counts[info.handle] = { n: 0, info: info };
+            counts[info.handle].n += 1;
+          });
+        });
+        var best = null;
+        var bestN = 0;
+        Object.keys(counts).forEach(function(handle) {
+          if (counts[handle].n > bestN) {
+            bestN = counts[handle].n;
+            best = counts[handle].info;
+          }
+        });
+        if (best) return best;
+        if (lookup.products && lookup.products[productIndex]) return lookup.products[productIndex];
+        return null;
+      }
+      function splitOptionValues(optionValues) {
+        if (Array.isArray(optionValues)) {
+          return optionValues.map(function(s) { return String(s).trim(); }).filter(Boolean);
+        }
+        return String(optionValues || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+      }
+      function hideNativeNode(el) {
+        if (!el) return;
+        el.style.setProperty('display', 'none', 'important');
+        el.setAttribute('hidden', '');
+        el.setAttribute('aria-hidden', 'true');
+      }
+      function neutralizeNativeBundleInputs(container) {
+        var form = container.closest('form');
+        var ourKeys = {};
+        container.querySelectorAll('input[data-sb-io-prop="true"]').forEach(function(input) {
+          if (input.name) ourKeys[input.name] = true;
+        });
+        ourKeys['properties[_bundle_selection]'] = true;
+
+        var formId = form && form.id;
+        var sectionEl = container.closest('.shopify-section');
+
+        document.querySelectorAll(
+          '#simple-bundles-options, .simple-bundles-options, [class*="simple-bundles-option"], [data-simple-bundles-options], [id*="infiniteoptions"], [id*="infinite-options"]'
+        ).forEach(function(el) {
+          if (container.contains(el)) return;
+          hideNativeNode(el);
+          var block = el.closest('.shopify-block, .shopify-app-block');
+          if (block) hideNativeNode(block);
+          el.querySelectorAll('select, input').forEach(function(field) {
+            if (field.name && (ourKeys[field.name] || String(field.name).indexOf('properties[') === 0)) {
+              field.disabled = true;
+              field.removeAttribute('name');
+            }
+          });
+        });
+
+        document.querySelectorAll('select[name^="properties["], input[type="hidden"][name^="properties["]').forEach(function(el) {
+          if (container.contains(el)) return;
+          if (el.getAttribute('data-sb-io-prop') === 'true') return;
+          if (el.hasAttribute('data-sb-io-bundle-selection')) return;
+          var name = el.name || '';
+          if (ourKeys[name] || /properties\[Product\s*\d+/i.test(name)) {
+            el.disabled = true;
+            el.removeAttribute('name');
+            hideNativeNode(el);
+            var wrap = el.closest('.product-form__input, .select, fieldset') || el.parentElement;
+            if (wrap && !wrap.closest('.sb-io') && wrap !== form) hideNativeNode(wrap);
+          }
+        });
+
+        document.querySelectorAll('variant-selects, variant-radios, [data-option-slug^="product-"]').forEach(function(el) {
+          if (container.contains(el)) return;
+          var sameSection = sectionEl && el.closest('.shopify-section') === sectionEl;
+          var sameForm = form && (form.contains(el) || (formId && el.querySelector('[form="' + formId + '"]')));
+          if (sameSection || sameForm) hideNativeNode(el);
+        });
+      }
+      function ensureFormVariantId(container) {
+        var form = container.closest('form');
+        if (!form) return;
+        var idField = form.querySelector('[name="id"]');
+        if (!idField) return;
+        var onlyDefault = container.getAttribute('data-has-only-default-variant') === 'true';
+        if (!idField.value && onlyDefault) {
+          var vid = container.getAttribute('data-initial-variant-id');
+          if (vid) idField.value = vid;
+        }
+        if (idField.value) {
+          idField.disabled = false;
+          idField.removeAttribute('disabled');
+        }
+      }
+      function watchNativeBundleInputs(container) {
+        var form = container.closest('form');
+        document.documentElement.classList.add('has-sb-io');
+        neutralizeNativeBundleInputs(container);
+        ensureFormVariantId(container);
+        if (form && !form.getAttribute('data-sb-io-submit-bound')) {
+          form.setAttribute('data-sb-io-submit-bound', 'true');
+          form.addEventListener('submit', function(e) {
+            ensureFormVariantId(container);
+            if (!bundleSelectionsComplete(container)) {
+              e.preventDefault();
+              e.stopPropagation();
+              syncIoAddButton(container);
+            }
+          }, true);
+        }
+        if (document.documentElement.getAttribute('data-sb-io-observed')) return;
+        document.documentElement.setAttribute('data-sb-io-observed', 'true');
+        var obs = new MutationObserver(function() {
+          document.querySelectorAll('[data-sb-io]').forEach(function(el) {
+            neutralizeNativeBundleInputs(el);
+          });
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+      }
+      // Get currently selected variant ID
+      function getSelectedVariantId(container) {
+        var form = container && container.closest ? container.closest('form') : null;
+        var url = new URL(window.location.href);
+        var urlVariant = url.searchParams.get('variant');
+        if (urlVariant) return String(urlVariant);
+
+        var scope = form || document;
+        var idField = scope.querySelector('[name="id"]');
+        if (idField && idField.value) return String(idField.value);
+
+        if (!form) {
+          idField = document.querySelector('form[action*="/cart/add"] [name="id"]');
+          if (idField && idField.value) return String(idField.value);
+        }
+
+        var initial = container && container.getAttribute('data-initial-variant-id');
+        if (initial) return String(initial);
+
+        return null;
+      }
+      var sbIoRadioSeq = 0;
+      var CARET_SVG = '<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" class="icon icon-caret" fill="none" viewBox="0 0 24 15"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 15c-.3 0-.6-.1-.8-.4l-11-13C-.2 1.2-.1.5.3.2c.4-.4 1.1-.3 1.4.1L12 12.5 22.2.4c.4-.4 1-.5 1.4-.1.4.4.5 1 .1 1.4l-11 13c-.1.2-.4.3-.7.3z" fill="currentColor"/></svg>';
+      function currentIoContainer() {
+        return document.querySelector('[data-sb-io][data-product-id="' + productId + '"]') || document.querySelector('[data-sb-io]');
+      }
+      function pickerUsesDropdown(kind, container) {
+        container = container || currentIoContainer();
+        if (!container) return true;
+        return (container.getAttribute('data-picker-type') || 'dropdown') === 'dropdown';
+      }
+      function combineSizeColorEnabled(container) {
+        container = container || currentIoContainer();
+        return !!(container && container.getAttribute('data-combine-size-color') === 'true');
+      }
+      function colorKeyFromValue(val) {
+        var s = String(val || '').trim();
+        if (s.indexOf('/') === -1) return s;
+        return optionTailFromCombined(s).split('/').pop().trim() || s;
+      }
+      function sizeGuideEnabledForIndex(index, container) {
+        container = container || currentIoContainer();
+        if (!container || container.getAttribute('data-show-size-guide') === 'false') return false;
+        var flags = (container.getAttribute('data-size-guide-items') || 'true,true,true,true').split(',');
+        return String(flags[index] || 'true').trim() !== 'false';
+      }
+      function formatItemLabel(index, title, type, container, tags) {
+        container = container || currentIoContainer();
+        var style = (container && container.getAttribute('data-item-label')) || 'auto';
+        var n = index + 1;
+        var pairPrefix = ((container && container.getAttribute('data-pair-label')) || 'Pair #') + n;
+        var formPrefix = ((container && container.getAttribute('data-breast-form-label')) || 'Form #') + n;
+        var prefix = pairPrefix;
+        if (style === 'product_title') return title || pairPrefix;
+        if (style === 'breast_form') prefix = formPrefix;
+        else if (style === 'pair') prefix = pairPrefix;
+        else {
+          var haystack = (title || '') + ' ' + (type || '') + ' ' + (tags || '');
+          if (/breast\s*form/i.test(haystack)) prefix = formPrefix;
+        }
+        if (title) return prefix + ': ' + title;
+        return prefix;
+      }
+      function headingForStrip(strip, index, title, type, tags) {
+        return formatItemLabel(index, title, type, strip && strip.closest('[data-sb-io]'), tags);
+      }
+      function optionDropdownTitle(opt) {
+        var raw = String(
+          (opt && (opt.dropdownTitle || opt.dropdown_title || opt.optionTitle || opt.option_title || opt.optionName || opt.option_name)) || ''
+        ).trim();
+        if (!raw || isGenericOptionName(raw)) return '';
+        return raw.replace(/\s*-\s*(size|colou?r|fit|type).*$/i, '').trim() || raw;
+      }
+      function groupSelectedValue(group) {
+        if (!group) return '';
+        var select = group.querySelector('[data-sb-io-select]');
+        if (select) return select.value || '';
+        var active = group.querySelector('[data-sb-io-swatch]:checked');
+        return active ? (active.getAttribute('data-option-value') || '') : '';
+      }
+      function optionRowHtml(propKey, kind, valuesArr, extraAttrs, rowOpts) {
+        extraAttrs = extraAttrs || '';
+        rowOpts = rowOpts || {};
+        var container = currentIoContainer();
+        var groupName = 'sb-io-ui-' + productId + '-' + (++sbIoRadioSeq);
+        var isCombo = kind === 'combo';
+        var isColor = kind === 'color' || isCombo;
+        var asDropdown = pickerUsesDropdown(kind, container);
+        var prefix = isCombo
+          ? ((container && container.getAttribute('data-size-color-label')) || 'Size / Color')
+          : optionLabelPrefix(kind);
+        var placeholder = placeholderLabel(kind, container);
+        var preselect = preselectEnabled(container);
+        var firstVal = valuesArr[0] || '';
+        var shownVal = preselect ? firstVal : placeholder;
+        var showColorDots = !container || container.getAttribute('data-enable-color-swatches') !== 'false';
+        var sizeGuideHtml = '';
+        if (rowOpts.sizeGuideLabel) {
+          sizeGuideHtml = '<button type="button" class="link variant-picker__text-link" data-sb-io-size-guide>' + escapeHtml(rowOpts.sizeGuideLabel) + '</button>';
+        }
+        var head = '<div class="form__label sb-io__selected-label"><span class="sb-io__selected-label-text"><span data-sb-io-label-prefix>' + escapeHtml(prefix) + '</span>: <span data-sb-io-selected-label>' + escapeHtml(shownVal) + '</span></span>' + sizeGuideHtml + '</div>';
+        var placeholderOption = preselect ? '' : '<option value="" selected>' + escapeHtml(placeholder) + '</option>';
+        if (!asDropdown) {
+          return `
+            <div class="sb-io__group product-form__input" data-sb-io-group data-option-kind="${kind}" ${extraAttrs}>
+              ${head}
+              <div class="sb-io__swatches" role="radiogroup" aria-label="${escapeHtml(propKey)}">
+                ${valuesArr.map(function(v, i) {
+                  var id = groupName + '-' + i;
+                  var input = `<input type="radio" id="${id}" name="${groupName}" form="sb-io-ui-none" data-sb-io-swatch data-prop-key="${escapeHtml(propKey)}" data-option-value="${escapeHtml(v)}" value="${escapeHtml(v)}"${preselect && i === 0 ? ' checked' : ''}>`;
+                  if (isColor) {
+                    return input + `<label for="${id}" class="color__swatch color__swatch--round" title="${escapeHtml(v)}"><span class="color__swatch-dot"></span></label>`;
+                  }
+                  return input + `<label for="${id}">${escapeHtml(v)}</label>`;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }
+        if (asDropdown) {
+          var showDots = isColor && showColorDots;
+          return `
+            <div class="sb-io__group product-form__input product-form__input--dropdown" data-sb-io-group data-option-kind="${kind}" ${extraAttrs}>
+              ${head}
+              <div class="select sb-io__dd" data-sb-io-dd>
+                <button type="button" class="select__select sb-io__dd-trigger" data-sb-io-dd-trigger data-empty="${preselect ? 'false' : 'true'}" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="sb-io__dd-swatch" data-sb-io-dd-swatch${preselect && showDots ? '' : ' hidden'}></span>
+                  <span data-sb-io-dd-label>${escapeHtml(shownVal)}</span>
+                  ${CARET_SVG}
+                </button>
+                <ul class="sb-io__dd-list" hidden data-sb-io-dd-list role="listbox">
+                  ${valuesArr.map(function(v, i) {
+                    return `<li><button type="button" class="sb-io__dd-option${preselect && i === 0 ? ' is-active' : ''}" data-sb-io-dd-option data-option-value="${escapeHtml(v)}">${showDots ? '<span class="sb-io__dd-swatch"></span>' : ''}<span data-sb-io-option-label>${escapeHtml(v)}</span></button></li>`;
+                  }).join('')}
+                </ul>
+                <select class="sb-io__sr" form="sb-io-ui-none" data-sb-io-select data-prop-key="${escapeHtml(propKey)}" aria-hidden="true" tabindex="-1">
+                  ${placeholderOption}
+                  ${valuesArr.map(function(v, i) {
+                    return `<option value="${escapeHtml(v)}"${preselect && i === 0 ? ' selected' : ''}>${escapeHtml(v)}</option>`;
+                  }).join('')}
+                </select>
+              </div>
+            </div>
+          `;
+        }
+      }
+      function shapingStripHtml(label) {
+        var squares = '';
+        for (var i = 1; i <= 5; i++) {
+          squares += '<span class="sb-io__shaping-square"></span>';
+        }
+        return `
+          <button type="button" class="sb-io__shaping-bar" data-sb-io-shaping data-shaping-info aria-haspopup="dialog" aria-controls="ShapingInfoPopup" aria-label="${escapeHtml(label || 'Shaping level')}">
+            <span class="sb-io__shaping-label">
+              <span class="sb-io__shaping-icon" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 0C11.2311 0 8.52431 0.821086 6.22202 2.35943C3.91973 3.89777 2.12532 6.08427 1.06569 8.64243C0.00606596 11.2006 -0.271181 14.0155 0.269012 16.7313C0.809205 19.447 2.14258 21.9416 4.10051 23.8995C6.05845 25.8574 8.55301 27.1908 11.2687 27.731C13.9845 28.2712 16.7994 27.9939 19.3576 26.9343C21.9157 25.8747 24.1022 24.0803 25.6406 21.778C27.1789 19.4757 28 16.7689 28 14C28 10.287 26.525 6.72601 23.8995 4.1005C21.274 1.475 17.713 0 14 0ZM14 6C14.2967 6 14.5867 6.08797 14.8334 6.2528C15.08 6.41762 15.2723 6.65189 15.3858 6.92597C15.4994 7.20006 15.5291 7.50166 15.4712 7.79264C15.4133 8.08361 15.2704 8.35088 15.0607 8.56066C14.8509 8.77044 14.5836 8.9133 14.2926 8.97118C14.0017 9.02906 13.7001 8.99935 13.426 8.88582C13.1519 8.77229 12.9176 8.58003 12.7528 8.33335C12.588 8.08668 12.5 7.79667 12.5 7.5C12.5 7.10218 12.658 6.72064 12.9393 6.43934C13.2207 6.15804 13.6022 6 14 6ZM18 22.125H10V19.875H12.875V14.125H11V11.875H15.125V19.875H18V22.125Z" fill="white"/></svg>
+              </span>
+              ${escapeHtml(label || 'Shaping level')}
+            </span>
+            <span class="sb-io__shaping-squares" aria-hidden="true">${squares}</span>
+          </button>
+        `;
+      }
+      function stripHtml(displayTitle, shapingLabel, sizeGuideLabel) {
+        return `
+            <div class="sb-io__strip" data-sb-io-strip>
+              <div class="sb-io__product-thumb" data-sb-io-thumb>
+                <img width="64" height="64" alt="" data-sb-io-thumb-img>
+                <span class="sb-io__thumb-shape" data-sb-io-thumb-shape hidden aria-hidden="true"></span>
+              </div>
+              <div class="sb-io__strip-meta">
+                <div class="sb-io__title" data-sb-io-title>${escapeHtml(displayTitle)}</div>
+                ${shapingStripHtml(shapingLabel)}
+                <div class="sb-io__size-guide-row" data-sb-io-size-guide-row hidden>
+                  <button type="button" class="link variant-picker__text-link" data-sb-io-size-guide>${escapeHtml(sizeGuideLabel || 'Size Guide')}</button>
+                </div>
+                <div class="sb-io__strip-body" data-sb-io-strip-body></div>
+              </div>
+            </div>
+          `;
+      }
+      function shapeIconSvg(shape) {
+        var key = String(shape || '').toLowerCase().replace(/[\s_]+/g, '-');
+        if (key === 'halfmoon' || key === 'half-moon') key = 'half-moon';
+        if (key === 'ellipse' || key === 'circle') key = 'oval';
+        var icons = {
+          triangle: '<svg width="16" height="16" viewBox="0 0 53 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 41.6443L26.0277 0L52.0553 41.6443H0ZM47.767 39.3549L26.0277 4.57881L4.28837 39.3549H47.767Z" fill="black"/></svg>',
+          oval: '<svg width="16" height="16" viewBox="0 0 52 39" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.05273 19.2588C1.05275 14.2049 3.76922 9.67978 8.27539 6.38086C12.7855 3.07912 19.0401 1.05279 25.915 1.05273C32.7901 1.05273 39.0455 3.07904 43.5557 6.38086C48.0617 9.67977 50.7783 14.2049 50.7783 19.2588C50.7783 24.2216 48.159 28.6731 43.7988 31.9561C39.434 35.2424 33.3672 37.314 26.6621 37.457L25.9268 37.4648L25.168 37.457C18.4642 37.3139 12.3984 35.2424 8.0332 31.9561C3.67251 28.6731 1.05273 24.2216 1.05273 19.2588Z" stroke="black" stroke-width="2.10538"/></svg>',
+          'half-moon': '<svg width="16" height="16" viewBox="0 0 51 45" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.69531 15.498C8.59196 3.86257 18.4072 -1.45573 29.208 0.421875C34.5974 1.35882 39.5361 4.46331 43.0957 9.32031C44.9796 11.8907 46.3715 14.8031 47.4492 17.9443C49.7277 24.5884 50.2524 31.4891 50.2461 38.6104V38.6348L50.2266 38.6504C49.7466 39.0407 49.3125 39.2961 48.7793 39.585C44.7871 41.7497 40.5523 43.1341 36.1328 43.9443L36.1318 43.9463L36.1133 43.9492C27.884 45.4554 19.5977 45.2475 11.4961 43.3994H11.4941C7.55174 42.3855 3.68486 41.0403 0.105469 38.7617L0.0810547 38.7471V38.7188C-0.112455 30.7402 0.659825 22.712 3.69531 15.498ZM40.9062 9.50293C34.5514 1.52937 24.1577 -0.194726 15.7939 4.1123C12.3354 5.89292 9.45005 8.79247 7.33398 12.4609C3.0961 19.8127 1.95523 28.8868 1.99121 37.6172C6.11028 39.936 10.5511 41.2564 15.0283 42.1064L16.0264 42.2734C26.4021 43.9123 38.8759 42.8967 48.3516 37.5264C48.306 30.1958 47.4709 23.2217 44.873 16.5322L44.4688 15.5762C43.5018 13.3681 42.3634 11.3304 40.9062 9.50293Z" fill="black" stroke="black" stroke-width="0.105269"/></svg>',
+          teardrop: '<svg width="16" height="16" viewBox="0 0 50 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M35.8697 44.5528C28.983 46.623 21.2466 46.7546 14.3449 44.7366C10.5828 43.6364 6.91543 41.926 4.17772 38.9733C0.791156 35.3193 0.302013 30.5807 1.62844 25.8212C2.1937 23.794 3.00977 21.952 4.02549 20.1244C7.45947 13.9478 12.6828 8.36053 18.2081 4.20199C19.7205 3.06394 21.2703 2.12403 22.9573 1.34968C24.1028 0.824326 25.2458 0.817808 26.3963 1.30406C27.8824 1.9324 29.2388 2.69501 30.5827 3.65317C36.7819 8.07373 42.7539 14.4341 46.2752 21.4084C47.7676 24.365 48.691 27.4663 48.681 30.8427C48.6673 35.4327 46.239 38.9303 42.6678 41.3485C40.554 42.7799 38.3017 43.8228 35.8697 44.5541V44.5528Z" stroke="black" stroke-width="1.89484" stroke-miterlimit="10"/></svg>'
+        };
+        return icons[key] || '';
+      }
+      function applyStripShape(strip, shape) {
+        var shapeEl = strip && strip.querySelector('[data-sb-io-thumb-shape]');
+        if (!shapeEl) return;
+        var svg = shapeIconSvg(shape);
+        if (svg) {
+          shapeEl.innerHTML = svg;
+          shapeEl.removeAttribute('hidden');
+        } else {
+          shapeEl.innerHTML = '';
+          shapeEl.setAttribute('hidden', '');
+        }
+      }
+      function applyShapingSquares(shapingEl, level) {
+        if (!shapingEl) return;
+        var squares = shapingEl.querySelectorAll('.sb-io__shaping-square');
+        squares.forEach(function(sq, i) {
+          if (i < level) sq.classList.add('is-active');
+          else sq.classList.remove('is-active');
+        });
+      }
+      function shapingLevelForHandle(handle) {
+        var children = parseMap('sb-child-products-' + productId);
+        var child = handle ? children[handle] : null;
+        var level = child && child.shaping_level ? parseInt(child.shaping_level, 10) : 0;
+        if (isNaN(level) || level < 0) level = 0;
+        if (level > 5) level = 5;
+        return level;
+      }
+      function restyleStripSwatches(strip, swatchMap, colorImages) {
+        if (!strip) return;
+        strip.querySelectorAll('[data-sb-io-group]').forEach(function(group) {
+          var kind = group.getAttribute('data-option-kind') || 'color';
+          styleSwatches(group.querySelectorAll('[data-sb-io-swatch]'), kind, swatchMap, colorImages);
+          styleColorDropdown(group, swatchMap, colorImages);
+        });
+      }
+      function styleColorDropdown(group, swatchMap, colorImages) {
+        if (!group) return;
+        group.querySelectorAll('[data-sb-io-dd-option]').forEach(function(btn) {
+          var val = btn.getAttribute('data-option-value') || '';
+          var dot = btn.querySelector('.sb-io__dd-swatch');
+          if (dot) dot.setAttribute('style', swatchCss(val, swatchMap, colorImages));
+        });
+        syncColorDropdownUi(group, swatchMap, colorImages);
+      }
+      function syncColorDropdownUi(group, swatchMap, colorImages) {
+        if (!group) return;
+        var dd = group.querySelector('[data-sb-io-dd]');
+        if (!dd) return;
+        var select = group.querySelector('[data-sb-io-select]');
+        var trigger = dd.querySelector('[data-sb-io-dd-trigger]');
+        var triggerLabel = trigger && trigger.querySelector('[data-sb-io-dd-label]');
+        var triggerDot = dd.querySelector('[data-sb-io-dd-swatch]');
+        var selectedLabel = group.querySelector('[data-sb-io-selected-label]');
+        var val = select ? (select.value || '') : '';
+        var soldOut = false;
+        if (val) {
+          dd.querySelectorAll('[data-sb-io-dd-option]').forEach(function(opt) {
+            if ((opt.getAttribute('data-option-value') || '') === val) {
+              soldOut = opt.getAttribute('data-availability') === 'sold-out' || opt.classList.contains('is-sold-out');
+            }
+          });
+        }
+        var displayVal = soldOutOptionText(val, soldOut, group.closest('[data-sb-io]'));
+        var placeholder = placeholderForGroup(group);
+        if (triggerLabel) triggerLabel.textContent = val ? displayVal : placeholder;
+        if (selectedLabel) selectedLabel.textContent = val ? displayVal : placeholder;
+        if (trigger) trigger.setAttribute('data-empty', val ? 'false' : 'true');
+        if (triggerDot) {
+          if (val) {
+            triggerDot.hidden = false;
+            triggerDot.setAttribute('style', swatchCss(val, swatchMap, colorImages));
+          } else {
+            triggerDot.hidden = true;
+          }
+        }
+        dd.querySelectorAll('[data-sb-io-dd-option]').forEach(function(opt) {
+          opt.classList.toggle('is-active', (opt.getAttribute('data-option-value') || '') === val);
+        });
+      }
+      function applyStripInfo(strip, info, fallbackTitle, swatchMap, stripIndex) {
+        if (!strip) return;
+        var titleEl = strip.querySelector('[data-sb-io-title]');
+        var thumbImg = strip.querySelector('[data-sb-io-thumb-img]');
+        var shapingEl = strip.querySelector('[data-sb-io-shaping]');
+        var children = parseMap('sb-child-products-' + productId);
+        var handle = info && info.handle;
+        var child = handle ? children[handle] : null;
+        var title = (strip.getAttribute('data-sb-custom-title') || '').trim()
+          || fallbackTitle
+          || (child && child.title)
+          || (info && info.title);
+        var type = (child && child.type) || '';
+        var tags = (child && child.tags) || '';
+        var index = stripIndex;
+        if (index == null || isNaN(index)) {
+          index = parseInt(strip.getAttribute('data-strip-index') || '0', 10) || 0;
+        }
+        function setHeading(nextTitle, nextType, nextTags) {
+          if (!titleEl) return;
+          titleEl.textContent = headingForStrip(strip, index, nextTitle || title, nextType || type, nextTags || tags);
+        }
+        setHeading(title, type, tags);
+        if (thumbImg) {
+          if (child && child.image) {
+            thumbImg.src = child.image;
+            thumbImg.alt = title || '';
+          }
+        }
+        applyStripShape(strip, child && child.shape);
+        if (shapingEl) {
+          var container = strip.closest('[data-sb-io]') || currentIoContainer();
+          var placement = (container && container.getAttribute('data-shaping-placement')) || 'each_item';
+          var combined = placement === 'combined' || placement === 'combined_below_title' || placement === 'combined_above_pairs';
+          if (container && container.getAttribute('data-show-shaping') === 'false') {
+            shapingEl.setAttribute('hidden', '');
+          } else if (combined) {
+            shapingEl.setAttribute('hidden', '');
+          } else {
+            var level = shapingLevelForHandle(handle);
+            applyShapingSquares(shapingEl, level);
+            if (level < 1) shapingEl.setAttribute('hidden', '');
+            else shapingEl.removeAttribute('hidden');
+          }
+        }
+        if (!handle) return;
+        fetchProductInfo(handle, function(fetched) {
+          if (!fetched) return;
+          if (thumbImg && fetched.imgUrl && !(child && child.image)) {
+            thumbImg.src = fetched.imgUrl;
+            thumbImg.alt = fetched.title || title || '';
+          }
+          if (fetched.title && !(strip.getAttribute('data-sb-custom-title') || '').trim()) {
+            setHeading(fetched.title, type, tags);
+          }
+          restyleStripSwatches(strip, swatchMap || {}, fetched.colorImages || {});
+          if (fetched.variants) {
+            strip._sbVariants = fetched.variants;
+            updateStripAvailability(strip);
+          }
+        });
+      }
+      function applySharedShaping(container, buckets) {
+        var sharedWrap = container.querySelector('[data-sb-io-shared-shaping]');
+        var sectionEl = container.closest('.shopify-section');
+        var pdpSlot = sectionEl ? sectionEl.querySelector('[data-sb-io-shaping-slot="pdp"]') : null;
+        var titleSlot = sectionEl ? sectionEl.querySelector('[data-sb-io-shaping-slot="below_title"]') : null;
+        var stripBars = container.querySelectorAll('[data-sb-io-strip] [data-sb-io-shaping]');
+        var placement = (container.getAttribute('data-shaping-placement') || 'each_item');
+        var shapingLabel = container.getAttribute('data-shaping-label') || 'Shaping level';
+
+        function setTarget(el, html) {
+          if (!el) return;
+          if (html) {
+            el.innerHTML = html;
+            el.removeAttribute('hidden');
+          } else {
+            el.innerHTML = '';
+            el.setAttribute('hidden', '');
+          }
+        }
+        function hideCombined() {
+          setTarget(sharedWrap, '');
+          setTarget(titleSlot, '');
+          if (pdpSlot && pdpSlot.querySelector('.sb-io__shaping-bar--combined')) {
+            pdpSlot.innerHTML = '';
+          }
+        }
+        function shortProductName(title) {
+          var s = String(title || '');
+          s = s.replace(/\([^)]*\)/g, ' ');
+          s = s.replace(/\b(bra inserts?|nipple covers?|breast forms?|inserts?)\b/gi, ' ');
+          s = s.replace(/^pair\s*#?\s*\d+\s*:?\s*/i, '');
+          s = s.replace(/^form\s*#?\s*\d+\s*:?\s*/i, '');
+          s = s.replace(/[\s/|,]+/g, ' ').trim();
+          if (!s) s = String(title || '').trim();
+          return s.replace(/\w\S*/g, function(word) {
+            if (/^[A-Z0-9]{2,4}$/.test(word)) return word;
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+          });
+        }
+        function shapingIconHtml() {
+          return '<span class="sb-io__shaping-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 0C11.2311 0 8.52431 0.821086 6.22202 2.35943C3.91973 3.89777 2.12532 6.08427 1.06569 8.64243C0.00606596 11.2006 -0.271181 14.0155 0.269012 16.7313C0.809205 19.447 2.14258 21.9416 4.10051 23.8995C6.05845 25.8574 8.55301 27.1908 11.2687 27.731C13.9845 28.2712 16.7994 27.9939 19.3576 26.9343C21.9157 25.8747 24.1022 24.0803 25.6406 21.778C27.1789 19.4757 28 16.7689 28 14C28 10.287 26.525 6.72601 23.8995 4.1005C21.274 1.475 17.713 0 14 0ZM14 6C14.2967 6 14.5867 6.08797 14.8334 6.2528C15.08 6.41762 15.2723 6.65189 15.3858 6.92597C15.4994 7.20006 15.5291 7.50166 15.4712 7.79264C15.4133 8.08361 15.2704 8.35088 15.0607 8.56066C14.8509 8.77044 14.5836 8.9133 14.2926 8.97118C14.0017 9.02906 13.7001 8.99935 13.426 8.88582C13.1519 8.77229 12.9176 8.58003 12.7528 8.33335C12.588 8.08668 12.5 7.79667 12.5 7.5C12.5 7.10218 12.658 6.72064 12.9393 6.43934C13.2207 6.15804 13.6022 6 14 6ZM18 22.125H10V19.875H12.875V14.125H11V11.875H15.125V19.875H18V22.125Z" fill="white"/></svg></span>';
+        }
+        function shapingSquaresHtml(level) {
+          var squares = '';
+          for (var i = 1; i <= 5; i++) {
+            squares += '<span class="sb-io__shaping-square' + (i <= level ? ' is-active' : '') + '"></span>';
+          }
+          return '<span class="sb-io__shaping-squares" aria-hidden="true">' + squares + '</span>';
+        }
+        function combinedShapingHtml(parts) {
+          var body = parts.map(function(part, i) {
+            var html = '<span class="sb-io__shaping-part">';
+            html += '<span class="sb-io__shaping-copy">';
+            html += '<span class="sb-io__shaping-name">' + escapeHtml(part.name) + '</span>';
+            html += '<span class="sb-io__shaping-level-text">' + escapeHtml(shapingLabel) + '</span>';
+            html += '</span>';
+            html += shapingSquaresHtml(part.level);
+            html += '</span>';
+            if (i < parts.length - 1) {
+              html += '<span class="sb-io__shaping-plus" aria-hidden="true">+</span>';
+            }
+            return html;
+          }).join('');
+          var aria = parts.map(function(part) {
+            return part.name + ' ' + shapingLabel + ' ' + part.level + ' of 5';
+          }).join(' + ');
+          var multi = parts.length > 1;
+          var heading = multi
+            ? '<span class="sb-io__shaping-heading" aria-hidden="true">' + escapeHtml(shapingLabel) + '</span>'
+            : '';
+          return heading +
+            '<button type="button" class="sb-io__shaping-bar sb-io__shaping-bar--combined' + (multi ? ' sb-io__shaping-bar--multi' : '') + '" data-sb-io-shaping data-shaping-info aria-haspopup="dialog" aria-controls="ShapingInfoPopup" aria-label="' + escapeHtml(aria) + '">' +
+            shapingIconHtml() +
+            '<span class="sb-io__shaping-combined">' + body + '</span>' +
+            '</button>';
+        }
+        function combinedParts() {
+          var children = parseMap('sb-child-products-' + productId);
+          var parts = [];
+          (buckets || []).forEach(function(bucket) {
+            var handle = bucket.info && bucket.info.handle;
+            var level = shapingLevelForHandle(handle);
+            if (level < 1) return;
+            var child = handle ? children[handle] : null;
+            var title = (child && child.title) || bucket.displayTitle || '';
+            parts.push({ name: shortProductName(title), level: level });
+          });
+          return parts;
+        }
+
+        if (container.getAttribute('data-show-shaping') === 'false') {
+          hideCombined();
+          stripBars.forEach(function(el) { el.setAttribute('hidden', ''); });
+          return;
+        }
+
+        var wantCombined = placement === 'combined' || placement === 'combined_below_title' || placement === 'combined_above_pairs';
+        if (wantCombined) {
+          stripBars.forEach(function(el) { el.setAttribute('hidden', ''); });
+          var parts = combinedParts();
+          if (!parts.length) {
+            hideCombined();
+            return;
+          }
+          var html = combinedShapingHtml(parts);
+          setTarget(sharedWrap, '');
+          if (pdpSlot) {
+            setTarget(titleSlot, '');
+            setTarget(pdpSlot, html);
+          } else {
+            setTarget(titleSlot, html);
+          }
+          return;
+        }
+
+        var levels = (buckets || []).map(function(bucket) {
+          return shapingLevelForHandle(bucket.info && bucket.info.handle);
+        });
+        var first = levels.length ? levels[0] : 0;
+        var allSame = levels.length > 0 && first > 0 && levels.every(function(n) { return n === first; });
+        if (allSame) {
+          stripBars.forEach(function(el) { el.setAttribute('hidden', ''); });
+          setTarget(titleSlot, '');
+          if (!sharedWrap) return;
+          if (!sharedWrap.querySelector('[data-sb-io-shaping]')) {
+            sharedWrap.innerHTML = shapingStripHtml(shapingLabel);
+          }
+          var shapingEl = sharedWrap.querySelector('[data-sb-io-shaping]');
+          applyShapingSquares(shapingEl, first);
+          if (shapingEl) shapingEl.removeAttribute('hidden');
+          sharedWrap.removeAttribute('hidden');
+          return;
+        }
+
+        hideCombined();
+      }
+      function openSizeGuide(container, strip) {
+        var modalId = container.getAttribute('data-size-guide-modal');
+        var modal = modalId ? document.getElementById(modalId) : null;
+        if (!modal) return;
+        var children = parseMap('sb-child-products-' + productId);
+        var fallback = parseMap('sb-size-guide-fallback-' + productId);
+        var handle = strip && strip.getAttribute('data-child-handle');
+        var child = handle ? children[handle] : null;
+        var titleEl = modal.querySelector('[data-sb-io-size-guide-title]');
+        var bodyEl = modal.querySelector('[data-sb-io-size-guide-body]');
+        var dialog = modal.querySelector('[role="dialog"]');
+        var productName = (child && child.title) || '';
+        var genericTitle = container.getAttribute('data-size-guide-label') || 'Size Guide';
+        var titleTemplate = container.getAttribute('data-size-guide-title-template') || '';
+        var title = genericTitle;
+        if (productName && titleTemplate) title = titleTemplate.replace(/PRODUCT_NAME/g, productName);
+        else if (productName) title = genericTitle + ': ' + productName;
+        var html = '';
+        if (child && child.size_guide_html) html += child.size_guide_html;
+        if (child && child.size_guide_image) {
+          html += '<p><img src="' + child.size_guide_image + '" alt="' + escapeHtml((child.title || '') + ' size guide') + '" loading="lazy" style="max-width:100%;height:auto;"></p>';
+        }
+        if (!html && !handle && fallback && fallback.html) html = fallback.html;
+        if (!html) {
+          html = '<p>' + escapeHtml(container.getAttribute('data-size-guide-missing') || 'Size guide is not available for this product.') + '</p>';
+        }
+        if (titleEl) titleEl.textContent = title;
+        if (dialog) dialog.setAttribute('aria-label', title);
+        if (bodyEl) bodyEl.innerHTML = html;
+        if (typeof modal.show === 'function') {
+          var opener = strip && strip.querySelector('[data-sb-io-size-guide]');
+          modal.show(opener || modal);
+        } else {
+          modal.setAttribute('open', '');
+        }
+      }
+      function themeSwatchFor(val) {
+        var key = norm(val);
+        if (themeSwatchMap[key]) return themeSwatchMap[key];
+        var last = String(val || '').trim().split(/\s+/).pop() || '';
+        if (last && themeSwatchMap[norm(last)]) return themeSwatchMap[norm(last)];
+        return null;
+      }
+      function swatchCss(val, swatchMap, colorImages) {
+        swatchMap = swatchMap || {};
+        colorImages = colorImages || {};
+        val = colorKeyFromValue(val);
+        var theme = themeSwatchFor(val) || {};
+        var lastWord = String(val || '').trim().split(/\s+/).pop() || val;
+        var fallback = theme.fallback || lastWord;
+        var hex = getDefaultColor(val);
+        var imgUrl = theme.image || colorImages[norm(val)] || swatchMap[norm(val)] || '';
+        var css = '--swatch-background-color: ' + (hex || fallback) + ';';
+        if (imgUrl) css += ' --swatch-background-image: url("' + imgUrl + '");';
+        return css;
+      }
+      function styleSwatches(swatches, kind, swatchMap, colorImages) {
+        colorImages = colorImages || {};
+        swatches.forEach(function(input) {
+          var val = input.getAttribute('data-option-value') || '';
+          var label = input.nextElementSibling;
+          if (!label || label.tagName !== 'LABEL') return;
+          var forceText = kind === 'size' || isSizeValue(val);
+          if (forceText) {
+            label.classList.remove('color__swatch', 'color__swatch--round');
+            label.removeAttribute('style');
+            label.textContent = val;
+            return;
+          }
+          label.classList.add('color__swatch', 'color__swatch--round');
+          label.setAttribute('title', val);
+          label.setAttribute('style', swatchCss(val, swatchMap, colorImages));
+          label.innerHTML = '<span class="color__swatch-dot"></span>';
+        });
+      }
+      function variantHasValue(variant, val) {
+        var n = norm(val);
+        var opts = variant.options || [variant.option1, variant.option2, variant.option3];
+        for (var i = 0; i < opts.length; i++) {
+          if (norm(opts[i] || '') === n) return true;
+        }
+        return false;
+      }
+      function variantMatchesOthers(variant, selectedByKind, skipKind) {
+        var kinds = Object.keys(selectedByKind);
+        for (var i = 0; i < kinds.length; i++) {
+          var kind = kinds[i];
+          if (kind === skipKind) continue;
+          var sel = selectedByKind[kind];
+          if (!sel) continue;
+          if (!variantHasValue(variant, sel)) return false;
+        }
+        return true;
+      }
+      function variantValueState(variants, kind, val, selectedByKind) {
+        var anyWithValue = false;
+        var comboExists = false;
+        var comboAvailable = false;
+        for (var i = 0; i < variants.length; i++) {
+          var v = variants[i];
+          if (!variantHasValue(v, val)) continue;
+          anyWithValue = true;
+          if (!variantMatchesOthers(v, selectedByKind, kind)) continue;
+          comboExists = true;
+          if (v.available) comboAvailable = true;
+        }
+        if (!anyWithValue || !comboExists) return 'unavailable';
+        if (!comboAvailable) return 'sold-out';
+        return 'available';
+      }
+      function allowSoldOutSelection() {
+        if (window.shopSettings && typeof window.shopSettings.allowSoldOutVariantSelection !== 'undefined') {
+          return !!window.shopSettings.allowSoldOutVariantSelection;
+        }
+        var el = document.querySelector('[data-sb-io]');
+        return !!(el && el.getAttribute('data-allow-sold-out') === 'true');
+      }
+      function soldOutOptionText(val, isSoldOut, container) {
+        var name = String(val || '');
+        if (!isSoldOut || !name) return name;
+        var label = ((container && container.getAttribute('data-sold-out-label')) || 'sold out').trim();
+        if (!label) label = 'sold out';
+        return name + ' (' + label + ')';
+      }
+      function updateStripAvailability(strip) {
+        if (!strip) return;
+        var variants = strip._sbVariants;
+        if (!variants || !variants.length) return;
+        var allowSoldOut = allowSoldOutSelection();
+        var groups = strip.querySelectorAll('[data-sb-io-group]');
+        var selectedByKind = {};
+        groups.forEach(function(group) {
+          var kind = group.getAttribute('data-option-kind') || 'color';
+          var val = groupSelectedValue(group);
+          if (kind === 'combo') {
+            optionTailFromCombined(val).split('/').map(function(s) { return s.trim(); }).filter(Boolean).forEach(function(part) {
+              selectedByKind[optionKind('', [part])] = part;
+            });
+            return;
+          }
+          selectedByKind[kind] = val;
+        });
+        groups.forEach(function(group) {
+          var kind = group.getAttribute('data-option-kind') || 'color';
+          var select = group.querySelector('[data-sb-io-select]');
+          function stateFor(val) {
+            if (kind === 'combo') {
+              var parts = optionTailFromCombined(val).split('/').map(function(s) { return s.trim(); }).filter(Boolean);
+              var match = findMatchingVariant(variants, parts.length ? parts : [val]);
+              if (!match) return 'unavailable';
+              return match.available ? 'available' : 'sold-out';
+            }
+            return variantValueState(variants, kind, val, selectedByKind);
+          }
+          if (select) {
+            var ioRoot = group.closest('[data-sb-io]');
+            var selectedLabel = group.querySelector('[data-sb-io-selected-label]');
+            Array.prototype.forEach.call(select.options, function(option) {
+              if (!option.value) return;
+              var state = stateFor(option.value);
+              var blocked = state === 'unavailable' || state === 'sold-out';
+              option.disabled = false;
+              option.textContent = soldOutOptionText(option.value, state === 'sold-out', ioRoot);
+            });
+            group.querySelectorAll('[data-sb-io-dd-option]').forEach(function(btn) {
+              var val = btn.getAttribute('data-option-value') || '';
+              var state = stateFor(val);
+              var blocked = state === 'unavailable' || state === 'sold-out';
+              btn.classList.toggle('is-disabled', blocked);
+              btn.classList.toggle('is-sold-out', state === 'sold-out');
+              btn.setAttribute('data-availability', state);
+              btn.disabled = blocked;
+              if (blocked) {
+                btn.setAttribute('aria-disabled', 'true');
+                btn.tabIndex = -1;
+              } else {
+                btn.removeAttribute('aria-disabled');
+                btn.tabIndex = 0;
+              }
+              var nameEl = btn.querySelector('[data-sb-io-option-label]');
+              if (nameEl) nameEl.textContent = soldOutOptionText(val, state === 'sold-out', ioRoot);
+            });
+            if (select.value) {
+              var selectedBtn = null;
+              group.querySelectorAll('[data-sb-io-dd-option]').forEach(function(optBtn) {
+                if ((optBtn.getAttribute('data-option-value') || '') === select.value) selectedBtn = optBtn;
+              });
+              if (selectedBtn && selectedBtn.classList.contains('is-disabled')) {
+                var nextBtn = Array.prototype.find.call(group.querySelectorAll('[data-sb-io-dd-option]'), function(optBtn) {
+                  return (optBtn.getAttribute('data-option-value') || '') && !optBtn.classList.contains('is-disabled');
+                });
+                if (nextBtn) {
+                  select.value = nextBtn.getAttribute('data-option-value') || '';
+                  select.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+              }
+            }
+            if (group.querySelector('[data-sb-io-dd]')) {
+              syncColorDropdownUi(group);
+            } else if (selectedLabel) {
+              selectedLabel.textContent = select.value
+                ? soldOutOptionText(select.value, stateFor(select.value) === 'sold-out', ioRoot)
+                : placeholderForGroup(group);
+            }
+            return;
+          }
+          group.querySelectorAll('[data-sb-io-swatch]').forEach(function(input) {
+            var val = input.getAttribute('data-option-value') || '';
+            var state = variantValueState(variants, kind, val, selectedByKind);
+            input.classList.toggle('sold-out', state === 'sold-out');
+            input.classList.remove('is-sold-out', 'is-unavailable');
+            if (state === 'unavailable' || state === 'sold-out') {
+              input.disabled = true;
+              input.setAttribute('aria-disabled', 'true');
+            } else {
+              input.disabled = false;
+              input.removeAttribute('aria-disabled');
+            }
+          });
+        });
+        syncIoAddButton(strip.closest('[data-sb-io]'));
+      }
+      function findMatchingVariant(variants, selectedVals) {
+        var vals = (selectedVals || []).filter(Boolean);
+        if (!vals.length) return null;
+        for (var i = 0; i < variants.length; i++) {
+          var v = variants[i];
+          var ok = true;
+          for (var j = 0; j < vals.length; j++) {
+            if (!variantHasValue(v, vals[j])) { ok = false; break; }
+          }
+          if (ok) return v;
+        }
+        return null;
+      }
+      function stripSelectedValues(strip) {
+        var selected = [];
+        var groupsReady = true;
+        if (!strip) return { ready: false, selected: selected };
+        strip.querySelectorAll('[data-sb-io-group]').forEach(function(group) {
+          var val = groupSelectedValue(group);
+          if (!val) {
+            groupsReady = false;
+            return;
+          }
+          if (group.getAttribute('data-option-kind') === 'combo' && val.indexOf('/') !== -1) {
+            optionTailFromCombined(val).split('/').map(function(s) { return s.trim(); }).filter(Boolean).forEach(function(part) {
+              selected.push(part);
+            });
+          } else {
+            selected.push(val);
+          }
+        });
+        return { ready: groupsReady && selected.length > 0, selected: selected };
+      }
+      function variantPriceCents(v) {
+        if (!v) return 0;
+        return typeof v.price === 'number' ? v.price : parseInt(v.price, 10) || 0;
+      }
+      /**
+       * Cheapest variant of a component, used as the pricing baseline. Deliberately not
+       * "first available": a baseline that moves when a size sells out would shift the
+       * whole bundle price for reasons the shopper cannot see.
+       */
+      function stripBaselineVariant(strip) {
+        var variants = strip && strip._sbVariants;
+        if (!variants || !variants.length) return null;
+        var cheapest = variants[0];
+        for (var i = 1; i < variants.length; i++) {
+          if (variantPriceCents(variants[i]) < variantPriceCents(cheapest)) cheapest = variants[i];
+        }
+        return cheapest;
+      }
+      function getStripPricedVariant(strip) {
+        var variants = strip && strip._sbVariants;
+        if (!variants || !variants.length) return null;
+        var sel = stripSelectedValues(strip);
+        if (sel.selected && sel.selected.length) {
+          var priced = null;
+          var fallback = null;
+          for (var i = 0; i < variants.length; i++) {
+            var v = variants[i];
+            var ok = true;
+            for (var j = 0; j < sel.selected.length; j++) {
+              if (!variantHasValue(v, sel.selected[j])) { ok = false; break; }
+            }
+            if (!ok) continue;
+            if (!fallback) fallback = v;
+            if (v.available) {
+              priced = v;
+              break;
+            }
+          }
+          if (priced || fallback) return priced || fallback;
+        }
+        return stripBaselineVariant(strip);
+      }
+      function parsePriceDeltaCents(val) {
+        var m = String(val || '').match(/\(\s*([+-])\s*(?:[A-Z]{1,3})?\s*\$\s*([\d,]+(?:\.\d+)?)\s*\)\s*$/i);
+        if (!m) return 0;
+        var n = parseFloat(m[2].replace(/,/g, ''));
+        if (isNaN(n)) return 0;
+        var cents = Math.round(n * 100);
+        return m[1] === '-' ? -cents : cents;
+      }
+      function optionDeltaCents(container) {
+        var total = 0;
+        if (!container) return 0;
+        container.querySelectorAll('input[data-sb-io-prop="true"]').forEach(function(input) {
+          total += parsePriceDeltaCents(input.value);
+        });
+        return total;
+      }
+      function formatIoMoney(cents) {
+        try {
+          var fmt = window.shopSettings && window.shopSettings.moneyFormat ? window.shopSettings.moneyFormat : '{% raw %}${{amount}}{% endraw %}';
+          if (window.theme && window.theme.Currency && typeof window.theme.Currency.formatMoney === 'function') {
+            return window.theme.Currency.formatMoney(cents, fmt);
+          }
+        } catch (e) {}
+        return (Math.round(cents) / 100).toFixed(2);
+      }
+      var parentPriceMap = null;
+      /**
+       * Price the cart will actually charge: the bundle's own variant price. Component
+       * variants only travel as line item properties, so their prices never reach the
+       * cart and must not be summed or scaled into what the PDP shows.
+       */
+      function parentVariantPricing(container) {
+        if (!parentPriceMap) parentPriceMap = parseMap('sb-parent-prices-' + productId);
+        var vid = getSelectedVariantId(container);
+        var entry = vid ? parentPriceMap[String(vid)] : null;
+        if (entry && typeof entry.price === 'number') {
+          return { price: entry.price, compare: entry.compare || 0 };
+        }
+        var price = parseInt(container.getAttribute('data-atc-base-price') || '', 10);
+        if (isNaN(price)) return null;
+        return {
+          price: price,
+          compare: parseInt(container.getAttribute('data-atc-base-compare') || '', 10) || 0
+        };
+      }
+      /**
+       * Live bundle price for the current component picks.
+       *
+       * The bundle's own variant price is the discounted price of the cheapest possible
+       * combination, so it gives us the bundle discount as a ratio. Applying that ratio
+       * to whatever the shopper has actually picked keeps the discount consistent as
+       * they move up into pricier sizes.
+       */
+      function computeIoBundleTotals(container) {
+        if (!container) return null;
+        var parent = parentVariantPricing(container);
+        if (!parent) return null;
+
+        var strips = container.querySelectorAll('[data-sb-io-strip]');
+        var baselineSum = 0;
+        var selectedSum = 0;
+        for (var i = 0; i < strips.length; i++) {
+          var base = stripBaselineVariant(strips[i]);
+          // A component whose variants have not been fetched yet is left out of both
+          // sums rather than voiding the whole total, so the other picks still price up.
+          if (!base) continue;
+          baselineSum += variantPriceCents(base);
+          selectedSum += variantPriceCents(getStripPricedVariant(strips[i]) || base);
+        }
+
+        var price = parent.price;
+        var compare = parent.compare > parent.price ? parent.compare : 0;
+        if (baselineSum > 0) {
+          price = Math.round(selectedSum * parent.price / baselineSum);
+          // Struck-through price: what the picked components cost bought separately,
+          // so the saving shown is the real bundle discount. A compare-at price on the
+          // bundle itself overrides it, scaled the same way as the price.
+          compare = compare > 0 ? Math.round(selectedSum * compare / baselineSum) : selectedSum;
+        }
+
+        // Fallback for bundles that carry their price variance in the option label
+        // ("XL (+ $10.00)") instead of in the component variant prices. Only trusted
+        // when the variants themselves showed no difference, so it cannot double count.
+        var deltas = optionDeltaCents(container);
+        if (deltas !== 0 && selectedSum === baselineSum) {
+          price = parent.price + deltas;
+          if (compare > 0) compare += deltas;
+        }
+
+        return { price: price, compare: compare > price ? compare : price };
+      }
+      /**
+       * The Liquid badge only renders when the bundle itself carries a compare-at
+       * price, which it usually does not, so the live saving is rendered here instead.
+       */
+      function applyIoPercentBadge(priceEl, totals, container) {
+        if (!priceEl) return;
+        var badge = priceEl.querySelector('.price__badge-percent');
+        var percent = totals.compare > totals.price
+          ? Math.round((totals.compare - totals.price) * 100 / totals.compare)
+          : 0;
+        var enabled = !container || container.getAttribute('data-show-save-badge') !== 'false';
+        if (!percent || !enabled) {
+          if (badge) badge.hidden = true;
+          return;
+        }
+        if (!badge) {
+          badge = priceEl.ownerDocument.createElement('span');
+          badge.className = 'badge badge--onsale price__badge-percent';
+          badge.setAttribute('aria-hidden', 'true');
+          priceEl.appendChild(badge);
+        }
+        var template = (container && container.getAttribute('data-percent-off-template')) || 'SB_PCT% OFF';
+        badge.textContent = template.replace('SB_PCT', String(percent));
+        badge.hidden = false;
+      }
+      function applyIoPriceToWrap(wrap, totals) {
+        if (!wrap || !totals) return;
+        wrap.hidden = false;
+        wrap.classList.remove('visibility-hidden');
+        var priceEl = wrap.querySelector('.price');
+        if (!priceEl) return;
+        var onSale = totals.compare > totals.price;
+        priceEl.classList.toggle('price--on-sale', onSale);
+        var priceHtml = '<price-money><bdi>' + formatIoMoney(totals.price) + '</bdi></price-money>';
+        var compareHtml = '<price-money><bdi>' + formatIoMoney(totals.compare) + '</bdi></price-money>';
+        var regular = priceEl.querySelector('.price__regular .price-item--regular');
+        var saleCompare = priceEl.querySelector('.price__sale .price__compare .price-item--regular');
+        var sale = priceEl.querySelector('.price__sale .price-item--sale');
+        if (regular) regular.innerHTML = priceHtml;
+        if (sale) sale.innerHTML = priceHtml;
+        if (saleCompare) saleCompare.innerHTML = compareHtml;
+        applyIoPercentBadge(priceEl, totals, currentIoContainer());
+      }
+      function applyIoPriceToTitle(container, totals) {
+        if (!container || !totals) return;
+        var sectionEl = container.closest('.shopify-section');
+        var sectionId = '';
+        if (sectionEl && sectionEl.id) sectionId = sectionEl.id.replace(/^shopify-section-/, '');
+        var wraps = [];
+        function addWrap(el) {
+          if (el && wraps.indexOf(el) === -1) wraps.push(el);
+        }
+        if (sectionEl) addWrap(sectionEl.querySelector('.product__title [id="price-' + sectionId + '"]'));
+        addWrap(document.getElementById('price-' + sectionId));
+        addWrap(document.getElementById('price-' + sectionId + '--alt'));
+        wraps.forEach(function(wrap) { applyIoPriceToWrap(wrap, totals); });
+        ['', '--alt'].forEach(function(suffix) {
+          var range = document.getElementById('price-range-' + sectionId + suffix);
+          if (range) {
+            range.hidden = true;
+            range.classList.add('visibility-hidden');
+          }
+        });
+      }
+      function syncIoBundlePrice(container) {
+        var totals = computeIoBundleTotals(container);
+        if (!totals) return;
+        container.setAttribute('data-atc-price', String(totals.price));
+        container.setAttribute('data-atc-compare', String(totals.compare));
+        applyIoPriceToTitle(container, totals);
+        dispatchAtcPrice(container);
+      }
+      function bundleSelectionsComplete(container) {
+        if (!container) return false;
+        var strips = container.querySelectorAll('[data-sb-io-strip]');
+        if (!strips.length) return false;
+        var complete = true;
+        strips.forEach(function(strip) {
+          var groups = strip.querySelectorAll('[data-sb-io-group]');
+          if (!groups.length) {
+            complete = false;
+            return;
+          }
+          groups.forEach(function(group) {
+            if (!groupSelectedValue(group)) complete = false;
+          });
+        });
+        return complete;
+      }
+      function showSelectOptionsPopup() {
+        var modal = document.getElementById('SizeSelectionModal');
+        if (modal && typeof modal.show === 'function') {
+          modal.show();
+          return;
+        }
+        if (window.VariantSelection && typeof window.VariantSelection.showPopup === 'function') {
+          window.VariantSelection.showPopup();
+        }
+      }
+      function ensureAddButtonLock(addButton) {
+        if (!addButton || addButton.getAttribute('data-sb-io-lock-obs')) return;
+        addButton.setAttribute('data-sb-io-lock-obs', 'true');
+        addButton.addEventListener('click', function(e) {
+          if (addButton.getAttribute('data-sb-io-locked') !== 'missing') return;
+          e.preventDefault();
+          e.stopPropagation();
+          showSelectOptionsPopup();
+        }, true);
+      }
+      function ioAddButtons(container) {
+        var buttons = [];
+        function add(btn) {
+          if (!btn || buttons.indexOf(btn) !== -1) return;
+          buttons.push(btn);
+        }
+        var form = container.closest('form');
+        if (form) add(form.querySelector('button.product-form__submit[name="add"]'));
+        var sectionEl = container.closest('.shopify-section');
+        if (sectionEl) {
+          sectionEl.querySelectorAll('button.product-form__submit[name="add"]').forEach(add);
+        }
+        return buttons;
+      }
+      function syncSelectOptionsTrigger(container, showSelect) {
+        var form = container.closest('form');
+        if (!form) return;
+        var selectBtn = form.querySelector('[data-select-options-trigger]');
+        var addButton = form.querySelector('button.product-form__submit[name="add"]');
+        if (!selectBtn || !addButton) return;
+        selectBtn.hidden = !showSelect;
+        selectBtn.classList.toggle('hidden', !showSelect);
+        addButton.hidden = showSelect;
+        addButton.classList.toggle('hidden', showSelect);
+      }
+      /**
+       * Where a component stands for the picks made so far. With nothing picked yet it
+       * reports on the component as a whole, which is what lets a component with no
+       * stock left lock the bundle before the shopper has touched it.
+       */
+      function stripStockState(variants, selectedVals) {
+        var vals = (selectedVals || []).filter(Boolean);
+        var matched = false;
+        for (var i = 0; i < variants.length; i++) {
+          var v = variants[i];
+          var ok = true;
+          for (var j = 0; j < vals.length; j++) {
+            if (!variantHasValue(v, vals[j])) { ok = false; break; }
+          }
+          if (!ok) continue;
+          matched = true;
+          if (v.available) return 'available';
+        }
+        return matched ? 'sold-out' : 'no-match';
+      }
+      function syncIoAddButton(container) {
+        if (!container) return;
+        syncIoBundlePrice(container);
+        var addButtons = ioAddButtons(container);
+        if (!addButtons.length) return;
+        var strips = container.querySelectorAll('[data-sb-io-strip]');
+        var anyNotReady = false;
+        var anyMissing = false;
+        var anySoldOut = false;
+        strips.forEach(function(strip) {
+          var variants = strip._sbVariants;
+          if (!variants || !variants.length) {
+            anyNotReady = true;
+            return;
+          }
+          var selected = [];
+          var groupsReady = true;
+          strip.querySelectorAll('[data-sb-io-group]').forEach(function(group) {
+            var val = groupSelectedValue(group);
+            if (!val) {
+              groupsReady = false;
+              return;
+            }
+            if (group.getAttribute('data-option-kind') === 'combo' && val.indexOf('/') !== -1) {
+              optionTailFromCombined(val).split('/').map(function(s) { return s.trim(); }).filter(Boolean).forEach(function(part) {
+                selected.push(part);
+              });
+            } else {
+              selected.push(val);
+            }
+          });
+          // Once a component's stock cannot satisfy the picks so far, every option left
+          // to it is disabled and the shopper can never complete it. Call that sold out
+          // instead of stranding them on "Select options" forever. Checked ahead of the
+          // missing-selection branch so it also catches a component that was already
+          // fully out of stock when the page loaded, before anything was picked.
+          var stock = stripStockState(variants, selected);
+          if (stock === 'sold-out') {
+            anySoldOut = true;
+            return;
+          }
+          if (!groupsReady || !selected.length) {
+            anyMissing = true;
+            return;
+          }
+          if (stock === 'no-match') anyMissing = true;
+        });
+        var selectLabel = (window.variantStrings && window.variantStrings.selectVariant) || 'Select options';
+        var soldOutLabel = (window.variantStrings && window.variantStrings.soldOut) || 'Sold out';
+        var missing = anyNotReady || anyMissing;
+        var lock = missing || anySoldOut;
+        syncSelectOptionsTrigger(container, missing && !anySoldOut);
+        addButtons.forEach(function(addButton) {
+          ensureAddButtonLock(addButton);
+          var hcLabel = addButton.querySelector('.hc-atc__label');
+          var hcSep = addButton.querySelector('.hc-atc__sep');
+          var hcPrice = addButton.querySelector('.hc-atc__price');
+          if (anySoldOut) {
+            addButton.setAttribute('data-sb-io-locked', 'soldout');
+            addButton.setAttribute('disabled', true);
+            addButton.setAttribute('aria-disabled', 'true');
+            if (hcLabel) hcLabel.textContent = soldOutLabel;
+          } else if (missing) {
+            addButton.setAttribute('data-sb-io-locked', 'missing');
+            addButton.removeAttribute('disabled');
+            addButton.removeAttribute('aria-disabled');
+            if (hcLabel) hcLabel.textContent = selectLabel;
+            var hasLivePrice = !!container.getAttribute('data-atc-price');
+            if (hcSep) hcSep.style.display = hasLivePrice ? '' : 'none';
+            if (hcPrice) hcPrice.style.display = hasLivePrice ? '' : 'none';
+          } else {
+            addButton.removeAttribute('data-sb-io-locked');
+            addButton.removeAttribute('disabled');
+            addButton.removeAttribute('aria-disabled');
+            if (hcLabel) hcLabel.textContent = (window.variantStrings && window.variantStrings.addToCart) || 'Add to cart';
+            if (hcSep) hcSep.style.display = '';
+            if (hcPrice) hcPrice.style.display = '';
+          }
+        });
+        syncIoBundlePrice(container);
+      }
+      function dispatchAtcPrice(container) {
+        var sectionEl = container && container.closest('.shopify-section');
+        var sectionId = '';
+        if (sectionEl && sectionEl.id) sectionId = sectionEl.id.replace(/^shopify-section-/, '');
+        document.dispatchEvent(new CustomEvent('hc:sync-atc-price', { detail: { sectionId: sectionId } }));
+      }
+      function renderSwatches(container, options, bundledVariants) {
+        var groupsContainer = container.querySelector('[data-sb-io-groups]');
+        if (!groupsContainer) return;
+        var swatchMap = parseMap('sb-swatch-map-' + productId);
+        var lookup = buildBundleLookup(bundledVariants);
+        var shapingLabel = container.getAttribute('data-shaping-label') || 'Shaping level';
+        groupsContainer.innerHTML = '';
+        if (!options || options.length === 0) {
+          container.style.display = 'none';
+          return;
+        }
+        container.style.display = '';
+        var buckets = [];
+        var currentBucket = null;
+        options.forEach(function(opt, optIndex) {
+          var propKey = (opt.optionName || opt.option_name || '').trim();
+          var valuesArr = splitOptionValues(opt.optionValues || opt.option_values);
+          if (!propKey || valuesArr.length === 0) return;
+          var dropdownTitle = optionDropdownTitle(opt);
+          var expanded = tryExpandCombined(propKey, valuesArr);
+          if (!dropdownTitle && expanded && expanded.productName) dropdownTitle = expanded.productName;
+          var kind = optionSlotKind(propKey, valuesArr, expanded);
+          var productNum = String(propKey).match(/(?:product|pair|form|item)\s*#?\s*(\d+)/i);
+          var slotId = productNum ? productNum[1] : '';
+          var startNew = !currentBucket;
+          if (!startNew && (kind === 'combo' || expanded)) startNew = true;
+          if (!startNew && currentBucket.kinds[kind]) startNew = true;
+          if (!startNew && slotId && currentBucket.slotId && currentBucket.slotId !== slotId) startNew = true;
+          if (startNew) {
+            currentBucket = {
+              info: null,
+              displayTitle: '',
+              dropdownTitle: dropdownTitle || '',
+              kinds: {},
+              slotId: slotId,
+              items: []
+            };
+            buckets.push(currentBucket);
+          }
+          currentBucket.kinds[kind] = true;
+          if (slotId) currentBucket.slotId = slotId;
+          if (dropdownTitle && !currentBucket.dropdownTitle) currentBucket.dropdownTitle = dropdownTitle;
+          currentBucket.items.push({
+            propKey: propKey,
+            valuesArr: valuesArr,
+            expanded: expanded,
+            optIndex: optIndex
+          });
+        });
+        buckets.forEach(function(bucket, bucketIndex) {
+          var first = bucket.items[0];
+          var mappedInfo = findGroupInfo(
+            first && first.propKey,
+            first && first.valuesArr,
+            lookup,
+            bucketIndex
+          );
+          // The option's own name/values identify its product exactly; slotProductInfo
+          // only guesses from position, so it is the fallback for bundles whose
+          // variant_options are missing.
+          bucket.info = mappedInfo || slotProductInfo(bucketIndex, buckets.length, lookup.products);
+          bucket.displayTitle = displayOptionTitle(
+            first && first.propKey,
+            bucket.info && bucket.info.title
+          );
+          if (first && first.expanded && first.expanded.productName && isGenericOptionName(bucket.displayTitle)) {
+            bucket.displayTitle = first.expanded.productName;
+          }
+          var children = parseMap('sb-child-products-' + productId);
+          var handle = bucket.info && bucket.info.handle;
+          var child = handle ? children[handle] : null;
+          var customName = (bucket.dropdownTitle || '').trim();
+          if (customName && isGenericOptionName(customName)) customName = '';
+          var productTitle = customName || (child && child.title) || bucket.displayTitle;
+          var itemLabel = formatItemLabel(bucketIndex, productTitle, child && child.type, container, child && child.tags);
+          var sizeGuideLabel = container.getAttribute('data-size-guide-label') || 'Size Guide';
+          var showSizeGuide = sizeGuideEnabledForIndex(bucketIndex, container);
+          groupsContainer.insertAdjacentHTML('beforeend', stripHtml(itemLabel, shapingLabel, sizeGuideLabel));
+          var strips = groupsContainer.querySelectorAll('[data-sb-io-strip]');
+          var strip = strips[strips.length - 1];
+          var body = strip.querySelector('[data-sb-io-strip-body]');
+          var sizeGuidePlaced = false;
+          function sizeGuideRowOpts(kind) {
+            if (sizeGuidePlaced || !showSizeGuide) return {};
+            if (kind !== 'size' && kind !== 'combo') return {};
+            sizeGuidePlaced = true;
+            return { sizeGuideLabel: sizeGuideLabel };
+          }
+          var combine = combineSizeColorEnabled(container);
+          var sizeItem = null;
+          var colorItem = null;
+          if (combine && !bucket.items.some(function(it) { return it.expanded; })) {
+            bucket.items.forEach(function(item) {
+              var k = optionKind(item.propKey, item.valuesArr);
+              if (k === 'size' && !sizeItem) sizeItem = item;
+              if (k === 'color' && !colorItem) colorItem = item;
+            });
+          }
+          bucket.items.forEach(function(item) {
+            if (combine && item.expanded) {
+              body.insertAdjacentHTML('beforeend',
+                optionRowHtml(bucket.displayTitle, 'combo', item.valuesArr, '', sizeGuideRowOpts('combo')) +
+                '<input type="hidden" name="properties[' + escapeHtml(item.propKey) + ']" value="' + escapeHtml(optionStartValue(item.valuesArr, container)) + '" data-sb-io-prop="true" />'
+              );
+              return;
+            }
+            if (item.expanded) {
+              var comboId = 'combo-' + item.optIndex;
+              var wrap = document.createElement('div');
+              wrap.setAttribute('data-sb-io-combo', comboId);
+              wrap.setAttribute('data-sb-io-product-name', item.expanded.productName || bucket.displayTitle);
+              wrap.setAttribute('data-original-values', JSON.stringify(item.valuesArr));
+              item.expanded.axes.forEach(function(axis) {
+                wrap.insertAdjacentHTML('beforeend', optionRowHtml(
+                  bucket.displayTitle,
+                  axis.kind,
+                  axis.values,
+                  'data-sb-io-combo-id="' + comboId + '" data-axis-index="' + axis.axisIndex + '"',
+                  sizeGuideRowOpts(axis.kind)
+                ));
+              });
+              wrap.insertAdjacentHTML('beforeend',
+                '<input type="hidden" name="properties[' + escapeHtml(item.propKey) + ']" value="' + escapeHtml(optionStartValue(item.valuesArr, container)) + '" data-sb-io-prop="true" data-sb-io-combo-input="' + comboId + '" />'
+              );
+              body.appendChild(wrap);
+              return;
+            }
+            if (combine && sizeItem && colorItem && (item === sizeItem || item === colorItem)) {
+              if (item !== sizeItem) return;
+              var pairs = [];
+              sizeItem.valuesArr.forEach(function(sizeVal) {
+                colorItem.valuesArr.forEach(function(colorVal) {
+                  pairs.push(String(sizeVal).trim() + ' / ' + String(colorVal).trim());
+                });
+              });
+              var merged = document.createElement('div');
+              merged.setAttribute('data-sb-io-merged', '');
+              merged.insertAdjacentHTML('beforeend', optionRowHtml(bucket.displayTitle, 'combo', pairs, '', sizeGuideRowOpts('combo')));
+              merged.insertAdjacentHTML('beforeend',
+                '<input type="hidden" name="properties[' + escapeHtml(sizeItem.propKey) + ']" value="' + escapeHtml(optionStartValue(sizeItem.valuesArr, container)) + '" data-sb-io-prop="true" data-sb-io-merged-size />' +
+                '<input type="hidden" name="properties[' + escapeHtml(colorItem.propKey) + ']" value="' + escapeHtml(optionStartValue(colorItem.valuesArr, container)) + '" data-sb-io-prop="true" data-sb-io-merged-color />'
+              );
+              body.appendChild(merged);
+              return;
+            }
+            var kind = optionKind(item.propKey, item.valuesArr);
+            body.insertAdjacentHTML('beforeend',
+              optionRowHtml(bucket.displayTitle, kind, item.valuesArr, '', sizeGuideRowOpts(kind)) +
+              '<input type="hidden" name="properties[' + escapeHtml(item.propKey) + ']" value="' + escapeHtml(optionStartValue(item.valuesArr, container)) + '" data-sb-io-prop="true" />'
+            );
+          });
+          strip.setAttribute('data-sb-fallback-title', bucket.displayTitle || '');
+          if (customName) strip.setAttribute('data-sb-custom-title', customName);
+          strip.setAttribute('data-strip-index', String(bucketIndex));
+          if (bucket.info && bucket.info.handle) strip.setAttribute('data-child-handle', bucket.info.handle);
+          var fallbackGuideRow = strip.querySelector('[data-sb-io-size-guide-row]');
+          if (fallbackGuideRow && sizeGuidePlaced) fallbackGuideRow.hidden = true;
+        });
+        initSwatches(container, swatchMap, lookup);
+        bindColorDropdowns(container, swatchMap);
+        groupsContainer.querySelectorAll('[data-sb-io-strip]').forEach(function(strip, stripIndex) {
+          var handle = strip.getAttribute('data-child-handle');
+          var info = handle ? { handle: handle } : null;
+          applyStripInfo(strip, info, strip.getAttribute('data-sb-fallback-title') || '', swatchMap, stripIndex);
+        });
+        applySharedShaping(container, buckets);
+        updateBundleSelection(container);
+        dispatchAtcPrice(container);
+        bindSizeGuides(container);
+      }
+      function closeColorDropdowns(root, except) {
+        (root || document).querySelectorAll('[data-sb-io-dd]').forEach(function(dd) {
+          if (except && dd === except) return;
+          dd.classList.remove('is-open');
+          var trigger = dd.querySelector('[data-sb-io-dd-trigger]');
+          var list = dd.querySelector('[data-sb-io-dd-list]');
+          if (trigger) trigger.setAttribute('aria-expanded', 'false');
+          if (list) list.hidden = true;
+        });
+      }
+      function bindColorDropdowns(container, swatchMap) {
+        container.querySelectorAll('[data-sb-io-dd]').forEach(function(dd) {
+          var trigger = dd.querySelector('[data-sb-io-dd-trigger]');
+          var list = dd.querySelector('[data-sb-io-dd-list]');
+          var group = dd.closest('[data-sb-io-group]');
+          if (!trigger || !list) return;
+          trigger.addEventListener('click', function(e) {
+            e.preventDefault();
+            var open = dd.classList.contains('is-open');
+            closeColorDropdowns(container);
+            if (!open) {
+              dd.classList.add('is-open');
+              trigger.setAttribute('aria-expanded', 'true');
+              list.hidden = false;
+            }
+          });
+          list.querySelectorAll('[data-sb-io-dd-option]').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+              e.preventDefault();
+              if (
+                btn.disabled ||
+                btn.classList.contains('is-disabled') ||
+                btn.classList.contains('is-sold-out') ||
+                btn.getAttribute('aria-disabled') === 'true' ||
+                btn.getAttribute('data-availability') === 'sold-out' ||
+                btn.getAttribute('data-availability') === 'unavailable'
+              ) {
+                return;
+              }
+              var select = dd.querySelector('[data-sb-io-select]');
+              var val = btn.getAttribute('data-option-value') || '';
+              if (select) {
+                select.value = val;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+              syncColorDropdownUi(group, swatchMap);
+              closeColorDropdowns(container);
+            });
+          });
+        });
+        if (!window.__sbIoDdDocBound) {
+          document.addEventListener('click', function(e) {
+            if (e.target.closest('[data-sb-io-dd]')) return;
+            closeColorDropdowns(document);
+          });
+          document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeColorDropdowns(document);
+          });
+          window.__sbIoDdDocBound = true;
+        }
+      }
+      function initSwatches(container, swatchMap, lookup) {
+        lookup = lookup || { byOptionName: {}, byValue: {}, byHandle: {} };
+        container.querySelectorAll('[data-sb-io-combo]').forEach(function(wrap) {
+          var comboId = wrap.getAttribute('data-sb-io-combo');
+          var hidden = wrap.querySelector('[data-sb-io-combo-input="' + comboId + '"]');
+          var productName = wrap.getAttribute('data-sb-io-product-name') || '';
+          var axisGroups = wrap.querySelectorAll('[data-sb-io-group]');
+          if (!hidden || !axisGroups.length) return;
+          var originalValues = [];
+          if (hidden.value) originalValues.push(hidden.value);
+          axisGroups.forEach(function(group) {
+            var select = group.querySelector('[data-sb-io-select]');
+            var swatches = group.querySelectorAll('[data-sb-io-swatch]');
+            var values = [];
+            if (select) {
+              Array.prototype.forEach.call(select.options, function(option) {
+                if (option.value) values.push(option.value);
+              });
+            } else {
+              swatches.forEach(function(btn) { values.push(btn.getAttribute('data-option-value') || ''); });
+            }
+            var kind = group.getAttribute('data-option-kind') || optionKind('', values);
+            var prefixEl = group.querySelector('[data-sb-io-label-prefix]');
+            var selectedLabel = group.querySelector('[data-sb-io-selected-label]');
+            if (prefixEl) prefixEl.textContent = optionLabelPrefix(kind);
+            styleSwatches(swatches, kind, swatchMap);
+            styleColorDropdown(group, swatchMap);
+            if (select) {
+              if (select.value && selectedLabel) selectedLabel.textContent = select.value;
+              else if (selectedLabel) selectedLabel.textContent = placeholderForGroup(group);
+              select.addEventListener('change', function() {
+                syncColorDropdownUi(group, swatchMap);
+                if (selectedLabel) selectedLabel.textContent = select.value || placeholderForGroup(group);
+                syncCombinedValue();
+                updateStripAvailability(wrap.closest('[data-sb-io-strip]'));
+              });
+            } else if (swatches.length) {
+              if (preselectEnabled(container) && swatches[0]) {
+                swatches[0].checked = true;
+                if (selectedLabel) selectedLabel.textContent = swatches[0].getAttribute('data-option-value') || '';
+              }
+              swatches.forEach(function(input) {
+                input.addEventListener('change', function() {
+                  if (!input.checked) return;
+                  if (selectedLabel) selectedLabel.textContent = input.getAttribute('data-option-value') || placeholderForGroup(group);
+                  syncCombinedValue();
+                  updateStripAvailability(wrap.closest('[data-sb-io-strip]'));
+                });
+              });
+            }
+          });
+          function currentParts() {
+            var parts = [];
+            axisGroups.forEach(function(group) {
+              parts.push(groupSelectedValue(group));
+            });
+            return parts;
+          }
+          function syncCombinedValue() {
+            var originalValues = [];
+            try { originalValues = JSON.parse(wrap.getAttribute('data-original-values') || '[]'); } catch (e) {}
+            if (!originalValues.length) originalValues = [hidden.value];
+            var parts = currentParts();
+            if (parts.some(function(p) { return !p; })) {
+              hidden.value = '';
+            } else {
+              hidden.value = matchOriginalValue(originalValues, parts, productName);
+            }
+            updateBundleSelection(container);
+          }
+          syncCombinedValue();
+        });
+        container.querySelectorAll('[data-sb-io-merged]').forEach(function(wrap) {
+          var group = wrap.querySelector('[data-sb-io-group]');
+          var select = wrap.querySelector('[data-sb-io-select]');
+          var sizeHidden = wrap.querySelector('[data-sb-io-merged-size]');
+          var colorHidden = wrap.querySelector('[data-sb-io-merged-color]');
+          if (!group || !select) return;
+          styleColorDropdown(group, swatchMap);
+          function applyMerged(val) {
+            var parts = optionTailFromCombined(val).split('/').map(function(s) { return s.trim(); });
+            if (sizeHidden) sizeHidden.value = val ? (parts[0] || '') : '';
+            if (colorHidden) colorHidden.value = val ? (parts[1] || '') : '';
+            var selectedLabel = group.querySelector('[data-sb-io-selected-label]');
+            if (selectedLabel) selectedLabel.textContent = val || placeholderForGroup(group);
+            syncColorDropdownUi(group, swatchMap);
+            updateBundleSelection(container);
+          }
+          if (select.value) applyMerged(select.value);
+          select.addEventListener('change', function() {
+            applyMerged(select.value);
+            updateStripAvailability(wrap.closest('[data-sb-io-strip]'));
+          });
+        });
+        container.querySelectorAll('[data-sb-io-group]:not([data-sb-io-combo-id])').forEach(function(group) {
+          if (group.closest('[data-sb-io-merged]')) return;
+          var hidden = group.nextElementSibling;
+          if (!hidden || !hidden.matches('input[data-sb-io-prop="true"]')) {
+            hidden = group.querySelector('input[data-sb-io-prop="true"]');
+          }
+          var select = group.querySelector('[data-sb-io-select]');
+          var swatches = group.querySelectorAll('[data-sb-io-swatch]');
+          var selectedLabel = group.querySelector('[data-sb-io-selected-label]');
+          var prefixEl = group.querySelector('[data-sb-io-label-prefix]');
+          if (!hidden) return;
+          var kind = group.getAttribute('data-option-kind') || 'color';
+          if (prefixEl) prefixEl.textContent = optionLabelPrefix(kind);
+          if (select) {
+            styleColorDropdown(group, swatchMap);
+            function setSelect(val) {
+              hidden.value = val || '';
+              if (selectedLabel) selectedLabel.textContent = val || placeholderForGroup(group);
+              syncColorDropdownUi(group, swatchMap);
+              setTimeout(function() { updateBundleSelection(container); }, 10);
+            }
+            if (select.value) setSelect(select.value);
+            else {
+              hidden.value = '';
+              syncColorDropdownUi(group, swatchMap);
+            }
+            select.addEventListener('change', function() {
+              setSelect(select.value);
+              updateStripAvailability(group.closest('[data-sb-io-strip]'));
+            });
+            return;
+          }
+          if (!swatches.length) return;
+          var values = [];
+          swatches.forEach(function(btn) { values.push(btn.getAttribute('data-option-value') || ''); });
+          var propKey = (swatches[0] && swatches[0].getAttribute('data-prop-key')) || '';
+          kind = group.getAttribute('data-option-kind') || optionKind(propKey, values);
+          if (prefixEl) prefixEl.textContent = optionLabelPrefix(kind);
+          styleSwatches(swatches, kind, swatchMap);
+          function setActive(input) {
+            swatches.forEach(function(el) { el.checked = false; });
+            input.checked = true;
+            var val = input.getAttribute('data-option-value') || '';
+            hidden.value = val;
+            if (selectedLabel) selectedLabel.textContent = val;
+            setTimeout(function() { updateBundleSelection(container); }, 10);
+          }
+          hidden.value = '';
+          var checked = group.querySelector('[data-sb-io-swatch]:checked');
+          if (checked) setActive(checked);
+          swatches.forEach(function(input) {
+            input.addEventListener('change', function() {
+              if (!input.checked) return;
+              setActive(input);
+              updateStripAvailability(group.closest('[data-sb-io-strip]'));
+            });
+          });
+        });
+        syncIoAddButton(container);
+      }
+      function bindSizeGuides(container) {
+        var label = container.getAttribute('data-size-guide-label') || 'Size Guide';
+        container.querySelectorAll('[data-sb-io-strip]').forEach(function(strip, stripIndex) {
+          var hasFields = !!strip.querySelector('[data-sb-io-group]');
+          var enabled = hasFields && sizeGuideEnabledForIndex(stripIndex, container);
+          var inlineBtn = strip.querySelector('[data-sb-io-group] [data-sb-io-size-guide]');
+          var row = strip.querySelector('[data-sb-io-size-guide-row]');
+          if (inlineBtn && row) row.hidden = true;
+          var buttons = strip.querySelectorAll('[data-sb-io-size-guide]');
+          if (!buttons.length) return;
+          buttons.forEach(function(btn) {
+            var inFallbackRow = !!(row && row.contains(btn));
+            var showBtn = enabled && (!inFallbackRow || !inlineBtn);
+            btn.hidden = !showBtn;
+            if (!showBtn) return;
+            btn.textContent = label;
+            btn.addEventListener('click', function() {
+              openSizeGuide(container, strip);
+            });
+          });
+        });
+      }
+      // Build _bundle_selection from all selected options
+      function updateBundleSelection(container) {
+        var bundleSelectionInput = container.querySelector('[data-sb-io-bundle-selection]');
+        if (!bundleSelectionInput) {
+          // Try to find in form
+          var form = container.closest('form');
+          if (form) {
+            bundleSelectionInput = form.querySelector('input[name="properties[_bundle_selection]"]');
+          }
+        }
+        
+        if (!bundleSelectionInput) {
+          // Create it if doesn't exist
+          bundleSelectionInput = document.createElement('input');
+          bundleSelectionInput.type = 'hidden';
+          bundleSelectionInput.name = 'properties[_bundle_selection]';
+          bundleSelectionInput.setAttribute('data-sb-io-bundle-selection', 'true');
+          container.appendChild(bundleSelectionInput);
+        }
+        // Gather all selected values
+        var values = [];
+        container.querySelectorAll('input[data-sb-io-prop="true"]').forEach(function(input) {
+          if (input.value) {
+            values.push(input.value);
+          }
+        });
+        bundleSelectionInput.value = values.join(' <> ');
+        syncIoBundlePrice(container);
+      }
+      // Main initialization
+      function init() {
+        var container = document.querySelector('[data-sb-io][data-product-id="' + productId + '"]') || document.querySelector('[data-sb-io]');
+        if (!container || container.getAttribute('data-sb-io-ready')) return;
+        container.setAttribute('data-sb-io-ready', 'true');
+        if (container.getAttribute('data-show-save-badge') === 'false') {
+          var sectionEl = container.closest('.shopify-section') || document;
+          sectionEl.querySelectorAll('.price__badge-percent').forEach(function(el) {
+            el.hidden = true;
+          });
+        }
+        
+        var variantOptionsMap = parseMap('sb-variant-options-map-' + productId);
+        var swatchMap = parseMap('sb-swatch-map-' + productId);
+        themeSwatchMap = parseMap('sb-theme-swatches-' + productId);
+        var lastVariantId = null;
+        // Refresh swatches for current variant
+        function refresh() {
+          var variantId = getSelectedVariantId(container);
+          if (!variantId) return;
+          
+          // Only re-render if variant changed
+          if (variantId === lastVariantId) return;
+          lastVariantId = variantId;
+          
+          var variantData = variantOptionsMap[variantId];
+          
+          if (variantData && variantData.options) {
+            container.classList.add('sb-io--loading');
+            
+            // Small delay for visual feedback
+            setTimeout(function() {
+              renderSwatches(container, variantData.options, variantData.bundled_variants);
+              container.classList.remove('sb-io--loading');
+            }, 50);
+          } else if (Object.keys(variantOptionsMap).length) {
+            container.style.display = 'none';
+          }
+        }
+        // Hook into variant changes
+        function hookVariantChanges() {
+          // 1) Listen for changes on [name="id"] selects/inputs
+          document.addEventListener('change', function(e) {
+            var t = e.target;
+            if (t && (t.matches('[name="id"]') || t.matches('select[name="id"]'))) {
+              setTimeout(refresh, 10);
+            }
+          });
+          
+          // 2) Watch for [name="id"] value changes via mutation
+          var idFields = document.querySelectorAll('[name="id"]');
+          idFields.forEach(function(field) {
+            var obs = new MutationObserver(function() {
+              setTimeout(refresh, 10);
+            });
+            obs.observe(field, { attributes: true, attributeFilter: ['value'] });
+          });
+          
+          // 3) History API changes (?variant=...)
+          var _push = history.pushState;
+          var _replace = history.replaceState;
+          
+          history.pushState = function() {
+            var r = _push.apply(this, arguments);
+            window.dispatchEvent(new Event('sb:history'));
+            return r;
+          };
+          history.replaceState = function() {
+            var r = _replace.apply(this, arguments);
+            window.dispatchEvent(new Event('sb:history'));
+            return r;
+          };
+          
+          window.addEventListener('popstate', function() { setTimeout(refresh, 10); });
+          window.addEventListener('sb:history', function() { setTimeout(refresh, 10); });
+          
+          // 4) Common theme events
+          ['variant:change', 'product:variant-change', 'theme:variant:change', 'shopify:section:load'].forEach(function(ev) {
+            document.addEventListener(ev, function() { setTimeout(refresh, 10); });
+          });
+          
+          // 5) Click on variant buttons/swatches (for themes that use buttons instead of selects)
+          document.addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-variant-id], [data-option-value]:not([data-sb-io-swatch])');
+            if (btn) {
+              setTimeout(refresh, 100);
+              setTimeout(refresh, 300);
+            }
+          });
+        }
+        // Initial setup
+        var initialVariantId = getSelectedVariantId(container);
+        lastVariantId = initialVariantId;
+        var initialData = variantOptionsMap[initialVariantId];
+        if (initialData && initialData.options) {
+          renderSwatches(container, initialData.options, initialData.bundled_variants);
+        } else if (container.querySelector('[data-sb-io-swatch]')) {
+          initSwatches(container, swatchMap, buildBundleLookup([]));
+          updateBundleSelection(container);
+        }
+
+        watchNativeBundleInputs(container);
+        ensureFormVariantId(container);
+        dispatchAtcPrice(container);
+        document.addEventListener('variant:change', function() {
+          setTimeout(function() { syncIoAddButton(container); }, 30);
+        });
+        
+        // Hook variant changes
+        hookVariantChanges();
+        
+        // Also refresh on late-loading themes
+        setTimeout(function() { ensureFormVariantId(container); refresh(); }, 250);
+        setTimeout(function() { ensureFormVariantId(container); refresh(); }, 900);
+      }
+      // Run on DOM ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+  {% render 'hc-bundle-pdp-extras' %}
+{% endif %}

@@ -1,0 +1,62 @@
+{% liquid
+  if product.has_only_default_variant and product.options_with_values.size < 2
+    assign selected_variant = product.selected_or_first_available_variant
+  else
+    assign selected_variant = product.selected_variant
+  endif
+%}
+
+{%- capture custom_attributes -%}
+  {% unless selected_variant and selected_variant.available %}
+    disabled="disabled"
+  {% endunless %}
+{%- endcapture -%}
+
+{%- capture add_to_subscription_button_content -%}
+  <div class="flex items-center">
+    <span>
+      {% if product.available == false %}
+        {% assign sold_out = true %}
+          <span class="buy-button-text">{{ 'sections.product-form.subscription-buttons.sold_out' | t }}</span>
+      {% else %}
+        {%- if selected_variant -%}
+          {% if selected_variant.available == false %}
+            {% assign sold_out = true %}
+              <span class="buy-button-text">{{ 'sections.product-form.subscription-buttons.sold_out' | t }}</span>
+          {% else %}
+            {% assign sold_out = false %}
+            <span class="buy-button-text"> {{ 'sections.product-form.subscription-buttons.add_to_subscription' | t }}{% if show_price_on_btn %} - {{ product.price | money_with_currency }}{% endif %}</span>
+          {% endif %}
+        {%- else -%} 
+          {% assign sold_out = false %}
+            <span class="buy-button-text">{{ 'sections.product-form.subscription-buttons.select_options' | t }}</span>
+        {%- endif -%}
+      {%- endif -%}
+
+    </span>
+    {% render 'c-spinner', size: 'leading-none ml-2 inline w-4 h-4 add-to-subscription-button-spinner hidden' %}
+  </div>
+{%- endcapture -%}
+
+<div class="flex flex-wrap gap-x-1.5 md:gap-x-2.5 gap-y-4 md:mx-0 z-1 bg-background">
+  {% capture qty_classes %} {% if sold_out %}hidden{% endif %} {% endcapture %}
+  {% render 'quantity-selector', section_id: section_id, classes: qty_classes %}
+
+  {%- capture add_to_subscription_id -%}Add-to-subscription-{{ section_id }}{%- endcapture -%}
+  <div
+    class="add-to-subscription-button-wrap flex-1 flex items-center gap-4 font-medium"
+    {% unless product.available %}
+      data-all-variants-sold-out="true"
+    {% endunless %}
+  >
+    {% render 'c-button',
+      type: 'submit',
+      name: 'add',
+      id: add_to_subscription_id,
+      design: 'primary',
+      custom_attributes: custom_attributes,
+      content: add_to_subscription_button_content,
+      classes: 'flex-1 rounded-full text-4 whitespace-nowrap flex gap-2 items-center justify-center add-to-subscription-button'
+    %}
+  </div>
+</div>

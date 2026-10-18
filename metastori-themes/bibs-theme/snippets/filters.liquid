@@ -1,0 +1,296 @@
+{%- comment -%}
+  Renders filtering controls
+
+  Accepts:
+    - results {Object}: Collection or Search object
+    - enable_filtering {Boolean}: Show filtering when true
+
+  Usage:
+    {% render 'filters', results: collection, enable_filtering: true %}
+{%- endcomment -%}
+{% render 'filter-color-styles' %}
+
+{%- liquid
+  assign sort_by = results.sort_by | default: results.default_sort_by
+  if results.url
+    assign results_url = results.url
+  else
+    assign terms = results.terms | escape
+    assign results_url = '?q=' | append: terms | append: '&options%5Bprefix%5D=last&sort_by=' | append: sort_by
+  endif
+-%}
+
+<div id="filter" data-filter-group class="h-full flex overflow-hidden flex-col">
+  {% render 'c-title', translatable_content: 'products.facets.filters', type: 'h3', classes: 'pb-10 px-[30px]' %}
+
+  <div class="overflow-auto h-full px-[30px]">
+    {%- if results.terms -%}
+      <input type="hidden" name="q" value="{{ results.terms | escape }}">
+      <input name="options[prefix]" type="hidden" value="last">
+    {%- endif -%}
+    <div class="border-b border-borders">
+      {%- for filter in results.filters -%}
+        <div class="filter-types">
+          <div
+            id="filter__label-{{ forloop.index }}-{{ section.id }}"
+            class="filter__label-reactive border-t border-borders py-4 flex flex-col justify-between items-center filter__label cursor-pointer"
+          >
+            <div class="flex justify-between items-center w-full">
+              <span class="text-xl font-medium">{{ filter.label }}</span>
+              <div class="">
+                <div
+                  id="active-count-{{ forloop.index }}-{{ section.id }}"
+                  class="active-count{% if filter.active_values.size > 0 %} flex{% else %} hidden{% endif %} items-end justify-center rounded-full text-sm text-background bg-button-text w-6 h-6 font-bold"
+                >
+                  {{ filter.active_values.size }}
+                </div>
+                <div class="filter__label-icons {% if filter.active_values.size > 0 %} hidden{% endif %}">
+                  {% render 'c-icon', icon: 'plus', classes: 'faq__icon-plus w-4 h-4' %}
+                  {% render 'c-icon', icon: 'minus', classes: 'faq__icon-minus w-4 h-4' %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {% if filter.param_name contains 'nipple' or filter.param_name contains 'flow' %}
+            <div
+              class="hidden filter__content"
+              id="Facet-{{ forloop.index }}-{{ section.id }}"
+              data-filter-param="{{ filter.param_name }}"
+            >
+              <ul class="facets__list pb-4">
+                {%- for filter_value in filter.values -%}
+                  <li
+                    class="facet mb-3"
+                    id="Filter-{{ filter.param_name }}-{{ forloop.index }}-{{ section.id }}"
+                  >
+                    <label
+                      for="Filter-{{ filter.param_name }}-{{ forloop.index }}"
+                      class="justify-between text-sm items-center w-full cursor-pointer flex{% if filter_value.active %} selected{%- endif %}"
+                    >
+                      <span class="flex flex-row items-center gap-1.5">
+                        <div
+                          id="checkbox-{{ forloop.index }}-{{ filter.param_name }}-{{ section.id }}"
+                          class="hidden"
+                        >
+                          <input
+                            type="checkbox"
+                            class="hidden w-4 h-4 ml-2"
+                            data-option-id="option-{{ filter_value.param_name }}-{{ filter_value.value }}"
+                            name="{{ filter_value.param_name }}"
+                            value="{{ filter_value.value }}"
+                            id="Filter-{{ filter.param_name }}-{{ forloop.index }}"
+                            {% if filter_value.active -%}
+                              checked
+                            {%- endif %}
+                          >
+                        </div>
+                        <div class="custom-checkbox relative h-5 w-5 border border-borders rounded-[2px]"></div>
+                        {%- if filter.param_name contains 'nipple type' -%}
+                          {% for nipple in metaobjects.nipple_type_icons.values %}
+                            {% if nipple.name == filter_value.value %}
+                              {% assign nipple_icon = nipple.icon %}
+                              {% break %}
+                            {% endif %}
+                          {% endfor %}
+                          <span class="text-sm font-medium">
+                            {{ nipple_icon | default: filter_value.label }}
+                          </span>
+                        {% endif %}
+                        {%- if filter.param_name contains 'flow type' -%}
+                          {% assign flow_icon = nil %}
+                          {% for flow in metaobjects.filter_flow_type_icons.values %}
+                            {% if flow.name == filter_value.value %}
+                              {% assign flow_icon = flow.icon %}
+                              {% break %}
+                            {% endif %}
+                          {% endfor %}
+                          {% if flow_icon %}
+                            <span class="text-sm font-medium">
+                              {{ flow_icon | default: filter_value.label }}
+                            </span>
+                          {% endif %}
+                        {% endif %}
+                        <span class="font-medium">{{ filter_value.label }}</span>
+                      </span>
+                      <span class="text-xs text-shade-3">({{ filter_value.count }})</span>
+                    </label>
+                  </li>
+                {%- endfor -%}
+              </ul>
+              <div class="js-hidden px-4 py-2 border-t border-borders">
+                <input type="submit" value="{{ 'products.facets.apply' | t }}" class="button--primary">
+              </div>
+            </div>
+          {% else %}
+            <div
+              class="hidden filter__content"
+              id="Facet-{{ forloop.index }}-{{ section.id }}"
+              data-filter-param="{{ filter.param_name }}"
+            >
+              {%- case filter.type -%}
+                {%- when 'boolean', 'list' -%}
+                  <ul class="facets__list pb-[20px]">
+                    {%- for filter_value in filter.values -%}
+                      <li
+                        class="facet mb-2.5"
+                        id="Filter-{{ filter.param_name }}-{{ forloop.index }}-{{ section.id }}"
+                      >
+                        <label
+                          class="text-sm justify-between items-center w-full cursor-pointer flex"
+                        >
+                          <div
+                            id="checkbox-{{ forloop.index }}-{{ filter.param_name }}-{{ section.id }}"
+                            class="text-xs flex items-center custom-checkbox-flex gap-2.5"
+                          >
+                            <input
+                              type="checkbox"
+                              class="hidden w-4 h-4"
+                              data-option-id="option-{{ filter_value.param_name }}-{{ filter_value.value }}"
+                              name="{{ filter_value.param_name }}"
+
+                              value="{{ filter_value.value }}"
+                              {% if filter_value.active -%}
+                                checked
+                              {%- endif %}
+                            >
+                            <div class="custom-checkbox relative h-5 w-5 border border-borders rounded-[2px]"></div>
+                            <div class="flex flex-row gap-2.5 items-center">
+                              {% liquid
+                                assign filter_value_value = filter_value.label | replace: ' ', '-' | replace: '/', '-' | replace: '´', '-' | replace: '&#39;', '-' | replace: 'é', 'e' | downcase
+                              %}
+                              {% if filter.param_name contains 'color' or filter.param_name contains 'print_name' %}
+                                <div
+                                  class="filter-color-sample h-5 w-5 rounded-full"
+                                  style="background: var(--color_{{- filter_value_value -}}); border: 1px solid var(--border_{{- filter_value_value -}})"
+                                ></div>
+                              {% endif %}
+
+                              {%- if filter.param_name contains 'color' -%}
+                                {%- for color in shop.metaobjects.filter_color.values -%}
+                                  {%- if color.name == filter_value.value -%}
+                                    {%- assign color_label = color.label -%}
+                                  {%- endif -%}
+                                {%- endfor -%}
+                                <span class="text-sm font-medium">
+                                  {{ color_label | default: filter_value.label }}
+                                </span>
+                              {%- else -%}
+                                <span class="text-sm font-medium">
+                                  {{ filter_value.label }}
+                                </span>
+                              {%- endif -%}
+
+                              {%- if filter.param_name contains 'size' -%}
+                                {%- assign subtitle_string = 'products.product.size_options.'
+                                  | append: filter_value.label
+                                  | append: '.subtitle'
+                                -%}
+                                {% capture subtitle %}
+                                  {{ subtitle_string | t }}
+                                {% endcapture %}
+                                {% unless subtitle contains 'Translation missing' %}
+                                  <span class="text-xs text-shade-3">{{ subtitle }}</span>
+                                {% endunless %}
+                              {%- endif -%}
+                            </div>
+                          </div>
+
+                          <span class="text-xs text-shade-3">({{ filter_value.count }})</span>
+                        </label>
+                      </li>
+                    {%- endfor -%}
+                  </ul>
+                  <div class="js-hidden px-4 py-2 border-t">
+                    <input type="submit" value="{{ 'products.facets.apply' | t }}" class="button--primary">
+                  </div>
+
+                {%- when 'price_range' -%}
+                  {% assign max_price = filter.range_max
+                    | money_without_currency
+                    | replace: '.', ''
+                    | replace: ',', '.'
+                    | ceil
+                  %}
+                  {% assign min_price = 0 %}
+                  <div
+                    class="filter__price__range facets__list mb-8"
+                    data-price-max="{{ max_price }}"
+                  >
+                    <div
+                      class="flex flex-col items-center"
+                      id="Filter-{{ filter.param_name }}-{{ forloop.index }}-{{ section.id }}"
+                    >
+                      <p class="flex flex-row mb-4 w-full gap-2">
+                        <span>{{ cart.currency.symbol }}</span>
+                        <span id="filter_price_min_show">{{ min_price }}</span> -
+                        <span id="filter_price_max_show">{{ max_price }}</span>
+                        <input
+                          type="number"
+                          id="filter_price_min"
+                          class="hidden"
+                          name="{{ filter.min_value.param_name }}"
+                          min="{{ min_price }}"
+                          max="{{ max_price }}"
+                          readonly
+                        >
+                        <input
+                          type="number"
+                          id="filter_price_max"
+                          class="hidden"
+                          name="{{ filter.max_value.param_name }}"
+                          min="{{ min_price }}"
+                          max="{{ max_price }}"
+                          readonly
+                        >
+                      </p>
+                      <div class="range_container">
+                        <div class="sliders_control">
+                          <input
+                            id="fromSlider"
+                            type="range"
+                            value="{{ min_price }}"
+                            min="{{ min_price }}"
+                            max="{{ max_price }}"
+                          >
+                          <input
+                            id="toSlider"
+                            type="range"
+                            value="{{ max_price }}"
+                            min="{{ min_price }}"
+                            max="{{ max_price }}"
+                          >
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="js-hidden px-4 py-2 border-t">
+                    <input type="submit" value="{{ 'products.facets.apply' | t }}" class="button--primary">
+                  </div>
+              {%- endcase -%}
+            </div>
+          {% endif %}
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+  <div class="w-full h-fit bg-background">
+    <div class="px-5 md:px-[30px] py-4 md:py-5 border-t border-borders flex flex-row gap-2.5">
+      <facet-remove>
+        <a
+          class="block border border-button-text text-button-text text-nowrap w-fit rounded-full whitespace-nowrap pt-[10px] pb-[8px] px-[30px] text-center hover:enabled:opacity-90 font-medium"
+          href="{{ results_url }}"
+        >
+          {{- 'products.facets.clear_all' | t -}}
+        </a>
+      </facet-remove>
+
+      <input
+        type="button"
+        value="{{ 'products.facets.apply' | t }}"
+        class="cursor-pointer text-background bg-button-text pt-[10px] pb-[8px] px-[30px] text-center hover:enabled:opacity-90 font-medium rounded-full h-fit w-full"
+      >
+    </div>
+  </div>
+</div>

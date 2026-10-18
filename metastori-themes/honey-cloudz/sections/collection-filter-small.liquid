@@ -1,0 +1,448 @@
+{%- liquid
+  assign has_filter_blocks = false
+  for block in section.blocks
+    if block.settings.title != blank
+      assign has_filter_blocks = true
+      break
+    endif
+  endfor
+-%}
+
+{%- if has_filter_blocks -%}
+  <div
+    id="CollectionFilterSmallSection-{{ section.id }}"
+    class="collection-filter-small page-width"
+  >
+    <div
+      class="collection-filter-small__bar"
+      role="tablist"
+      aria-label="Collection filters"
+    >
+      {%- for block in section.blocks -%}
+        {%- assign metafield_value = block.settings.metafield_value -%}
+        {%- assign metafield_value_stripped = metafield_value | strip -%}
+        {%- if metafield_value == blank or metafield_value_stripped == blank or metafield_value_stripped == 'AUTO' -%}
+          {%- unless block.settings.view_all -%}
+            {%- assign metafield_value = block.settings.title -%}
+          {%- endunless -%}
+        {%- endif -%}
+
+        {%- assign eyebrow = block.settings.eyebrow | strip -%}
+        {%- if eyebrow == '—' -%}
+          {%- assign eyebrow = '' -%}
+        {%- endif -%}
+
+        <button
+          type="button"
+          class="collection-filter-small__item"
+          data-collection-filter-small="{{ block.id }}"
+          {% if block.settings.view_all %}
+            data-view-all="true"
+          {% else %}
+            data-metafield-value="{{ metafield_value | strip | escape }}"
+          {% endif %}
+          {{ block.shopify_attributes }}
+        >
+          {%- if eyebrow != blank -%}
+            <span class="collection-filter-small__eyebrow">{{ eyebrow | escape }}</span>
+          {%- endif -%}
+          <span class="collection-filter-small__title">{{ block.settings.title | escape }}</span>
+        </button>
+      {%- endfor -%}
+    </div>
+
+    <p
+      class="collection-filter-small__empty hidden"
+      data-collection-small-empty-message
+    >
+      {{ section.settings.empty_message | escape }}
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      var sectionId = 'CollectionFilterSmallSection-{{ section.id }}';
+
+      function init() {
+        var sectionEl = document.getElementById(sectionId);
+        if (!sectionEl) return false;
+        if (sectionEl.dataset.collectionFilterSmallBound === '1') return true;
+
+        var filterButtons = sectionEl.querySelectorAll('[data-collection-filter-small]');
+        var productGrid = document.querySelector('#product-grid');
+        var emptyMessage = sectionEl.querySelector('[data-collection-small-empty-message]');
+
+        if (!filterButtons.length || !productGrid) return false;
+
+        var productItems = productGrid.querySelectorAll('[data-product-handle][data-product-metafield]');
+        if (!productItems.length) return false;
+
+        sectionEl.dataset.collectionFilterSmallBound = '1';
+
+        var clearFilter = function () {
+          productItems.forEach(function (item) {
+            item.classList.remove('collection-filter-small-hidden');
+          });
+          if (emptyMessage) emptyMessage.classList.add('hidden');
+          filterButtons.forEach(function (b) {
+            b.classList.remove('is-active');
+          });
+        };
+
+        var normalize = function (s) {
+          return (s || '').toString().trim().toLowerCase();
+        };
+
+        var slugify = function (s) {
+          return normalize(s)
+            .replace(/['"]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        };
+
+        var applyFilter = function (targetButton) {
+          var selectedValue = normalize(targetButton.getAttribute('data-metafield-value'));
+          var visibleCount = 0;
+
+          productItems.forEach(function (item) {
+            var raw = item.getAttribute('data-product-metafield') || '';
+            var values = raw.split('||').map(function (v) { return normalize(v); }).filter(Boolean);
+            var shouldShow = values.includes(selectedValue);
+
+            item.classList.toggle('collection-filter-small-hidden', !shouldShow);
+            if (shouldShow) visibleCount += 1;
+          });
+
+          if (emptyMessage) emptyMessage.classList.toggle('hidden', visibleCount !== 0);
+        };
+
+        var viewAllButton = sectionEl.querySelector('[data-view-all="true"]');
+        clearFilter();
+        if (viewAllButton) {
+          viewAllButton.classList.add('is-active');
+        }
+
+        filterButtons.forEach(function (button) {
+          button.addEventListener('click', function () {
+            var isViewAll = button.getAttribute('data-view-all') === 'true';
+            var alreadyActive = button.classList.contains('is-active');
+
+            if (isViewAll) {
+              clearFilter();
+              button.classList.add('is-active');
+              return;
+            }
+
+            if (alreadyActive) {
+              clearFilter();
+              if (viewAllButton) viewAllButton.classList.add('is-active');
+              return;
+            }
+
+            filterButtons.forEach(function (b) {
+              b.classList.toggle('is-active', b === button);
+            });
+
+            applyFilter(button);
+          });
+        });
+
+        var applyFilterFromHash = function () {
+          var rawHash = (window.location.hash || '').replace(/^#/, '');
+          if (!rawHash) return;
+
+          var decoded = '';
+          try { decoded = decodeURIComponent(rawHash); } catch (e) { decoded = rawHash; }
+          var hashKey = slugify(decoded);
+          if (!hashKey) return;
+
+          var match = null;
+          filterButtons.forEach(function (b) {
+            if (match) return;
+            if (b.getAttribute('data-view-all') === 'true') return;
+
+            var mf = b.getAttribute('data-metafield-value') || '';
+            var titleEl = b.querySelector('.collection-filter-small__title');
+            var title = titleEl ? titleEl.textContent : '';
+            if (slugify(mf) === hashKey || slugify(title) === hashKey) match = b;
+          });
+
+          if (match) match.click();
+        };
+
+        applyFilterFromHash();
+        window.addEventListener('hashchange', applyFilterFromHash);
+
+        return true;
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        if (!init()) setTimeout(init, 250);
+      }
+    })();
+  </script>
+{%- endif -%}
+
+{% stylesheet %}
+  .collection-filter-small {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .collection-filter-small__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0;
+    min-height: 4.75rem;
+    padding: 1rem 1rem 0.85rem;
+    background: #fff9e1;
+    box-sizing: border-box;
+  }
+
+  .collection-filter-small__item {
+    --cfs-title-fs: 1.25rem;
+    --cfs-title-lh: 1.2;
+    appearance: none;
+    margin: 0;
+    padding: 0  clamp(1rem, 2vw, 1.75rem);
+    border: none;
+    background: transparent;
+    color: rgb(var(--color-foreground));
+    font: inherit;
+    cursor: pointer;
+    text-align: center;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s ease;
+  }
+
+  .collection-filter-small__item:hover {
+    opacity: 0.85;
+  }
+
+  .collection-filter-small__item:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  /* Eyebrow does not affect layout; titles share the bar’s vertical midline */
+  .collection-filter-small__eyebrow {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(
+      50% + (var(--cfs-title-fs) * var(--cfs-title-lh) * 0.5) + 0.12rem
+    );
+    font-size: calc(var(--cfs-title-fs) * 0.52);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .collection-filter-small__title {
+    font-size: var(--cfs-title-fs);
+    line-height: var(--cfs-title-lh);
+    font-weight: 400;
+    text-decoration: none;
+  }
+
+  .collection-filter-small__item.is-active .collection-filter-small__title {
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+  }
+
+  .collection-filter-small-hidden {
+    display: none !important;
+  }
+
+  .collection-filter-small__empty {
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  .collection-filter-small .hidden {
+    display: none;
+  }
+
+  @media screen and (max-width: 749px) {
+    .collection-filter-small.page-width {
+      padding-left: 0;
+      padding-right: 0;
+      max-width: none;
+      width: auto;
+      margin-left: calc(50% - 50vw);
+      margin-right: calc(50% - 50vw);
+    }
+
+    .collection-filter-small__bar {
+      flex-wrap: wrap;
+      justify-content: space-evenly;
+      align-content: center;
+      align-items: flex-start;
+      row-gap: 1rem;
+      column-gap: 0.35rem;
+      min-height: 0;
+      padding: 1rem 0.65rem 1.1rem;
+      overflow-x: visible;
+    }
+
+    .collection-filter-small__item {
+      --cfs-title-fs: 1.05rem;
+      flex: 0 1 calc(25% - 0.35rem);
+      max-width: calc(25% - 0.35rem);
+      min-width: 0;
+      padding: 0 0.2rem;
+      box-sizing: border-box;
+    }
+
+    /* Stack title then eyebrow; eyebrow no longer affects desktop-style centering */
+    .collection-filter-small__title {
+      order: 1;
+    }
+
+    .collection-filter-small__eyebrow {
+      position: static;
+      left: auto;
+      bottom: auto;
+      transform: none;
+      order: 2;
+      margin-top: 0.2rem;
+      font-size: calc(var(--cfs-title-fs) * 0.48);
+      font-weight: 600;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Collection filter (small)",
+  "enabled_on": {
+    "templates": ["collection"]
+  },
+  "settings": [
+    {
+      "type": "text",
+      "id": "empty_message",
+      "label": "No products message",
+      "default": "No products found for this selection."
+    }
+  ],
+  "blocks": [
+    {
+      "type": "filter",
+      "name": "Filter option",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title",
+          "default": "Option"
+        },
+        {
+          "type": "checkbox",
+          "id": "view_all",
+          "label": "View all (shows full collection)",
+          "default": false
+        },
+        {
+          "type": "text",
+          "id": "metafield_value",
+          "label": "Metafield match value",
+          "info": "Ignored when “View all” is enabled. Use AUTO to match the title.",
+          "default": "AUTO"
+        },
+        {
+          "type": "text",
+          "id": "eyebrow",
+          "label": "Label above title",
+          "info": "Optional small caps line (e.g. POST-OP). Leave as — for none.",
+          "default": "—"
+        }
+      ]
+    }
+  ],
+  "max_blocks": 12,
+  "presets": [
+    {
+      "name": "Collection filter (small)",
+      "blocks": [
+        {
+          "type": "filter",
+          "settings": {
+            "title": "View All",
+            "view_all": true,
+            "metafield_value": "AUTO",
+            "eyebrow": "—"
+          }
+        },
+        {
+          "type": "filter",
+          "settings": {
+            "title": "Nip Coverage",
+            "view_all": false,
+            "metafield_value": "AUTO",
+            "eyebrow": "—"
+          }
+        },
+        {
+          "type": "filter",
+          "settings": {
+            "title": "Lifting",
+            "view_all": false,
+            "metafield_value": "AUTO",
+            "eyebrow": "—"
+          }
+        },
+        {
+          "type": "filter",
+          "settings": {
+            "title": "Balancing",
+            "view_all": false,
+            "metafield_value": "AUTO",
+            "eyebrow": "—"
+          }
+        },
+        {
+          "type": "filter",
+          "settings": {
+            "title": "Mastectomy",
+            "view_all": false,
+            "metafield_value": "AUTO",
+            "eyebrow": "POST-OP"
+          }
+        },
+        {
+          "type": "filter",
+          "settings": {
+            "title": "Lumpectomy",
+            "view_all": false,
+            "metafield_value": "AUTO",
+            "eyebrow": "POST-OP"
+          }
+        },
+        {
+          "type": "filter",
+          "settings": {
+            "title": "Explant",
+            "view_all": false,
+            "metafield_value": "AUTO",
+            "eyebrow": "POST-OP"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

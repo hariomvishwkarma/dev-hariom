@@ -1,0 +1,97 @@
+{%- comment -%} Custom Cart — free shipping progress (SS2 style) {%- endcomment -%}
+
+{%- liquid
+  assign show_progress_bar = settings.custom_cart_enable_progress_bar
+  if show_progress_bar and settings.custom_cart_hide_progress_bar_b2b and customer != blank
+    assign progress_b2b_tag = settings.b2b_mov_customer_tag | default: 'B2B Customer' | strip
+    if progress_b2b_tag != blank and customer.tags contains progress_b2b_tag
+      assign show_progress_bar = false
+    endif
+  endif
+-%}
+{%- if show_progress_bar -%}
+{%- liquid
+  assign threshold_dollars = settings.custom_cart_free_shipping_threshold | default: 75
+  assign threshold_cents = threshold_dollars | times: 100
+  assign cart_total = cart.total_price
+
+  if settings.custom_cart_enable_checkout_protection
+    if settings.custom_cart_protection_product != blank
+      assign progress_protection_variant_id = settings.custom_cart_protection_product.selected_or_first_available_variant.id
+      for item in cart.items
+        if item.variant_id == progress_protection_variant_id
+          assign cart_total = cart_total | minus: item.final_line_price
+        endif
+      endfor
+    endif
+
+    for item in cart.items
+      assign item_vendor_downcase = item.vendor | downcase
+      if item_vendor_downcase == 'redo' or item_vendor_downcase == 'returngo' or item_vendor_downcase == 'return go'
+        assign cart_total = cart_total | minus: item.final_line_price
+      endif
+    endfor
+  endif
+
+  if cart_total < 0
+    assign cart_total = 0
+  endif
+
+  assign remaining_cents = threshold_cents | minus: cart_total
+  assign progress_percent = cart_total | times: 100 | divided_by: threshold_cents
+  if progress_percent > 100
+    assign progress_percent = 100
+  endif
+  if progress_percent < 0
+    assign progress_percent = 0
+  endif
+  assign threshold_reached = false
+  if remaining_cents <= 0
+    assign threshold_reached = true
+  endif
+-%}
+
+<div
+  class="custom-cart__progress{% if threshold_reached %} custom-cart__progress--complete{% endif %}"
+  data-custom-progress
+  data-threshold="{{ threshold_cents }}"
+  data-total="{{ cart_total }}"
+  data-remaining="{{ remaining_cents }}"
+  data-percent="{{ progress_percent }}"
+  style="--custom-cart-progress-fill: {{ settings.custom_cart_progress_bar_color | default: '#E8B800' }}; --custom-cart-progress-bg: {{ settings.custom_cart_progress_background_color | default: '#EBE6DC' }}; --custom-cart-progress-percent: {{ progress_percent }}%;"
+>
+  <p class="custom-cart__progress-message" data-custom-progress-message>
+    {%- if threshold_reached -%}
+      {{ settings.custom_cart_success_message | default: '🐝 Yay, FREE shipping on us—perk for being part of the hive!' }}
+    {%- else -%}
+      {%- assign remaining_money = remaining_cents | money -%}
+      {{ settings.custom_cart_progress_message | default: "You're [amount] away from unlocking FREE shipping (after discounts are applied!)" | replace: '[amount]', remaining_money }}
+    {%- endif -%}
+  </p>
+
+  <div class="custom-cart__progress-bar-row">
+    <div
+      class="custom-cart__progress-track"
+      role="progressbar"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="{{ progress_percent }}"
+      aria-label="Free shipping progress"
+    >
+      <div
+        class="custom-cart__progress-fill"
+        data-custom-progress-fill
+      ></div>
+    </div>
+    <div class="custom-cart__progress-endcap">
+      <div class="custom-cart__progress-icon-circle" aria-hidden="true">
+        {% render 'custom-cart-icons', icon: 'truck' %}
+      </div>
+      <span class="custom-cart__progress-label" aria-hidden="true">
+        <span class="custom-cart__progress-label-strong">FREE</span>
+        <span class="custom-cart__progress-label-sub">shipping</span>
+      </span>
+    </div>
+  </div>
+</div>
+{%- endif -%}

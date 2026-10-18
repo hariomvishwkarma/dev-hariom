@@ -1,0 +1,135 @@
+{%- comment -%}
+  Find Your Cloudz product card.
+  Product: title, image, url.
+  Metafields (namespace/key from section settings):
+  - shaping_level, shape, product_tags, why_you_love_them, wear_it_with, card_testimonial_quote, card_testimonial_author
+{%- endcomment -%}
+
+{%- liquid
+  assign mf_ns = metafield_namespace | default: 'custom'
+
+  assign shaping_level_num = card_product.metafields[mf_ns][shaping_level_key].value | plus: 0
+  assign shape_raw = card_product.metafields[mf_ns][shape_key].value | default: '' | strip
+  assign shape_key_handle = shape_raw | handleize
+  assign card_shape_icon = ''
+  case shape_key_handle
+    when 'triangle'
+      assign card_shape_icon = 'shape-triangle'
+    when 'half-moon', 'half_moon', 'halfmoon'
+      assign card_shape_icon = 'shape-half-moon'
+    when 'teardrop'
+      assign card_shape_icon = 'shape-teardrop'
+    when 'oval', 'ellipse', 'circle'
+      assign card_shape_icon = 'shape-oval'
+  endcase
+
+  assign why_love_mf = card_product.metafields[mf_ns][why_love_key]
+  assign wear_with_mf = card_product.metafields[mf_ns][wear_with_key]
+  assign testimonial_quote = card_product.metafields[mf_ns][testimonial_quote_key].value | strip
+  assign testimonial_author = card_product.metafields[mf_ns][testimonial_author_key].value | strip
+
+  assign shaping_display = shaping_level_num
+  if shaping_display > 4
+    assign shaping_display = 4
+  endif
+-%}
+
+<article class="fyc-card" data-product-handle="{{ card_product.handle }}">
+  <a href="{{ card_product.url }}" class="fyc-card__media-link" tabindex="-1" aria-hidden="true">
+    <div class="fyc-card__media{% if card_shape_icon != blank %} fyc-card__media--shape{% endif %}">
+      {%- if card_shape_icon != blank -%}
+        <span class="fyc-card__shape-icon" aria-hidden="true">
+          {% render 'icon', icon: card_shape_icon %}
+        </span>
+      {%- endif -%}
+
+      {%- if card_product.metafields[mf_ns][product_tags_key].value != blank -%}
+        <div class="fyc-card__tags" role="group" aria-label="{{ 'products.product.product_tags_label' | t }}">
+          {%- for tag in card_product.metafields[mf_ns][product_tags_key].value limit: 2 -%}
+            {%- assign tag_clean = tag | strip -%}
+            {%- if tag_clean != blank -%}
+              <span class="fyc-card__tag">{{ tag_clean | escape }}</span>
+            {%- endif -%}
+          {%- endfor -%}
+        </div>
+      {%- endif -%}
+
+      {%- if card_product.featured_media -%}
+        {{
+          card_product.featured_media
+          | image_url: width: 800
+          | image_tag:
+            loading: 'lazy',
+            class: 'fyc-card__image',
+            widths: '200,360,535,720,800',
+            sizes: '(min-width: 990px) 280px, (min-width: 750px) 45vw, 90vw',
+            alt: card_product.featured_media.alt
+          | default: card_product.title
+          | escape
+        }}
+      {%- else -%}
+        {{ 'product-1' | placeholder_svg_tag: 'fyc-card__image fyc-card__image--placeholder' }}
+      {%- endif -%}
+    </div>
+  </a>
+
+  {%- if shaping_level_num >= 1 and shaping_level_num <= 5 -%}
+    <button
+      type="button"
+      class="fyc-card__shaping-bar"
+      data-fyc-shaping-info
+      aria-haspopup="dialog"
+      aria-label="{{ 'products.product.shaping_level_aria' | t: level: shaping_level_num }}"
+    >
+      <span class="fyc-card__shaping-label">
+        <span class="fyc-card__shaping-info" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <path d="M14 0C11.2311 0 8.52431 0.821086 6.22202 2.35943C3.91973 3.89777 2.12532 6.08427 1.06569 8.64243C0.00606596 11.2006 -0.271181 14.0155 0.269012 16.7313C0.809205 19.447 2.14258 21.9416 4.10051 23.8995C6.05845 25.8574 8.55301 27.1908 11.2687 27.731C13.9845 28.2712 16.7994 27.9939 19.3576 26.9343C21.9157 25.8747 24.1022 24.0803 25.6406 21.778C27.1789 19.4757 28 16.7689 28 14C28 10.287 26.525 6.72601 23.8995 4.1005C21.274 1.475 17.713 0 14 0ZM14 6C14.2967 6 14.5867 6.08797 14.8334 6.2528C15.08 6.41762 15.2723 6.65189 15.3858 6.92597C15.4994 7.20006 15.5291 7.50166 15.4712 7.79264C15.4133 8.08361 15.2704 8.35088 15.0607 8.56066C14.8509 8.77044 14.5836 8.9133 14.2926 8.97118C14.0017 9.02906 13.7001 8.99935 13.426 8.88582C13.1519 8.77229 12.9176 8.58003 12.7528 8.33335C12.588 8.08668 12.5 7.79667 12.5 7.5C12.5 7.10218 12.658 6.72064 12.9393 6.43934C13.2207 6.15804 13.6022 6 14 6ZM18 22.125H10V19.875H12.875V14.125H11V11.875H15.125V19.875H18V22.125Z" fill="white"/>
+          </svg>
+        </span>
+        {{ shaping_label | escape }}
+      </span>
+      <span class="fyc-card__shaping-squares" aria-hidden="true">
+        {%- for i in (1..5) -%}
+          <span class="fyc-card__shaping-square{% if i <= shaping_display %} is-active{% endif %}"></span>
+        {%- endfor -%}
+      </span>
+    </button>
+  {%- endif -%}
+
+  <div class="fyc-card__body">
+    <h3 class="fyc-card__title">
+      <a href="{{ card_product.url }}">{{ card_product.title | escape }}</a>
+    </h3>
+
+    {%- if why_love_mf != blank -%}
+      <div class="fyc-card__meta-block">
+        <p class="fyc-card__meta-label">{{ why_love_label | escape }}</p>
+        <div class="fyc-card__meta-text rte">{{ why_love_mf | metafield_tag }}</div>
+      </div>
+    {%- endif -%}
+
+    {%- if wear_with_mf != blank -%}
+      <div class="fyc-card__meta-block">
+        <p class="fyc-card__meta-label">{{ wear_with_label | escape }}</p>
+        <div class="fyc-card__meta-text rte">{{ wear_with_mf | metafield_tag }}</div>
+      </div>
+    {%- endif -%}
+
+    <a href="{{ card_product.url }}" class="button button--medium fyc-card__button">
+      {{ button_prefix | escape }}
+      {% comment %} {{ card_product.title  | replace: ' Bra Inserts', ''
+        | replace: ' Bra Insert', ''
+        | escape }} {% endcomment %}
+    </a>
+  </div>
+
+  {%- if testimonial_quote != blank -%}
+    <footer class="fyc-card__testimonial">
+      <p class="fyc-card__quote">{{ testimonial_quote | escape }}</p>
+      {%- if testimonial_author != blank -%}
+        <p class="fyc-card__author">-{{ testimonial_author | escape }}</p>
+      {%- endif -%}
+    </footer>
+  {%- endif -%}
+</article>

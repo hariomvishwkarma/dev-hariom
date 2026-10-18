@@ -1,0 +1,93 @@
+{% assign product_form_id = 'product-form-' | append: section_id %}
+<product-form>
+  {%- form 'product', product, id: product_form_id, class: 'product-form' -%}
+    <div class="flex gap-5 py-4">
+      <a
+        href="{{ product.url }}"
+        class="relative {% if product.selected_or_first_available_variant.available == false %}unavailable{% endif %}"
+      >
+        {% capture image_classes %} {% if product.selected_or_first_available_variant.available == false %}opacity-50 border border-slate-300{% endif %}{% endcapture %}
+        {% render 'c-image',
+          image: product.images[0],
+          classes: 'w-24 h-24',
+          aspect_ratio: 'square',
+          image_classes: image_classes,
+          image_fit: 'contain',
+          alt: product.title
+        %}
+      </a>
+      <div class="flex flex-col w-full h-auto">
+        <a href="{{ product.url }}" class="h8-bold link--hover">{{- product.title | escape -}}</a>
+        {% if product.variants.size > 0 and product.available %}
+          {%- unless product.has_only_default_variant -%}
+            <div class="mt-1 space-x-2">
+              <span class="text-2-regular">
+                <label for="variant-select-{{ product.id }}">{{ product.options[0] }}:</label>
+                <select name="id[]" id="variant-select-{{ product.id }}" class="font-bold pr-4">
+                  {%- for variant in product.variants -%}
+                    <span class="text-2-regular">
+                      <option
+                        class="font-bold"
+                        {% unless variant.available %}
+                          disabled
+                        {% endunless %}
+                        value="{{variant.id}}"
+                      >
+                        {{ variant.title }}
+                      </option>
+                    </span>
+                  {%- endfor -%}
+                </select>
+              </span>
+            </div>
+          {% else %}
+            <input type="hidden" name="id[]" value="{{ product.selected_or_first_available_variant.id }}">
+          {%- endunless -%}
+        {% endif %}
+
+        <div class="ml-auto flex flex-row justify-between w-full mt-auto items-center">
+          {%- render 'price', product_variant: product.selected_or_first_available_variant, classes: 'h8-bold' -%}
+          {%- capture add_to_cart_id -%}Add-to-cart-{{ section_id }}{%- endcapture -%}
+          {%- capture custom_attributes -%}
+            {% if product.selected_or_first_available_variant.available == false %}
+                disabled
+            {% endif %}
+            aria-label="{{ 'products.product.add_to_cart' | t }}"
+        {%- endcapture -%}
+          {%- capture add_to_cart_button_content -%}
+            <div class="flex items-center gap-1 relative">
+              {% unless product.selected_or_first_available_variant.available == false %}
+                {% render 'c-icon', icon: 'add-cart', classes: 'w-6 h-6 inline' %}
+              {% endunless %}
+              {% render 'c-spinner', size: 'add-to-cart-button-spinner invisible leading-none absolute inset-0 hidden bg-background' %}
+            </div>
+          {%- endcapture -%}
+
+          <input
+            type="hidden"
+            name="quantity"
+            id="quantity-{{ section_id }}"
+            value="1"
+            min="1"
+            form="{{ product_form_id }}"
+          >
+          {% render 'c-button',
+            type: 'submit',
+            name: 'add',
+            id: add_to_cart_id,
+            design: 'secondary',
+            custom_attributes: custom_attributes,
+            content: add_to_cart_button_content,
+            classes: 'rounded-full h7-bold flex gap-2 items-center justify-center add-to-cart-button !p-1 md:!p-3'
+          %}
+        </div>
+      </div>
+    </div>
+    {% if product.selected_or_first_available_variant.available == false %}
+      <div class="alert px-4 py-2 flex flex-row gap-2">
+        {% render 'c-icon', icon: 'stop', classes: 'w-6 h-6 inline' %}
+        <p>{{ 'products.product.item_unavailable' | t }}</p>
+      </div>
+    {% endif %}
+  {%- endform -%}
+</product-form>

@@ -1,0 +1,66 @@
+{%- comment -%}
+  Renders the similar products button and drawer
+
+  Accepts:
+    - product: The product object
+
+  Usage:
+    {% render 'similar-products', product: product %}
+{%- endcomment -%}
+
+{% liquid
+  assign similar_products = product.metafields['shopify--discovery--product_recommendation'].related_products.value | where: 'available', true
+  assign product_options = product.selected_or_first_available_variant.options
+%}
+
+{% capture drawer_id %}drawer-{{ product.id }}{% endcapture %}
+
+{% capture description %}
+  {{ 'products.product.similar_products.drawer_title_desc_html'| t: product_name: product.title  }}
+{% endcapture %}
+
+{% capture drawer_header %} 
+  <div class="flex flex-col gap-6">
+    {% render 'c-text', custom_tag: 'h5', translatable_content: 'products.product.similar_products.drawer_title' %}
+    <div class="flex flex-col gap-2">
+      {% render 'c-text', custom_tag: 'paragraph-2', content: description %}
+      {%  if product_options.size > 0 %}  
+        {% unless product_options contains 'Default Title' %}
+          <div class="flex flex-row gap-2">
+            {%- for option in product_options -%}
+              <span class="text-xs flex flex-row gap-2">
+                <span>{{ option.name }}</span>
+                {% unless forloop.index == forloop.length %}
+                  <div>|</div>
+                {% endunless %}
+              </span>
+            {%- endfor -%}
+          </div>
+        {% endunless %}
+      {% endif %}
+    </div>
+  </div>
+{% endcapture %}
+
+{% capture drawer_content %} 
+  <div class="px-4 md:px-[30px] w-full h-full overflow-auto py-5">
+    <div class="grid grid-cols-2 gap-px">
+      {% for similar_product in similar_products %}
+          {% render 'card-product', card_product: similar_product, add_to_cart_btn: true %}
+      {% endfor %}
+      {% if similar_products.size == 0 %}
+        <div>{{ "sections.product-form.blocks.variant_selector.similar_products.all_sold_out" | t }}</div>
+      {% endif %}
+    </div>
+  </div>
+{% endcapture %}
+
+{% render 'c-drawer',
+  drawer_id: drawer_id,
+  drawer_header: drawer_header,
+  drawer_content: drawer_content,
+  drawer_content_classes: ' bg-background similar-products-drawer-content ',
+  drawer_body_classes: ' h-full w-full ',
+  drawer_backdrop: true,
+  drawer_width: 'lg'
+%}

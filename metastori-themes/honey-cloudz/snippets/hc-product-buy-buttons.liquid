@@ -1,0 +1,1232 @@
+{% doc %}
+  Honey Cloudz product buy buttons (bundle & save + ATC).
+  Shared by PDP (main-product) and Quick View (main-product-modal).
+
+  @param {object} product - Product object
+  @param {object} block - Section block
+  @param {object} section - Section object
+  @param {string} product_form_id - Product form DOM id
+{% enddoc %}
+                {%- liquid
+                  assign hc_current_variant = product.selected_or_first_available_variant
+                  # Theme settings > Preorder > Enable pre-order is the master switch:
+                  # with it off, a continue-selling variant is just a normal Add to cart.
+                  assign hc_is_preorder = false
+                  if settings.preorder_enabled and hc_current_variant.inventory_policy == 'continue' and hc_current_variant.inventory_quantity <= 0
+                    assign hc_is_preorder = true
+                  endif
+                  # Same single-variant guard as the section: this snippet is
+                  # also rendered from Quick View, which never passes it in.
+                  assign hc_atc_require_selection = settings.require_size_selection
+                  if product.variants.size <= 1
+                    assign hc_atc_require_selection = false
+                  endif
+                  # Bundle & Save falls back to invented 10%/15% tiers at qty 3/5 for any
+                  # product without custom.pdp_widget_data, but nothing applies those in the
+                  # cart. Products listed here have no bundle offer, so they stay on plain
+                  # per-unit pricing and the PDP price always matches what the cart charges.
+                  assign hc_show_bundle_save = true
+                  assign hc_no_bundle_handles = 'delicates-care-storage-bag' | split: ','
+                  if hc_no_bundle_handles contains product.handle
+                    assign hc_show_bundle_save = false
+                  endif
+                  # B2B customers buy by the case, so Bundle & Save is replaced by a
+                  # plain quantity selector for them.
+                  assign hc_b2b_tag = settings.b2b_mov_customer_tag | strip
+                  assign hc_is_b2b_customer = false
+                  if customer != blank and hc_b2b_tag != blank and customer.tags contains hc_b2b_tag
+                    assign hc_is_b2b_customer = true
+                  endif
+                  assign hc_show_qty = block.settings.show_quantity_selector
+                  if hc_is_b2b_customer
+                    assign hc_show_bundle_save = false
+                    assign hc_show_qty = true
+                  endif
+                  # Simple Bundles infinite-options products drive the buy button from the
+                  # bundle picker instead, so Bundle & Save, the quantity selector and the
+                  # theme's size-selection gate all stand down for them.
+                  assign hc_has_io = false
+                  for hc_io_v in product.variants
+                    if hc_io_v.metafields.simple_bundles.variant_options.value != blank
+                      assign hc_has_io = true
+                      break
+                    endif
+                  endfor
+                  if hc_has_io == false and product.metafields.simple_bundles.variant_options.value != blank
+                    assign hc_has_io = true
+                  endif
+                  if hc_has_io
+                    assign hc_show_bundle_save = false
+                    assign hc_show_qty = false
+                    assign hc_atc_require_selection = false
+                  endif
+                  assign hc_is_final_sale = false
+                  assign hc_final_sale_tag = settings.final_sale_tag | strip
+                  if settings.final_sale_enabled and hc_final_sale_tag != blank and product.tags contains hc_final_sale_tag
+                    assign hc_is_final_sale = true
+                  endif
+                  if hc_is_final_sale and settings.final_sale_hide_bundle
+                    assign hc_show_bundle_save = false
+                    unless hc_has_io
+                      assign hc_show_qty = true
+                    endunless
+                  endif
+                -%}
+                {%- if hc_is_final_sale and settings.final_sale_pdp_notice != blank -%}
+                  <div class="final-sale-notice rte" role="note">
+                    {{ settings.final_sale_pdp_notice }}
+                  </div>
+                {%- endif -%}
+                <product-form data-spark="b2c-only" class="product-form" {{ block.shopify_attributes }}>
+                  <div class="product-form__error-message-wrapper" role="alert" hidden>
+                    <svg aria-hidden="true" focusable="false" class="icon icon-error" viewBox="0 0 13 13">
+                      <circle cx="6.5" cy="6.50049" r="5.5" stroke="white" stroke-width="2"/>
+                      <circle cx="6.5" cy="6.5" r="5.5" fill="#EB001B" stroke="#EB001B" stroke-width="0.7"/>
+                      <path d="M5.87413 3.52832L5.97439 7.57216H7.02713L7.12739 3.52832H5.87413ZM6.50076 9.66091C6.88091 9.66091 7.18169 9.37267 7.18169 9.00504C7.18169 8.63742 6.88091 8.34917 6.50076 8.34917C6.12061 8.34917 5.81982 8.63742 5.81982 9.00504C5.81982 9.37267 6.12061 9.66091 6.50076 9.66091Z" fill="white"/>
+                      <path d="M5.87413 3.17832H5.51535L5.52424 3.537L5.6245 7.58083L5.63296 7.92216H5.97439H7.02713H7.36856L7.37702 7.58083L7.47728 3.537L7.48617 3.17832H7.12739H5.87413ZM6.50076 10.0109C7.06121 10.0109 7.5317 9.57872 7.5317 9.00504C7.5317 8.43137 7.06121 7.99918 6.50076 7.99918C5.94031 7.99918 5.46982 8.43137 5.46982 9.00504C5.46982 9.57872 5.94031 10.0109 6.50076 10.0109Z" fill="white" stroke="#EB001B" stroke-width="0.7">
+                    </svg>
+                    <span class="product-form__error-message"></span>
+                  </div>
+
+                  {%- form 'product', product, id: product_form_id, data-type: 'add-to-cart-form' -%}
+                    <input
+                      type="hidden"
+                      name="id"
+                      value="{% unless hc_atc_require_selection %}{{ product.selected_or_first_available_variant.id }}{% endunless %}"
+                      {% if hc_atc_require_selection %}disabled="disabled"{% endif %}
+                    >
+                    <div class="product-form__buttons">
+                        {%- liquid
+                          assign hc_widget_data = product.metafields.custom.pdp_widget_data.value | default: product.metafields.custom.pdp_widget_data
+                          assign hc_free_shipping_threshold_cents = settings.free_shipping_threshold | times: 100
+                          assign hc_customer_country_code = localization.country.iso_code | default: request.country.iso_code
+                          assign hc_is_us_customer = false
+                          if hc_customer_country_code == 'US'
+                            assign hc_is_us_customer = true
+                          endif
+
+                          if hc_widget_data == blank
+                            assign hc_qty_1 = 1
+                            assign hc_qty_mid = 3
+                            assign hc_qty_max = 5
+
+                            assign hc_unit_singular = 'PAIR'
+                            assign hc_unit_plural = 'PAIRS'
+
+                            assign hc_base_price = product.selected_or_first_available_variant.price | default: 0
+                            assign hc_price_1 = hc_base_price
+                            assign hc_compare_1 = 0
+                            assign hc_save_1 = blank
+
+                            assign hc_compare_mid = hc_base_price | times: hc_qty_mid
+                            assign hc_price_mid = hc_compare_mid | times: 90 | divided_by: 100
+                            assign hc_save_mid = 10
+
+                            assign hc_compare_max = hc_base_price | times: hc_qty_max
+                            assign hc_price_max = hc_compare_max | times: 85 | divided_by: 100
+                            assign hc_save_max = 15
+                          else
+                            assign hc_qty_1 = hc_widget_data.option_quantity.value[0] | plus: 0
+                            assign hc_qty_mid = hc_widget_data.option_quantity.value[1] | plus: 0
+                            assign hc_qty_max = hc_widget_data.option_quantity.value[2] | plus: 0
+
+                            assign hc_unit_base = hc_widget_data.product_unit.value | default: 'Pair' | upcase
+                            assign hc_unit_singular = hc_unit_base
+                            assign hc_unit_plural = hc_unit_base
+                            assign hc_unit_last_char = hc_unit_base | slice: -1, 1
+                            unless hc_unit_last_char == 'S'
+                              assign hc_unit_plural = hc_unit_base | append: 'S'
+                            endunless
+
+                            assign hc_price_1 = hc_widget_data.first_option_price.value | plus: 0
+                            assign hc_compare_1 = hc_widget_data.first_option_compareat.value | plus: 0
+                            assign hc_save_1 = hc_widget_data.first_option_savings.value
+
+                            assign hc_tier_2_variants = hc_widget_data.first_option_tier_2_variants.value
+                            assign hc_tier_variant = product.selected_or_first_available_variant
+                            if hc_tier_2_variants != blank and hc_tier_variant != blank
+                              for hc_t2_item in hc_tier_2_variants
+                                if hc_t2_item.id == hc_tier_variant.id
+                                  assign hc_price_1 = hc_widget_data.first_option_tier_2_price.value | plus: 0
+                                  assign hc_compare_1 = hc_widget_data.first_option_tier_2_compareat.value | plus: 0
+                                  if hc_widget_data.first_option_tier_2_savings.value != blank
+                                    assign hc_save_1 = hc_widget_data.first_option_tier_2_savings.value
+                                  endif
+                                  break
+                                endif
+                              endfor
+                            endif
+
+                            assign hc_price_mid = hc_widget_data.second_option_price.value | plus: 0
+                            assign hc_compare_mid = hc_widget_data.second_option_compareat.value | plus: 0
+                            assign hc_save_mid = hc_widget_data.second_option_savings.value | default: 10 | plus: 0
+
+                            assign hc_price_max = hc_widget_data.third_option_price.value | plus: 0
+                            assign hc_compare_max = hc_widget_data.third_option_compareat.value | plus: 0
+                            assign hc_save_max = hc_widget_data.third_option_savings.value | default: 15 | plus: 0
+                          endif
+
+                          # Final sale listings are duplicates, so custom.pdp_widget_data still holds the
+                          # regular product's fixed 1-pair price. Use the variant's own price and compare-at.
+                          if hc_is_final_sale
+                            assign hc_price_1 = product.selected_or_first_available_variant.price | default: 0
+                            assign hc_compare_1 = product.selected_or_first_available_variant.compare_at_price | default: 0
+                            if hc_compare_1 <= hc_price_1
+                              assign hc_compare_1 = 0
+                            endif
+                            assign hc_save_1 = blank
+                          endif
+
+                          assign hc_dynamic_pricing = true
+
+                          if hc_dynamic_pricing
+                            assign hc_base_price = product.selected_or_first_available_variant.price | default: 0
+                            assign hc_compare_base = product.selected_or_first_available_variant.compare_at_price | default: 0
+                            if hc_compare_base < hc_base_price or hc_compare_base == 0
+                              assign hc_compare_base = hc_base_price
+                            endif
+
+                            if hc_save_mid == 0
+                              if hc_compare_mid > hc_price_mid and hc_compare_mid > 0
+                                assign hc_save_mid = hc_compare_mid | minus: hc_price_mid | times: 100.0 | divided_by: hc_compare_mid | round
+                              else
+                                assign hc_save_mid = 10
+                              endif
+                            endif
+
+                            if hc_save_max == 0
+                              if hc_compare_max > hc_price_max and hc_compare_max > 0
+                                assign hc_save_max = hc_compare_max | minus: hc_price_max | times: 100.0 | divided_by: hc_compare_max | round
+                              else
+                                assign hc_save_max = 15
+                              endif
+                            endif
+
+                            assign hc_discount_mid = 100 | minus: hc_save_mid
+                            assign hc_discount_max = 100 | minus: hc_save_max
+
+                            assign hc_compare_mid = hc_compare_base | times: hc_qty_mid
+                            assign hc_price_mid = hc_compare_mid | times: hc_discount_mid | divided_by: 100
+
+                            assign hc_compare_max = hc_compare_base | times: hc_qty_max
+                            assign hc_price_max = hc_compare_max | times: hc_discount_max | divided_by: 100
+                          endif
+
+                          # Pending (no variant selected): show default/1-pair price;
+                          # keep 3-pair and 5-pair prices hidden until a variant is chosen.
+                          assign hc_bundle_pending = false
+                          if hc_require_size_selection and request.params.variant == blank and request.params.section_id == blank
+                            assign hc_bundle_pending = true
+                          endif
+                        -%}
+                      {%- if hc_show_bundle_save -%}
+                      <div
+                        class="hc-bundle{% if hc_bundle_pending %} hc-bundle--pending{% endif %}"
+                        data-hc-bundle
+                        data-section-id="{{ section.id }}"
+                        data-hc-dynamic-pricing="{% if hc_dynamic_pricing %}true{% else %}false{% endif %}"
+                        data-hc-bundle-pending="{% if hc_bundle_pending %}true{% else %}false{% endif %}"
+                        data-hc-price-range-text="{% if product.price_varies and product.price_min != product.price_max %}{{ product.price_min | money_without_trailing_zeros }}–{{ product.price_max | money_without_trailing_zeros }}{% else %}{{ product.price | money_without_trailing_zeros }}{% endif %}"
+                        data-hc-save-mid="{{ hc_save_mid | default: 10 }}"
+                        data-hc-save-max="{{ hc_save_max | default: 15 }}"
+                        data-hc-static-first-price="{{ hc_price_1 }}"
+                        data-hc-static-first-compare="{{ hc_compare_1 }}"
+                        {% if hc_is_final_sale %}data-hc-first-from-variant="true"{% endif %}
+                      >
+                        {%- if hc_widget_data != blank and hc_is_final_sale == false -%}
+                          <script type="application/json" data-hc-first-option-tiers>
+                            {
+                              "tier1": {
+                                "price": {{ hc_widget_data.first_option_price.value | default: 0 | plus: 0 | json }},
+                                "compare": {{ hc_widget_data.first_option_compareat.value | default: 0 | plus: 0 | json }},
+                                "savings": {{ hc_widget_data.first_option_savings.value | json }}
+                              },
+                              "tier2": {
+                                "price": {{ hc_widget_data.first_option_tier_2_price.value | default: 0 | plus: 0 | json }},
+                                "compare": {{ hc_widget_data.first_option_tier_2_compareat.value | default: 0 | plus: 0 | json }},
+                                "savings": {{ hc_widget_data.first_option_tier_2_savings.value | json }},
+                                "variantIds": [
+                                  {%- for v in hc_widget_data.first_option_tier_2_variants.value -%}
+                                    {{ v.id }}{% unless forloop.last %},{% endunless %}
+                                  {%- endfor -%}
+                                ]
+                              },
+                              "freeShippingThreshold": {{ hc_free_shipping_threshold_cents | json }},
+                              "isUsCustomer": {{ hc_is_us_customer | json }}
+                            }
+                          </script>
+                        {%- endif -%}
+                        {% if section.settings.bundle_and_save_text != blank %}
+                          <div class="hc-bundle__title">{{ section.settings.bundle_and_save_text }}</div>
+                        {% else %}
+                          <div class="hc-bundle__title">BUNDLE &amp; SAVE</div>
+                        {% endif %}
+                        <div class="hc-bundle__grid" role="radiogroup" aria-label="Bundle quantity">
+                          <button
+                            type="button"
+                            class="hc-bundle__option is-active"
+                            data-hc-bundle-first
+                            data-hc-bundle-qty="{{ hc_qty_1 }}"
+                            data-hc-bundle-price-cents="{{ hc_price_1 }}"
+                            data-hc-bundle-compare-cents="{{ hc_compare_1 }}"
+                            aria-pressed="true"
+                          >
+                            <div class="hc-bundle__qty">
+                              {{ hc_qty_1 }}
+                              {%- if hc_qty_1 == 1 -%} {{ hc_unit_singular }}{%- else -%} {{ hc_unit_plural }}{%- endif -%}
+                            </div>
+                            <div class="hc-bundle__price" aria-hidden="true">
+                              <span class="hc-bundle__compare"{% if hc_bundle_pending or hc_compare_1 <= 0 or hc_compare_1 == hc_price_1 %} style="display:none;"{% endif %}>
+                                {%- if hc_compare_1 > 0 and hc_compare_1 != hc_price_1 -%}
+                                  {{ hc_compare_1 | money_without_trailing_zeros }}
+                                {%- endif -%}
+                              </span>
+                              <span class="hc-bundle__total">
+                                {{ hc_price_1 | money_without_trailing_zeros }}
+                              </span>
+                            </div>
+                            {%- if hc_save_1 != blank -%}
+                              <div class="hc-bundle__meta" data-hc-first-option-meta aria-hidden="true">
+                                SAVE {{ hc_save_1 }}%
+                                {%- if hc_is_us_customer and hc_price_1 > hc_free_shipping_threshold_cents -%}
+                                  &nbsp;•&nbsp;FREE SHIPPING
+                                {%- endif -%}
+                              </div>
+                            {%- else -%}
+                              <div class="hc-bundle__meta" data-hc-first-option-meta aria-hidden="true" style="display:none;">
+                                {%- if hc_is_us_customer and hc_price_1 > hc_free_shipping_threshold_cents -%}
+                                  FREE SHIPPING
+                                {%- endif -%}
+                              </div>
+                            {%- endif -%}
+                          </button>
+                          <button
+                            type="button"
+                            class="hc-bundle__option"
+                            data-hc-bundle-qty="{{ hc_qty_mid }}"
+                            data-hc-bundle-price-cents="{{ hc_price_mid }}"
+                            data-hc-bundle-compare-cents="{{ hc_compare_mid }}"
+                            aria-pressed="false"
+                          >
+                            <div class="hc-bundle__badge hc-bundle__badge--pink"{% if hc_widget_data["second_saving_element_background"].value != blank %} style="background: {{ hc_widget_data["second_saving_element_background"].value }};"{% endif %}>MOST POPULAR</div>
+                            <div class="hc-bundle__qty">
+                              {{ hc_qty_mid }}
+                              {%- if hc_qty_mid == 1 -%} {{ hc_unit_singular }}{%- else -%} {{ hc_unit_plural }}{%- endif -%}
+                            </div>
+                            <div class="hc-bundle__price" aria-hidden="true"{% if hc_bundle_pending %} hidden{% endif %}>
+                              <span class="hc-bundle__compare"{% if hc_compare_mid <= 0 or hc_compare_mid == hc_price_mid %} style="display:none;"{% endif %}>
+                                {%- if hc_compare_mid > 0 and hc_compare_mid != hc_price_mid -%}
+                                  {{ hc_compare_mid | money_without_trailing_zeros }}
+                                {%- endif -%}
+                              </span>
+                              <span class="hc-bundle__total hc-bundle__total--pink">{{ hc_price_mid | money_without_trailing_zeros }}</span>
+                            </div>
+                            <div class="hc-bundle__meta" aria-hidden="true">
+                              {%- if hc_save_mid > 0 -%}
+                                SAVE {{ hc_save_mid }}%
+                              {%- endif -%}
+                              {%- unless hc_bundle_pending -%}
+                                {%- if hc_is_us_customer and hc_price_mid > hc_free_shipping_threshold_cents -%}
+                                  &nbsp;•&nbsp;FREE SHIPPING
+                                {%- endif -%}
+                              {%- endunless -%}
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            class="hc-bundle__option"
+                            data-hc-bundle-qty="{{ hc_qty_max }}"
+                            data-hc-bundle-price-cents="{{ hc_price_max }}"
+                            data-hc-bundle-compare-cents="{{ hc_compare_max }}"
+                            aria-pressed="false"
+                          >
+                            <div class="hc-bundle__badge hc-bundle__badge--blue"{% if hc_widget_data["third_saving_element_background"].value != blank %} style="background: {{ hc_widget_data["third_saving_element_background"].value }};"{% endif %}>BEST VALUE</div>
+                            <div class="hc-bundle__qty">
+                              {{ hc_qty_max }}
+                              {%- if hc_qty_max == 1 -%} {{ hc_unit_singular }}{%- else -%} {{ hc_unit_plural }}{%- endif -%}
+                            </div>
+                            <div class="hc-bundle__price" aria-hidden="true"{% if hc_bundle_pending %} hidden{% endif %}>
+                              <span class="hc-bundle__compare"{% if hc_compare_max <= 0 or hc_compare_max == hc_price_max %} style="display:none;"{% endif %}>
+                                {%- if hc_compare_max > 0 and hc_compare_max != hc_price_max -%}
+                                  {{ hc_compare_max | money_without_trailing_zeros }}
+                                {%- endif -%}
+                              </span>
+                              <span class="hc-bundle__total hc-bundle__total--blue">{{ hc_price_max | money_without_trailing_zeros }}</span>
+                            </div>
+                            <div class="hc-bundle__meta" aria-hidden="true">
+                              {%- if hc_save_max > 0 -%}
+                                SAVE {{ hc_save_max }}%
+                              {%- endif -%}
+                              {%- unless hc_bundle_pending -%}
+                                {%- if hc_is_us_customer and hc_price_max > hc_free_shipping_threshold_cents -%}
+                                  &nbsp;•&nbsp;FREE SHIPPING
+                                {%- endif -%}
+                              {%- endunless -%}
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                      {%- endif -%}
+                      {%- if hc_show_qty -%}
+                        <div class="product-form__quantity{% if hc_is_b2b_customer %} product-form__quantity--b2b{% endif %}">
+                          <label
+                            for="Quantity-{{ section.id }}"
+                            class="{% if hc_has_io %}sb-io-qty-label{% elsif hc_is_b2b_customer %}form__label{% else %}visually-hidden{% endif %}"
+                          >
+                            {{- 'products.product.quantity.label' | t -}}
+                          </label>
+                          <quantity-input class="quantity">
+                            <button class="quantity__button no-js-hidden" name="minus" type="button">
+                              <span class="visually-hidden">
+                                {{- 'products.product.quantity.decrease' | t: product: product.title | escape -}}
+                              </span>
+                              {% render 'icon', icon: 'minus' %}
+                            </button>
+                            <input
+                              class="quantity__input"
+                              type="number"
+                              name="quantity"
+                              id="Quantity-{{ section.id }}"
+                              min="1"
+                              value="1"
+                              form="{{ product_form_id }}"
+                            >
+                            <button class="quantity__button no-js-hidden" name="plus" type="button">
+                              <span class="visually-hidden">
+                                {{- 'products.product.quantity.increase' | t: product: product.title | escape -}}
+                              </span>
+                              {% render 'icon', icon: 'plus' %}
+                            </button>
+                          </quantity-input>
+                        </div>
+                      {%- else -%}
+                        <input
+                          type="hidden"
+                          name="quantity"
+                          id="Quantity-{{ section.id }}"
+                          value="1"
+                          form="{{ product_form_id }}"
+                        >
+                      {%- endif -%}
+                      {% render 'sb-io-swatches', product: product, io_block: block %}
+                      {%- if hc_atc_require_selection -%}
+                        <button
+                          type="button"
+                          class="product-form__select-options button{% if block.settings.show_dynamic_checkout %} button--secondary{% endif %} button--full-width"
+                          data-select-options-trigger
+                          aria-haspopup="dialog"
+                        >
+                          {{ settings.variant_selection_button_text | default: 'Select options' }}
+                        </button>
+                      {%- endif -%}
+                      <button
+                        type="submit"
+                        name="add"
+                        class="product-form__submit button{% if block.settings.show_dynamic_checkout %} button--secondary{% endif %} button--full-width{% if hc_atc_require_selection %} hidden{% endif %}"
+                        {% if hc_atc_require_selection %}
+                          hidden
+                        {% elsif hc_current_variant.available == false and hc_is_preorder == false %}
+                          disabled="disabled"
+                        {% endif %}
+                        data-pre-order="{% if hc_is_preorder %}true{% else %}false{% endif %}"
+                      >
+                        <span class="hc-atc__label">
+                          {%- liquid
+                            if hc_current_variant.available or hc_is_preorder
+                              if hc_is_preorder
+                                echo 'products.product.pre_order' | t
+                              else
+                                echo 'products.product.add_to_cart' | t
+                              endif
+                            else
+                              echo 'products.product.sold_out' | t
+                            endif
+                          -%}
+                        </span>
+                        <span class="hc-atc__sep" aria-hidden="true"> • </span>
+                        <span class="hc-atc__compare" aria-hidden="true" style="display:none;"></span>
+                        <span class="hc-atc__price" aria-hidden="true">{%- unless hc_show_bundle_save -%}{{ hc_current_variant.price | money_without_trailing_zeros }}{%- endunless -%}</span>
+                      </button>
+                      {%- if settings.preorder_enabled -%}
+                      <div
+                        id="preorder-message-{{ section.id }}"
+                        class="preorder-message rte"
+                        {% if hc_atc_require_selection or hc_is_preorder == false %}hidden{% endif %}
+                      >
+                        {% render 'preorder-variant-message', variant: hc_current_variant %}
+                      </div>
+                      {%- endif -%}
+                      {%- if block.settings.show_dynamic_checkout -%}
+                        {{ form | payment_button }}
+                      {%- endif -%}
+                      {%- if settings.preorder_enabled -%}
+                      <input
+                        type="hidden"
+                        name="properties[Pre-order]"
+                        value="Yes"
+                        id="PreorderProperty-{{ section.id }}"
+                        {% unless hc_is_preorder %}disabled{% endunless %}
+                      >
+                      <input
+                        type="hidden"
+                        name="properties[_preorder]"
+                        value="true"
+                        id="PreorderFlag-{{ section.id }}"
+                        {% unless hc_is_preorder %}disabled{% endunless %}
+                      >
+                      <input
+                        type="hidden"
+                        name="properties[Pre-order message]"
+                        id="PreorderMessageProperty-{{ section.id }}"
+                        value="{% capture hc_preorder_msg_text %}{% render 'preorder-variant-message', variant: hc_current_variant, format: 'text' %}{% endcapture %}{{ hc_preorder_msg_text | strip | escape }}"
+                        {% unless hc_is_preorder %}disabled{% endunless %}
+                      >
+                      {%- endif -%}
+                    </div>
+                  {%- endform -%}
+                </product-form>
+                {%- if settings.preorder_enabled -%}
+                <script type="application/json" id="PreorderData-{{ section.id }}">
+                  {
+                    "defaultMessage": {% if settings.preorder_text != blank %}{{ settings.preorder_text | json }}{% else %}null{% endif %},
+                    "variants": {
+                      {%- for variant in product.variants -%}
+                        "{{ variant.id }}": {
+                          "isPreorder": {% if variant.inventory_policy == 'continue' and variant.inventory_quantity <= 0 %}true{% else %}false{% endif %},
+                          "messageHtml": {% if variant.metafields.custom.preorder_message != blank %}{{ variant.metafields.custom.preorder_message | metafield_tag | json }}{% else %}null{% endif %},
+                          "messageText": {% if variant.metafields.custom.preorder_message != blank %}{{ variant.metafields.custom.preorder_message | metafield_tag | strip_html | strip | json }}{% else %}null{% endif %}
+                        }{% unless forloop.last %},{% endunless %}
+                      {%- endfor -%}
+                    }
+                  }
+                </script>
+                {%- endif -%}
+                <script>
+                  (function () {
+                    var sectionId = {{ section.id | json }};
+                    var __hcVariantCatalog = {{ product.variants | json }};
+                    var __hcBundleQtyMid = {{ hc_qty_mid | json }};
+                    var __hcBundleQtyMax = {{ hc_qty_max | json }};
+                    var __hcBundleQty1 = {{ hc_qty_1 | json }};
+                    var __hcBundleQtyOptions = [__hcBundleQty1, __hcBundleQtyMid, __hcBundleQtyMax];
+                    var __hcDynamicPricing = false;
+                    var __hcSaveMid = '10';
+                    var __hcSaveMax = '15';
+                    var __hcStaticFirst = { price: 0, compare: 0, savings: '' };
+                    var __hcFirstOptionTiers = null;
+                    window.__hcBundleBound = window.__hcBundleBound || {};
+                    // Allow re-init when Quick View replaces DOM (previous node is gone).
+                    if (window.__hcBundleBound[sectionId]) {
+                      var stillBound = document.querySelector(
+                        '[data-hc-bundle][data-section-id="' + sectionId + '"][data-hc-js-bound="true"]'
+                      );
+                      if (stillBound) return;
+                      delete window.__hcBundleBound[sectionId];
+                    }
+                    window.__hcBundleBound[sectionId] = true;
+
+                    var __hcCurrentVariant = null;
+                    var __hcBundleEl = null;
+                    var __hcSelectedBundleQty = 1;
+                    var __hcSuppressPriceObserver = false;
+                    var __hcPriceObserver = null;
+                    var __hcPriceObserverDebounce = null;
+
+                    function getQuickViewRoot() {
+                      // Portaled QV lives on body, not inside the card <details>.
+                      return document.querySelector('body > quick-view.quick-view .quick-view__content')
+                        || document.querySelector('quick-view-drawer details[open] .quick-view__content');
+                    }
+
+                    function getFormVariantId() {
+                      var root = getQuickViewRoot();
+                      var form = (root && root.querySelector('#product-form-' + sectionId))
+                        || document.getElementById('product-form-' + sectionId);
+                      if (!form) return null;
+                      var input = form.querySelector('input[name="id"]:not([disabled])') || form.querySelector('input[name="id"]');
+                      if (!input || input.value === '') return null;
+                      var vid = parseInt(input.value, 10);
+                      return isNaN(vid) ? null : vid;
+                    }
+
+                    function resolveCurrentVariant() {
+                      if (__hcCurrentVariant && typeof __hcCurrentVariant.price === 'number') {
+                        return __hcCurrentVariant;
+                      }
+                      var vid = getFormVariantId();
+                      if (vid == null) return null;
+                      if (__hcVariantCatalog && __hcVariantCatalog.length) {
+                        for (var i = 0; i < __hcVariantCatalog.length; i++) {
+                          if (__hcVariantCatalog[i].id === vid) return __hcVariantCatalog[i];
+                        }
+                      }
+                      return null;
+                    }
+
+                    /** Title block uses #price-<section>; prefer Quick View / title scopes when present. */
+                    function getPriceWrapEl() {
+                      var qv = getQuickViewRoot();
+                      if (qv) {
+                        var inQvTitle = qv.querySelector('.product__title [id="price-' + sectionId + '"]');
+                        if (inQvTitle) return inQvTitle;
+                        var inQv = qv.querySelector('[id="price-' + sectionId + '"]');
+                        if (inQv) return inQv;
+                      }
+                      var sec = document.getElementById('shopify-section-' + sectionId);
+                      if (sec) {
+                        var inTitle = sec.querySelector('.product__title [id="price-' + sectionId + '"]');
+                        if (inTitle) return inTitle;
+                      }
+                      return document.getElementById('price-' + sectionId);
+                    }
+
+                    function formatMoneySafe(cents) {
+                      try {
+                        var fmt = (window.shopSettings && window.shopSettings.moneyFormat) ? window.shopSettings.moneyFormat : '${{amount}}';
+                        if (window.theme && window.theme.Currency && typeof window.theme.Currency.formatMoney === 'function') {
+                          return window.theme.Currency.formatMoney(cents, fmt);
+                        }
+                      } catch (e) {}
+                      // Very small fallback: dollars w/ 2 decimals
+                      return (Math.round(cents) / 100).toFixed(2);
+                    }
+
+                    function recalculateBundlePricesFromVariant(variant) {
+                      if (!__hcDynamicPricing || !window.HcBundlePricing || !variant || typeof variant.price !== 'number') return;
+                      if (__hcFirstOptionTiers && window.HcBundlePricing.getFirstOptionStatic) {
+                        var resolved = window.HcBundlePricing.getFirstOptionStatic(variant.id, __hcFirstOptionTiers);
+                        __hcStaticFirst = {
+                          price: resolved.price,
+                          compare: resolved.compare,
+                          savings: resolved.savings || ''
+                        };
+                        if (__hcBundleEl) {
+                          __hcBundleEl.setAttribute('data-hc-static-first-price', String(__hcStaticFirst.price));
+                          __hcBundleEl.setAttribute('data-hc-static-first-compare', String(__hcStaticFirst.compare));
+                        }
+                      }
+                      var compareUnit = window.HcBundlePricing.getVariantCompareCents(variant);
+                      var totals = window.HcBundlePricing.calculate(
+                        variant.price,
+                        compareUnit,
+                        [__hcBundleQty1, __hcBundleQtyMid, __hcBundleQtyMax],
+                        {
+                          mid: window.HcBundlePricing.parseSavePercent(__hcSaveMid, 10),
+                          max: window.HcBundlePricing.parseSavePercent(__hcSaveMax, 15)
+                        },
+                        __hcStaticFirst
+                      );
+                      window.HcBundlePricing.applyToHcBundle(
+                        __hcBundleEl,
+                        totals,
+                        __hcBundleQtyOptions
+                      );
+                      if (window.HcBundlePricing.updateHcBundleFirstMeta && __hcFirstOptionTiers) {
+                        var metaOptions = {
+                          freeShippingThreshold: __hcFirstOptionTiers.freeShippingThreshold || 0,
+                          isUsCustomer: !!__hcFirstOptionTiers.isUsCustomer
+                        };
+                        window.HcBundlePricing.updateHcBundleFirstMeta(__hcBundleEl, __hcStaticFirst, {
+                          qty1: __hcBundleQty1,
+                          freeShippingThreshold: metaOptions.freeShippingThreshold,
+                          isUsCustomer: metaOptions.isUsCustomer
+                        });
+                        if (window.HcBundlePricing.updateHcBundleOptionMeta) {
+                          var midEntry = totals[__hcBundleQtyMid];
+                          var maxEntry = totals[__hcBundleQtyMax];
+                          if (midEntry) {
+                            window.HcBundlePricing.updateHcBundleOptionMeta(
+                              __hcBundleEl,
+                              __hcBundleQtyMid,
+                              window.HcBundlePricing.parseSavePercent(__hcSaveMid, 10),
+                              midEntry.price,
+                              metaOptions
+                            );
+                          }
+                          if (maxEntry) {
+                            window.HcBundlePricing.updateHcBundleOptionMeta(
+                              __hcBundleEl,
+                              __hcBundleQtyMax,
+                              window.HcBundlePricing.parseSavePercent(__hcSaveMax, 15),
+                              maxEntry.price,
+                              metaOptions
+                            );
+                          }
+                        }
+                      }
+                    }
+
+                    function getBundleTotalsFromDom(qty) {
+                      if (!__hcBundleEl) return null;
+                      var btn = __hcBundleEl.querySelector('[data-hc-bundle-qty="' + String(qty) + '"]');
+                      if (!btn) return null;
+                      var price = parseInt(btn.getAttribute('data-hc-bundle-price-cents') || '', 10);
+                      var compare = parseInt(btn.getAttribute('data-hc-bundle-compare-cents') || '', 10);
+                      if (isNaN(price)) return null;
+                      if (isNaN(compare)) compare = price;
+                      return { qty: parseInt(qty, 10) || 1, price: price, compare: compare };
+                    }
+
+                    function setPriceBlock(bundleQty) {
+                      if (isBundlePending()) return;
+                      var qty = parseInt(bundleQty, 10) || 1;
+                      var priceWrap = getPriceWrapEl();
+                      if (!priceWrap) return;
+                      var priceEl = priceWrap.querySelector('.price');
+                      if (!priceEl) return;
+                      var totals = getBundleTotalsFromDom(qty);
+                      if (!totals) return;
+                      var onSale = totals.compare > totals.price;
+                      __hcSuppressPriceObserver = true;
+                      try {
+                        priceEl.classList.toggle('price--on-sale', onSale);
+
+                        var regular = priceEl.querySelector('.price__regular .price-item--regular');
+                        var saleCompare = priceEl.querySelector('.price__sale .price__compare .price-item--regular');
+                        var sale = priceEl.querySelector('.price__sale .price-item--sale');
+
+                        var priceHtml = '<price-money><bdi>' + formatMoneySafe(totals.price) + '</bdi></price-money>';
+                        var compareHtml = '<price-money><bdi>' + formatMoneySafe(totals.compare) + '</bdi></price-money>';
+
+                        if (regular) regular.innerHTML = priceHtml;
+                        if (sale) sale.innerHTML = priceHtml;
+                        if (saleCompare) saleCompare.innerHTML = compareHtml;
+                      } finally {
+                        window.requestAnimationFrame(function () {
+                          __hcSuppressPriceObserver = false;
+                        });
+                      }
+                    }
+
+                    function attachTitlePriceObserver() {
+                      var wrap = getPriceWrapEl();
+                      if (!wrap || typeof MutationObserver === 'undefined') return;
+                      if (__hcPriceObserver) {
+                        __hcPriceObserver.disconnect();
+                        __hcPriceObserver = null;
+                      }
+                      __hcPriceObserver = new MutationObserver(function () {
+                        if (__hcSuppressPriceObserver) return;
+                        var q = __hcSelectedBundleQty;
+                        if (q !== __hcBundleQtyMid && q !== __hcBundleQtyMax) return;
+                        if (__hcPriceObserverDebounce) window.clearTimeout(__hcPriceObserverDebounce);
+                        __hcPriceObserverDebounce = window.setTimeout(function () {
+                          __hcPriceObserverDebounce = null;
+                          if (__hcSuppressPriceObserver) return;
+                          setPriceBlock(q);
+                        }, 40);
+                      });
+                      __hcPriceObserver.observe(wrap, { childList: true, subtree: true });
+                    }
+
+                    function isBundlePending() {
+                      if (!__hcBundleEl) return false;
+                      if (__hcBundleEl.getAttribute('data-hc-bundle-pending') === 'true') return true;
+                      return !resolveCurrentVariant();
+                    }
+
+                    function setBundlePendingUi(pending) {
+                      if (!__hcBundleEl) return;
+                      __hcBundleEl.classList.toggle('hc-bundle--pending', pending);
+                      __hcBundleEl.setAttribute('data-hc-bundle-pending', pending ? 'true' : 'false');
+
+                      var firstBtn = __hcBundleEl.querySelector('[data-hc-bundle-qty="' + String(__hcBundleQty1) + '"]');
+                      var firstTotal = firstBtn ? firstBtn.querySelector('.hc-bundle__total') : null;
+                      var firstCompare = firstBtn ? firstBtn.querySelector('.hc-bundle__compare') : null;
+
+                      // Pending: keep default/1-pair price visible (never swap to a range).
+                      if (pending && firstTotal) {
+                        var defaultCents = parseInt(
+                          __hcBundleEl.getAttribute('data-hc-static-first-price') ||
+                            (firstBtn && firstBtn.getAttribute('data-hc-bundle-price-cents')) ||
+                            '0',
+                          10
+                        );
+                        if (!isNaN(defaultCents) && defaultCents > 0) {
+                          firstTotal.textContent = formatMoneySafe(defaultCents);
+                        }
+                        if (firstCompare) firstCompare.style.display = 'none';
+                      }
+
+                      // Always hide 3-pair / 5-pair prices until a variant is selected.
+                      [__hcBundleQtyMid, __hcBundleQtyMax].forEach(function (qty) {
+                        var btn = __hcBundleEl.querySelector('[data-hc-bundle-qty="' + String(qty) + '"]');
+                        var priceEl = btn ? btn.querySelector('.hc-bundle__price') : null;
+                        if (priceEl) priceEl.hidden = !!pending;
+                      });
+                    }
+
+                    function updateBundleOptionPrices() {
+                      if (!__hcBundleEl) return;
+                      if (isBundlePending()) {
+                        setBundlePendingUi(true);
+                        return;
+                      }
+                      setBundlePendingUi(false);
+                      __hcBundleQtyOptions.forEach(function (qty) {
+                        var btn = __hcBundleEl.querySelector('[data-hc-bundle-qty="' + String(qty) + '"]');
+                        if (!btn) return;
+                        var totalEl = btn.querySelector('.hc-bundle__total');
+                        var compareEl = btn.querySelector('.hc-bundle__compare');
+                        var totals = getBundleTotalsFromDom(qty);
+                        if (!totals) return;
+                        if (totalEl) totalEl.textContent = formatMoneySafe(totals.price);
+                        if (compareEl) {
+                          if (totals.compare > totals.price) {
+                            compareEl.textContent = formatMoneySafe(totals.compare);
+                            compareEl.style.display = '';
+                          } else {
+                            compareEl.textContent = '';
+                            compareEl.style.display = 'none';
+                          }
+                        }
+                      });
+                    }
+
+                    function setTitlePriceFromCents(priceCents, compareCents) {
+                      var wraps = [];
+                      function addWrap(el) {
+                        if (el && wraps.indexOf(el) === -1) wraps.push(el);
+                      }
+                      addWrap(getPriceWrapEl());
+                      addWrap(document.getElementById('price-' + sectionId + '--alt'));
+                      if (!wraps.length) return;
+                      compareCents = compareCents || 0;
+                      var onSale = compareCents > priceCents;
+                      __hcSuppressPriceObserver = true;
+                      try {
+                        wraps.forEach(function (priceWrap) {
+                          var priceEl = priceWrap.querySelector('.price');
+                          if (!priceEl) return;
+                          priceWrap.hidden = false;
+                          priceWrap.classList.remove('visibility-hidden');
+                          priceEl.classList.toggle('price--on-sale', onSale);
+                          var priceHtml = '<price-money><bdi>' + formatMoneySafe(priceCents) + '</bdi></price-money>';
+                          var compareHtml = '<price-money><bdi>' + formatMoneySafe(compareCents) + '</bdi></price-money>';
+                          var regular = priceEl.querySelector('.price__regular .price-item--regular');
+                          var saleCompare = priceEl.querySelector('.price__sale .price__compare .price-item--regular');
+                          var sale = priceEl.querySelector('.price__sale .price-item--sale');
+                          if (regular) regular.innerHTML = priceHtml;
+                          if (sale) sale.innerHTML = priceHtml;
+                          if (saleCompare) saleCompare.innerHTML = compareHtml;
+                        });
+                        ['', '--alt'].forEach(function (suffix) {
+                          var range = document.getElementById('price-range-' + sectionId + suffix);
+                          if (range) {
+                            range.hidden = true;
+                            range.classList.add('visibility-hidden');
+                          }
+                        });
+                      } finally {
+                        window.requestAnimationFrame(function () {
+                          __hcSuppressPriceObserver = false;
+                        });
+                      }
+                    }
+
+                    function syncPlainAtcPrice() {
+                      var root = getQuickViewRoot()
+                        || document.getElementById('MainProduct-' + sectionId)
+                        || document;
+                      var form = (root && root.querySelector('#product-form-' + sectionId))
+                        || document.getElementById('product-form-' + sectionId);
+                      if (!form) return;
+                      var atc = form.querySelector('.product-form__submit[name="add"]:not([hidden]):not(.hidden)')
+                        || form.querySelector('.product-form__submit[name="add"]');
+                      var atcPriceEl = atc ? atc.querySelector('.hc-atc__price') : null;
+                      var atcSepEl = atc ? atc.querySelector('.hc-atc__sep') : null;
+                      var atcCompareEl = atc ? atc.querySelector('.hc-atc__compare') : null;
+
+                      var io = (root && root.querySelector('[data-sb-io]')) || form.querySelector('[data-sb-io]');
+                      // Only the bundle picker drives this path. Without it the button keeps
+                      // whatever the theme already put there.
+                      if (!io) return;
+                      var priceCents = null;
+                      var compareCents = 0;
+                      if (io) {
+                        var ioPrice = parseInt(io.getAttribute('data-atc-price') || '', 10);
+                        if (!isNaN(ioPrice)) {
+                          priceCents = ioPrice;
+                          compareCents = parseInt(io.getAttribute('data-atc-compare') || '', 10) || 0;
+                        }
+                      }
+                      if (priceCents == null) {
+                        var variant = resolveCurrentVariant();
+                        priceCents = variant && typeof variant.price === 'number' ? variant.price : null;
+                        compareCents = variant && typeof variant.compare_at_price === 'number' ? variant.compare_at_price : 0;
+                      }
+                      if (priceCents == null || isNaN(priceCents)) return;
+
+                      setTitlePriceFromCents(priceCents, compareCents);
+
+                      if (!atc || !atcPriceEl) return;
+
+                      atcPriceEl.textContent = formatMoneySafe(priceCents);
+                      if (atcSepEl) atcSepEl.style.display = '';
+                      if (atcPriceEl) atcPriceEl.style.display = '';
+                      if (atcCompareEl) {
+                        if (compareCents > priceCents) {
+                          atcCompareEl.textContent = formatMoneySafe(compareCents);
+                          atcCompareEl.style.display = '';
+                        } else {
+                          atcCompareEl.textContent = '';
+                          atcCompareEl.style.display = 'none';
+                        }
+                      }
+                    }
+
+                    function syncAtcPrice(bundle, qty) {
+                      if (!bundle) return;
+                      var atc = bundle.closest('.product-form__buttons')?.querySelector(
+                        '.product-form__submit[name="add"]:not([hidden]):not(.hidden)'
+                      );
+                      var atcPriceEl = atc ? atc.querySelector('.hc-atc__price') : null;
+                      var atcSepEl = atc ? atc.querySelector('.hc-atc__sep') : null;
+                      var atcCompareEl = atc ? atc.querySelector('.hc-atc__compare') : null;
+                      if (!atc || !atcPriceEl) return;
+
+                      var btn = bundle.querySelector('[data-hc-bundle-qty="' + String(qty) + '"]');
+                      var priceText = btn ? (btn.querySelector('.hc-bundle__total')?.textContent || '').trim() : '';
+                      var compareText = btn ? (btn.querySelector('.hc-bundle__compare')?.textContent || '').trim() : '';
+
+                      if (priceText) {
+                        atcPriceEl.textContent = priceText;
+                        if (atcSepEl) atcSepEl.style.display = '';
+                        if (atcCompareEl) {
+                          if (compareText) {
+                            atcCompareEl.textContent = compareText;
+                            atcCompareEl.style.display = '';
+                          } else {
+                            atcCompareEl.textContent = '';
+                            atcCompareEl.style.display = 'none';
+                          }
+                        }
+                      } else {
+                        atcPriceEl.textContent = '';
+                        if (atcSepEl) atcSepEl.style.display = 'none';
+                        if (atcCompareEl) {
+                          atcCompareEl.textContent = '';
+                          atcCompareEl.style.display = 'none';
+                        }
+                      }
+                    }
+
+                    function init() {
+                      var root = getQuickViewRoot()
+                        || document.getElementById('MainProduct-' + sectionId)
+                        || document;
+                      var bundle = root.querySelector('[data-hc-bundle][data-section-id="' + sectionId + '"]')
+                        || document.querySelector('[data-hc-bundle][data-section-id="' + sectionId + '"]');
+                      if (!bundle) {
+                        syncPlainAtcPrice();
+                        return false;
+                      }
+                      if (bundle.getAttribute('data-hc-js-bound') === 'true' && __hcBundleEl === bundle) return true;
+                      bundle.setAttribute('data-hc-js-bound', 'true');
+                      __hcBundleEl = bundle;
+                      __hcDynamicPricing = bundle.getAttribute('data-hc-dynamic-pricing') === 'true';
+                      __hcSaveMid = bundle.getAttribute('data-hc-save-mid') || '10';
+                      __hcSaveMax = bundle.getAttribute('data-hc-save-max') || '15';
+                      var tiersScript = bundle.querySelector('[data-hc-first-option-tiers]');
+                      if (tiersScript && tiersScript.textContent) {
+                        try {
+                          __hcFirstOptionTiers = JSON.parse(tiersScript.textContent);
+                        } catch (e) {
+                          __hcFirstOptionTiers = null;
+                        }
+                      }
+                      __hcStaticFirst = {
+                        price: parseInt(bundle.getAttribute('data-hc-static-first-price') || '0', 10) || 0,
+                        compare: parseInt(bundle.getAttribute('data-hc-static-first-compare') || '0', 10) || 0,
+                        savings: ''
+                      };
+                      if (bundle.getAttribute('data-hc-first-from-variant') === 'true') {
+                        __hcFirstOptionTiers = null;
+                        __hcStaticFirst = null;
+                      }
+                      if (__hcFirstOptionTiers && window.HcBundlePricing && window.HcBundlePricing.getFirstOptionStatic) {
+                        var initVid = getFormVariantId();
+                        if (initVid != null) {
+                          var initResolved = window.HcBundlePricing.getFirstOptionStatic(initVid, __hcFirstOptionTiers);
+                          __hcStaticFirst.savings = initResolved.savings || '';
+                        }
+                      }
+                      var initVariant = resolveCurrentVariant();
+                      if (__hcDynamicPricing && initVariant) {
+                        setBundlePendingUi(false);
+                        recalculateBundlePricesFromVariant(initVariant);
+                      } else {
+                        setBundlePendingUi(true);
+                      }
+                      if (bundle && bundle.dataset && bundle.dataset.hcSelectedQty) {
+                        var persisted = parseInt(bundle.dataset.hcSelectedQty, 10);
+                        if (!isNaN(persisted) && persisted > 0) __hcSelectedBundleQty = persisted;
+                      }
+
+                      var options = bundle.querySelectorAll('[data-hc-bundle-qty]');
+                      if (!options.length) return false;
+
+                      function getQuantityInputs() {
+                        var inputs = [];
+                        // Main product form quantity
+                        var qMain = document.getElementById('Quantity-' + sectionId);
+                        if (qMain) inputs.push(qMain);
+                        // Sticky cart quantity (if present)
+                        var sticky = document.querySelector('.sticky-cart__form');
+                        if (sticky) {
+                          sticky.querySelectorAll('input[name="quantity"]').forEach(function (el) {
+                            if (inputs.indexOf(el) === -1) inputs.push(el);
+                          });
+                        }
+                        return inputs;
+                      }
+
+                      function setQty(qty) {
+                        var inputs = getQuantityInputs();
+                        inputs.forEach(function (input) {
+                          input.value = String(qty);
+                          input.dispatchEvent(new Event('input', { bubbles: true }));
+                          input.dispatchEvent(new Event('change', { bubbles: true }));
+                        });
+                      }
+
+                      function setActive(qty) {
+                        __hcSelectedBundleQty = parseInt(qty, 10) || 1;
+                        bundle.dataset.hcSelectedQty = String(__hcSelectedBundleQty);
+                        options.forEach(function (btn) {
+                          var on = String(btn.getAttribute('data-hc-bundle-qty')) === String(qty);
+                          btn.classList.toggle('is-active', on);
+                          btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+                        });
+                        syncAtcPrice(bundle, qty);
+                        setPriceBlock(qty);
+                      }
+
+                      options.forEach(function (btn) {
+                        btn.addEventListener('click', function () {
+                          var qty = parseInt(btn.getAttribute('data-hc-bundle-qty'), 10) || 1;
+                          setActive(qty);
+                          setQty(qty);
+                        });
+                      });
+
+                      // If user changes quantity manually, reflect closest bundle option.
+                      getQuantityInputs().forEach(function (input) {
+                        input.addEventListener('change', function () {
+                          var v = parseInt(input.value, 10);
+                          if (v === 1 || v === __hcBundleQtyMid || v === __hcBundleQtyMax) {
+                            setActive(v);
+                          } else {
+                            // Keep last selected bundle qty for variant changes, but visually clear active state
+                            options.forEach(function (btn) { btn.classList.remove('is-active'); btn.setAttribute('aria-pressed', 'false'); });
+                          }
+                        });
+                      });
+
+                      // Default to 1
+                      setActive(__hcSelectedBundleQty || 1);
+                      if (!isBundlePending()) syncAtcPrice(bundle, __hcSelectedBundleQty || 1);
+                      attachTitlePriceObserver();
+                      return true;
+                    }
+
+                    document.addEventListener('variant:pending', function (e) {
+                      if (e.detail && e.detail.sectionId && String(e.detail.sectionId) !== String(sectionId)) return;
+                      __hcCurrentVariant = null;
+                      setBundlePendingUi(true);
+                    });
+
+                    document.addEventListener('variant:change', function (e) {
+                      var v = e && e.detail ? e.detail.variant : null;
+                      if (!v) return;
+                      __hcCurrentVariant = v;
+                      if (!__hcBundleEl) {
+                        syncPlainAtcPrice();
+                        return;
+                      }
+                      setBundlePendingUi(false);
+
+                      // Theme updates #price-<sectionId> asynchronously via fetch; apply our bundle totals after that.
+                      function apply() {
+                        if (__hcDynamicPricing) recalculateBundlePricesFromVariant(v);
+                        updateBundleOptionPrices();
+                        var activeBtn = __hcBundleEl ? __hcBundleEl.querySelector('[data-hc-bundle-qty].is-active') : null;
+                        var qtyFromDom = activeBtn ? parseInt(activeBtn.getAttribute('data-hc-bundle-qty'), 10) : null;
+                        var qtyFromData = (__hcBundleEl && __hcBundleEl.dataset && __hcBundleEl.dataset.hcSelectedQty) ? parseInt(__hcBundleEl.dataset.hcSelectedQty, 10) : null;
+                        var qty = qtyFromDom || qtyFromData || __hcSelectedBundleQty || 1;
+                        __hcSelectedBundleQty = qty;
+                        syncAtcPrice(__hcBundleEl, qty);
+                        setPriceBlock(qty);
+                      }
+
+                      window.setTimeout(apply, 0);
+                      window.setTimeout(apply, 350);
+                      window.setTimeout(apply, 800);
+                      window.setTimeout(apply, 1400);
+                    });
+
+                    document.addEventListener('hc:sync-atc-price', function (e) {
+                      if (e.detail && e.detail.sectionId && String(e.detail.sectionId) !== String(sectionId)) return;
+                      if (!__hcBundleEl) {
+                        syncPlainAtcPrice();
+                        return;
+                      }
+                      var activeBtn = __hcBundleEl.querySelector('[data-hc-bundle-qty].is-active');
+                      var qty = activeBtn
+                        ? parseInt(activeBtn.getAttribute('data-hc-bundle-qty'), 10)
+                        : __hcSelectedBundleQty || 1;
+                      syncAtcPrice(__hcBundleEl, qty || 1);
+                    });
+
+                    function boot() {
+                      init();
+                      window.setTimeout(init, 250);
+                      window.setTimeout(init, 600);
+                    }
+
+                    if (document.readyState === 'loading') {
+                      document.addEventListener('DOMContentLoaded', boot);
+                    } else {
+                      boot();
+                    }
+
+                    document.addEventListener('quickview:close', function () {
+                      delete window.__hcBundleBound[sectionId];
+                      __hcBundleEl = null;
+                    });
+                  })();
+                </script>
+                {%- unless hc_show_bundle_save -%}
+                  <script>
+                    (function () {
+                      // Without the Bundle & Save widget nothing keeps the Add to cart
+                      // price in sync. It is the per-unit variant price and deliberately
+                      // ignores the quantity selector, so it always matches the cart.
+                      var formId = {{ product_form_id | json }};
+                      var MONEY_FORMAT = {{ shop.money_format | json }};
+
+                      function formatMoney(cents) {
+                        try {
+                          if (window.theme && window.theme.Currency && typeof window.theme.Currency.formatMoney === 'function') {
+                            return window.theme.Currency.formatMoney(cents, MONEY_FORMAT);
+                          }
+                        } catch (e) {}
+                        return (Math.round(cents) / 100).toFixed(2);
+                      }
+
+                      document.addEventListener('variant:change', function (e) {
+                        var variant = e && e.detail ? e.detail.variant : null;
+                        if (!variant || typeof variant.price !== 'number') return;
+                        document.querySelectorAll('form[id="' + formId + '"] .product-form__submit[name="add"]').forEach(function (btn) {
+                          var priceEl = btn.querySelector('.hc-atc__price');
+                          var sepEl = btn.querySelector('.hc-atc__sep');
+                          if (!priceEl) return;
+                          priceEl.textContent = formatMoney(variant.price);
+                          if (sepEl) sepEl.style.display = '';
+                        });
+                      });
+                    })();
+                  </script>
+                {%- endunless -%}
+                <style>
+                  .final-sale-notice{
+                    margin: 0 0 1.6rem;
+                    padding: 1.2rem 1.6rem;
+                    border: 1px solid var(--color-sale-price);
+                    border-radius: 0.8rem;
+                    color: var(--color-sale-price);
+                    font-size: 1.4rem;
+                    line-height: 1.4;
+                  }
+                  .final-sale-notice.rte {
+                    margin-bottom: 10px !important;
+                  }
+                  .final-sale-notice p{ margin: 0; }
+                  .hc-bundle__price{
+                    margin-top: 4px;
+                    display: flex;
+                    justify-content: center;
+                    align-items: baseline;
+                    gap: 10px;
+                    font-family: 'Satoshi', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+                    font-weight: 700;
+                    line-height: 1.2;
+                  }
+                  .hc-bundle__price[hidden],
+                  .hc-bundle--pending .hc-bundle__option:not([data-hc-bundle-first]) .hc-bundle__price {
+                    display: flex !important;
+                    visibility: hidden;
+                  }
+                  .hc-bundle__compare{
+                    font-family: 'Satoshi-Medium', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+                    text-decoration: line-through;
+                    text-decoration-thickness: 1px;
+                    font-weight: 500;
+                    opacity: 0.9;
+                  }
+                  .hc-bundle__total{
+                    font-weight: 500;
+                  }
+                  .hc-bundle__meta{
+                    margin-top: 24px;
+                    text-align: center;
+                    font-family: 'Satoshi-Medium', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+                    font-weight: 400;
+                    font-size: 10px;
+                    line-height: 1.2;
+                    color: #333333;
+                    text-transform: uppercase;
+                    letter-spacing: 0.02em;
+                  }
+                  .product-form__submit .hc-atc__sep,
+                  .product-form__submit .hc-atc__compare,
+                  .product-form__submit .hc-atc__price{
+                    font-family: inherit;
+                    font-weight: 700;
+                  }
+                  .product-form__submit .hc-atc__sep {
+                    margin: 0 .25rem;
+                  }
+                  .product-form__submit .hc-atc__compare{
+                    text-decoration: line-through;
+                    text-decoration-thickness: 1px;
+                    opacity: 0.9;
+                  }
+                  .product-form__buttons:has([data-sb-io]) .product-form__submit .hc-atc__price:empty {
+                    display: none;
+                  }
+                  .product-form__buttons:has([data-sb-io]) .product-form__submit:has(.hc-atc__price:empty) .hc-atc__sep {
+                    display: none;
+                  }
+                  .product-form__submit .hc-atc__sep{ opacity: 0.9; }
+                  @media (max-width: 767px){
+                    .hc-bundle__price{ margin-top: 6px; gap: 8px; }
+                    .hc-bundle__meta{ margin-top: 8px; font-size: 12px; }
+                  }
+                </style>
+                {{ 'component-pickup-availability.css' | asset_url | stylesheet_tag }}
+
+                {%- assign pick_up_availabilities = product.selected_or_first_available_variant.store_availabilities
+                  | where: 'pick_up_enabled', true
+                -%}
+                <pickup-availability
+                  class="product__pickup-availabilities no-js-hidden"
+                  {% if product.selected_or_first_available_variant.available and pick_up_availabilities.size > 0 %}
+                    available
+                  {% endif %}
+                  data-variant-id="{{ product.selected_or_first_available_variant.id }}"
+                  data-has-only-default-variant="{{ product.has_only_default_variant }}"
+                >
+                  <template>
+                    <pickup-availability-preview class="pickup-availability-preview">
+                      {% render 'icon', icon: 'unavailable' %}
+                      <div class="pickup-availability-info">
+                        <p class="caption-large">{{ 'products.product.pickup_availability.unavailable' | t }}</p>
+                        <button class="pickup-availability-button link link--underline">
+                          {{ 'products.product.pickup_availability.refresh' | t }}
+                        </button>
+                      </div>
+                    </pickup-availability-preview>
+                  </template>
+                </pickup-availability>
+                <script src="{{ 'pickup-availability.js' | asset_url }}" defer="defer"></script>

@@ -1,0 +1,315 @@
+{%- style -%}
+  /* ===== Container ===== */
+  #shopify-section-{{ section.id }} .hc-faq-wrapper {
+    width: 100%;
+  }
+
+  .hc-faq-container {
+    max-width: calc(1072px + 66px);
+    margin: 0 auto;
+    padding-left: 33px;
+    padding-right: 33px;
+    position: relative;
+  }
+
+  @media screen and (min-width: 990px) {
+    .hc-faq-container {
+      padding-left: 50px;
+      padding-right: 50px;
+      max-width: calc(1072px + 100px);
+    }
+  }
+
+  /* ===== Section Padding ===== */
+  .section-{{ section.id }}-padding {
+    padding-top: {{ section.settings.padding_top_mobile }}px;
+    padding-bottom: {{ section.settings.padding_bottom_mobile }}px;
+  }
+
+  @media screen and (min-width: 990px) {
+    .section-{{ section.id }}-padding {
+      padding-top: {{ section.settings.padding_top_desktop }}px;
+      padding-bottom: {{ section.settings.padding_bottom_desktop }}px;
+    }
+  }
+
+  .hc-faq-question-link__title {
+    font-family: var(--font-heading-family);
+    font-size: 20px;
+    {%- if section.settings.question_title_bold -%}
+    font-weight: 700;
+    {%- else -%}
+    font-weight: 500;
+    {%- endif -%}
+    color: var(--bibs-dark-grey, #5a5357);
+    margin: 0;
+    flex: 1;
+    line-height: 1.3;
+  }
+{%- endstyle -%}
+
+{% comment %}
+  ========================================
+  DATA: Collect unique types from metaobjects
+  ========================================
+{% endcomment %}
+{%- assign all_types_str = '' -%}
+{%- for faq in shop.metaobjects.faqs.values -%}
+  {%- if all_types_str != blank -%}
+    {%- assign all_types_str = all_types_str | append: '|||' | append: faq.type.value -%}
+  {%- else -%}
+    {%- assign all_types_str = faq.type.value -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- assign all_types_arr = all_types_str | split: '|||' | uniq | sort -%}
+
+<div
+  class="hc-faq-wrapper section-{{ section.id }}-padding"
+  id="hc-faq-section-{{ section.id }}"
+  data-section-id="{{ section.id }}"
+  data-root-url="{{ routes.root_url }}"
+>
+  <div class="hc-faq-container">
+    <div id="hc-faq-mobile-breadcrumb-target-{{ section.id }}"></div>
+
+    {% comment %} ===== BREADCRUMB (Shared) ===== {% endcomment %}
+    <nav class="hc-faq-breadcrumb" id="hc-faq-breadcrumb-{{ section.id }}">
+      <a href="{{ routes.root_url }}" class="hc-faq-breadcrumb__home" aria-label="Home">
+        {% render 'c-icon': icon: 'faq-home' %}
+      </a>
+      <span class="hc-faq-breadcrumb__separator">&gt;</span>
+      <span class="hc-faq-breadcrumb__link hidden" data-breadcrumb-back></span>
+      <span class="hc-faq-breadcrumb__separator hidden" data-breadcrumb-detail-sep>&gt;</span>
+      <span class="hc-faq-breadcrumb__current" data-breadcrumb-current>{{ all_types_arr[0] }}</span>
+    </nav>
+
+    {% comment %} ===== SEARCH BAR ===== {% endcomment %}
+    <div class="hc-faq-search">
+      {% render 'c-icon', icon: 'search', classes: 'hc-faq-search__icon' %}
+      <input
+        type="text"
+        class="hc-faq-search__input"
+        placeholder="{{ section.settings.search_placeholder | default: 'What are you looking for?' }}"
+        id="hc-faq-search-{{ section.id }}"
+        autocomplete="off"
+      >
+    </div>
+
+    <div class="hc-faq-layout">
+      {% comment %} ----- SIDEBAR ----- {% endcomment %}
+      <aside class="hc-faq-sidebar">
+        {% render 'c-title', custom_tag: 'h3', content: section.settings.sidebar_title | default: 'Categories', classes: 'hc-faq-sidebar__title' %}
+
+        <hr class="hc-faq-sidebar__divider">
+
+        <ul class="hc-faq-sidebar__list" id="hc-faq-categories-{{ section.id }}">
+          {%- for type in all_types_arr -%}
+            {%- assign type_handle = type | handleize -%}
+            <li
+              class="hc-faq-sidebar__item{% if forloop.first %} hc-faq-sidebar__item--active{% endif %}"
+              data-category="{{ type_handle }}"
+              data-category-label="{{ type }}"
+            >
+              <span class="hc-faq-sidebar__icon">
+                {% assign strip_type = type | strip %}
+                {%- for cat_img in shop.metaobjects.faq_categories_images.values -%}
+                  {%- if cat_img.select_category_name.value == strip_type -%}
+                    {%- if cat_img.category_image.value != blank -%}
+                      {% render 'c-image',
+                        image: cat_img.category_image.value,
+                        loading: 'lazy',
+                        fetch_priority: 'low',
+                        alt: type_handle
+                      %}
+                    {%- endif -%}
+                  {%- endif -%}
+                {%- endfor -%}
+              </span>
+              <span class="hc-faq-sidebar__label">{{ type }}</span>
+            </li>
+          {%- endfor -%}
+        </ul>
+      </aside>
+
+      {% comment %} ----- CONTENT AREA ----- {% endcomment %}
+      <div class="hc-faq-content" id="hc-faq-content-{{ section.id }}">
+        {% comment %} === Category List Panels === {% endcomment %}
+        {%- for type in all_types_arr -%}
+          {%- assign type_handle = type | handleize -%}
+          <div
+            class="hc-faq-content__panel{% unless forloop.first %} hidden{% endunless %}"
+            data-panel="{{ type_handle }}"
+            data-panel-label="{{ type }}"
+          >
+            <div class="hc-faq-desktop-breadcrumb-target" data-panel-target="{{ type_handle }}"></div>
+
+            {% render 'c-title', custom_tag: 'h2', content: type, classes: 'hc-faq-content__heading' %}
+            <p class="hc-faq-content__description">
+              {{ 'sections.page-faqs.read_more' | t }}
+              {{ type | downcase }} options
+            </p>
+
+            {% comment %} Question list {% endcomment %}
+            <div class="hc-faq-questions" data-questions-list="{{ type_handle }}">
+              {%- for faq in shop.metaobjects.faqs.values -%}
+                {%- assign faq_type_handle = faq.type.value | handleize -%}
+                {%- if faq_type_handle == type_handle -%}
+                  <div
+                    class="hc-faq-question-link"
+                    data-handle="{{ faq.system.handle }}"
+                    data-type="{{ faq_type_handle }}"
+                    data-question-title="{{ faq.question.value | escape }}"
+                    role="button"
+                    tabindex="0"
+                  >
+                    <h3 class="hc-faq-question-link__title">{{ faq.question.value }}</h3>
+                    {% render 'c-icon', icon: 'arrow-right' %}
+                  </div>
+                {%- endif -%}
+              {%- endfor -%}
+            </div>
+
+            {% comment %} Detail views for each question in this panel {% endcomment %}
+            {%- for faq in shop.metaobjects.faqs.values -%}
+              {%- assign faq_type_handle = faq.type.value | handleize -%}
+              {%- if faq_type_handle == type_handle -%}
+                <div
+                  class="hc-faq-detail"
+                  data-detail-handle="{{ faq.system.handle }}"
+                  data-detail-type="{{ faq_type_handle }}"
+                >
+                  {% render 'c-title', custom_tag: 'h2', content: faq.question.value, classes: 'hc-faq-detail__title' %}
+                  <div class="hc-faq-detail__body">
+                    {%- if faq.show_country_selector -%}
+                      {% render 'faq-countries', field: faq.country_selector_field %}
+                    {%- else -%}
+                      {%- assign answer = faq.answer | metafield_tag -%}
+                      <div class="faq-answer-richtext">{{ answer }}</div>
+                    {%- endif -%}
+                  </div>
+
+                  <div class="hc-faq-helpful" data-faq-handle="{{ faq.system.handle }}">
+                    {%
+                      render 'c-text',
+                      custom_tag: 'p',
+                      classes: 'hc-faq-helpful__label',
+                      translatable_content: 'sections.page-faqs.was_this_helpful' | t
+                    %}
+
+                    <button type="button" class="hc-faq-helpful__btn" data-vote="yes" aria-label="Yes, helpful">
+                      {{ 'sections.page-faqs.yes' | t }}
+                      {% render 'c-icon', icon: 'faq-yes' %}
+                    </button>
+                    <button type="button" class="hc-faq-helpful__btn" data-vote="no" aria-label="No, not helpful">
+                      {{ 'sections.page-faqs.no' | t }}
+                      {% render 'c-icon', icon: 'faq-no' %}
+                    </button>
+                    {%
+                      render 'c-text',
+                      custom_tag: 'p',
+                      classes: 'hc-faq-helpful__thanks',
+                      translatable_content: 'sections.page-faqs.thanks_for_feedback' | t
+                    %}
+                  </div>
+                </div>
+              {%- endif -%}
+            {%- endfor -%}
+          </div>
+        {%- endfor -%}
+
+        {% comment %} Empty state {% endcomment %}
+        <div class="hc-faq-empty" id="hc-faq-empty-{{ section.id }}">
+          <h4 class="hc-faq-empty__title">
+            {{ 'sections.page-faqs.no_results.no_results_title' | t | default: 'No results found' }}
+          </h4>
+          <p class="hc-faq-empty__text">
+            {{ 'sections.page-faqs.no_results.no_results_subtitle' | t | default: 'Try a different search term.' }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Help Center FAQ",
+  "tag": "section",
+  "class": "section-help-center-faq",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    },
+    {
+      "type": "text",
+      "id": "sidebar_title",
+      "label": "Sidebar Title",
+      "default": "Categories"
+    },
+    {
+      "type": "text",
+      "id": "search_placeholder",
+      "label": "Search Placeholder Text",
+      "default": "What are you looking for?"
+    },
+    {
+      "type": "checkbox",
+      "id": "question_title_bold",
+      "label": "Bold question titles",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Mobile Padding"
+    },
+    {
+      "type": "range",
+      "id": "padding_top_mobile",
+      "label": "Padding top (mobile)",
+      "default": 20,
+      "min": 0,
+      "max": 100,
+      "step": 2
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_mobile",
+      "label": "Padding bottom (mobile)",
+      "default": 20,
+      "min": 0,
+      "max": 100,
+      "step": 2
+    },
+    {
+      "type": "header",
+      "content": "Desktop Padding"
+    },
+    {
+      "type": "range",
+      "id": "padding_top_desktop",
+      "label": "Padding top (desktop)",
+      "default": 40,
+      "min": 0,
+      "max": 200,
+      "step": 2
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_desktop",
+      "label": "Padding bottom (desktop)",
+      "default": 40,
+      "min": 0,
+      "max": 200,
+      "step": 2
+    }
+  ],
+  "presets": [
+    {
+      "name": "Help Center FAQ"
+    }
+  ]
+}
+{% endschema %}

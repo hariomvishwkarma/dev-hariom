@@ -1,0 +1,27 @@
+{% liquid
+  if metafield != blank 
+    assign namespace_key = metafield | split: '.'
+    assign namespace = namespace_key[0]
+    assign key = namespace_key[1]
+    unless namespace == blank or key == blank
+      assign text_arr_json = '['
+      for variant in product.variants
+        assign content = variant.metafields[namespace][key] | metafield_tag
+        if content == blank
+          assign content = 0
+        else 
+          assign content = content | replace:'"','inch_' | json 
+        endif
+
+        assign text_arr_json = text_arr_json | append: '{ "id": ' | append: variant.id | append: ', "content": ' | append: content | escape | append: ' }'
+        unless forloop.last
+          assign text_arr_json = text_arr_json | append: ','
+        endunless
+      endfor
+      assign text_arr_json = text_arr_json | append: ']'
+    endunless
+  endif
+  echo 'data-metafield-link-to="' | append: metafield | append: '"'
+  echo 'data-metafield-map="{{ text_arr_json }}"' | replace: '{{ text_arr_json }}', text_arr_json | strip_newlines
+%}
+

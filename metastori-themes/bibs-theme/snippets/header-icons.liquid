@@ -1,0 +1,77 @@
+{%- comment -%}
+  Renders icons for the header
+
+  Accepts:
+    - block {Object}: The block object
+    - section {Object}: the section object
+
+  Usage:
+    {% render 'header-icons', block: block, section: section %}
+{%- endcomment -%}
+
+<div class="flex items-center">
+  <!-- Account -->
+  {% liquid
+    capture account_icon
+      render 'c-icon', icon: 'user', classes: 'w-6 h-6'
+    endcapture
+
+    capture account_link
+      if customer
+        render 'signed-in-account', account_icon: account_icon
+      else
+        render 'c-link', href: routes.account_url, content: account_icon, classes: 'hidden lg:block p-2', custom_attributes: 'aria-label="Account"'
+      endif
+    endcapture
+  %}
+
+  {% if customer %}
+    {% capture account_dropdown_content %}
+      <div class="p-4 color-accent-2 w-72">
+        {% render 'c-link', href: routes.account_url, translatable_content: 'customer.account_menu.my_account' classes: 'mb-2 mt-[5px] text-sm font-bold leading-4 block' %}
+        <ul class="list-none border-t-[1px] border-t-background leading-[14px] text-base">
+          {% for link in linklists.account-menu.links %}
+            <li>
+              <a class="block pt-3 pb-3 font-medium" href="{{ link.url }}">{{ link.title }}</a>
+            </li>
+          {% endfor %}
+          <li>
+            <a class="flex gap-1 items-center pt-3 font-medium" href="{{ routes.account_logout_url }}">
+              {% render 'c-icon', icon: 'logout', classes: 'w-6 h-6 inline' %}
+              {{ 'customer.account_menu.log_out' | t | capitalize }}
+            </a>
+          </li>
+        </ul>
+      </div>
+    {% endcapture %}
+    {% render 'c-dropdown',
+      dropdown_content: account_dropdown_content,
+      dropdown_type: 'link--menu',
+      toggle_label: account_link,
+      hide_dropdown_icon: true,
+      dropdown_offset: 18,
+      content_placement: 'bottom-start',
+      classes: 'hidden lg:flex'
+    %}
+  {% else %}
+    {{ account_link }}
+  {% endif %}
+
+  <!-- Wishlist -->
+  {% liquid
+    assign wishlist_page = settings.wishlist_page
+    if wishlist_page != blank
+      capture wishlist_icon
+        render 'c-icon', icon: 'heart', classes: 'w-6 h-6'
+      endcapture
+      capture wishlist_link
+        render 'c-link', href: wishlist_page.url, content: wishlist_icon, classes: 'p-2', custom_attributes: 'aria-label="Wishlist"'
+      endcapture
+
+      echo wishlist_link
+    endif
+  %}
+
+  <!-- Cart drawer -->
+  {% render 'cart-drawer', color_scheme: block.settings.color_scheme %}
+</div>

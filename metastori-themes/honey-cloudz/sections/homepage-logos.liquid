@@ -1,0 +1,525 @@
+{%- liquid
+  assign slide_count = section.blocks.size
+-%}
+
+{%- style -%}
+  #shopify-section-{{ section.id }} {
+    --hc-logos-bg: {{ section.settings.background_color }};
+    --hc-logos-text: {{ section.settings.text_color }};
+    --hc-logos-dot: {{ section.settings.dot_color }};
+    --hc-logos-dot-active: {{ section.settings.dot_active_color }};
+    --hc-logos-padding-y: {{ section.settings.padding_y }}px;
+    --hc-logos-max-width: {{ section.settings.max_width }}px;
+  }
+
+  .hc-homepage-logos {
+    background: var(--hc-logos-bg);
+    color: var(--hc-logos-text);
+    padding: var(--hc-logos-padding-y) 0;
+  }
+
+  .hc-homepage-logos__inner {
+    max-width: var(--hc-logos-max-width);
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  @media screen and (min-width: 750px) {
+    .hc-homepage-logos__inner {
+      padding: 0 5rem;
+    }
+  }
+
+  .hc-homepage-logos__viewport {
+    overflow: hidden;
+    margin-bottom: 3rem;
+  }
+
+  .hc-homepage-logos__track {
+    display: flex;
+    width: 100%;
+    will-change: transform;
+    transition: transform 380ms ease;
+  }
+
+  .hc-homepage-logos__slide {
+    flex: 0 0 calc(100% / 3);
+    min-width: 0;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hc-homepage-logos__logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    width: 100%;
+    opacity: 0.28;
+    filter: grayscale(1);
+    transition: opacity 220ms ease;
+  }
+
+  .hc-homepage-logos__slide.is-active .hc-homepage-logos__logo {
+    opacity: 1;
+    filter: grayscale(1);
+  }
+
+  .hc-homepage-logos__logo img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-height: {{ section.settings.logo_max_height }}px;
+    max-width: 100%;
+  }
+
+  @media screen and (max-width: 749px) {
+    .hc-homepage-logos__logo img {
+      max-height: {{ section.settings.logo_max_height_mobile }}px;
+    }
+  }
+
+  .hc-homepage-logos__quote {
+    margin: 0;
+    font-style: italic;
+    font-size: 1.5rem;
+    line-height: 1.6;
+    color: rgba(0, 0, 0, 0.75);
+    text-align: center;
+  }
+
+  @media screen and (min-width: 750px) {
+    .hc-homepage-logos__quote {
+      font-size: 1.6rem;
+      max-width: 50%;
+      margin: 0 auto;
+    }
+  }
+
+  .hc-homepage-logos__dots {
+    margin-top: 1.5rem;
+    display: flex;
+    gap: 0.8rem;
+    justify-content: center;
+  }
+
+  .hc-homepage-logos__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    border: 0;
+    padding: 0;
+    background: var(--hc-logos-dot);
+    opacity: 0.7;
+    cursor: pointer;
+  }
+
+  .hc-homepage-logos__dot[aria-current='true'] {
+    background: var(--hc-logos-dot-active);
+    opacity: 1;
+  }
+{%- endstyle -%}
+
+<section class="hc-homepage-logos" data-hc-logos>
+  <div class="hc-homepage-logos__inner">
+    <div class="hc-homepage-logos__viewport">
+      <div class="hc-homepage-logos__track" style="transform: translateX(0%);" data-hc-logos-track>
+        {%- comment -%}
+          We prepend/append clones so the "active" logo can be centered and the
+          carousel can wrap seamlessly:
+          [clone(n-2), clone(n-1), item(0), ... item(n-1), clone(0), clone(1)]
+        {%- endcomment -%}
+
+        {%- if slide_count > 1 -%}
+          {%- assign last_block = section.blocks.last -%}
+          {%- assign second_last_index = slide_count | minus: 2 -%}
+          {%- assign second_last_block = section.blocks[second_last_index] | default: last_block -%}
+
+          <div
+            class="hc-homepage-logos__slide"
+            data-hc-logos-slide
+            data-real-index="-2"
+            data-quote="{{ second_last_block.settings.quote | escape }}"
+            aria-hidden="true"
+          >
+            <div class="hc-homepage-logos__logo">
+              {%- if second_last_block.settings.logo != blank -%}
+                {{
+                  second_last_block.settings.logo
+                  | image_url: height: section.settings.logo_max_height
+                  | image_tag: loading: 'lazy', widths: '120, 180, 240, 360, 480, 640', alt: second_last_block.settings.logo_alt
+                }}
+              {%- endif -%}
+            </div>
+          </div>
+
+          <div
+            class="hc-homepage-logos__slide"
+            data-hc-logos-slide
+            data-real-index="-1"
+            data-quote="{{ last_block.settings.quote | escape }}"
+            aria-hidden="true"
+          >
+            <div class="hc-homepage-logos__logo">
+              {%- if last_block.settings.logo != blank -%}
+                {{
+                  last_block.settings.logo
+                  | image_url: height: section.settings.logo_max_height
+                  | image_tag: loading: 'lazy', widths: '120, 180, 240, 360, 480, 640', alt: last_block.settings.logo_alt
+                }}
+              {%- endif -%}
+            </div>
+          </div>
+        {%- endif -%}
+
+        {%- for block in section.blocks -%}
+          <div
+            class="hc-homepage-logos__slide"
+            data-hc-logos-slide
+            data-quote="{{ block.settings.quote | escape }}"
+            data-real-index="{{ forloop.index0 }}"
+            {{ block.shopify_attributes }}
+          >
+            <div class="hc-homepage-logos__logo">
+              {%- if block.settings.logo != blank -%}
+                {{
+                  block.settings.logo
+                  | image_url: height: section.settings.logo_max_height
+                  | image_tag: loading: 'lazy', widths: '120, 180, 240, 360, 480, 640', alt: block.settings.logo_alt
+                }}
+              {%- endif -%}
+            </div>
+          </div>
+        {%- endfor -%}
+
+        {%- if slide_count > 1 -%}
+          {%- assign first_block = section.blocks.first -%}
+          {%- assign second_block = section.blocks[1] | default: first_block -%}
+          <div
+            class="hc-homepage-logos__slide"
+            data-hc-logos-slide
+            data-real-index="{{ slide_count }}"
+            data-quote="{{ first_block.settings.quote | escape }}"
+            aria-hidden="true"
+          >
+            <div class="hc-homepage-logos__logo">
+              {%- if first_block.settings.logo != blank -%}
+                {{
+                  first_block.settings.logo
+                  | image_url: height: section.settings.logo_max_height
+                  | image_tag: loading: 'lazy', widths: '120, 180, 240, 360, 480, 640', alt: first_block.settings.logo_alt
+                }}
+              {%- endif -%}
+            </div>
+          </div>
+
+          <div
+            class="hc-homepage-logos__slide"
+            data-hc-logos-slide
+            data-real-index="{{ slide_count | plus: 1 }}"
+            data-quote="{{ second_block.settings.quote | escape }}"
+            aria-hidden="true"
+          >
+            <div class="hc-homepage-logos__logo">
+              {%- if second_block.settings.logo != blank -%}
+                {{
+                  second_block.settings.logo
+                  | image_url: height: section.settings.logo_max_height
+                  | image_tag: loading: 'lazy', widths: '120, 180, 240, 360, 480, 640', alt: second_block.settings.logo_alt
+                }}
+              {%- endif -%}
+            </div>
+          </div>
+        {%- endif -%}
+      </div>
+    </div>
+
+    <p class="hc-homepage-logos__quote" data-hc-logos-quote>
+      {%- if section.blocks.first != blank and section.blocks.first.settings.quote != blank -%}
+        &ldquo;{{ section.blocks.first.settings.quote | escape }}&rdquo;
+      {%- endif -%}
+    </p>
+
+    {%- if slide_count > 1 -%}
+      <div class="hc-homepage-logos__dots" role="tablist" aria-label="Homepage logos carousel">
+        {%- for block in section.blocks -%}
+          <button
+            type="button"
+            class="hc-homepage-logos__dot"
+            data-hc-logos-dot
+            data-index="{{ forloop.index0 }}"
+            aria-current="{% if forloop.first %}true{% else %}false{% endif %}"
+            aria-label="Go to slide {{ forloop.index }}"
+          ></button>
+        {%- endfor -%}
+      </div>
+    {%- endif -%}
+  </div>
+</section>
+
+<script>
+  (function () {
+    const root = document.querySelector('[data-hc-logos][id="shopify-section-{{ section.id }}"]') || document.getElementById('shopify-section-{{ section.id }}');
+    if (!root) return;
+
+    const track = root.querySelector('[data-hc-logos-track]');
+    const allSlides = Array.from(root.querySelectorAll('[data-hc-logos-slide]'));
+    const realCount = {{ slide_count }};
+    const dots = Array.from(root.querySelectorAll('[data-hc-logos-dot]'));
+    const quoteEl = root.querySelector('[data-hc-logos-quote]');
+
+    if (!track || realCount <= 1 || dots.length !== realCount) return;
+
+    const slidePct = 100 / 3;
+
+    const lockQuoteHeight = () => {
+      if (!quoteEl) return;
+      const width = quoteEl.getBoundingClientRect().width;
+      if (!width) return;
+
+      const measurer = document.createElement('p');
+      measurer.className = quoteEl.className;
+      measurer.style.position = 'absolute';
+      measurer.style.visibility = 'hidden';
+      measurer.style.pointerEvents = 'none';
+      measurer.style.left = '-9999px';
+      measurer.style.top = '0';
+      measurer.style.width = width + 'px';
+      root.appendChild(measurer);
+
+      let maxH = 0;
+      // Measure only real slides (ignore clones)
+      allSlides.forEach((s) => {
+        const ri = Number(s.getAttribute('data-real-index'));
+        if (!Number.isFinite(ri) || ri < 0 || ri >= realCount) return;
+        const q = s.getAttribute('data-quote') || '';
+        measurer.textContent = q ? `“${q}”` : '';
+        maxH = Math.max(maxH, measurer.scrollHeight);
+      });
+
+      root.removeChild(measurer);
+      if (maxH) quoteEl.style.minHeight = maxH + 'px';
+    };
+
+    const setTransform = (visualIndex, withTransition) => {
+      track.style.transition = withTransition ? 'transform 380ms ease' : 'none';
+      track.style.transform = `translateX(-${visualIndex * slidePct}%)`;
+    };
+
+    let visualStart = 1; // left-most visible slide index in allSlides
+
+    const getRealIndexFromVisualStart = (vs) => {
+      // middle slide is (vs + 1)
+      const middle = vs + 1;
+      // map middle visual position to real index
+      // layout: [clone(n-2), clone(n-1), real0..real(n-1), clone0, clone1]
+      // so real0 starts at visual index 2.
+      const mapped = middle - 2;
+      return ((mapped % realCount) + realCount) % realCount;
+    };
+
+    const render = () => {
+      const realIndex = getRealIndexFromVisualStart(visualStart);
+
+      allSlides.forEach((s) => s.classList.remove('is-active'));
+      const middleSlide = allSlides[visualStart + 1];
+      if (middleSlide) middleSlide.classList.add('is-active');
+
+      dots.forEach((d, i) => d.setAttribute('aria-current', i === realIndex ? 'true' : 'false'));
+
+      if (quoteEl && middleSlide) {
+        const q = middleSlide.getAttribute('data-quote') || '';
+        quoteEl.textContent = q ? `“${q}”` : '';
+      }
+    };
+
+    const goToVisualStart = (nextVs, withTransition) => {
+      visualStart = nextVs;
+      setTransform(visualStart, withTransition);
+      render();
+    };
+
+    dots.forEach((dot) => {
+      dot.addEventListener('click', () => {
+        const nextReal = Number(dot.getAttribute('data-index'));
+        if (!Number.isFinite(nextReal)) return;
+        // for a given real index, the centered (middle) slide should be that real
+        // which happens when visualStart = nextReal + 1 (because middle = vs+1 and real0 begins at visual index 2)
+        goToVisualStart(nextReal + 1, true);
+      });
+    });
+
+    const onTransitionEnd = () => {
+      // valid visualStart range for smooth 3-up:
+      // 0 .. (realCount + 1)
+      // if we reach the far ends, snap to the equivalent real range.
+      if (visualStart === 0) {
+        // middle was clone(n-1) -> snap to last real centered
+        goToVisualStart(realCount, false);
+      } else if (visualStart === realCount + 1) {
+        // middle was clone(0) -> snap to first real centered
+        goToVisualStart(1, false);
+      }
+    };
+
+    track.addEventListener('transitionend', onTransitionEnd);
+
+    // Initial: make first item centered (show last • first • second)
+    // visualStart=1 => [clone(n-1), real0, real1]
+    goToVisualStart(1, false);
+
+    // Prevent layout jump when quotes have different heights
+    lockQuoteHeight();
+    let resizeRaf = null;
+    window.addEventListener('resize', () => {
+      if (resizeRaf) return;
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = null;
+        lockQuoteHeight();
+      });
+    });
+
+    {% if section.settings.autoplay and slide_count > 1 %}
+      const intervalMs = {{ section.settings.autoplay_speed | times: 1000 }};
+      let timer = window.setInterval(() => goToVisualStart(visualStart + 1, true), intervalMs);
+
+      root.addEventListener('mouseenter', () => {
+        if (timer) window.clearInterval(timer);
+        timer = null;
+      });
+      root.addEventListener('mouseleave', () => {
+        if (!timer) timer = window.setInterval(() => goToVisualStart(visualStart + 1, true), intervalMs);
+      });
+    {% endif %}
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Homepage logos",
+  "tag": "section",
+  "class": "section homepage-logos",
+  "settings": [
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#f6efe9"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#1a1b18"
+    },
+    {
+      "type": "color",
+      "id": "dot_color",
+      "label": "Dot color",
+      "default": "#d0d0d0"
+    },
+    {
+      "type": "color",
+      "id": "dot_active_color",
+      "label": "Active dot color",
+      "default": "#111111"
+    },
+    {
+      "type": "range",
+      "id": "logo_max_height",
+      "label": "Logo max height (desktop)",
+      "min": 24,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "default": 52
+    },
+    {
+      "type": "range",
+      "id": "logo_max_height_mobile",
+      "label": "Logo max height (mobile)",
+      "min": 18,
+      "max": 90,
+      "step": 2,
+      "unit": "px",
+      "default": 42
+    },
+    {
+      "type": "range",
+      "id": "padding_y",
+      "label": "Vertical padding",
+      "min": 20,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 44
+    },
+    {
+      "type": "range",
+      "id": "max_width",
+      "label": "Content max width",
+      "min": 720,
+      "max": 1400,
+      "step": 20,
+      "unit": "px",
+      "default": 1200
+    },
+    {
+      "type": "checkbox",
+      "id": "autoplay",
+      "label": "Autoplay",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "autoplay_speed",
+      "label": "Autoplay speed",
+      "min": 3,
+      "max": 10,
+      "step": 1,
+      "unit": "s",
+      "default": 5
+    }
+  ],
+  "blocks": [
+    {
+      "type": "slide",
+      "name": "Slide",
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "logo",
+          "label": "Logo"
+        },
+        {
+          "type": "text",
+          "id": "logo_alt",
+          "label": "Logo alt text",
+          "default": "Logo"
+        },
+        {
+          "type": "text",
+          "id": "quote",
+          "label": "Quote",
+          "default": "These stay-put pads offer nipple coverage, light support, and filler to balance things out."
+        }
+      ]
+    }
+  ],
+  "max_blocks": 8,
+  "presets": [
+    {
+      "name": "Homepage logos",
+      "category": "Homepage",
+      "blocks": [
+        { "type": "slide" },
+        { "type": "slide" },
+        { "type": "slide" }
+      ]
+    }
+  ]
+}
+{% endschema %}
+

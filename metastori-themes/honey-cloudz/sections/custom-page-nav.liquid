@@ -1,0 +1,1281 @@
+{%- liquid
+  assign links = section.blocks | where: 'type', 'link'
+  assign nav_justify = 'center'
+  if section.settings.text_alignment == 'left'
+    assign nav_justify = 'flex-start'
+  elsif section.settings.text_alignment == 'right'
+    assign nav_justify = 'flex-end'
+  endif
+  assign fade_from = section.settings.background_color | color_modify: 'alpha', 0 | default: 'rgba(0, 0, 0, 0)'
+-%}
+
+{%- style -%}
+  #shopify-section-{{ section.id }} {
+    --cpn-font-size: {{ section.settings.font_size_desktop }}px;
+    /* Dock offset = the header's *layout* height. Set from JS, never animated. */
+    --cpn-header-h: 0px;
+    background-color: {{ section.settings.background_color }};
+  }
+
+  {%- if section.settings.enable_sticky -%}
+  /* Docking is switched on by JS only while the site header is actually pinned.
+     Before that the nav stays in normal flow, so it can never float away from
+     the header (the gap) or slide underneath it (the overlap). */
+  #shopify-section-{{ section.id }}.cpn-dock {
+    position: sticky;
+    top: var(--cpn-header-h);
+    z-index: 90; /* header is 100 and must paint over the 1px seam overlap */
+    background-color: {{ section.settings.background_color }};
+    transition: box-shadow 0.2s ease;
+  }
+
+  /* Mobile: pin when the size-chart heading reaches the dock (nav may already
+     have scrolled away, so sticky alone cannot catch it — fixed + spacer). */
+  #shopify-section-{{ section.id }}.cpn-dock.cpn-fixed {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: var(--cpn-header-h);
+    width: 100%;
+  }
+
+  #shopify-section-{{ section.id }} + .cpn-spacer,
+  .cpn-spacer[data-cpn-for="{{ section.id }}"] {
+    display: block;
+    width: 100%;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  /* Mirrors the header's own `.animate` class so both use identical timing and
+     start on the same frame — that is what keeps them locked together. */
+  #shopify-section-{{ section.id }}.cpn-dock.cpn-animate {
+    transition: transform var(--duration-default, 250ms) ease, box-shadow 0.2s ease;
+  }
+
+  /* Header hidden: ride up by exactly the distance the header itself travels.
+     The header uses `translateY(calc(-100% - 0.1rem))`, so its trip is its own
+     height plus 0.1rem; --cpn-header-h is that height less the 1px seam overlap,
+     hence the +1px +0.1rem here. Equal distance, equal duration, equal easing =>
+     the two stay welded together on every frame of the transition. */
+  #shopify-section-{{ section.id }}.cpn-dock.cpn-stuck.cpn-follow {
+    transform: translateY(calc(-1 * (var(--cpn-header-h) + 1px + 0.1rem)));
+  }
+
+  /* Fully retracted: tablet at page end (mobile stays on-screen via cpn-follow
+     once the size-chart section is reached so pills remain usable).
+     The extra 0.5rem parks the nav's bottom edge above the hidden header's own
+     bottom edge, so no sliver of it can peek out at the top of the viewport. */
+  #shopify-section-{{ section.id }}.cpn-dock.cpn-stuck.cpn-hidden {
+    transform: translateY(calc(-100% - var(--cpn-header-h) - 0.5rem));
+    pointer-events: none;
+  }
+
+  #shopify-section-{{ section.id }}.cpn-stuck:not(.cpn-hidden) {
+    box-shadow: 0 6px 18px rgba(17, 17, 17, 0.08);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #shopify-section-{{ section.id }}.cpn-dock,
+    #shopify-section-{{ section.id }}.cpn-dock.cpn-animate {
+      transition: none;
+    }
+  }
+  {%- endif -%}
+
+  #shopify-section-{{ section.id }} .cpn {
+    padding-top: {{ section.settings.padding_top }}px;
+    padding-bottom: {{ section.settings.padding_bottom }}px;
+    {% if section.settings.show_border %}
+      border-bottom: {{ section.settings.border_width }}px solid {{ section.settings.border_color }};
+    {% endif %}
+  }
+
+  #shopify-section-{{ section.id }} .cpn__inner {
+    max-width: {{ section.settings.content_max_width }}px;
+    margin: 0 auto;
+    padding-inline: {{ section.settings.side_padding }}px;
+    box-sizing: border-box;
+  }
+
+  #shopify-section-{{ section.id }} .cpn__heading {
+    margin: 0 0 {{ section.settings.heading_spacing }}px;
+    color: {{ section.settings.heading_color }};
+    font-size: {{ section.settings.heading_font_size_desktop }}px;
+    font-weight: {{ section.settings.heading_font_weight }};
+    line-height: 1.2;
+    text-align: {{ section.settings.text_alignment }};
+  }
+
+  #shopify-section-{{ section.id }} .cpn__nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: {{ nav_justify }};
+    gap: {{ section.settings.item_gap }}px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  #shopify-section-{{ section.id }} .cpn__link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-height: {{ section.settings.item_height }}px;
+    padding: 0 {{ section.settings.item_padding_x }}px;
+    border: {{ section.settings.item_border_width }}px solid {{ section.settings.item_border_color }};
+    border-radius: {{ section.settings.item_radius }}px;
+    background: {{ section.settings.item_background }};
+    color: {{ section.settings.item_text_color }};
+    font-size: var(--cpn-font-size);
+    font-weight: {{ section.settings.item_font_weight }};
+    line-height: 1.2;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+
+  #shopify-section-{{ section.id }} .cpn__link:hover,
+  #shopify-section-{{ section.id }} .cpn__link.is-active {
+    background: {{ section.settings.item_active_background }};
+    color: {{ section.settings.item_active_text }};
+    border-color: {{ section.settings.item_active_background }};
+  }
+
+  @media screen and (max-width: 989px) {
+    #shopify-section-{{ section.id }} {
+      --cpn-font-size: {{ section.settings.font_size_tablet }}px;
+    }
+
+    #shopify-section-{{ section.id }} .cpn__heading {
+      font-size: {{ section.settings.heading_font_size_tablet }}px;
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    #shopify-section-{{ section.id }} {
+      --cpn-font-size: {{ section.settings.font_size_mobile }}px;
+    }
+
+    #shopify-section-{{ section.id }} .cpn {
+      padding-top: {{ section.settings.padding_top_mobile }}px;
+      padding-bottom: {{ section.settings.padding_bottom_mobile }}px;
+    }
+
+    #shopify-section-{{ section.id }} .cpn__inner {
+      position: relative;
+      /* Horizontal inset lives on .cpn__nav so scrollLeft:0 restores the
+         true initial state (padding + first pill), including after unpin. */
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    #shopify-section-{{ section.id }} .cpn__heading {
+      font-size: {{ section.settings.heading_font_size_mobile }}px;
+      margin-bottom: {{ section.settings.heading_spacing_mobile }}px;
+      padding-right: {{ section.settings.side_padding_mobile }}px;
+      padding-left: {{ section.settings.side_padding_mobile }}px;
+    }
+
+    #shopify-section-{{ section.id }} .cpn__nav {
+      flex-wrap: nowrap;
+      justify-content: flex-start;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      /* Allow vertical page scroll even when touch starts on the nav */
+      touch-action: pan-x pan-y;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+      padding-left: {{ section.settings.side_padding_mobile }}px;
+      /* End padding so last pill can fully scroll in; right edge clips next pill for peek */
+      padding-right: {{ section.settings.side_padding_mobile }}px;
+    }
+
+    #shopify-section-{{ section.id }} .cpn__nav::-webkit-scrollbar {
+      display: none;
+    }
+
+    #shopify-section-{{ section.id }} .cpn__item {
+      flex: 0 0 auto;
+    }
+
+    /* Soft fade on the right so partial next pill reads as "more to slide" */
+    #shopify-section-{{ section.id }} .cpn__inner::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 28px;
+      pointer-events: none;
+      background: linear-gradient(
+        to right,
+        {{ fade_from }},
+        {{ section.settings.background_color }}
+      );
+      z-index: 1;
+    }
+  }
+{%- endstyle -%}
+
+{%- if links.size > 0 -%}
+  <nav class="cpn" id="cpn-{{ section.id }}" aria-label="{{ section.settings.heading | default: 'On this page' | escape }}">
+    <div class="cpn__inner">
+      {%- if section.settings.heading != blank -%}
+        <{{ section.settings.heading_tag }} class="cpn__heading">{{ section.settings.heading | escape }}</{{ section.settings.heading_tag }}>
+      {%- endif -%}
+      <ul class="cpn__nav">
+        {%- for block in links -%}
+          {%- liquid
+            assign href = block.settings.link | default: block.settings.anchor | default: block.settings.target | strip
+            if href != blank
+              unless href contains '#' or href contains '://' or href contains '/'
+                assign href = '#' | append: href
+              endunless
+            endif
+          -%}
+          {%- if block.settings.label != blank and href != blank -%}
+            <li class="cpn__item" {{ block.shopify_attributes }}>
+              <a class="cpn__link{% if forloop.first %} is-active{% endif %}" href="{{ href }}" data-cpn-link>
+                {{ block.settings.label | escape }}
+              </a>
+            </li>
+          {%- endif -%}
+        {%- endfor -%}
+      </ul>
+    </div>
+  </nav>
+
+  <script>
+    (function () {
+      var root = document.getElementById('shopify-section-{{ section.id }}');
+      var nav = document.getElementById('cpn-{{ section.id }}');
+      if (!root || !nav) return;
+
+      var sticky = {{ section.settings.enable_sticky | json }};
+      var links = Array.prototype.slice.call(nav.querySelectorAll('[data-cpn-link]'));
+      var pillNav = nav.querySelector('.cpn__nav');
+      var header = document.getElementById('shopify-section-header');
+      // Only a <sticky-header> pins the header on scroll. Without one the header
+      // scrolls away for good, so the nav can dock straight against the viewport.
+      var headerPins = !!(header && header.querySelector('sticky-header'));
+
+      var state = { dock: false, stuck: false, follow: false, hidden: false, animate: false, fixed: false };
+      var headerH = -1;
+      var lastOffset = -1;
+      var lastDockH = -1;
+      var navDocTop = -1;
+      var remeasure = true;
+      var ticking = false;
+      var footer = document.getElementById('shopify-section-footer');
+      var mqMobile = window.matchMedia('(max-width: 749px)');
+      var mqTablet = window.matchMedia('(min-width: 750px) and (max-width: 989px)');
+      var stickTargetEl = null;
+      var spacer = null;
+
+      function resolveStickTarget() {
+        if (stickTargetEl && document.documentElement.contains(stickTargetEl)) return stickTargetEl;
+        var chart = document.getElementById('hc-size-chart');
+        if (chart) {
+          stickTargetEl =
+            chart.querySelector('.bsc__heading') ||
+            chart.querySelector('.bsc__header') ||
+            chart;
+          return stickTargetEl;
+        }
+        for (var i = 0; i < links.length; i++) {
+          var href = links[i].getAttribute('href') || '';
+          var hashAt = href.indexOf('#');
+          if (hashAt < 0) continue;
+          var id = href.slice(hashAt + 1).split('?')[0];
+          if (!id) continue;
+          var el = document.getElementById(id);
+          if (!el) continue;
+          stickTargetEl =
+            el.querySelector('.bsc__heading') ||
+            el.querySelector('.bsc__header') ||
+            el;
+          return stickTargetEl;
+        }
+        return null;
+      }
+
+      /* Heading has reached just under the docked nav (nav sits above it). */
+      function isHeadingAtDock() {
+        var el = resolveStickTarget();
+        if (!el) return false;
+        return el.getBoundingClientRect().top <= Math.max(0, headerH) + navHeight() + 2;
+      }
+
+      function ensureSpacer() {
+        if (spacer && document.documentElement.contains(spacer)) return spacer;
+        spacer = document.createElement('div');
+        spacer.className = 'cpn-spacer';
+        spacer.setAttribute('aria-hidden', 'true');
+        spacer.setAttribute('data-cpn-for', '{{ section.id }}');
+        if (root.parentNode) root.parentNode.insertBefore(spacer, root);
+        return spacer;
+      }
+
+      function setFixed(on) {
+        var h = Math.round(root.getBoundingClientRect().height) || 0;
+        if (on) {
+          ensureSpacer().style.height = h + 'px';
+        } else if (spacer) {
+          spacer.style.height = '0px';
+        }
+        if (state.fixed === on) return;
+        state.fixed = on;
+        root.classList.toggle('cpn-fixed', on);
+        // Unpin / pin: kill any in-flight smooth pill scroll, then restore.
+        if (!on) resetPillScrollForActive(true);
+        else snapActivePill();
+      }
+
+      function resetPillScrollForActive(forceStart) {
+        if (!pillNav) return;
+        var active = nav.querySelector('.cpn__link.is-active') || links[0];
+        // First tab must always return to the initial left-aligned state.
+        if (forceStart || active === links[0]) {
+          pillNav.scrollLeft = 0;
+          return;
+        }
+        ensureActiveVisible(active, true);
+      }
+
+      function snapActivePill() {
+        if (!pillNav) return;
+        var active = nav.querySelector('.cpn__link.is-active');
+        if (!active) return;
+        if (active === links[0]) pillNav.scrollLeft = 0;
+        else ensureActiveVisible(active, true);
+      }
+
+      function setActive(activeLink) {
+        if (!activeLink) return;
+        var changed = false;
+        links.forEach(function (link) {
+          var on = link === activeLink;
+          if (link.classList.contains('is-active') !== on) {
+            link.classList.toggle('is-active', on);
+            changed = true;
+          }
+        });
+        // Size Chart (first tab): snap back to scrollLeft 0 (instant — avoids
+        // smooth-scroll races clipping the pill after scrolling back up).
+        if (activeLink === links[0]) {
+          if (pillNav && pillNav.scrollLeft !== 0) pillNav.scrollLeft = 0;
+          return;
+        }
+        if (changed) {
+          ensureActiveVisible(activeLink, false);
+        } else if (isActivePillClipped(activeLink)) {
+          ensureActiveVisible(activeLink, true);
+        }
+      }
+
+      function isActivePillClipped(activeLink) {
+        if (!pillNav || !activeLink) return false;
+        if (!window.matchMedia('(max-width: 989px)').matches) return false;
+        var item = activeLink.closest('.cpn__item') || activeLink;
+        var left = item.offsetLeft;
+        var right = left + item.offsetWidth;
+        var pad = 12;
+        var viewLeft = pillNav.scrollLeft;
+        var viewRight = viewLeft + pillNav.clientWidth;
+        return left < viewLeft + pad || right > viewRight - pad;
+      }
+
+      function ensureActiveVisible(activeLink, instant) {
+        if (!pillNav || !activeLink) return;
+        if (!window.matchMedia('(max-width: 989px)').matches) return;
+        if (activeLink === links[0]) {
+          pillNav.scrollLeft = 0;
+          return;
+        }
+        var item = activeLink.closest('.cpn__item') || activeLink;
+        var left = item.offsetLeft;
+        var right = left + item.offsetWidth;
+        var pad = 12;
+        var viewLeft = pillNav.scrollLeft;
+        var viewRight = viewLeft + pillNav.clientWidth;
+        var next = viewLeft;
+        if (left < viewLeft + pad) {
+          next = Math.max(0, left - pad);
+        } else if (right > viewRight - pad) {
+          next = Math.max(0, right - pillNav.clientWidth + pad);
+        } else {
+          return;
+        }
+        if (instant) pillNav.scrollLeft = next;
+        else pillNav.scrollTo({ left: next, behavior: 'smooth' });
+      }
+
+      /* Header height measured relative to the header's own top edge, so the
+         translateY it animates with cancels out. Reading the animated rect
+         instead is what produced the gap/overlap: every sample taken during the
+         hide/reveal transition docked the nav at a position the header had
+         already left. */
+      function measureHeaderBarH() {
+        var headerBar = header.querySelector('.header');
+        if (headerBar) {
+          var barRect = headerBar.getBoundingClientRect();
+          return Math.max(0, Math.round(barRect.bottom - barRect.top) - 1);
+        }
+        var rect = header.getBoundingClientRect();
+        return Math.max(0, Math.round(rect.bottom - rect.top) - 1);
+      }
+
+      function measureHeaderH() {
+        if (!header || !headerPins) return 0;
+
+        /* 750–1020px: logo is absolutely centered and hangs below the bar.
+           A fixed desktop offset (or section/logo scan) overshoots here and
+           leaves a white gap between the header and this nav. */
+        if (window.matchMedia('(min-width: 750px) and (max-width: 1020px)').matches) {
+          return measureHeaderBarH();
+        }
+
+        // Full desktop (1021px+): dock under the sticky header at a fixed 74px.
+        if (window.matchMedia('(min-width: 1021px)').matches) return 74;
+
+        var rect = header.getBoundingClientRect();
+        return Math.max(0, Math.round(rect.bottom - rect.top) - 1);
+      }
+
+      function navHeight() {
+        return Math.round(root.getBoundingClientRect().height) || 0;
+      }
+
+      function dockOffset() {
+        return Math.max(0, headerH) + navHeight() + 8;
+      }
+
+      function isAtPageBottom() {
+        if (footer) {
+          return footer.getBoundingClientRect().top < window.innerHeight;
+        }
+        return document.documentElement.scrollHeight - window.innerHeight - window.pageYOffset < 24;
+      }
+
+      /* Re-read the nav's document top after a layout change, by dropping the
+         docking classes for one synchronous measurement. Transitions are pinned
+         off across the swap and flushed back on, so nothing animates and no
+         paint happens in between. */
+      function readNavDocTop() {
+        var className = root.className;
+        var spacerH = spacer ? spacer.style.height : '';
+        root.style.transition = 'none';
+        root.classList.remove('cpn-dock', 'cpn-follow', 'cpn-hidden', 'cpn-fixed');
+        if (spacer) spacer.style.height = '0px';
+        var top = Math.round(root.getBoundingClientRect().top + window.pageYOffset);
+        root.className = className;
+        if (spacer) spacer.style.height = spacerH;
+        void root.offsetHeight;
+        root.style.transition = '';
+        return top;
+      }
+
+      function toggle(key, value, className) {
+        if (state[key] === value) return;
+        state[key] = value;
+        root.classList.toggle(className, value);
+      }
+
+      /* Runs synchronously from the header's MutationObserver so the nav's
+         classes flip in the same frame as the header's — same frame, same
+         duration, same easing, therefore no drift between them. */
+      function sync() {
+        if (!sticky) return;
+
+        var headerSticky = headerPins && header.classList.contains('shopify-section-header-sticky');
+        var headerHidden = headerPins && header.classList.contains('shopify-section-header-hidden');
+        var headerAnimate = headerPins && header.classList.contains('animate');
+
+        var measured = measureHeaderH();
+        // Keep a stable height while the header is mid hide/reveal, otherwise
+        // the dock top jumps every frame and opens a white gap under the bar.
+        if (headerSticky || !headerPins) lastDockH = measured;
+        var dockH = headerSticky || !headerPins ? measured : lastDockH >= 0 ? lastDockH : measured;
+
+        if (dockH !== headerH) {
+          headerH = dockH;
+          root.style.setProperty('--cpn-header-h', headerH + 'px');
+        }
+
+        /* The nav's own document top, refreshed only while it is unpinned and
+           untransformed — the one state in which the rect is trustworthy. Once
+           pinned we compare against the cached value, so the reading is never
+           polluted by the sticky offset or by a transform mid-transition. */
+        if (remeasure) {
+          remeasure = false;
+          navDocTop = readNavDocTop();
+        } else if (!state.stuck && !state.follow && !state.hidden) {
+          navDocTop = Math.round(root.getBoundingClientRect().top + window.pageYOffset);
+        }
+
+        /* Stick only once the header has scrolled down to this section — not as
+           soon as the site header pins. On mobile that early dock left a white
+           band under the header before the nav's natural position was reached.
+           Mobile sticks when the size-chart *heading* reaches the dock band. */
+        var atStickPoint =
+          navDocTop >= 0 && window.pageYOffset + Math.max(0, headerH) >= navDocTop - 1;
+        var headingReady = isHeadingAtDock();
+        var dock;
+        var stuck;
+
+        if (mqMobile.matches) {
+          // Wait for the size-chart heading (not section padding) to arrive
+          // under the header+nav band; pin with fixed so it can catch late.
+          dock = headerPins ? headerSticky && headingReady : headingReady;
+          stuck = !!dock;
+        } else {
+          dock = headerPins ? headerSticky : atStickPoint;
+          stuck = dock && atStickPoint;
+        }
+
+        /* Mobile: once heading-docked, follow the header to the viewport top
+           (cpn-follow) instead of fully hiding off-screen — pills stay usable.
+           Full hide still applies on tablet at page end. */
+        var hidden = stuck && mqTablet.matches && isAtPageBottom();
+        var follow = stuck && headerHidden && !hidden;
+        /* Transition only while the nav stays pinned across the change, and only
+           when the header is transitioning too. Anything else snaps — exactly as
+           the header snaps — so the two can never drift apart. */
+        var animate = stuck && state.stuck && headerAnimate;
+
+        toggle('animate', animate, 'cpn-animate');
+        toggle('dock', dock, 'cpn-dock');
+        toggle('stuck', stuck, 'cpn-stuck');
+        toggle('follow', follow, 'cpn-follow');
+        toggle('hidden', hidden, 'cpn-hidden');
+        var wasFixed = state.fixed;
+        setFixed(mqMobile.matches && stuck);
+        // Scrolling back to top: force the pill row to its initial position.
+        if (mqMobile.matches && wasFixed && !state.fixed && pillNav) {
+          pillNav.scrollLeft = 0;
+          requestAnimationFrame(function () {
+            if (pillNav) pillNav.scrollLeft = 0;
+          });
+        } else if (mqMobile.matches && !stuck && pillNav && pillNav.scrollLeft > 0) {
+          var activeNow = nav.querySelector('.cpn__link.is-active');
+          if (!activeNow || activeNow === links[0]) pillNav.scrollLeft = 0;
+        }
+
+        var offset = dockOffset();
+        if (offset !== lastOffset) {
+          lastOffset = offset;
+          document.documentElement.style.setProperty('--hc-page-nav-offset', offset + 'px');
+          document.documentElement.style.scrollPaddingTop = offset + 'px';
+        }
+      }
+
+      function findTarget(raw) {
+        if (!raw) return null;
+        var value = String(raw).trim();
+        var hash = value;
+        var hashAt = value.indexOf('#');
+        if (hashAt >= 0) hash = value.slice(hashAt);
+        else hash = '#' + value;
+        var id = hash.replace(/^#/, '');
+        if (!id) return null;
+
+        var el = document.getElementById(id);
+        if (el) return el;
+
+        if (id.indexOf('shopify-section-') !== 0) {
+          el = document.getElementById('shopify-section-' + id);
+          if (el) return el;
+        }
+
+        try {
+          return document.querySelector(hash);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function isSamePage(href) {
+        if (!href || href.charAt(0) === '#') return true;
+        try {
+          var parsed = new URL(href, window.location.href);
+          return parsed.pathname === window.location.pathname;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      var targets = null;
+      var activeLock = null;
+      var activeLockTimer = null;
+      var activeLockTarget = null;
+      var pointerLockId = null;
+      var pointerLockX = 0;
+      var pointerLockY = 0;
+      var pointerLockMoved = false;
+
+      function linkTargets() {
+        // Sections below this nav are often not in the DOM yet when this script
+        // first runs — never permanently cache misses.
+        if (!targets || targets.some(function (t) { return !t; })) {
+          targets = links.map(function (link) {
+            return findTarget(link.getAttribute('href'));
+          });
+        }
+        return targets;
+      }
+
+      function currentLink() {
+        var offset = dockOffset() + 24;
+        var found = linkTargets();
+        var picked = null;
+        var i;
+
+        // Near page bottom → last resolvable section wins.
+        var atBottom =
+          window.innerHeight + window.pageYOffset >=
+          document.documentElement.scrollHeight - 8;
+        if (atBottom) {
+          for (i = links.length - 1; i >= 0; i--) {
+            if (found[i]) return links[i];
+          }
+        }
+
+        for (i = 0; i < links.length; i++) {
+          var target = found[i];
+          if (!target) continue;
+          if (target.getBoundingClientRect().top <= offset) picked = links[i];
+        }
+        return picked || links[0];
+      }
+
+      function applyActiveFromScroll() {
+        if (activeLock) {
+          setActive(activeLock);
+          return;
+        }
+        setActive(currentLink());
+      }
+
+      function clearActiveLockTimer() {
+        if (activeLockTimer) {
+          clearTimeout(activeLockTimer);
+          activeLockTimer = null;
+        }
+      }
+
+      function unlockActive() {
+        activeLock = null;
+        activeLockTarget = null;
+        clearActiveLockTimer();
+        setActive(currentLink());
+      }
+
+      function isTargetDocked(target) {
+        if (!target) return true;
+        return Math.abs(target.getBoundingClientRect().top - dockOffset()) <= 4;
+      }
+
+      /* Release the click lock once the smooth scroll has actually landed. */
+      function scheduleUnlockWhenSettled(target) {
+        clearActiveLockTimer();
+        activeLockTarget = target || activeLockTarget;
+        var attempts = 0;
+
+        function check() {
+          attempts += 1;
+          if (!activeLock) return;
+          if (isTargetDocked(activeLockTarget) || attempts > 48) {
+            unlockActive();
+            return;
+          }
+          activeLockTimer = setTimeout(check, 50);
+        }
+
+        activeLockTimer = setTimeout(check, 80);
+      }
+
+      function lockActive(link, target) {
+        activeLock = link;
+        if (target) activeLockTarget = target;
+        setActive(link);
+        clearActiveLockTimer();
+        /* Safety net if navigation is cancelled before scroll starts. */
+        activeLockTimer = setTimeout(unlockActive, 2500);
+      }
+
+      function cancelPointerLock() {
+        pointerLockId = null;
+        pointerLockMoved = false;
+      }
+
+      function onPointerLockMove(event) {
+        if (pointerLockId == null || event.pointerId !== pointerLockId) return;
+        if (
+          Math.abs(event.clientX - pointerLockX) > 10 ||
+          Math.abs(event.clientY - pointerLockY) > 10
+        ) {
+          pointerLockMoved = true;
+          if (activeLock) unlockActive();
+          cancelPointerLock();
+        }
+      }
+
+      function onFrame() {
+        ticking = false;
+        sync();
+        applyActiveFromScroll();
+      }
+
+      function requestFrame() {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(onFrame);
+      }
+
+      var settleTimer = null;
+      var settleAbort = null;
+
+      function cancelSettle() {
+        if (settleTimer) {
+          clearTimeout(settleTimer);
+          settleTimer = null;
+        }
+        if (settleAbort) {
+          settleAbort();
+          settleAbort = null;
+        }
+      }
+
+      function scrollToTarget(target) {
+        var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        cancelSettle();
+        sync();
+
+        var jump = function (behavior) {
+          var top = window.pageYOffset + target.getBoundingClientRect().top - dockOffset();
+          window.scrollTo({ top: Math.max(0, top), behavior: behavior });
+        };
+
+        jump(reduce ? 'auto' : 'smooth');
+        if (reduce) {
+          scheduleUnlockWhenSettled(target);
+          return;
+        }
+
+        // The header shrinks the moment it pins, so the very first jump can land
+        // a few px off. Re-align once the smooth scroll settles — unless the user
+        // took over the scroll in the meantime.
+        var abort = function () {
+          cancelSettle();
+          clearActiveLockTimer();
+          activeLockTimer = setTimeout(unlockActive, 150);
+        };
+        settleAbort = function () {
+          ['wheel', 'touchstart', 'keydown'].forEach(function (type) {
+            window.removeEventListener(type, abort);
+          });
+        };
+        ['wheel', 'touchstart', 'keydown'].forEach(function (type) {
+          window.addEventListener(type, abort, { passive: true, once: true });
+        });
+
+        settleTimer = setTimeout(function () {
+          settleTimer = null;
+          cancelSettle();
+          sync();
+          if (Math.abs(target.getBoundingClientRect().top - dockOffset()) > 2) jump('auto');
+          scheduleUnlockWhenSettled(target);
+        }, 620);
+      }
+
+      function navigateToLink(link, event) {
+        var href = link.getAttribute('href') || '';
+        if (href.indexOf('#') === -1) return;
+        if (!isSamePage(href)) return;
+        var target = findTarget(href);
+        if (!target) return;
+        if (event) event.preventDefault();
+        targets = null; // force re-resolve after navigation
+        lockActive(link, target);
+        scrollToTarget(target);
+        if (history.replaceState) {
+          history.replaceState(null, '', '#' + href.split('#').pop());
+        }
+      }
+
+      links.forEach(function (link) {
+        /* Lock before click so scroll-spy cannot repaint the old pill for a frame. */
+        link.addEventListener(
+          'pointerdown',
+          function (event) {
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+            var href = link.getAttribute('href') || '';
+            if (href.indexOf('#') === -1) return;
+            if (!isSamePage(href)) return;
+            var target = findTarget(href);
+            if (!target) return;
+            pointerLockId = event.pointerId;
+            pointerLockX = event.clientX;
+            pointerLockY = event.clientY;
+            pointerLockMoved = false;
+            lockActive(link, target);
+          },
+          { passive: true }
+        );
+
+        link.addEventListener('pointerup', function (event) {
+          if (event.pointerId !== pointerLockId) return;
+          cancelPointerLock();
+        });
+
+        link.addEventListener('pointercancel', function (event) {
+          if (event.pointerId !== pointerLockId) return;
+          cancelPointerLock();
+        });
+
+        link.addEventListener('click', function (event) {
+          if (pointerLockMoved) return;
+          navigateToLink(link, event);
+        });
+      });
+
+      document.addEventListener('pointermove', onPointerLockMove, { passive: true });
+
+      // Only convert clear horizontal trackpad swipes — never steal vertical page scroll
+      if (pillNav) {
+        pillNav.addEventListener(
+          'wheel',
+          function (event) {
+            if (!window.matchMedia('(max-width: 989px)').matches) return;
+            if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+
+            var max = pillNav.scrollWidth - pillNav.clientWidth;
+            if (max <= 1) return;
+
+            var atStart = pillNav.scrollLeft <= 0;
+            var atEnd = pillNav.scrollLeft >= max - 1;
+            if ((event.deltaX < 0 && atStart) || (event.deltaX > 0 && atEnd)) return;
+
+            event.preventDefault();
+            pillNav.scrollLeft += event.deltaX;
+          },
+          { passive: false }
+        );
+      }
+
+      function relayout() {
+        targets = null;
+        stickTargetEl = null;
+        remeasure = true;
+        requestFrame();
+      }
+
+      sync();
+      applyActiveFromScroll();
+      window.addEventListener('scroll', requestFrame, { passive: true });
+      window.addEventListener('resize', relayout);
+      window.addEventListener('orientationchange', relayout);
+      window.addEventListener('load', relayout);
+      document.addEventListener('shopify:section:load', relayout);
+      document.addEventListener('shopify:section:unload', relayout);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
+
+      if (header && window.MutationObserver) {
+        // Synchronous so the nav re-styles in the same frame the header does.
+        new MutationObserver(function () {
+          sync();
+          requestFrame();
+        }).observe(header, { attributes: true, attributeFilter: ['class'] });
+      }
+      if (window.ResizeObserver) {
+        // Header height, nav wrapping and late-loading logos all shift the nav.
+        var ro = new ResizeObserver(relayout);
+        if (header) ro.observe(header);
+        ro.observe(root);
+      }
+    })();
+  </script>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Custom page nav",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sticky",
+      "label": "Sticky just below header",
+      "info": "Stays visible while scrolling, docked directly under the site header.",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background",
+      "default": "#FDF7F4"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_border",
+      "label": "Show bottom border",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border color",
+      "default": "#212326"
+    },
+    {
+      "type": "range",
+      "id": "border_width",
+      "min": 1,
+      "max": 3,
+      "step": 1,
+      "unit": "px",
+      "label": "Border width",
+      "default": 1
+    },
+    {
+      "type": "header",
+      "content": "Heading"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "info": "Optional. Leave blank for a compact bar."
+    },
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "Heading tag",
+      "options": [
+        { "value": "h2", "label": "H2" },
+        { "value": "h3", "label": "H3" },
+        { "value": "p", "label": "Paragraph" }
+      ],
+      "default": "h2"
+    },
+    {
+      "type": "select",
+      "id": "text_alignment",
+      "label": "Alignment",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#212326"
+    },
+    {
+      "type": "select",
+      "id": "heading_font_weight",
+      "label": "Heading weight",
+      "options": [
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semibold" },
+        { "value": "700", "label": "Bold" }
+      ],
+      "default": "700"
+    },
+    {
+      "type": "range",
+      "id": "heading_font_size_desktop",
+      "min": 14,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "label": "Heading size (desktop)",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "heading_font_size_tablet",
+      "min": 13,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "label": "Heading size (tablet)",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "heading_font_size_mobile",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "label": "Heading size (mobile)",
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "heading_spacing",
+      "min": 0,
+      "max": 24,
+      "step": 2,
+      "unit": "px",
+      "label": "Space below heading",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "heading_spacing_mobile",
+      "min": 0,
+      "max": 20,
+      "step": 2,
+      "unit": "px",
+      "label": "Space below heading (mobile)",
+      "default": 10
+    },
+    {
+      "type": "header",
+      "content": "Buttons"
+    },
+    {
+      "type": "color",
+      "id": "item_background",
+      "label": "Button background",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "color",
+      "id": "item_text_color",
+      "label": "Button text",
+      "default": "#212326"
+    },
+    {
+      "type": "color",
+      "id": "item_border_color",
+      "label": "Button border",
+      "default": "#212326"
+    },
+    {
+      "type": "color",
+      "id": "item_active_background",
+      "label": "Active background",
+      "default": "#111111"
+    },
+    {
+      "type": "color",
+      "id": "item_active_text",
+      "label": "Active text",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "range",
+      "id": "item_radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Button corner radius",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "item_height",
+      "min": 32,
+      "max": 56,
+      "step": 2,
+      "unit": "px",
+      "label": "Button height",
+      "default": 42
+    },
+    {
+      "type": "range",
+      "id": "item_padding_x",
+      "min": 12,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "label": "Button padding horizontal",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "item_border_width",
+      "min": 1,
+      "max": 3,
+      "step": 1,
+      "unit": "px",
+      "label": "Button border width",
+      "default": 1
+    },
+    {
+      "type": "range",
+      "id": "item_gap",
+      "min": 6,
+      "max": 16,
+      "step": 2,
+      "unit": "px",
+      "label": "Button gap",
+      "default": 10
+    },
+    {
+      "type": "select",
+      "id": "item_font_weight",
+      "label": "Button weight",
+      "options": [
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semibold" },
+        { "value": "700", "label": "Bold" }
+      ],
+      "default": "600"
+    },
+    {
+      "type": "range",
+      "id": "font_size_desktop",
+      "min": 12,
+      "max": 18,
+      "step": 1,
+      "unit": "px",
+      "label": "Button size (desktop)",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "font_size_tablet",
+      "min": 12,
+      "max": 16,
+      "step": 1,
+      "unit": "px",
+      "label": "Button size (tablet)",
+      "default": 13
+    },
+    {
+      "type": "range",
+      "id": "font_size_mobile",
+      "min": 11,
+      "max": 15,
+      "step": 1,
+      "unit": "px",
+      "label": "Button size (mobile)",
+      "default": 13
+    },
+    {
+      "type": "header",
+      "content": "Spacing"
+    },
+    {
+      "type": "range",
+      "id": "content_max_width",
+      "min": 900,
+      "max": 1400,
+      "step": 20,
+      "unit": "px",
+      "label": "Content max width",
+      "default": 1320
+    },
+    {
+      "type": "range",
+      "id": "side_padding",
+      "min": 12,
+      "max": 48,
+      "step": 4,
+      "unit": "px",
+      "label": "Side padding",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "side_padding_mobile",
+      "min": 8,
+      "max": 24,
+      "step": 2,
+      "unit": "px",
+      "label": "Side padding (mobile)",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 8,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Padding top",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 8,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Padding bottom",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "padding_top_mobile",
+      "min": 8,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "label": "Padding top (mobile)",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_mobile",
+      "min": 8,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "label": "Padding bottom (mobile)",
+      "default": 12
+    }
+  ],
+  "max_blocks": 16,
+  "blocks": [
+    {
+      "type": "link",
+      "name": "Jump link",
+      "settings": [
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Label",
+          "default": "Size Chart"
+        },
+        {
+          "type": "text",
+          "id": "link",
+          "label": "Link",
+          "info": "Fixed section id. Example: #hc-size-chart"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Custom page nav",
+      "blocks": [
+        { "type": "link", "settings": { "label": "Size Chart", "link": "#hc-size-chart" } },
+        { "type": "link", "settings": { "label": "How to Wear", "link": "#hc-how-to-wear" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

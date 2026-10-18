@@ -1,0 +1,139 @@
+{% doc %}
+  Organization JSON-LD with address, contact, founder, and return policy (Avara-style settings).
+  @example
+  {% render 'schema-organization' %}
+{% enddoc %}
+
+{%- liquid
+  assign org_logo = blank
+  if shop.brand.logo != blank
+    assign org_logo = shop.brand.logo | image_url: width: 600
+  elsif settings.favicon != blank
+    assign org_logo = settings.favicon | image_url: width: 512
+  endif
+
+  assign organization_id = request.origin | append: '/#organization'
+
+  assign street = shop.address.address1
+  if settings.schema_street_address != blank
+    assign street = settings.schema_street_address
+  endif
+  assign locality = shop.address.city
+  if settings.schema_address_locality != blank
+    assign locality = settings.schema_address_locality
+  endif
+  assign region = shop.address.province
+  if settings.schema_address_region != blank
+    assign region = settings.schema_address_region
+  endif
+  assign postal = shop.address.zip
+  if settings.schema_postal_code != blank
+    assign postal = settings.schema_postal_code
+  endif
+  assign country = shop.address.country_code | default: localization.country.iso_code | default: 'US'
+  if settings.schema_address_country != blank
+    assign country = settings.schema_address_country
+  endif
+  assign country = country | strip | upcase
+
+  assign contact_email = settings.schema_contact_email | default: shop.email
+  assign contact_phone = settings.schema_contact_phone | default: shop.phone
+
+  assign founder_profile_url = settings.schema_founder_url | default: '/pages/about'
+  if founder_profile_url contains '://'
+    assign founder_profile_absolute_url = founder_profile_url
+  else
+    assign founder_profile_absolute_url = request.origin | append: founder_profile_url
+  endif
+
+  assign include_returns = true
+  if settings.schema_include_return_policy == false
+    assign include_returns = false
+  endif
+-%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "@id": {{ organization_id | json }},
+  "name": {{ shop.name | json }},
+  "url": {{ request.origin | json }}
+  {%- if settings.schema_founding_date != blank -%}
+  ,"foundingDate": {{ settings.schema_founding_date | json }}
+  {%- endif -%}
+  {%- if shop.description != blank -%}
+  ,"description": {{ shop.description | strip_html | json }}
+  {%- endif -%}
+  {%- if org_logo != blank -%}
+  ,"logo": {{ org_logo | json }}
+  ,"image": {{ org_logo | json }}
+  {%- endif -%}
+  {%- if contact_phone != blank -%}
+  ,"telephone": {{ contact_phone | json }}
+  {%- endif -%}
+  {%- if street != blank or locality != blank or country != blank -%}
+  ,"address": {
+    "@type": "PostalAddress"
+    {%- if street != blank -%}
+    ,"streetAddress": {{ street | json }}
+    {%- endif -%}
+    {%- if locality != blank -%}
+    ,"addressLocality": {{ locality | json }}
+    {%- endif -%}
+    {%- if region != blank -%}
+    ,"addressRegion": {{ region | json }}
+    {%- endif -%}
+    {%- if postal != blank -%}
+    ,"postalCode": {{ postal | json }}
+    {%- endif -%}
+    {%- if country != blank -%}
+    ,"addressCountry": {{ country | json }}
+    {%- endif -%}
+  }
+  {%- endif -%}
+  {%- if contact_email != blank or contact_phone != blank -%}
+  ,"contactPoint": {
+    "@type": "ContactPoint",
+    "contactType": "customer service"
+    {%- if contact_email != blank -%}
+    ,"email": {{ contact_email | json }}
+    {%- endif -%}
+    {%- if contact_phone != blank -%}
+    ,"telephone": {{ contact_phone | json }}
+    {%- endif -%}
+    ,"areaServed": {{ country | json }},
+    "availableLanguage": {{ localization.language.iso_code | default: request.locale.iso_code | default: 'en' | json }}
+  }
+  {%- endif -%}
+  {%- if settings.schema_founder_name != blank -%}
+  ,"founder": {
+    "@type": "Person",
+    "@id": {{ founder_profile_absolute_url | append: '#founder' | json }},
+    "name": {{ settings.schema_founder_name | json }},
+    "url": {{ founder_profile_absolute_url | json }},
+    "worksFor": {
+      "@id": {{ organization_id | json }}
+    }
+  }
+  {%- endif -%}
+  {%- capture same_as_json -%}
+    {%- assign same_as_first = true -%}
+    {%- if settings.social_facebook_link != blank -%}{%- unless same_as_first -%},{%- endunless -%}{{ settings.social_facebook_link | json }}{%- assign same_as_first = false -%}{%- endif -%}
+    {%- if settings.social_twitter_link != blank -%}{%- unless same_as_first -%},{%- endunless -%}{{ settings.social_twitter_link | json }}{%- assign same_as_first = false -%}{%- endif -%}
+    {%- if settings.social_instagram_link != blank -%}{%- unless same_as_first -%},{%- endunless -%}{{ settings.social_instagram_link | json }}{%- assign same_as_first = false -%}{%- endif -%}
+    {%- if settings.social_pinterest_link != blank -%}{%- unless same_as_first -%},{%- endunless -%}{{ settings.social_pinterest_link | json }}{%- assign same_as_first = false -%}{%- endif -%}
+    {%- if settings.social_tiktok_link != blank -%}{%- unless same_as_first -%},{%- endunless -%}{{ settings.social_tiktok_link | json }}{%- assign same_as_first = false -%}{%- endif -%}
+    {%- if settings.social_youtube_link != blank -%}{%- unless same_as_first -%},{%- endunless -%}{{ settings.social_youtube_link | json }}{%- assign same_as_first = false -%}{%- endif -%}
+    {%- if settings.social_tumblr_link != blank -%}{%- unless same_as_first -%},{%- endunless -%}{{ settings.social_tumblr_link | json }}{%- assign same_as_first = false -%}{%- endif -%}
+    {%- if settings.social_snapchat_link != blank -%}{%- unless same_as_first -%},{%- endunless -%}{{ settings.social_snapchat_link | json }}{%- assign same_as_first = false -%}{%- endif -%}
+    {%- if settings.social_vimeo_link != blank -%}{%- unless same_as_first -%},{%- endunless -%}{{ settings.social_vimeo_link | json }}{%- assign same_as_first = false -%}{%- endif -%}
+  {%- endcapture -%}
+  {%- assign same_as_json = same_as_json | strip -%}
+  {%- if same_as_json != blank -%}
+  ,"sameAs": [{{ same_as_json }}]
+  {%- endif -%}
+  {%- if include_returns -%}
+  ,"hasMerchantReturnPolicy": {% render 'schema-return-policy', include_id: true %}
+  {%- endif -%}
+}
+</script>

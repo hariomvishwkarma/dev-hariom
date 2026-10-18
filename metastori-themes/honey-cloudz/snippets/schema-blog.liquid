@@ -1,0 +1,73 @@
+{% doc %}
+  Outputs Blog JSON-LD for blog listing templates.
+  @example
+  {% render 'schema-blog' %}
+{% enddoc %}
+
+{%- liquid
+  assign default_author_url = settings.schema_author_url
+  if default_author_url == blank
+    assign default_author_url = blog.url
+  endif
+  unless default_author_url contains '://'
+    assign default_author_url = request.origin | append: default_author_url
+  endunless
+-%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Blog",
+  "@id": {{ request.origin | append: blog.url | append: '#blog' | json }},
+  "name": {{ blog.title | json }},
+  "url": {{ request.origin | append: blog.url | json }}
+  {%- if blog.articles_count -%}
+  ,"blogPost": [
+    {%- for article in blog.articles -%}
+      {%- if forloop.index > 10 -%}{% break %}{%- endif -%}
+      {%- liquid
+        assign author_url = blank
+        if article.metafields.custom.author_url != blank
+          assign author_url = article.metafields.custom.author_url.value | default: article.metafields.custom.author_url
+        endif
+        if author_url == blank
+          assign author_url = settings.schema_author_url
+        endif
+        if author_url == blank and settings.schema_founder_name != blank and article.author == settings.schema_founder_name
+          assign author_url = settings.schema_founder_url
+        endif
+        if author_url == blank
+          assign author_url = blog.url
+        endif
+        unless author_url contains '://'
+          assign author_url = request.origin | append: author_url
+        endunless
+      -%}
+      {
+        "@type": "BlogPosting",
+        "headline": {{ article.title | json }},
+        "url": {{ request.origin | append: article.url | json }},
+        "datePublished": {{ article.published_at | date: '%Y-%m-%dT%H:%M:%SZ' | json }}
+        {%- if article.image -%}
+        ,"image": {{ article.image | image_url: width: 1200 | json }}
+        {%- endif -%}
+        {%- if article.excerpt != blank -%}
+        ,"description": {{ article.excerpt | strip_html | json }}
+        {%- endif -%}
+        {%- if article.author != blank -%}
+        ,"author": {
+          "@type": "Person",
+          "name": {{ article.author | json }},
+          "url": {{ author_url | json }}
+        }
+        {%- endif -%}
+      }{% unless forloop.last or forloop.index == 10 %},{% endunless %}
+    {%- endfor -%}
+  ]
+  {%- endif -%}
+  ,"publisher": {
+    "@type": "Organization",
+    "@id": {{ request.origin | append: '/#organization' | json }},
+    "name": {{ shop.name | json }}
+  }
+}
+</script>

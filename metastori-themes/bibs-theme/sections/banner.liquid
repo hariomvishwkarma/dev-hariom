@@ -1,0 +1,831 @@
+{% liquid
+  assign image_1 = section.settings.image_1
+  assign image_2 = section.settings.image_2
+  assign image_mobile = section.settings.image_mobile
+  assign video = section.settings.video
+  assign video_mobile = section.settings.video_mobile
+
+  assign header_text = section.settings.header_text
+  assign italic_header_text = section.settings.italic_header_text
+  assign body_text = section.settings.body_text
+  assign heading_tag = section.settings.heading_tag
+  assign font_size = section.settings.font_size
+  assign font_weight = section.settings.font_weight
+  assign content_position = section.settings.content_position
+
+  assign heading_body_tag = section.settings.heading_body_tag
+  assign heading_text_outline = section.settings.heading_text_outline
+  assign font_size_body_text = section.settings.font_size_body_text
+  assign font_weight_body_text = section.settings.font_weight_body_text
+  assign italic_body_header_text = section.settings.italic_body_header_text
+  assign body_text_outline = section.settings.body_text_outline
+  assign button_text_outline = section.settings.button_text_outline
+
+  assign button_text_1 = section.settings.button_text_1
+  assign button_text_2 = section.settings.button_text_2
+  assign button_text_3 = section.settings.button_text_3
+  assign button_link_1 = section.settings.button_link_1
+  assign button_link_2 = section.settings.button_link_2
+  assign button_link_3 = section.settings.button_link_3
+  assign button_border = section.settings.button_border
+
+  assign use_image_height = section.settings.use_image_height
+  assign use_image_height_mobile = section.settings.use_image_height_mobile
+
+  assign image_fetch_priority = section.settings.image_fetch_priority | default: 'high'
+  if image_fetch_priority == 'high'
+    assign banner_image_loading = 'eager'
+  else
+    assign banner_image_loading = 'lazy'
+  endif
+%}
+
+<style>
+  #shopify-section-{{section.id}} {
+    --custom-title-color: {{ section.settings.title_color }};
+    --custom-text-color: {{ section.settings.text_color }};
+    --custom-button-bg: {{ section.settings.button_bg }};
+    --custom-button-color: {{ section.settings.button_color }};
+
+    {% unless use_image_height_mobile %}
+      --section-height-mobile: {{section.settings.section_height_mobile}};
+    {% endunless %}
+    {% unless use_image_height %}
+      --section-height: {{section.settings.section_height}};
+    {% endunless %}
+  }
+
+  .drop-shadow {
+    text-shadow: 1px 1px 2px #000000;
+  }
+  #shopify-section-{{ section.id }} .button--primary {
+    background: var(--custom-button-bg);
+    color: var(--custom-button-color);
+  }
+</style>
+
+<div class="banner flex relative {% if use_image_height_mobile %}h-full{% else %}h-[var(--section-height-mobile)]{% endif %}{% if use_image_height %} md:h-full{% else %} md:h-[var(--section-height)]{% endif %}">
+  {% if button_link_1 != empty %}
+    <a href="{{ button_link_1 }}" class="flex relative w-full">
+  {% else %}
+    <div class="flex relative w-full">
+  {% endif %}
+
+  {% liquid
+    assign desktop_fallback_image = image_1 | default: image_2 | default: image_mobile
+    assign mobile_fallback_image = image_mobile | default: image_1 | default: image_2
+  %}
+
+  {% if video %}
+    <div class="hidden md:flex w-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover">
+      {% render "c-video" with video: video, autoplay: true, loop: true %}
+    </div>
+  {% elsif image_1 or image_2 %}
+    {% if image_1 %}
+      <div class="hidden md:block w-full">
+        {% render 'c-image',
+          image: image_1,
+          classes: 'h-full',
+          loading: banner_image_loading,
+          fetch_priority: image_fetch_priority
+        %}
+      </div>
+    {% endif %}
+    {% if image_2 %}
+      <div class="hidden md:block w-full">
+        {% render 'c-image',
+          image: image_2,
+          classes: 'h-full',
+          loading: banner_image_loading,
+          fetch_priority: image_fetch_priority
+        %}
+      </div>
+    {% endif %}
+  {% elsif video_mobile %}
+    <div class="hidden md:flex w-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover">
+      {% render "c-video" with video: video_mobile, autoplay: true, loop: true %}
+    </div>
+  {% elsif desktop_fallback_image %}
+    <div class="hidden md:block w-full">
+      {% render 'c-image',
+        image: desktop_fallback_image,
+        classes: 'h-full',
+        loading: banner_image_loading,
+        fetch_priority: image_fetch_priority
+      %}
+    </div>
+  {% endif %}
+
+  {% if video_mobile %}
+    <div class="flex md:hidden w-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover">
+      {% render "c-video" with video: video_mobile, autoplay: true, loop: true %}
+    </div>
+  {% elsif mobile_fallback_image %}
+    <div class="block md:hidden w-full">
+      {% render 'c-image',
+        image: mobile_fallback_image,
+        classes: 'h-full',
+        loading: banner_image_loading,
+        fetch_priority: image_fetch_priority
+      %}
+    </div>
+  {% elsif video %}
+    <div class="flex md:hidden w-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover">
+      {% render "c-video" with video: video, autoplay: true, loop: true %}
+    </div>
+  {% endif %}
+
+  {% if button_link_1 != empty %}
+    </a>
+  {% else %}
+    </div>
+  {% endif %}
+  {% if header_text or body_text or button_text_1 or button_text_2 or button_text_3 %}
+    {% liquid
+      assign position_classes = ''
+      assign text_align = ''
+      assign btn_justify = ''
+
+      case content_position
+        when 'top_right'
+          assign position_classes = 'top-0 right-0'
+          assign text_align = 'text-right'
+          assign btn_justify = 'justify-end'
+        when 'top_center'
+          assign position_classes = 'top-0 -translate-x-2/4 left-2/4'
+          assign text_align = 'text-center'
+          assign btn_justify = 'justify-center'
+        when 'top_left'
+          assign position_classes = 'top-0 left-0'
+        when 'center_right'
+          assign position_classes = '-translate-y-2/4 top-2/4 right-0'
+          assign text_align = 'text-right'
+          assign btn_justify = 'justify-end'
+        when 'center_center'
+          assign position_classes = '-translate-y-2/4 -translate-x-2/4 top-2/4 left-2/4'
+          assign text_align = 'text-center'
+          assign btn_justify = 'justify-center'
+        when 'center_left'
+          assign position_classes = '-translate-y-2/4 top-2/4 left-0'
+        when 'bottom_right'
+          assign position_classes = 'bottom-0 right-0'
+          assign text_align = 'text-right'
+          assign btn_justify = 'justify-end'
+        when 'bottom_center'
+          assign position_classes = 'bottom-0 -translate-x-2/4 left-2/4'
+          assign text_align = 'text-center'
+          assign btn_justify = 'justify-center'
+        when 'bottom_left'
+          assign position_classes = 'bottom-0 left-0'
+      endcase
+
+      assign text_classes = 'text-2xl md:text-[36px] leading-[1.2] md:leading-[40px] text-[var(--custom-text-color)]' | append: ' ' | append: text_align | append: font_weight_body_text
+      if italic_body_header_text
+        assign text_classes = text_classes | append: ' !italic'
+      endif
+      if body_text_outline
+        assign text_classes = text_classes | append: ' drop-shadow'
+      endif
+    %}
+    <div class="absolute w-max max-w-full {{ position_classes }} px-4 py-10 md:p-[60px] flex flex-col gap-[30px]">
+      {% if button_link_1 != empty %}
+        <a href="{{ button_link_1 }}" class="flex flex-col gap-2.5">
+      {% else %}
+        <div class="flex flex-col gap-2.5">
+      {% endif %}
+
+      {%- assign title_classes = text_align | append: font_weight | append: ' text-[var(--custom-title-color)]' -%}
+      {% if heading_text_outline %}
+        {% assign title_classes = title_classes | append: ' drop-shadow' %}
+      {% endif %}
+      {% if italic_header_text %}
+        {%- assign title_classes = title_classes | append: ' !italic' -%}
+      {% endif %}
+
+      {% render 'c-title', content: header_text, type: font_size, custom_tag: heading_tag, classes: title_classes %}
+
+      {% render 'c-text',
+        content: body_text,
+        classes: text_classes,
+        type: font_size_body_text,
+        custom_tag: heading_body_tag
+      %}
+
+      {% if button_link_1 != empty %}
+        </a>
+      {% else %}
+        </div>
+      {% endif %}
+      <div class="flex flex-row gap-4 flex-wrap {{btn_justify}}">
+        {% liquid
+          assign button_classes = 'rounded-full md:w-auto shadow-none w-fit'
+
+          if button_border
+            assign button_classes = button_classes | append: ' border border-1 border-black'
+          endif
+
+          if button_text_outline
+            assign button_classes = button_classes | append: ' drop-shadow'
+          endif
+        %}
+        {% if button_text_1 and button_link_1 %}
+          {% render 'c-link',
+            type: 'button--primary',
+            content: button_text_1,
+            classes: button_classes,
+            href: button_link_1
+          %}
+        {% endif %}
+        {% if button_text_2 and button_link_2 %}
+          {% render 'c-link',
+            type: 'button--primary',
+            content: button_text_2,
+            classes: button_classes,
+            href: button_link_2
+          %}
+        {% endif %}
+        {% if button_text_3 and button_link_3 %}
+          {% render 'c-link',
+            type: 'button--primary',
+            content: button_text_3,
+            classes: button_classes,
+            href: button_link_3
+          %}
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% render 'divider',
+  height: section.settings.margin_bottom,
+  custom: section.settings.margin_bottom_custom,
+  color_scheme: section.settings.color_scheme
+%}
+
+{% schema %}
+{
+  "name": "Banner",
+  "class": "section-banner",
+  "settings": [
+    {
+      "type": "color",
+      "id": "title_color",
+      "label": "Title color"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color"
+    },
+    {
+      "type": "color",
+      "id": "button_bg",
+      "label": "Button background color",
+      "default": "#22545C"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "select",
+      "id": "section_height",
+      "label": "t:sections.banner.settings.section_height.label",
+      "options": [
+        {
+          "label": "t:sections.banner.settings.section_height.options.small",
+          "value": "600px"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.medium",
+          "value": "900px"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.large",
+          "value": "1200px"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.view_height",
+          "value": "calc(100vh - 91px)"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.page",
+          "value": "384px"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.page_with_button",
+          "value": "597px"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.percent_90",
+          "value": "calc(90vh - 91px)"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.percent_70",
+          "value": "calc(70vh - 91px)"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.percent_50",
+          "value": "calc(50vh - 91px)"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "section_height_mobile",
+      "label": "t:sections.banner.settings.section_height_mobile.label",
+      "options": [
+        {
+          "label": "t:sections.banner.settings.section_height_mobile.options.small",
+          "value": "400px"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height_mobile.options.medium",
+          "value": "500px"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height_mobile.options.large",
+          "value": "600px"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.view_height",
+          "value": "calc(100vh - 84px)"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.page",
+          "value": "322px"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.page_with_button",
+          "value": "512px"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.percent_90",
+          "value": "calc(90vh - 91px)"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.percent_70",
+          "value": "calc(70vh - 91px)"
+        },
+        {
+          "label": "t:sections.banner.settings.section_height.options.percent_50",
+          "value": "calc(50vh - 91px)"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "use_image_height",
+      "label": "t:sections.banner.settings.use_image_height.label",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "use_image_height_mobile",
+      "label": "t:sections.banner.settings.use_image_height_mobile.label",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "t:sections.banner.settings.images.content"
+    },
+    {
+      "type": "image_picker",
+      "label": "t:sections.banner.settings.image_1.label",
+      "id": "image_1"
+    },
+    {
+      "type": "image_picker",
+      "label": "t:sections.banner.settings.image_2.label",
+      "id": "image_2"
+    },
+    {
+      "type": "image_picker",
+      "label": "t:sections.banner.settings.image_mobile.label",
+      "id": "image_mobile"
+    },
+    {
+      "type": "select",
+      "id": "image_fetch_priority",
+      "label": "t:sections.banner.settings.image_fetch_priority.label",
+      "default": "high",
+      "options": [
+        {
+          "value": "high",
+          "label": "t:sections.banner.settings.image_fetch_priority.options.high"
+        },
+        {
+          "value": "low",
+          "label": "t:sections.banner.settings.image_fetch_priority.options.low"
+        }
+      ]
+    },
+    {
+      "type": "header",
+      "content": "t:sections.banner.settings.videos.label"
+    },
+    {
+      "type": "video",
+      "label": "t:sections.banner.settings.video_desktop.label",
+      "id": "video"
+    },
+    {
+      "type": "video",
+      "label": "t:sections.banner.settings.video_mobile.label",
+      "id": "video_mobile"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.banner.settings.content.content"
+    },
+    {
+      "type": "text",
+      "id": "header_text",
+      "label": "t:sections.banner.settings.header_text.label"
+    },
+    {
+      "type": "checkbox",
+      "id": "heading_text_outline",
+      "label": "t:sections.banner.settings.heading_text_outline.label",
+      "default": false
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.heading_tag.label",
+      "id": "heading_tag",
+      "default": "h3",
+      "options": [
+        {
+          "value": "h1",
+          "label": "t:sections.all.heading_tag.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.heading_tag.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.heading_tag.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.heading_tag.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.heading_tag.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.heading_tag.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_size.label",
+      "id": "font_size",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_size.options.default"
+        },
+        {
+          "value": "paragraph-1",
+          "label": "t:sections.all.font_size.options.paragraph"
+        },
+        {
+          "value": "h1",
+          "label": "t:sections.all.font_size.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.font_size.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.font_size.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.font_size.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.font_size.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.font_size.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_weight.label",
+      "id": "font_weight",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_weight.options.default"
+        },
+        {
+          "value": "!font-thin",
+          "label": "t:sections.all.font_weight.options.thin"
+        },
+        {
+          "value": "!font-light",
+          "label": "t:sections.all.font_weight.options.light"
+        },
+        {
+          "value": "!font-normal",
+          "label": "t:sections.all.font_weight.options.normal"
+        },
+        {
+          "value": "!font-medium",
+          "label": "t:sections.all.font_weight.options.medium"
+        },
+        {
+          "value": "!font-semibold",
+          "label": "t:sections.all.font_weight.options.semibold"
+        },
+        {
+          "value": "!font-bold",
+          "label": "t:sections.all.font_weight.options.bold"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.banner.settings.content_position.label",
+      "id": "content_position",
+      "options": [
+        {
+          "label": "t:sections.banner.settings.content_position.options.top_left",
+          "value": "top_left"
+        },
+        {
+          "label": "t:sections.banner.settings.content_position.options.top_center",
+          "value": "top_center"
+        },
+        {
+          "label": "t:sections.banner.settings.content_position.options.top_right",
+          "value": "top_right"
+        },
+        {
+          "label": "t:sections.banner.settings.content_position.options.center_left",
+          "value": "center_left"
+        },
+        {
+          "label": "t:sections.banner.settings.content_position.options.center_center",
+          "value": "center_center"
+        },
+        {
+          "label": "t:sections.banner.settings.content_position.options.center_right",
+          "value": "center_right"
+        },
+        {
+          "label": "t:sections.banner.settings.content_position.options.bottom_left",
+          "value": "bottom_left"
+        },
+        {
+          "label": "t:sections.banner.settings.content_position.options.bottom_center",
+          "value": "bottom_center"
+        },
+        {
+          "label": "t:sections.banner.settings.content_position.options.bottom_right",
+          "value": "bottom_right"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "italic_header_text",
+      "label": "t:sections.all.italic_header_text.label",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "body_text",
+      "label": "t:sections.banner.settings.body_text.label"
+    },
+    {
+      "type": "checkbox",
+      "id": "body_text_outline",
+      "label": "t:sections.banner.settings.body_text_outline.label",
+      "default": false
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.heading_body_tag.label",
+      "id": "heading_body_tag",
+      "default": "h3",
+      "options": [
+        {
+          "value": "h1",
+          "label": "t:sections.all.heading_tag.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.heading_tag.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.heading_tag.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.heading_tag.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.heading_tag.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.heading_tag.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_size.label",
+      "id": "font_size_body_text",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_size.options.default"
+        },
+        {
+          "value": "paragraph-1",
+          "label": "t:sections.all.font_size.options.paragraph"
+        },
+        {
+          "value": "h1",
+          "label": "t:sections.all.font_size.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.font_size.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.font_size.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.font_size.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.font_size.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.font_size.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_weight.label",
+      "id": "font_weight_body_text",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_weight.options.default"
+        },
+        {
+          "value": "!font-thin",
+          "label": "t:sections.all.font_weight.options.thin"
+        },
+        {
+          "value": "!font-light",
+          "label": "t:sections.all.font_weight.options.light"
+        },
+        {
+          "value": "!font-normal",
+          "label": "t:sections.all.font_weight.options.normal"
+        },
+        {
+          "value": "!font-medium",
+          "label": "t:sections.all.font_weight.options.medium"
+        },
+        {
+          "value": "!font-semibold",
+          "label": "t:sections.all.font_weight.options.semibold"
+        },
+        {
+          "value": "!font-bold",
+          "label": "t:sections.all.font_weight.options.bold"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "italic_body_header_text",
+      "label": "t:sections.all.italic_body_header_text.label",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Buttons"
+    },
+    {
+      "type": "checkbox",
+      "id": "button_border",
+      "label": "t:sections.banner.settings.button_border.label"
+    },
+    {
+      "type": "checkbox",
+      "id": "button_text_outline",
+      "label": "t:sections.banner.settings.body_text_outline.label",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "button_text_1",
+      "label": "t:sections.banner.settings.button_text_1.label"
+    },
+    {
+      "type": "url",
+      "id": "button_link_1",
+      "label": "t:sections.banner.settings.button_link_1.label"
+    },
+    {
+      "type": "text",
+      "id": "button_text_2",
+      "label": "t:sections.banner.settings.button_text_2.label"
+    },
+    {
+      "type": "url",
+      "id": "button_link_2",
+      "label": "t:sections.banner.settings.button_link_2.label"
+    },
+    {
+      "type": "text",
+      "id": "button_text_3",
+      "label": "t:sections.banner.settings.button_text_3.label"
+    },
+    {
+      "type": "url",
+      "id": "button_link_3",
+      "label": "t:sections.banner.settings.button_link_3.label"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.all.margin.heading"
+    },
+    {
+      "type": "select",
+      "id": "margin_bottom",
+      "label": "t:sections.all.margin.margin_bottom.label",
+      "options": [
+        {
+          "label": "t:sections.all.margin.margin_bottom.none",
+          "value": "none"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.small",
+          "value": "small"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.normal",
+          "value": "normal"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.large",
+          "value": "large"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.custom.label",
+          "value": "custom"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "default": 16,
+      "step": 1,
+      "label": "t:sections.all.margin.margin_bottom.custom.value",
+      "visible_if": "{{ section.settings.margin_bottom == 'custom' }}",
+      "unit": "px",
+      "id": "margin_bottom_custom"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Banner"
+    }
+  ]
+}
+{% endschema %}

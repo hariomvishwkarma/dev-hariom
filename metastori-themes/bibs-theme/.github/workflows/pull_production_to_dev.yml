@@ -1,0 +1,46 @@
+name: Pull latest production updates to development theme
+on:
+  push:
+    branches: ['production-int']
+
+concurrency:
+  group: pull_production_to_dev
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Pull latest staging updates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.1
+          bundler: 'latest'
+      - name: Set up Git user
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "Github Actions"
+      - name: Go to development
+        run: |
+          git fetch
+          git checkout development
+      - name: Install Shopify CLI
+        run: npm install -g @shopify/cli @shopify/theme
+      - name: Pull latest production updates
+        env:
+          # Store URL, like your-store.myshopify.com
+          SHOPIFY_FLAG_STORE: '${{ secrets.SHOPIFY_STORE }}'
+          # Password generated from Theme Access app
+          SHOPIFY_CLI_THEME_TOKEN: ${{ secrets.SHOPIFY_CLI_THEME_TOKEN }}
+          SHOPIFY_CLI_TTY: 0
+        run: shopify theme pull --theme=160033898824 --only=*/*.json
+      - name: Commit changes
+        run: |
+          git add .
+          git diff-index --quiet HEAD || git commit -m "Update theme from Shopify"
+      - name: Push changes
+        run: git push origin development

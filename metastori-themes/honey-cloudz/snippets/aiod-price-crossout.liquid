@@ -1,0 +1,66 @@
+{%- liquid 
+  assign target = product
+  assign available = target.available | default: false
+  assign original_display_price = target.price
+  assign target_variant = variant
+  assign show_price_range = false
+  if product != blank and product.price_varies and product.price_min != product.price_max
+    assign show_price_range = true
+  endif
+  assign show_final_sale_compare = false
+  if final_sale and product.compare_at_price_max > product.price_max
+    assign show_final_sale_compare = true
+  endif
+-%}
+
+{%- unless target == null -%}
+    <div product-id="{{ product.id }}"
+        product-price= "{{ product.price | json }}"
+        product-compare-at-price= "{{ product.compare_at_price | json }}"
+        aiod-product-collections="{{ product.collections | map: 'id' | join: ',' }}" 
+        aiod-product-variants="{% if target_variant %}{{ target_variant.id }}{% else %}{{ product.variants | map: 'id' | join: ',' }}{% endif %}" 
+        class="aiod-card-price-container {% unless available %}not-available{% endunless %}{% if show_final_sale_compare %} aiod-card-price-container--final-sale{% endif %}">
+
+      {%- if show_final_sale_compare -%}
+        <span class="visually-hidden">{{ 'products.product.price.regular_price' | t }}</span>
+        <s class="price-item price-item--compare card-info__compare-price">{{ product.compare_at_price_max | money_without_trailing_zeros }}</s>
+        <span class="visually-hidden">{{ 'products.product.price.sale_price' | t }}</span>
+      {%- endif -%}
+      <span class="price-item price-item-regular aiod-original-price{% if show_price_range %} aiod-price-range{% endif %}">
+        {%- if show_price_range -%}
+          <span class="aiod-price-range__min">{{ product.price_min | money_without_trailing_zeros }}</span>
+          <span class="aiod-price-range__max"><span class="aiod-price-range__sep" aria-hidden="true">&ndash;</span>{{ product.price_max | money_without_trailing_zeros }}</span>
+        {%- else -%}
+          {{ original_display_price | money_without_trailing_zeros }}
+        {%- endif -%}
+      </span>
+      
+      <span class="price-item price-item-sale aiod-discounted-price"></span>
+      <span class="aiod-discount-badge"></span>
+    </div>
+
+    <script>
+      function hideOriginalProductPrice{{ product.id }}() {
+        const aiodPriceContainer = document.querySelector(".aiod-card-price-container[product-id='{{ product.id }}']");
+        const parentContainer = aiodPriceContainer.closest('.card-information');
+        
+        if(parentContainer){
+          // Remove ALL original price elements
+          const originalPrices = parentContainer.querySelectorAll('div.price:not(.aiod-card-price-container)');
+          originalPrices.forEach(price => price.remove());
+        }
+        
+        const wholeCardParentContainer = aiodPriceContainer.closest('.card-wrapper');
+        if(wholeCardParentContainer){
+          wholeCardParentContainer.classList.add('aiod-product-card-wrapper');
+        }
+      }
+
+      // Execute immediately after DOM is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', hideOriginalProductPrice{{ product.id }});
+      } else {
+        hideOriginalProductPrice{{ product.id }}();
+      }
+    </script>
+{% endunless %}

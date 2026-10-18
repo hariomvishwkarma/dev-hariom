@@ -1,0 +1,87 @@
+{%- comment -%}
+  Used to flexibly render specific badges
+  Accepts:
+    - badge_item {Object}: (OPTIONAL) specifies the type of content to be rendered
+    - hide_custom_labels {string}: hide mentioned custom labels
+
+  Usage:
+    {% render 'c-badges-switch', badge_item: product %}
+{%- endcomment -%}
+
+{%- liquid
+  assign custom_labels = badge_item.tags | where: 'label_'
+  assign coming_soon = false
+  assign current_variant = badge_item.selected_or_first_available_variant
+-%}
+
+{%- for label in custom_labels -%}
+  {%- liquid
+    assign parts = label | split: ':'
+    assign type = parts[0] | remove: 'label_'
+    assign value = parts[1] | downcase
+
+    if type == 'coming-soon'
+      assign coming_soon = true
+    endif
+  -%}
+  {%- unless hide_custom_labels contains value -%}
+    {%- if value == 'night' -%}
+      <div class="text-bibs-night -order-1 w-9 h-9 flex items-center justify-center border border-borders rounded-full">
+        {% render 'c-icon', icon: 'night', classes: 'w-5 h-5' %}
+      </div>
+    {%- else -%}
+      {% assign label_text = blank %}
+      {% assign label_color = '#ED6D5B' %}
+      {%- for i in (1..16) -%}
+        {% assign custom_label_tag = 'custom_label_tag_' | append: i %}
+        {% assign custom_label_text = 'custom_label_text_' | append: i %}
+        {% assign custom_label_color = 'custom_label_color_' | append: i %}
+        {%- assign custom_label_text_value = settings[custom_label_tag] | downcase -%}
+        {% if value == custom_label_text_value %}
+          {% assign label_text = settings[custom_label_text] %}
+          {% assign label_color = settings[custom_label_color] %}
+          {% break %}
+        {% endif %}
+      {%- endfor -%}
+      {% render 'c-badge', classes: 'product-label', content: label_text, label_color: label_color %}
+    {%- endif -%}
+  {%- endunless -%}
+{%- endfor -%}
+
+{%- if settings.enable_sold_out_label and coming_soon == false -%}
+  {%- if current_variant.available -%}
+    {%- assign soldout_label_classes = 'product-label !hidden' -%}
+  {%- else -%}
+    {%- assign soldout_label_classes = 'product-label' -%}
+  {%- endif -%}
+  {% render 'c-badge',
+    classes: soldout_label_classes,
+    content: settings.sold_out_text_1,
+    label_color: settings.sold_out_color_1
+  %}
+{%- else -%}
+  {%- if settings.prod_stock_warn_show
+    and settings.prod_stock_warn_limit_int == 0
+    and badge_item.variants.size == 1
+    and current_variant.inventory_management == 'shopify'
+    and current_variant.inventory_quantity > 0
+  -%}
+    <span class="{{ item_class }}" data-sales-offer-label>
+      {{- 'products.labels.only_x_left' | t: quantity: current_variant.inventory_quantity -}}
+    </span>
+  {%- elsif settings.enable_sale_label
+    and settings.prod_sale_show
+    and badge_item.compare_at_price > badge_item.price
+  -%}
+    <span class="{{ item_class }} sale" data-sales-offer-label>{{- settings.on_sale_label -}}</span>
+  {%- elsif settings.prod_stock_warn_show
+    and badge_item.variants.size == 1
+    and current_variant.inventory_management == 'shopify'
+    and current_variant.inventory_quantity > 0
+    and current_variant.inventory_quantity <= settings.prod_stock_warn_limit_int
+  -%}
+    <span class="{{ item_class }}" data-sales-offer-label>
+      {{- 'products.labels.only_x_left' | t: quantity: current_variant.inventory_quantity -}}
+    </span>
+  {%- endif -%}
+{%- endif -%}

@@ -1,0 +1,473 @@
+{%- capture swiper_options -%}
+  {
+    "slidesPerView": 2.2,
+    "spaceBetween": 8,
+    "loop": false,
+    "navigation": {
+      "enabled": false
+    },
+    "breakpoints": {
+      "768": {
+        "slidesPerView": 2.5
+      }
+    },
+    "scrollbar": {
+      "el": ".swiper-scrollbar",
+      "draggable": true
+
+    }
+  }
+{%- endcapture -%}
+{%- capture swiper_attribute -%}
+  data-swiper='{{- swiper_options -}}'
+{%- endcapture -%}
+{%- capture drawer_header -%}
+  <div class="flex flex-col gap-2">
+    <div class="flex flex-row items-baseline gap-3.5">
+      {% render 'c-title', translatable_content: 'cart.title', type: 'h3', custom_tag: 'p' %} 
+      <span class="paragraph-1">({{cart.item_count}})</span>
+    </div>
+    {% if settings.free_cart_bar_enabled != blank %}
+      {%- render 'free-delivery-cart-bar',
+        section: section,
+        show_progress: false,
+        classes: 'free-delivery-bar-product relative',
+        attributes: 'data-free-delivery-product'
+      -%}
+    {% endif %}
+  </div>
+{%- endcapture -%}
+{%- capture drawer_content -%}
+  {%- if cart != empty -%}
+    <div class="overflow-auto pb-48">
+
+    <form action="{{ routes.cart_url }}" method="POST" novalidate id="cart-form" class="contents">
+      <div class="cart-items">
+        {%- assign cart_subscription_items = 0 -%}
+        {%- assign has_subscription_items = false -%}
+        {%- assign selling_plans = cart.items | map: 'selling_plan_allocation' | map: 'selling_plan' | uniq | compact -%}
+        {%- assign subscription_items = cart.items | where: 'selling_plan_allocation' -%}
+        {% comment %} SUBSCRIPTION ITEMS {% endcomment %}
+        {%- for selling_plan in selling_plans -%}
+          {%- assign subscription_item_original_line_price = 0 -%}
+          {%- assign subscription_item_final_line_price = 0 -%}
+          {%- assign subscription_item_count = 0 -%}
+          {%- for subscription_item in subscription_items -%}
+            {%- assign subscription_item_selling_plan_id = subscription_item.selling_plan_allocation.selling_plan.id -%}
+            {%- if subscription_item_selling_plan_id != selling_plan.id -%}
+              {%- continue -%}
+            {%- endif -%}
+            {%- assign subscription_item_selling_plan_allocation = subscription_item.selling_plan_allocation -%}
+            {%- assign subscription_item_count = subscription_item_count | plus: 1 -%}
+            {%- assign subscription_item_original_line_price = subscription_item_original_line_price | plus: subscription_item.original_line_price -%}
+            {%- assign subscription_item_final_line_price = subscription_item_final_line_price | plus: subscription_item.final_line_price -%}
+            {%- if subscription_item_selling_plan_allocation -%}
+              {%- assign has_subscription_items = true -%}
+              {%- assign cart_subscription_items = cart_subscription_items | plus: subscription_item.quantity -%}
+            {%- endif -%}
+          {%- endfor -%}
+          <div id="Cart-subscription-item-{{ forloop.index0 }}" class="cart-subscription-item py-4 [&:not(:last-child)]:border-b border-borders mx-4 md:mx-[30px]">
+            <div class="flex gap-5">
+              <div class="bg-secondary-background w-[70px] h-[70px] md:w-[100px] md:h-[100px] relative">
+                {% comment %} LEFT FOR FUTURE {% endcomment %}
+                {% comment %} {%- assign local_count = 0 -%}
+                {%- for subscription_item in subscription_items -%}
+                  {%- assign subscription_item_selling_plan_id = subscription_item.selling_plan_allocation.selling_plan.id -%}
+                  {%- if subscription_item_selling_plan_id != selling_plan.id -%}
+                    {%- continue -%}
+                  {%- endif -%}
+                  {%- if local_count > 2 -%}
+                    {% break %}
+                  {%- endif -%}
+                  {%- assign local_count = local_count | plus: 1 -%}
+                  {%- if subscription_item_count > 1 -%}
+                    {%- if subscription_item_count > 2 -%}
+                      {%- assign image_size_classes = 'w-[60] h-[60] absolute' -%}
+                    {%- else -%}
+                      {%- assign image_size_classes = 'w-[70] h-[70] absolute' -%}
+                    {%- endif -%}
+                    {%- if local_count == 1 -%}
+                      {%- assign image_size_classes = image_size_classes | append: ' top-0 right-0' -%}
+                    {%- elsif local_count == 2 -%}
+                      {%- assign image_size_classes = image_size_classes | append: ' left-0 bottom-0' -%}
+                    {%- elsif local_count == 3 -%}
+                      {%- assign image_size_classes = image_size_classes | append: ' left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2' -%}
+                    {%- endif -%}
+                  {%- else -%}
+                    {%- assign image_size_classes = 'w-[100] h-[100]' -%}
+                  {%- endif -%}
+                  {% render 'c-image', image: subscription_item.product.featured_image, classes: image_size_classes, image_width: 200, aspect_ratio: 'square' %}
+                {%- endfor -%} {% endcomment %}
+                {% render 'c-icon', icon: 'product-image-placeholder-thick', classes: 'w-full h-full p-1 text-foreground' %}
+              </div>
+              <div class="flex-1 flex flex-col gap-1.5 w-full">
+                <div class="flex justify-between w-full pb-1.5 border-b border-borders">
+                  <div class="flex flex-col gap-1.5">
+                    {% render 'c-text', translatable_content: 'cart.subscription_products_title', type: 'text-1-medium' %}
+                    <div class="mt-1 flex gap-1 text-xs leading-none">
+                      {% render 'c-text', translatable_content: 'cart.subscription', type: 'text-accent' %}
+                      <div>|</div>
+                      {% liquid
+                        assign selling_plan_name = selling_plan.name
+                        if selling_plan_name contains 4
+                          assign selling_plan_text = 'sections.product-form.blocks.selling_plan_selector.frequency_text' | t: frequency: 4
+                        elsif selling_plan_name contains 6
+                          assign selling_plan_text = 'sections.product-form.blocks.selling_plan_selector.frequency_text' | t: frequency: 6
+                        elsif selling_plan_name contains 8
+                          assign selling_plan_text = 'sections.product-form.blocks.selling_plan_selector.frequency_text' | t: frequency: 8
+                        else
+                          assign selling_plan_text = selling_plan_name
+                        endif
+                      %}
+                      {% render 'c-text', content: selling_plan_text %}
+                    </div>
+                  </div>
+                  <div class="cart-item__price-wrapper h8-bold leading-6 flex flex-col text-right whitespace-nowrap">
+                    {%- if subscription_item_original_line_price != subscription_item_final_line_price -%}
+                      <div class="cart-item__discounted-prices">
+                        <span class="price-item whitespace-nowrap text-accent">
+                          {{ subscription_item_original_line_price | money }}
+                        </span>
+                        <del aria-hidden="true">
+                          <span class="price-item">
+                            {{ subscription_item_final_line_price | money }}
+                          </span>
+                        </del>
+                      </div>
+                    {%- else -%}
+                      <span class="price-item">
+                        {{ subscription_item_original_line_price | money }}
+                      </span>
+                    {%- endif -%}
+                  </div>
+                </div>
+                <div class="">
+                  {%- capture accordion_content -%}
+                    {%- for subscription_item in subscription_items -%}
+                      {%- assign subscription_item_selling_plan_id = subscription_item.selling_plan_allocation.selling_plan.id -%}
+                      {%- if subscription_item_selling_plan_id != selling_plan.id -%}
+                        {%- continue -%}
+                      {%- endif -%}
+                      <div
+                        data-tracking-cart-item 
+                        data-title="{{ subscription_item.title }}"
+                        data-brand="{{ subscription_item.vendor }}"
+                        data-price="{{ subscription_item.price | times: 0.01}}"
+                        data-variant="{{ subscription_item.variant.title }}"
+                        data-id="{{ subscription_item.product.id }}"
+                        data-quantity="{{ subscription_item.quantity }}"
+                        class="[&:not(:last-child)]:mb-3"
+                      >
+                        <div class="flex gap-1.5">
+                          <a
+                            class="bg-secondary-background w-[50px] h-[50px]"
+                            {% unless hide_product_link %}
+                              href="{{ subscription_item.url }}" 
+                            {% endunless %}>
+                            {% render 'c-image', image: subscription_item.product.featured_image, classes: 'w-[50] h-[50]', image_width: 100, aspect_ratio: 'square', fetch_priority: 'low', loading: 'lazy' %}
+                          </a>
+                          <div class="flex flex-col gap-1.5 justify-between w-full">
+                            <div class="flex justify-between w-full">
+                              <div class="flex flex-col">
+                                <a {% unless hide_product_link %} href="{{ subscription_item.url }}" {% endunless %} class="{% unless hide_product_link %}link--hover{% endunless %} paragraph-4 !font-medium">{{- subscription_item.product.title | escape -}}</a>
+                                {%- unless subscription_item.product.has_only_default_variant -%}
+                                  <div class="mt-0.5 flex gap-2 leading-none text-foreground/50">
+                                    {%- for option in subscription_item.options_with_values -%}
+                                      <span class="text-xs flex gap-2">
+                                        <span class="">{{ option.value }}</span>
+                                        {% unless forloop.index == forloop.length %}
+                                          <div>|</div>
+                                        {% endunless %}
+                                      </span>
+                                    {%- endfor -%}
+                                  </div>
+                                {%- endunless -%}
+                              </div>
+                              <div class="cart-item__price-wrapper h9-bold flex flex-col text-right whitespace-nowrap">
+                                {%- if subscription_item.original_line_price != subscription_item.final_line_price -%}
+                                  <div class="cart-item__discounted-prices">
+                                    <span class="price-item whitespace-nowrap text-accent">
+                                      {{ subscription_item.original_line_price | money }}
+                                    </span>
+                                    <del aria-hidden="true">
+                                      <span class="price-item">
+                                        {{ subscription_item.final_line_price | money }}
+                                      </span>
+                                    </del>
+                                  </div>
+                                {%- else -%}
+                                  <span class="price-item">
+                                    {{ subscription_item.original_line_price | money }}
+                                  </span>
+                                {%- endif -%}
+                              </div>
+                            </div>
+                            <div class="flex flex-row justify-between items-center md:items-end">
+                              <div class="flex flex-col">
+                                <div class="flex items-center gap-2 text-xs">
+                                  {%- render 'cart-quantity-selector', item: subscription_item, classes: 'cart_quantity_input', is_cart_drawer: true -%}
+                                </div>
+                              </div>
+                              <div class="ml-auto flex flex-row items-center md:items-end md:flex-col justify-end gap-2 paragraph-3">
+                                <a
+                                  class="update-cart flex flex-row gap-1.5 justify-end cursor-pointer"
+                                  data-line-item-id="{{ subscription_item.key }}"
+                                  data-quantity="0"
+                                  data-tracking-remove-item
+                                >
+                                  {%- render 'c-icon', icon: 'trash', classes: "text-borders w-[25px] md:w-5 h-[25px] md:h-5" -%}
+                                  <span class="md:block hidden">{{ 'sections.cart.product_card.remove' | t }}</span>
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    {%- endfor -%}
+                  {%- endcapture -%}
+                  {%- capture accordion_label -%}
+                    {{ 'templates.search.results_products_with_count' | t: count: subscription_item_count }}
+                  {%- endcapture -%}
+                  {% render 'c-accordion',
+                    accordion_label: accordion_label,
+                    accordion_content: accordion_content,
+                    accordion_icon_classes: 'ml-1.5 !w-2 !h-2',
+                    accordion_label_class: 'text-3-regular',
+                    accordion_label_padding: 'py-0',
+                    extra_classes: ''
+                  %}
+                </div>
+              </div>
+            </div>
+          </div>
+        {%- endfor -%}
+
+        {% comment %} NON SUBSCRIPTION ITEMS {% endcomment %}
+        {%- for item in cart.items -%}
+          {%- if item.selling_plan_allocation -%}
+            {%- continue -%}
+          {%- endif -%}
+          {% assign hide_product_link = item.product.metafields.custom.hide_product_redirect_link_in_cart %}
+          <div 
+            data-tracking-cart-item 
+            data-title="{{item.title}}"
+            data-brand="{{item.vendor}}"
+            data-price="{{item.price | times: 0.01}}"
+            data-variant="{{item.variant.title}}"
+            data-id="{{item.product.id}}"
+            data-quantity="{{item.quantity}}"
+            class="py-4 [&:not(:last-child)]:border-b border-borders mx-4 md:mx-[30px]">
+            <div class="flex gap-5">
+              <a 
+                class="bg-secondary-background w-[100px] h-[100px]"
+                {% unless hide_product_link %}
+                  href="{{ item.url }}" 
+                {% endunless %}>
+                {% render 'c-image', image: item.product.featured_image, classes: 'w-[100] h-[100]', image_width: 200, aspect_ratio: 'square', fetch_priority: 'low', loading: 'lazy' %}
+              </a>
+              <div class="flex flex-col gap-2 justify-between w-full">
+                <div class="flex justify-between w-full">
+                  <div class="flex flex-col">
+                    <a {% unless hide_product_link %} href="{{ item.url }}" {% endunless %} class="{% unless hide_product_link %}link--hover{% endunless %} paragraph-2 !font-medium">{{- item.product.title | escape -}}</a>
+                    {%- unless item.product.has_only_default_variant -%}
+                      <div class="mt-2 flex gap-2 leading-none">
+                        {%- for option in item.options_with_values -%}
+                          <span class="text-xs flex gap-2">
+                            <span class="">{{ option.value }}</span>
+                            {% unless forloop.index == forloop.length %}
+                              <div>|</div>
+                            {% endunless %}
+                          </span>
+                        {%- endfor -%}
+                      </div>
+                    {%- endunless -%}
+                  </div>
+                  <div class="cart-item__price-wrapper h8-bold leading-6 flex flex-col text-right whitespace-nowrap">
+                    {%- if item.original_line_price != item.final_line_price or item.variant.compare_at_price -%}
+                      <div class="cart-item__discounted-prices">
+                        <span class="price-item whitespace-nowrap text-accent">
+                          {{ item.final_line_price | money }}
+                        </span>
+                        <del aria-hidden="true">
+                          <span class="price-item">
+                            {% if item.variant.compare_at_price %}
+                              {{ item.variant.compare_at_price | money }}
+                            {% else %}
+                              {{ item.original_line_price | money }}
+                            {% endif %}
+                          </span>
+                        </del>
+                      </div>
+                    {%- else -%}
+                      <span class="price-item">
+                        {{ item.original_line_price | money }}
+                      </span>
+                    {%- endif -%}
+                  </div>
+                </div>
+
+                <div class="flex flex-row justify-between items-center md:items-end">
+                  <div class="flex flex-col">
+                    <div class="flex items-center gap-2 text-xs">
+                      {%- render 'cart-quantity-selector', item: item, classes: 'cart_quantity_input', is_cart_drawer: true -%}
+                    </div>
+                  </div>
+                  <div class="ml-auto flex flex-row items-center md:items-end md:flex-col justify-end gap-2 paragraph-3">
+                    {%- render 'button-wishlist', product: item.product, icon_classes: "icon-heart !text-borders w-[22px] md:w-4 h-[22px] md:h-4", add_text: true -%}
+                    <div class="md:hidden bg-borders h-4 w-px"></div>
+                    <a
+                      class="update-cart flex flex-row gap-1.5 justify-end cursor-pointer"
+                      data-line-item-id="{{ item.key }}"
+                      data-quantity="0"
+                      data-tracking-remove-item
+                    >
+                      {%- render 'c-icon', icon: 'trash', classes: "text-borders w-[25px] md:w-5 h-[25px] md:h-5" -%}
+                      <span class="md:block hidden">{{ 'sections.cart.product_card.remove' | t }}</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {%- endfor -%}
+      </div>
+        <div class="drawer_cart__footer z-50 absolute inset-x-0 bottom-0 border-t border-borders px-4 md:px-7.5 py-5 bg-background" data-cart-total="{{ cart.total_price | money_without_currency }}">
+          {% if has_subscription_items and cart_subscription_items < 3 %}
+            <div data-cart-error-message class="text-accent bg-accent/10 text-3-regular px-3 py-2 rounded mb-4">{{ 'cart.cart_subscription_minimum_error' | t }}</div>
+          {% endif %}
+
+          {% assign pre_discount_subtotal = 0 %}
+          {% assign sale_saving = 0 %}
+
+          {% for item in cart.items %}
+            {% assign variant = item.variant %}
+
+            {% if variant.compare_at_price > variant.price %}
+              {% assign line_full = variant.compare_at_price | times: item.quantity %}
+
+              {% assign unit_saving = variant.compare_at_price | minus: variant.price %}
+              {% assign line_saving = unit_saving | times: item.quantity %}
+              {% assign sale_saving = sale_saving | plus: line_saving %}
+            {% else %}
+              {% assign line_full = variant.price | times: item.quantity %}
+            {% endif %}
+
+            {% assign pre_discount_subtotal = pre_discount_subtotal | plus: line_full %}
+          {% endfor %}
+
+          {% assign has_sale_product = false %}
+          {% if sale_saving > 0 %}
+            {% assign has_sale_product = true %}
+          {% endif %}
+
+          {% assign total_discount_amount = sale_saving | plus: cart.total_discount %}
+
+          {% if cart.total_discount > 0 or has_sale_product %}
+            <div class="flex flex-col gap-3">
+              <div class="flex justify-between">
+                <span class="text-1-medium">{{ 'cart.sub_total' | t }}</span>
+                <span class="h7-bold !normal-case">{{ pre_discount_subtotal | money }}</span>
+              </div>
+
+              {% if total_discount_amount > 0 %}
+                <div class="flex justify-between">
+                  <span class="text-1-medium">{{ 'cart.discount' | t }}</span>
+                  <span class="h7-bold !normal-case">-{{ total_discount_amount | money }}</span>
+                </div>
+              {% endif %}
+            </div>
+          {%- endif -%}
+
+          <div class="border-t mt-3 border-background space-y-3">
+            <div class="flex items-end justify-between leading-none">
+              <span>
+                <span class="h7-bold">{{- 'cart.total' | t }}</span>
+              </span>
+              <span class="ml-auto h7-bold !normal-case">{{ cart.total_price | money }}</span>
+            </div>
+            {% comment %} <div class="flex items-center gap-1">
+              <input type="checkbox" id="terms-and-conditions" class="w-4 h-4">
+              <label for="terms-and-conditions">
+                {%- assign terms_and_conditions_page = settings.terms_and_conditions_page -%}
+                {%- assign terms_and_conditions_url = terms_and_conditions_page.url | default: '#' -%}
+                {{ 'cart.terms_and_conditions_html' | t: link: terms_and_conditions_url }}
+              </label>
+            </div>  {% endcomment %}
+            {%- assign checkout_button_content = 'cart.checkout' | t -%}
+            {%- if has_subscription_items and cart_subscription_items < 3 -%}
+              {% render 'c-button',
+                content: checkout_button_content,
+                design: 'primary',
+                classes: 'rounded-full w-full text-4 leading-6 disabled:bg-grey-400',
+                custom_attributes: 'disabled'
+              %}
+            {%- else -%}
+              {% render 'c-button',
+                type: 'submit',
+                name: 'checkout',
+                content: checkout_button_content,
+                design: 'primary',
+                classes: 'rounded-full w-full text-4 leading-6 disabled:bg-grey-400',
+                id: 'submit-contact'
+              %}
+            {%- endif -%}
+          </div>
+        </div>
+    </form>
+    {%- if settings.enable_cart_upsell -%}
+      <div class="cart-recommendations no-scrollbar md:overflow-auto md:absolute md:top-0 md:w-[240px] md:left-[-240px] md:h-screen md:bg-background md:px-5 md:border-r border-grey-300">
+        <div class="px-5 md:px-0 pt-3">
+          {% render 'c-title', translatable_content: 'cart.empty.related-products.title', type: 'h6', custom_tag:"h6" %} 
+        </div>
+
+        {% assign first_cart_item = cart.items | first %}
+        {% assign first_cart_item_id = first_cart_item.product_id %}
+
+        {% render 'product-recommendations',
+          section_id: section.id,
+          product_id: first_cart_item_id,
+          products_to_show_large: 4,
+          show_secondary_media: true,
+          show_vendor: false,
+          swiper_attribute: swiper_attribute,
+          wrapper_classes: ' pt-3 md:!pl-0',
+          section_width: 'full_right',
+          title_tag: 'h5',
+          stack_desktop: true,
+          remove_scrollbar: true,
+          intent: 'complementary'
+        %}
+      </div>
+    {%- endif -%} 
+    </div>
+
+  {%- else -%}
+    <div class="overflow-auto">
+      <div class="px-4 md:px-10 pb-8 pt-8 text-center space-y-4">
+        {% render 'c-title', translatable_content: 'cart.empty.title', type: 'paragraph-1', custom_tag: 'p' %}
+      </div>
+      {% render 'c-divider', classes: 'mx-[30px]' %}
+
+      {%- assign bestseller_collection = collections['bestsellers'] | default: collections.all -%}
+      {% render 'products-slider', products_list: bestseller_collection.products, title: 'cart.empty.related-products.title', swiper_attribute: swiper_attribute %}
+    </div>
+  {%- endif -%}
+{%- endcapture -%}
+
+{%- capture toggle_label -%}
+  {% liquid
+    render 'c-icon', icon: 'cart', classes: 'w-6 h-6'
+    render 'cart-item-count'
+  %}
+{%- endcapture -%}
+{%- assign drawer_classes = 'color-' | append: color_scheme -%}
+{%- render 'c-drawer',
+  drawer_id: 'cart-drawer',
+  toggle_label: toggle_label,
+  toggle_aria_label: 'Cart',
+  drawer_width: 'lg',
+  drawer_header: drawer_header,
+  drawer_content: drawer_content,
+  toggle_type: 'flex items-center p-2',
+  drawer_classes: drawer_classes
+-%}

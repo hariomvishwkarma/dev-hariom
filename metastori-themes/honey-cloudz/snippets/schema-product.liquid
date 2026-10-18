@@ -1,0 +1,378 @@
+{% doc %}
+  Product JSON-LD for Google Merchant listings.
+  Uses ProductGroup with hasVariant when the product has multiple variants.
+  Shipping / return / audience settings: Theme settings → Structured data (SEO).
+  @example
+  {% render 'schema-product' %}
+{% enddoc %}
+
+{%- liquid
+  assign current_variant = product.selected_or_first_available_variant
+
+  assign rating_value = blank
+  assign rating_count = 0
+  if product.metafields.loox.avg_rating != blank and product.metafields.loox.num_reviews != blank
+    assign rating_value = product.metafields.loox.avg_rating
+    assign rating_count = product.metafields.loox.num_reviews | plus: 0
+  elsif product.metafields.reviews.rating.value != blank and product.metafields.reviews.rating_count != blank
+    assign rating_value = product.metafields.reviews.rating.value.rating
+    assign rating_count = product.metafields.reviews.rating_count | plus: 0
+  endif
+
+  assign price_valid_from = 'now' | date: '%Y-%m-%d'
+  assign price_valid_days = settings.schema_price_valid_days | default: 365 | plus: 0
+  if price_valid_days < 1
+    assign price_valid_days = 365
+  endif
+  assign seconds_valid = price_valid_days | times: 86400
+  assign price_valid_until = 'now' | date: '%s' | plus: seconds_valid | date: '%Y-%m-%d'
+  assign currency_code = cart.currency.iso_code | default: shop.currency
+
+  assign item_condition = settings.schema_item_condition | default: 'https://schema.org/NewCondition'
+  assign suggested_gender = settings.schema_suggested_gender | default: 'none'
+  if suggested_gender == 'none' or suggested_gender == blank
+    assign suggested_gender = ''
+  endif
+  assign size_system = settings.schema_size_system | default: ''
+  if size_system == 'none'
+    assign size_system = ''
+  endif
+
+  assign include_shipping = true
+  if settings.schema_include_shipping_details == false
+    assign include_shipping = false
+  endif
+  assign include_returns = true
+  if settings.schema_include_return_policy == false
+    assign include_returns = false
+  endif
+
+  assign shipping_country = settings.schema_shipping_country | strip
+  if shipping_country == blank
+    assign shipping_country = localization.country.iso_code | default: shop.address.country_code
+  endif
+
+  assign color_option_index = 0
+  assign size_option_index = 0
+  assign material_option_index = 0
+  assign pattern_option_index = 0
+  for option in product.options_with_values
+    assign opt_name = option.name | downcase
+    if opt_name contains 'color' or opt_name contains 'colour' or opt_name contains 'shade'
+      assign color_option_index = forloop.index
+    elsif opt_name contains 'size' or opt_name contains 'cup'
+      assign size_option_index = forloop.index
+    elsif opt_name contains 'material' or opt_name contains 'fabric'
+      assign material_option_index = forloop.index
+    elsif opt_name contains 'pattern' or opt_name contains 'print'
+      assign pattern_option_index = forloop.index
+    endif
+  endfor
+
+  assign varies_by = ''
+  if size_option_index > 0
+    assign varies_by = varies_by | append: 'https://schema.org/size|'
+  endif
+  if color_option_index > 0
+    assign varies_by = varies_by | append: 'https://schema.org/color|'
+  endif
+  if material_option_index > 0
+    assign varies_by = varies_by | append: 'https://schema.org/material|'
+  endif
+  if pattern_option_index > 0
+    assign varies_by = varies_by | append: 'https://schema.org/pattern|'
+  endif
+  assign varies_by_array = varies_by | split: '|' | compact
+
+  assign use_product_group = false
+  if product.variants.size > 1
+    assign use_product_group = true
+  endif
+-%}
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  {%- if use_product_group -%}
+  "@type": "ProductGroup",
+  "@id": {{ request.origin | append: product.url | append: '#productgroup' | json }},
+  "productGroupID": {{ product.id | json }},
+  "name": {{ product.title | json }},
+  "url": {{ request.origin | append: product.url | json }}
+  {%- if product.description != blank -%}
+  ,"description": {{ product.description | strip_html | json }}
+  {%- endif -%}
+  {%- if product.featured_image -%}
+  ,"image": [
+    {%- for image in product.images -%}
+      {{ image | image_url: width: 1920 | json }}{% unless forloop.last %},{% endunless %}
+    {%- endfor -%}
+  ]
+  {%- endif -%}
+  {%- if product.vendor != blank -%}
+  ,"brand": { "@type": "Brand", "name": {{ product.vendor | json }} }
+  {%- endif -%}
+  {%- if product.type != blank -%}
+  ,"category": {{ product.type | json }}
+  {%- endif -%}
+  {%- if suggested_gender != blank -%}
+  ,"audience": {
+    "@type": "PeopleAudience",
+    "suggestedGender": {{ suggested_gender | json }}
+  }
+  {%- endif -%}
+  {%- if settings.schema_adult_oriented -%}
+  ,"hasAdultConsideration": "https://schema.org/SexualContentConsideration"
+  {%- endif -%}
+  {%- if varies_by_array.size > 0 -%}
+  ,"variesBy": [
+    {%- for v in varies_by_array -%}
+      {%- if v != blank -%}{{ v | json }}{% unless forloop.last %},{% endunless %}{%- endif -%}
+    {%- endfor -%}
+  ]
+  {%- endif -%}
+  {%- if rating_count > 0 and rating_value != blank -%}
+  ,"aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": {{ rating_value | json }},
+    "reviewCount": {{ rating_count }},
+    "bestRating": 5,
+    "worstRating": 1
+  }
+  {%- endif -%}
+  ,"hasVariant": [
+    {%- for variant in product.variants -%}
+      {%- liquid
+        assign v_color = blank
+        assign v_size = blank
+        assign v_material = blank
+        assign v_pattern = blank
+        if color_option_index == 1
+          assign v_color = variant.option1
+        elsif color_option_index == 2
+          assign v_color = variant.option2
+        elsif color_option_index == 3
+          assign v_color = variant.option3
+        endif
+        if size_option_index == 1
+          assign v_size = variant.option1
+        elsif size_option_index == 2
+          assign v_size = variant.option2
+        elsif size_option_index == 3
+          assign v_size = variant.option3
+        endif
+        if material_option_index == 1
+          assign v_material = variant.option1
+        elsif material_option_index == 2
+          assign v_material = variant.option2
+        elsif material_option_index == 3
+          assign v_material = variant.option3
+        endif
+        if pattern_option_index == 1
+          assign v_pattern = variant.option1
+        elsif pattern_option_index == 2
+          assign v_pattern = variant.option2
+        elsif pattern_option_index == 3
+          assign v_pattern = variant.option3
+        endif
+
+        assign availability = 'https://schema.org/OutOfStock'
+        if variant.available
+          assign availability = 'https://schema.org/InStock'
+        elsif product.tags contains 'preorder' or product.tags contains 'Pre-Order' or product.tags contains 'pre-order'
+          assign availability = 'https://schema.org/PreOrder'
+        endif
+
+        assign variant_image = variant.featured_image | default: product.featured_image
+      -%}
+      {
+        "@type": "Product",
+        "@id": {{ request.origin | append: variant.url | append: '#product' | json }},
+        "name": {{ product.title | append: ' - ' | append: variant.title | json }},
+        "url": {{ request.origin | append: variant.url | json }},
+        "sku": {{ variant.sku | default: variant.id | json }}
+        {%- if product.description != blank -%}
+        ,"description": {{ product.description | strip_html | json }}
+        {%- endif -%}
+        {%- if variant_image -%}
+        ,"image": {{ variant_image | image_url: width: 1920 | json }}
+        {%- endif -%}
+        {%- if variant.barcode != blank -%}
+          {%- assign v_barcode_size = variant.barcode | size -%}
+          {%- if v_barcode_size == 8 -%}
+        ,"gtin8": {{ variant.barcode | json }}
+          {%- elsif v_barcode_size == 12 -%}
+        ,"gtin12": {{ variant.barcode | json }}
+          {%- elsif v_barcode_size == 13 -%}
+        ,"gtin13": {{ variant.barcode | json }}
+          {%- elsif v_barcode_size == 14 -%}
+        ,"gtin14": {{ variant.barcode | json }}
+          {%- else -%}
+        ,"mpn": {{ variant.barcode | json }}
+          {%- endif -%}
+        {%- endif -%}
+        {%- if v_color != blank -%}
+        ,"color": {{ v_color | json }}
+        {%- endif -%}
+        {%- if v_size != blank -%}
+          {%- if size_system != blank -%}
+        ,"size": {
+          "@type": "SizeSpecification",
+          "name": {{ v_size | json }},
+          "sizeSystem": {{ size_system | json }}
+        }
+          {%- else -%}
+        ,"size": {{ v_size | json }}
+          {%- endif -%}
+        {%- endif -%}
+        {%- if v_material != blank -%}
+        ,"material": {{ v_material | json }}
+        {%- endif -%}
+        {%- if v_pattern != blank -%}
+        ,"pattern": {{ v_pattern | json }}
+        {%- endif -%}
+        ,"isVariantOf": { "@id": {{ request.origin | append: product.url | append: '#productgroup' | json }} }
+        ,"inProductGroupWithID": {{ product.id | json }}
+        ,"offers": {
+          "@type": "Offer",
+          "url": {{ request.origin | append: variant.url | json }},
+          "priceCurrency": {{ currency_code | json }},
+          "price": {{ variant.price | divided_by: 100.0 }},
+          "validFrom": {{ price_valid_from | json }},
+          "priceValidUntil": {{ price_valid_until | json }},
+          "availability": {{ availability | json }},
+          "itemCondition": {{ item_condition | json }},
+          "seller": {
+            "@type": "Organization",
+            "@id": {{ request.origin | append: '/#organization' | json }},
+            "name": {{ shop.name | json }}
+          }
+          {%- if variant.compare_at_price > variant.price -%}
+          ,"priceSpecification": [
+            {
+              "@type": "UnitPriceSpecification",
+              "priceType": "https://schema.org/StrikethroughPrice",
+              "price": {{ variant.compare_at_price | divided_by: 100.0 }},
+              "priceCurrency": {{ currency_code | json }}
+            },
+            {
+              "@type": "UnitPriceSpecification",
+              "price": {{ variant.price | divided_by: 100.0 }},
+              "priceCurrency": {{ currency_code | json }}
+            }
+          ]
+          {%- endif -%}
+          {%- if include_shipping and shipping_country != blank -%}
+          ,"shippingDetails": {% render 'schema-shipping-details', include_id: false %}
+          {%- endif -%}
+          {%- if include_returns and shipping_country != blank -%}
+          ,"hasMerchantReturnPolicy": {% render 'schema-return-policy', include_id: false %}
+          {%- endif -%}
+        }
+      }{% unless forloop.last %},{% endunless %}
+    {%- endfor -%}
+  ]
+
+  {%- else -%}
+  "@type": "Product",
+  "@id": {{ request.origin | append: product.url | append: '#product' | json }},
+  "name": {{ product.title | json }},
+  "url": {{ request.origin | append: product.url | json }}
+  {%- if product.description != blank -%}
+  ,"description": {{ product.description | strip_html | json }}
+  {%- endif -%}
+  {%- if product.images.size > 0 -%}
+  ,"image": [
+    {%- for image in product.images -%}
+      {{ image | image_url: width: 1920 | json }}{% unless forloop.last %},{% endunless %}
+    {%- endfor -%}
+  ]
+  {%- endif -%}
+  {%- if product.vendor != blank -%}
+  ,"brand": { "@type": "Brand", "name": {{ product.vendor | json }} }
+  {%- endif -%}
+  {%- if product.type != blank -%}
+  ,"category": {{ product.type | json }}
+  {%- endif -%}
+  {%- if current_variant.sku != blank -%}
+  ,"sku": {{ current_variant.sku | json }}
+  {%- endif -%}
+  {%- if current_variant.barcode != blank -%}
+    {%- assign barcode_size = current_variant.barcode | size -%}
+    {%- if barcode_size == 8 -%}
+  ,"gtin8": {{ current_variant.barcode | json }}
+    {%- elsif barcode_size == 12 -%}
+  ,"gtin12": {{ current_variant.barcode | json }}
+    {%- elsif barcode_size == 13 -%}
+  ,"gtin13": {{ current_variant.barcode | json }}
+    {%- elsif barcode_size == 14 -%}
+  ,"gtin14": {{ current_variant.barcode | json }}
+    {%- else -%}
+  ,"mpn": {{ current_variant.barcode | json }}
+    {%- endif -%}
+  {%- endif -%}
+  {%- if suggested_gender != blank -%}
+  ,"audience": {
+    "@type": "PeopleAudience",
+    "suggestedGender": {{ suggested_gender | json }}
+  }
+  {%- endif -%}
+  {%- if settings.schema_adult_oriented -%}
+  ,"hasAdultConsideration": "https://schema.org/SexualContentConsideration"
+  {%- endif -%}
+  {%- if rating_count > 0 and rating_value != blank -%}
+  ,"aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": {{ rating_value | json }},
+    "reviewCount": {{ rating_count }},
+    "bestRating": 5,
+    "worstRating": 1
+  }
+  {%- endif -%}
+  {%- liquid
+    assign availability = 'https://schema.org/OutOfStock'
+    if current_variant.available
+      assign availability = 'https://schema.org/InStock'
+    elsif product.tags contains 'preorder' or product.tags contains 'Pre-Order' or product.tags contains 'pre-order'
+      assign availability = 'https://schema.org/PreOrder'
+    endif
+  -%}
+  ,"offers": {
+    "@type": "Offer",
+    "url": {{ request.origin | append: current_variant.url | json }},
+    "priceCurrency": {{ currency_code | json }},
+    "price": {{ current_variant.price | divided_by: 100.0 }},
+    "validFrom": {{ price_valid_from | json }},
+    "priceValidUntil": {{ price_valid_until | json }},
+    "availability": {{ availability | json }},
+    "itemCondition": {{ item_condition | json }},
+    "seller": {
+      "@type": "Organization",
+      "@id": {{ request.origin | append: '/#organization' | json }},
+      "name": {{ shop.name | json }}
+    }
+    {%- if current_variant.compare_at_price > current_variant.price -%}
+    ,"priceSpecification": [
+      {
+        "@type": "UnitPriceSpecification",
+        "priceType": "https://schema.org/StrikethroughPrice",
+        "price": {{ current_variant.compare_at_price | divided_by: 100.0 }},
+        "priceCurrency": {{ currency_code | json }}
+      },
+      {
+        "@type": "UnitPriceSpecification",
+        "price": {{ current_variant.price | divided_by: 100.0 }},
+        "priceCurrency": {{ currency_code | json }}
+      }
+    ]
+    {%- endif -%}
+    {%- if include_shipping and shipping_country != blank -%}
+    ,"shippingDetails": {% render 'schema-shipping-details', include_id: false %}
+    {%- endif -%}
+    {%- if include_returns and shipping_country != blank -%}
+    ,"hasMerchantReturnPolicy": {% render 'schema-return-policy', include_id: false %}
+    {%- endif -%}
+  }
+  {%- endif -%}
+}
+</script>

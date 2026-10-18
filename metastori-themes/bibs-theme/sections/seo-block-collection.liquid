@@ -1,0 +1,229 @@
+{% liquid
+  assign seo_description = collection.description
+  assign seo_desc_elements = seo_description | replace: '<h', '~<h' | replace: '<p', '~<p' | strip | split: '~'
+
+  assign faq_collections = collection.metafields.custom.collection_faq.value
+
+  for element in seo_desc_elements
+    assign letters = element | split: ''
+    assign elements_size = seo_desc_elements | size | minus: 1
+    if letters[1] != 'h'
+      assign seo_desc_elements = seo_desc_elements | slice: 1, elements_size
+    else
+      break
+    endif
+  endfor
+
+  assign content_width = section.settings.content_width
+  assign content_alignment = section.settings.content_alignment
+  case content_width
+    when 'container'
+      assign content_width_classes = 'container-fluid'
+    when 'half_width'
+      assign content_width_classes = 'lg:!max-w-[50%] container'
+    else
+      assign content_width_classes = 'container'
+  endcase
+
+  case content_alignment
+    when 'left'
+      assign content_alignment_classes = '!ml-0'
+    when 'right'
+      assign content_alignment_classes = 'mr-0'
+    else
+      assign content_alignment_classes = ''
+  endcase
+%}
+
+{% style %}
+  #shopify-section-{{ section.id }} a{
+    text-underline-offset: 2px;
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+  }
+
+  #shopify-section-{{ section.id }}.collection-seo-block-collection {
+    --h2-font-size-mobile: {{ section.settings.h2_title_size_mobile }}px;
+    --h2-font-size-desktop: {{ section.settings.h2_title_size_desktop }}px;
+
+    --h3-font-size-mobile: {{ section.settings.h3_title_size_mobile }}px;
+    --h3-font-size-desktop: {{ section.settings.h3_title_size_desktop }}px;
+  }
+
+  #shopify-section-{{ section.id }}.collection-seo-block-collection h2 {
+    font-size: var(--h2-font-size-mobile);
+  }
+  #shopify-section-{{ section.id }}.collection-seo-block-collection h3 {
+    font-size: var(--h3-font-size-mobile);
+  }
+
+  @media (min-width: 768px) {
+    #shopify-section-{{ section.id }}.collection-seo-block-collection h2 {
+      font-size: var(--h2-font-size-desktop);
+    }
+
+    #shopify-section-{{ section.id }}.collection-seo-block-collection h3 {
+      font-size: var(--h3-font-size-desktop);
+    }
+  }
+{% endstyle %}
+
+{% if faq_collections != null %}
+  {% for item in faq_collections %}
+    <div class="color-{{ section.settings.color_scheme_2 }}">
+      <div class="container">
+        {% render 'c-accordion',
+          accordion_label: item.title,
+          accordion_label_padding: 'py-3 border-bottom',
+          accordion_label_class: 'text-md',
+          accordion_label_tag: 'h3',
+          accordion_content: item.content,
+          accordion_content_class: 'p-4',
+          accordion_content_tag: 'p'
+        %}
+      </div>
+    </div>
+  {% endfor %}
+{% endif %}
+
+{% if seo_desc_elements.size > 0 %}
+  <div class="color-{{ section.settings.color_scheme }} py-5">
+    {% for element in seo_desc_elements %}
+      {% assign content = element | strip %}
+
+      {% if forloop.first %}
+        <div class="{{ content_width_classes }} {{ content_alignment_classes }}">
+          {% render 'c-title', type: 'h6-regular', content: content, classes: 'mb-2' %}
+          {% continue %}
+      {% endif %}
+
+      {% if content == '|' %}
+      {% elsif element contains 'h2' %}
+        {% render 'c-title', custom_tag: 'h2', type: 'h7-medium', content: content, classes: 'mb-4 mt-6 md:mb-6' %}
+      {% elsif element contains 'h3' %}
+        {% render 'c-title', custom_tag: 'h3', type: 'h7-medium', content: content, classes: 'mb-4 mt-6 md:mb-6' %}
+      {% else %}
+        {% render 'c-text', content: content, type: 'text-2-regular', classes: 'text-grey-500' %}
+      {% endif %}
+
+      {% if forloop.last %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if faq_collections != null and faq_collections.size > 0 %}
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {% for item in faq_collections %}
+          {
+            "@type": "Question",
+            "name": {{ item.title | strip | json }},
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": {{ item.content | strip_html | strip | json }}
+            }
+          }{% unless forloop.last %},{% endunless %}
+        {% endfor %}
+      ]
+    }
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "t:sections.seo_block_collection.name",
+  "limit": 1,
+  "enabled_on": {
+    "templates": ["collection"]
+  },
+  "tag": "section",
+  "class": "collection-seo-block-collection",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme_2",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    },
+    {
+      "type": "select",
+      "id": "content_width",
+      "label": "t:sections.seo_block_collection.content_width.label",
+      "options": [
+        {
+          "value": "container",
+          "label": "t:sections.seo_block_collection.content_width.options.container.label"
+        },
+        {
+          "value": "boxed_container",
+          "label": "t:sections.seo_block_collection.content_width.options.boxed_container.label"
+        },
+        {
+          "value": "half_width",
+          "label": "t:sections.seo_block_collection.content_width.options.half_width.label"
+        }
+      ],
+      "default": "container"
+    },
+    {
+      "type": "text_alignment",
+      "id": "content_alignment",
+      "label": "t:sections.seo_block_collection.content_alignment.label",
+      "default": "center"
+    },
+
+    {
+      "type": "range",
+      "id": "h2_title_size_desktop",
+      "label": "t:sections.seo_block_collection.h2_title_size_desktop.label",
+      "min": 8,
+      "max": 60,
+      "step": 1,
+      "default": 46
+    },
+    {
+      "type": "range",
+      "id": "h2_title_size_mobile",
+      "label": "t:sections.seo_block_collection.h2_title_size_mobile.label",
+      "min": 8,
+      "max": 60,
+      "step": 1,
+      "default": 28
+    },
+    {
+      "type": "range",
+      "id": "h3_title_size_desktop",
+      "label": "t:sections.seo_block_collection.h3_title_size_desktop.label",
+      "min": 8,
+      "max": 60,
+      "step": 1,
+      "default": 42
+    },
+    {
+      "type": "range",
+      "id": "h3_title_size_mobile",
+      "label": "t:sections.seo_block_collection.h3_title_size_mobile.label",
+      "min": 8,
+      "max": 60,
+      "step": 1,
+      "default": 24
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.seo_block_collection.name"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,104 @@
+{% comment %}
+  Renders product variant-picker
+
+  Accepts:
+    - product: {Object} product object.
+    - block: {Object} passing the block information.
+    - product_form_id: {String} Id of the product form to which the variant picker is associated.
+    - update_url: {Boolean} whether or not to update url when changing variants. If false, the url isn't updated. Default: true (optional).
+
+  Usage:
+  {% render 'product-variant-picker', product: product, block: block, product_form_id: product_form_id %}
+{% endcomment %}
+
+{%- assign update_url = false -%}
+{%- if template.name == 'product' and template.suffix != 'subscription-quick-view' -%}
+  {%- assign update_url = true -%}
+{%- endif -%}
+<variant-selector
+  id="variant-selector"
+  class="space-y-[30px] {% if product.has_only_default_variant %} hidden {% endif %}"
+  data-url="{{ product.url }}"
+  data-section="{{ section.id }}"
+  data-update-url="{{ update_url }}"
+>
+  {%- for option in product.options_with_values -%}
+    {%- assign option_name_handleize = option.name | handleize -%}
+    {%- if option_name_handleize == 'size' -%}
+      {%- assign product_collections = product.collections -%}
+      {%- assign tooltip_size = blank -%}
+      {%- for product_collection in product_collections -%}
+        {%- assign tooltip_size_metafield = product_collection.metafields.custom.tooltip_size -%}
+        {%- if tooltip_size_metafield != blank -%}
+          {%- assign tooltip_size = tooltip_size_metafield.value -%}
+          {% break %}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+
+    <fieldset class="fieldset-{{ option_name_handleize }}">
+      <div class="fieldset-label flex items-start gap-1 text-sm font-medium leading-[18px]">
+        <legend class="flex flex-row gap-1">
+          {% render 'c-text', translatable_content: 'sections.product-form.choose' %}
+          {%- assign option_name_string = 'sections.product-form.blocks.variant_selector.'
+            | append: option_name_handleize
+            | append: '.name'
+          -%}
+          {{ option_name_string | t -}}
+          {{- '*: ' }}
+        </legend>
+        <div class="flex font-semibold">
+          <span data-option-value></span>
+        </div>
+
+        {%- if option_name_handleize == 'size' -%}
+          {%- if tooltip_size != blank -%}
+            <span
+              data-tooltip="{{ tooltip_size | newline_to_br }}"
+              style="--font-size-tooltip: {{ section.settings.tooltip_size }}px; --font-weight-tooltip: {% if section.settings.tooltip_bold %}bold{% endif %};"
+              data-tooltip-placement="right-end"
+              data-no-arrows="true"
+            >
+              {% render 'c-icon', icon: 'question', classes: 'w-[11px] h-[11px]' %}
+            </span>
+          {%- endif -%}
+        {%- else -%}
+          {%- capture tooltip_text -%}
+            {%- assign tooltip_text_string = 'sections.product-form.blocks.variant_selector.' | append: option_name_handleize | append: '.' | append: option_name_handleize | append: '-tool-tip' | append: '_html' -%}
+            {{ tooltip_text_string | t }}
+          {%- endcapture -%}
+          {%- if tooltip_text != blank -%}
+            <span
+              data-tooltip="{{ tooltip_text }}"
+              style="--font-size-tooltip: {{ section.settings.tooltip_size }}px; --font-weight-tooltip: {% if section.settings.tooltip_bold %}bold{% endif %};"
+              data-tooltip-placement="right-end"
+              data-no-arrows="true"
+            >
+              {% render 'c-icon', icon: 'question', classes: 'w-[11px] h-[11px]' %}
+            </span>
+          {%- endif -%}
+        {%- endif -%}
+      </div>
+      {%- capture subtext -%}
+        {%- assign subtext_string = 'sections.product-form.blocks.variant_selector.' | append: option_name_handleize | append: '.' | append: option_name_handleize | append: '-subtext' -%}
+        {{ subtext_string | t }}
+      {%- endcapture -%}
+      {%- unless subtext contains 'Translation missing:' -%}
+        {% render 'c-text', content: subtext, type: 'h9-regular text-grey-400', classes: 'mt-0.5' %}
+      {%- endunless -%}
+      {% assign lowered_option_name = option.name | downcase %}
+      <div class="{{ lowered_option_name | replace: ' ', '-' | append: '-variants' }}{% if lowered_option_name == 'nipple type' or lowered_option_name == 'flow type' %} flex flex-wrap gap-[18px] {% else %} grid grid-cols-2 sm:flex sm:flex-wrap gap-2.5 {% endif %}mt-2">
+        {% render 'product-variant-options',
+          product: product,
+          option: option,
+          block: block,
+          product_form_id: product_form_id,
+          options_index: forloop.index0
+        %}
+      </div>
+    </fieldset>
+  {% endfor %}
+  <script type="application/json">
+    {{ product.variants | json }}
+  </script>
+</variant-selector>

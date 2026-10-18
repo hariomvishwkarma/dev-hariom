@@ -1,0 +1,1786 @@
+{{ 'template-collection.css' | asset_url | stylesheet_tag }}
+{{ 'component-card.css' | asset_url | stylesheet_tag }}
+{{ 'component-price.css' | asset_url | stylesheet_tag }}
+{{ 'component-search.css' | asset_url | stylesheet_tag }}
+
+{%- if section.settings.enable_filtering or section.settings.enable_sorting -%}
+  {{ 'component-facets.css' | asset_url | stylesheet_tag }}
+  <script src="{{ 'facets.js' | asset_url }}" defer="defer"></script>
+{%- endif -%}
+
+{% if section.settings.image_shape == 'blob' %}
+  {{ 'mask-blobs.css' | asset_url | stylesheet_tag }}
+{%- endif -%}
+
+<script src="{{ 'main-search.js' | asset_url }}" defer="defer"></script>
+
+<style>
+  .template-search__header {
+    margin-bottom: 0;
+    margin-top: 5rem;
+  }
+
+  .template-search__search {
+    margin: 0 auto 3.5rem;
+    max-width: 74.1rem;
+  }
+
+  .template-search__search .search {
+    margin-top: 3rem;
+  }
+
+  .template-search--empty {
+    padding-bottom: 18rem;
+  }
+
+  @media screen and (min-width: 750px) {
+    .template-search__header {
+      margin-bottom: 10rem;
+    }
+  }
+
+  .search__button .icon {
+    height: 1.8rem;
+  }
+  .cst-swatches .cst-swatch-image-wrapper span{
+    display: inline-block;
+    cursor: pointer;
+    background-position: center;
+    background: transparent;
+    background-size: contain;
+  }
+</style>
+
+{%- liquid
+  assign sort_by = search.sort_by | default: search.default_sort_by
+  assign terms = search.terms | escape
+  assign search_url = '?q=' | append: terms | append: '&options%5Bprefix%5D=last&sort_by=' | append: sort_by
+-%}
+
+{%- style -%}
+  .section-{{ section.id }}-padding {
+    padding-top: {{ section.settings.padding_top | times: 0.75 | round: 0 }}px;
+    padding-bottom: {{ section.settings.padding_bottom | times: 0.75 | round: 0 }}px;
+  }
+
+  @media screen and (min-width: 750px) {
+    .section-{{ section.id }}-padding {
+      padding-top: {{ section.settings.padding_top }}px;
+      padding-bottom: {{ section.settings.padding_bottom }}px;
+    }
+  }
+{%- endstyle -%}
+
+{% style %}
+
+  .cst-product-card {
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+    transition: opacity 0.3s ease;
+  }
+
+  .cst-main-slider .cst-slide-inner {
+    width: 100%;
+    aspect-ratio: 17/20;
+  }
+
+  .cst-image-link {
+    position: relative;
+  }
+
+  .cst-product-image-wrapper {
+    aspect-ratio: 17/20;
+    position: relative;
+    background-color: #eee;
+    overflow: hidden;
+  }
+
+  .cst-product-image-wrapper video{
+    max-width: 100%;
+    object-fit: cover;
+    height: 100%;
+    width: 100%;
+  }
+
+  .cst-product-image {
+    display: block;
+    height: 100%;
+    max-width:100%;
+  }
+  .cst-product-image.skeleton,
+  .cst-swatch-image.skeleton {
+    opacity: 0;
+  }
+
+  .cst-swatch-image-wrapper {
+    /* aspect-ratio: 1/1; */
+    position: relative;
+    background-color: #eee;
+    overflow: hidden;
+    display: flex;
+    width: fit-content;
+    height: fit-content;
+  }
+
+  .cst-swatch-wrapper .swiper-slide {
+      width: fit-content!important;
+  }
+
+  .cst-swatch-image {
+    display: block;
+    cursor:pointer;
+    height: 100%;
+  }
+
+  .cst-disabled::after {
+    content: '{{ section.settings.soldout_text | default: 'Sold Out :(' }}';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 1;
+    display: block;
+    transform: translate(-50%,-50%) rotate(-47.09deg);
+    font-size: 75px;
+    color: {{ section.settings.overlay_color | default: '#FF0000' }};
+    width: max-content;
+  }
+
+  .cst-product-title {
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color:#000000;
+    text-decoration:none;
+    display: flex;
+    padding: 0 10px;
+    gap: 5px;
+  }
+
+  .cst-swatches {
+    display: flex;
+    align-items: center;
+    margin-top: 0.5rem;
+    gap: 8px;
+    position: relative;
+    padding: 0 10px;
+  }
+
+  .cst-swatches .cst-slide-inner {
+    border: 0.8px solid transparent;
+    transition: all 0.3s;
+    width: fit-content;
+    padding: .78px .94px .79px .96px;
+  }
+
+  .cst-swatches .swiper-slide.cst-active .cst-slide-inner {
+    border-color: #333;
+  }
+
+  .cst-hidden {
+    display: none !important;
+  }
+
+  .cst-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 30px 0;
+  }
+
+  .cst-page-button {
+    padding: 2px 5px;
+    text-decoration: none;
+    font-size: 16px;
+    color: #333;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s ease;
+  }
+
+  .cst-page-button:hover {
+    border-color: #333;
+  }
+
+  .cst-page-button.active {
+    border-color: #333;
+  }
+
+  .cst-main-slider,
+  .cst-swatch-slider {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .swiper-button-prev,
+  .swiper-button-next {
+    position: relative;
+    left: auto;
+    right: auto;
+    top: auto;
+    bottom: auto;
+    width: 18px;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+    background-color: #fff;
+  }
+
+  .swiper-button-prev {
+    position: absolute;
+    left: 0;
+    justify-content: start;
+  }
+
+  .swiper-button-next {
+    position: absolute;
+    right: 0;
+    justify-content: end;
+  }
+
+  .swiper-button-prev::after,
+  .swiper-button-next::after {
+    font-size: 14px;
+    color: #333;
+  }
+
+  .swiper-button-prev.swiper-button-disabled,
+  .swiper-button-next.swiper-button-disabled {
+    display: none !important;
+  }
+
+.cst-swatches .cst-swatch-image-wrapper span {
+  display: inline-block;
+  width: 26.2px;
+  height: 10px;
+  cursor: pointer;
+  background-position: center;
+  background: transparent;
+  background-size: contain;
+}
+
+  @media(max-width: 425px) {
+    .swiper-button-prev,
+    .swiper-button-next {
+      width: 14px;
+    }
+
+    .swiper-button-prev::after,
+    .swiper-button-next::after {
+      font-size: 10px;
+      color: #333;
+    }
+  }
+
+  .cst-tags-box {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: clamp(70px, 100vw, 200px);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 5px;
+    border: 1px solid red;
+  }
+
+  .cst-img-box {
+    display: flex;
+    width: 70px;
+    z-index: 1;
+  }
+  .cst-img-box img {
+    display: flex;
+  }
+
+  .main_search__content{
+    font-size:{{ section.settings.search_content_size_m }};
+    text-align:center;
+  }
+  .nosearch_image img{
+    max-width: 100%;
+    object-fit: contain;
+  }
+  .search_no_result{
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    align-items: center;
+    padding: 5rem 0;
+  }
+  .main_search__content p {
+    margin: 0;
+  }
+  .main_search__content a{
+    background: #000;
+    color: #fff;
+    text-transform: uppercase;
+    padding: 0 4px;
+  }
+  .search-result-page {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    line-height: 1.4;
+    color: #000000;
+    display: flex;
+    padding: 0;
+    position: absolute;
+    bottom: 13px;
+}
+
+@media (min-width:768px){
+  .grid {
+    row-gap: 32px;
+  }
+  .main_search__content{
+    font-size:{{ section.settings.search_content_size }};
+  }
+  #ProductGridContainer {
+    margin-top: 70px;
+    margin-bottom: 130px;
+  }
+}
+
+@media (max-width:1024px){
+  .grid.product-grid {
+    row-gap: 39px;
+    column-gap: 12px;
+  }
+}
+
+@media (max-width:767px){
+  .cst-disabled::after{
+    font-size: 38px;
+  }
+}
+
+@media (min-width:1025px){
+  .mobile-filter-header{
+    display:none;
+  }
+}
+{% endstyle %}
+
+{% paginate search.results by 24 %}
+  <div class="template-search{% unless search.performed and search.results_count > 0 %} template-search--empty{% endunless %} section-{{ section.id }}-padding">
+    {% render 'search-page-filter', search:search, section:section %}
+    <div class="template-search__header page-width{% if settings.animations_reveal_on_scroll %} scroll-trigger animate--fade-in{% endif %}">
+      <h1 class="h2 center">
+        {%- if search.performed -%}
+          {{- 'templates.search.title' | t -}}
+        {%- else -%}
+          {{- 'general.search.search' | t -}}
+        {%- endif -%}
+      </h1>
+      <div class="template-search__search">
+        {%- if settings.predictive_search_enabled -%}
+          <predictive-search data-loading-text="{{ 'accessibility.loading' | t }}">
+        {%- endif -%}
+        <main-search>
+          <form action="{{ routes.search_url }}" method="get" role="search" class="search">
+            <div class="field">
+              <input
+                class="search__input field__input"
+                id="Search-In-Template"
+                type="search"
+                name="q"
+                value="{{ search.terms | escape }}"
+                placeholder="{{ 'general.search.search' | t }}"
+                {%- if settings.predictive_search_enabled -%}
+                  role="combobox"
+                  aria-expanded="false"
+                  aria-owns="predictive-search-results"
+                  aria-controls="predictive-search-results"
+                  aria-haspopup="listbox"
+                  aria-autocomplete="list"
+                  autocorrect="off"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                {%- endif -%}
+              >
+              <label class="field__label" for="Search-In-Template">{{ 'general.search.search' | t }}</label>
+              <input name="options[prefix]" type="hidden" value="last">
+
+              {%- if settings.predictive_search_enabled -%}
+                <div class="predictive-search predictive-search--search-template" tabindex="-1" data-predictive-search>
+                  {%- render 'loading-spinner', class: 'predictive-search__loading-state' -%}
+                </div>
+
+                <span class="predictive-search-status visually-hidden" role="status" aria-hidden="true"></span>
+              {%- endif -%}
+
+              <button
+                type="reset"
+                class="reset__button field__button{% if search.terms == blank %} hidden{% endif %}"
+                aria-label="{{ 'general.search.reset' | t }}"
+              >
+                <span class="svg-wrapper">
+                  {{- 'icon-reset.svg' | inline_asset_content -}}
+                </span>
+              </button>
+              <button type="submit" class="search__button field__button" aria-label="{{ 'general.search.search' | t }}">
+                <span class="svg-wrapper">
+                  {{- 'icon-search.svg' | inline_asset_content -}}
+                </span>
+              </button>
+            </div>
+          </form>
+        </main-search>
+        {%- if settings.predictive_search_enabled -%}
+          </predictive-search>
+        {%- endif -%}
+      </div>
+      {%- if search.performed -%}
+        {%- unless section.settings.enable_filtering or section.settings.enable_sorting -%}
+          {%- if search.results_count > 0 -%}
+            <p role="status">
+              {{ 'templates.search.results_with_count_and_term' | t: terms: search.terms, count: search.results_count }}
+            </p>
+          {%- endif -%}
+        {%- endunless -%}
+        {%- if search.results_count == 0 and search.filters == empty -%}
+          {% comment %} <p role="status">{{ 'templates.search.no_results' | t: terms: search.terms }}</p>{% endcomment %}
+           <div class="search_no_result">
+            {% if section.settings.search_no_image != blank %}
+              <div class="nosearch_image">
+                <img src="{{ section.settings.search_no_image | image_url }}" width="auto" height="auto" alt="search">
+              </div>
+            {% endif %}
+            {% if section.settings.search_content != blank %}
+              <div class="search_nosearch_content">
+                <div class="main_search__content">{{section.settings.search_content }}</div>
+              </div>
+            {% endif %}
+           </div>
+        {%- endif -%}
+      {%- endif -%}
+    </div>
+    {%- if search.performed -%}
+      {%- if section.settings.enable_sorting
+        and section.settings.filter_type == 'vertical'
+        and search.filters != empty
+      -%}
+        <facet-filters-form class="facets facets-vertical-sort page-width small-hide">
+          <form class="facets-vertical-form" id="FacetSortForm">
+            <div class="facet-filters sorting caption">
+              <div class="facet-filters__field">
+                <h2 class="facet-filters__label caption-large text-body">
+                  <label for="SortBy">{{ 'products.facets.sort_by_label' | t }}</label>
+                </h2>
+                <div class="select">
+                  {%- assign sort_by = search.sort_by | default: search.default_sort_by -%}
+                  <select
+                    name="sort_by"
+                    class="facet-filters__sort select__select caption-large"
+                    id="SortBy"
+                    aria-describedby="a11y-refresh-page-message"
+                  >
+                    {%- for option in search.sort_options -%}
+                      <option
+                        value="{{ option.value | escape }}"
+                        {% if option.value == sort_by %}
+                          selected="selected"
+                        {% endif %}
+                      >
+                        {{ option.name | escape }}
+                      </option>
+                    {%- endfor -%}
+                  </select>
+                  <span class="svg-wrapper">
+                    {{- 'icon-caret.svg' | inline_asset_content -}}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="product-count-vertical light" role="status">
+              <h2 class="product-count__text text-body">
+                <span id="ProductCountDesktop">
+                  {%- if search.results_count -%}
+                    {{ 'templates.search.results_with_count' | t: terms: search.terms, count: search.results_count }}
+                  {%- elsif search.products_count == search.all_products_count -%}
+                    {{ 'products.facets.product_count_simple' | t: count: search.products_count }}
+                  {%- else -%}
+                    {{
+                      'products.facets.product_count'
+                      | t: product_count: search.products_count, count: search.all_products_count
+                    }}
+                  {%- endif -%}
+                </span>
+              </h2>
+              {%- render 'loading-spinner' -%}
+            </div>
+          </form>
+        </facet-filters-form>
+      {%- endif -%}
+      <div
+        {% if section.settings.filter_type == 'vertical' %}
+          class="facets-vertical page-width"
+        {% endif %}
+      >
+        <div class="product-grid-container" id="ProductGridContainer">
+          {%- if search.results.size == 0 and search.filters != empty -%}
+            <div
+              class="template-search__results collection collection--empty{% if section.settings.filter_type != 'vertical' %} page-width{% endif %}"
+              id="product-grid"
+              data-id="{{ section.id }}"
+            >
+              <div class="loading-overlay gradient"></div>
+              <div class="title-wrapper center">
+                <h2 class="title title--primary">
+                  {{ 'sections.collection_template.empty' | t -}}
+                  <br>
+                  {{
+                    'sections.collection_template.use_fewer_filters_html'
+                    | t: link: search_url, class: 'underlined-link link'
+                  }}
+                </h2>
+              </div>
+            </div>
+          {%- else -%}
+            <div
+              class="template-search__results collection{% if section.settings.filter_type != 'vertical' %} {% endif %}"
+              id="product-grid"
+              data-id="{{ section.id }}"
+            >
+              <div class="loading-overlay gradient"></div>
+              <ul
+                class="grid product-grid  grid--{{ section.settings.columns_mobile }}-col-tablet-down grid--{{ section.settings.columns_desktop }}-col-desktop"
+                role="list"
+              >
+                {%- assign skip_card_product_styles = false -%}
+                {%- for item in search.results -%}
+                  {% assign lazy_load = false %}
+                  {%- if forloop.index > 2 -%}
+                    {%- assign lazy_load = true -%}
+                  {%- endif -%}
+
+                  {% comment %} {% if item.object_type == 'page' or item.object_type == 'article' %}
+                    {% continue %}
+                  {% endif %} {% endcomment %}
+
+                  <li
+                    class="grid__item{% if settings.animations_reveal_on_scroll %} scroll-trigger animate--slide-in{% endif %}"
+                    {% if settings.animations_reveal_on_scroll %}
+                      data-cascade
+                    {% endif %}
+                  >
+                    {%- case item.object_type -%}
+                      {%- when 'product' -%}
+                   
+                          {% assign product = item %}
+                          {% assign is_available = product.available %}
+
+                          <div
+                            id="cst-grid"
+                            class="cst-product-card {% unless is_available %} disabled{% endunless %}"
+                            data-product-id="{{ product.id }}"
+                          >
+                            <div class="crumpler-capsules__wrapper">
+                              {% # Metafield Capsules %}
+                              {% assign capsules = product.metafields.crumpler.tag.value %}
+                              {% for capsule in capsules %}
+                                <span class="capsule capsule--no-border crumpler-capsules__product_capsule">{{ capsule }}</span>
+                              {% endfor %}
+                            </div>
+                            <div class="cst-main-slider">
+                              <div class="cst-wrapper swiper-wrapper">
+
+                                    {% assign color_option_names = 'color,colour' | split: ',' %}
+
+                                    {% for option in product.options_with_values %}
+                                      {% assign option_name_down = option.name | downcase %}
+
+                                      {% if color_option_names contains option_name_down %}
+                                      {% assign option_index = option.position | minus: 1 %}
+
+                                        {% for color in option.values %}  
+                                          {% for variant in product.variants %}
+                                            
+                                            {% if variant.options[option_index] == color and variant.metafields.custom.hide_variant_from_collection_page == true %}
+                                              {% continue %}
+                                            {% endif %}
+                                          
+                                            {% if variant.options[option_index] == color %}
+
+                                              {% assign variant_video = blank %}
+                                              {% if variant.metafields.custom.collection_display_image != blank %}
+                                                {% assign variant_video = variant.metafields.custom.collection_display_image | file_url %}
+                                                {% assign variant_img = variant.metafields.custom.collection_display_image %}
+                                              {% elsif variant.featured_image %}
+                                                {% assign variant_img = variant.featured_image | image_url %}
+                                              {% else %}
+                                                {% assign variant_img = product.featured_image | image_url %}
+                                              {% endif %}
+                                              {% if variant_video contains 'videos' %}
+                                                  <div class="swiper-slide">
+                                                    <div class="cst-slide-inner">
+                                                      <a
+                                                        href="{{ variant.url }}"
+                                                        class="cst-image-link {% unless variant.available %} cst-disabled {% endunless %}"
+                                                      >
+                                                        <div class="cst-product-image-wrapper">
+                                                          <video class="cst-product-video" autoplay loop muted playsinline>
+                                                            <source src="{{ variant_video }}" type="video/mp4">
+                                                          </video>
+                                                        </div>
+                                                      </a>
+                                                    </div>
+                                                  </div>
+                                              {% else %}
+                                                {% if variant_img %}
+                                                  <div class="swiper-slide">
+                                                    <div class="cst-slide-inner">
+                                                      {% comment %} <a
+                                                        href="{{ variant.url }}"
+                                                        class="cst-image-link {% unless variant.metafields.pickup.shipping_qty > 0 %} cst-disabled {% endunless %}"
+                                                      > {% endcomment %}
+                                                      <a
+                                                        href="{{ variant.url }}"
+                                                        class="cst-image-link {% unless variant.available %} cst-disabled {% endunless %}"
+                                                      >
+                                                        <div class="cst-product-image-wrapper">
+                                                          <img
+                                                            srcset="
+                                                              {%- if variant_img.width >= 165 -%}{{ variant_img | image_url: width: 165 }} 165w,{%- endif -%}
+                                                              {%- if variant_img.width >= 360 -%}{{ variant_img | image_url: width: 360 }} 360w,{%- endif -%}
+                                                              {%- if variant_img.width >= 533 -%}{{ variant_img | image_url: width: 533 }} 533w,{%- endif -%}
+                                                              {%- if variant_img.width >= 720 -%}{{ variant_img | image_url: width: 720 }} 720w,{%- endif -%}
+                                                              {%- if variant_img.width >= 940 -%}{{ variant_img | image_url: width: 940 }} 940w,{%- endif -%}
+                                                              {%- if variant_img.width >= 1066 -%}{{ variant_img | image_url: width: 1066 }} 1066w,{%- endif -%}
+                                                              {%- if variant_img.width >= 1550 -%}{{ variant_img | image_url: width: 1550 }} 1550w,{%- endif -%}
+                                                              {%- if variant_img.width >= 2000 -%}{{ variant_img | image_url: width: 2000 }} 2000w,{%- endif -%}
+                                                              {%- if variant_img.width >= 2500 -%}{{ variant_img | image_url: width: 2500 }} 2500w,{%- endif -%}
+                                                              {{ variant_img | image_url }} {{ variant_img.width }}w
+                                                            "
+                                                            src="{{ variant_img | image_url: width: 533 }}"
+                                                            sizes="(min-width: {{ settings.page_width }}px) {{ settings.page_width | minus: 130 | divided_by: 4 }}px, (min-width: 990px) calc((100vw - 130px) / 4), (min-width: 750px) calc((100vw - 120px) / 3), calc((100vw - 35px) / 2)"
+                                                            alt="{{ product.title | escape }}"
+                                                            class="motion-reduce cst-product-image skeleton"
+                                                            loading="lazy"
+                                                            width="{{ variant_img.width }}"
+                                                            height="{{ variant_img.height }}"
+                                                            onload="this.classList.remove('skeleton')"
+                                                          >
+                                                        </div>
+                                                      </a>
+                                                    </div>
+                                                  </div>
+                                                {% endif %}
+                                              {% endif %}
+
+                                              {% break %}
+                                            {% endif %}
+                                          {% endfor %}
+                                        {% endfor %}
+                                      {% endif %}
+                                {% endfor %}
+                              </div>
+                            </div>
+
+                            <a class="cst-product-title" href="{{ product.url }}">
+                              {{- product.title }} 
+                              <span class="cst-product-price">
+                                {{ product.selected_or_first_available_variant.price | money_without_trailing_zeros -}}
+                              </span>
+                            </a>                          
+
+                            <div class="cst-swatches">
+                              {% comment %} <div class="swiper-button-prev cst-swatch-prev"></div> {% endcomment %}
+
+                              <div class="cst-swatch-slider">
+                                <div class="cst-swatch-wrapper swiper-wrapper">
+
+                                  {% assign color_option_names = 'color,colour' | split: ',' %}
+
+                                  {% for option in product.options_with_values %}
+                                      {% assign option_name_down = option.name | downcase %}
+
+                                      {% if color_option_names contains option_name_down %}
+                                        {% assign swatches = product.metafields.alt.swatches.value %}
+                                        {% assign option_index = option.position | minus: 1 %}
+
+                                        {% for color in option.values %}
+
+                                          {% for variant in product.variants %}
+
+                                              {% if variant.options[option_index] == color and variant.metafields.custom.hide_variant_from_collection_page == true %}
+                                                {% continue %}
+                                              {% endif %}
+                                          
+                                              {% if variant.options[option_index] == color %}
+                                                  {% assign this_swatch = blank %}
+
+                                                  {%- comment -%}
+                                                    Priority:
+                                                    1. Variant swatch (image or color)
+                                                    2. Metafield swatch fallback
+                                                  {%- endcomment -%}
+
+                                                  {% if color.swatch.image %}
+                                                    {% assign this_swatch = color.swatch %}
+                                                  {% elsif color.swatch.color %}
+                                                    {% assign this_swatch = color.swatch %}
+                                                  {% else %}
+                                                    {% for swatch in swatches %}
+                                                      {% assign swatch_color_down = swatch.colour | downcase %}
+                                                      {% assign color_down = color | downcase %}
+                                                      {% assign swatch_name_down = swatch.name | downcase %}
+
+                                                      {% if color_down contains swatch_name_down %}
+                                                        {% if swatch.image or swatch.color %}
+                                                          {% assign this_swatch = swatch %}
+                                                        {% endif %}
+                                                      {% endif %}
+                                                    {% endfor %}
+                                                  {% endif %}
+
+                                                  <div class="swiper-slide" price="{{ variant.price | money_without_trailing_zeros }}">
+                                                    <div class="cst-slide-inner">
+                                                      <div class="cst-swatch-image-wrapper">
+                                                        {% render 'swatch',
+                                                          swatch: this_swatch,
+                                                          option_value: color,
+                                                          product: product,
+                                                          alt_swatches: true,
+                                                          swatch_size: 16,
+                                                          shape: 'square'
+                                                        %}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                {% comment %} {% endif %} {% endcomment %}
+                                                {% break %}
+                                              {% endif %}
+                                          {% endfor %}
+                                        {% endfor %}
+                                      {% endif %}
+                                  {% endfor %}
+                                </div>
+                              </div>
+                              {% comment %} <div class="swiper-button-next cst-swatch-next"></div> {% endcomment %}
+                            </div>
+
+                            {% unless is_available %}
+                              {% if section.settings.tag_soldout_img != blank %}
+                                <div class="cst-tags-box">
+                                  <div class="cst-img-box">
+                                    <img
+                                      src="{{ section.settings.tag_soldout_img | img_url: '400x' }}"
+                                      width="100%"
+                                      height="auto"
+                                      alt="soldout"
+                                    >
+                                  </div>
+                                </div>
+                              {% endif %}
+                            {% endunless %}
+                          </div>
+                   
+
+                        {%- assign skip_card_product_styles = true -%}
+                      {%- when 'article' -%}
+                        {% render 'article-card',
+                          article: item,
+                          show_image: true,
+                          show_date: section.settings.article_show_date,
+                          show_author: section.settings.article_show_author,
+                          show_badge: true,
+                          media_aspect_ratio: 1,
+                          lazy_load: lazy_load
+                        %}
+                      {%- when 'page' -%}
+                        <div class="article-card-wrapper card-wrapper underline-links-hover">
+                          <div
+                            class="card card--card card--text ratio color-{{ settings.blog_card_color_scheme }}"
+                            style="--ratio-percent: 100%;"
+                          >
+                            <div class="card__content">
+                              <div class="card__information">
+                                <h3 class="card__heading">
+                                  <a href="{{ item.url }}" class="full-unstyled-link">
+                                    {{ item.title | truncate: 50 | escape }}
+                                  </a>
+                                </h3>
+                              </div>
+                              <div class="search-result-page">
+                                {{- 'templates.search.page' | t -}}
+                              </div>
+                              {% comment %} <div class="card__badge {{ settings.badge_position }}">
+                                <span class="badge color-{{ settings.color_schemes | first }}">
+                                  {{- 'templates.search.page' | t -}}
+                                </span>
+                              </div> {% endcomment %}
+                            </div>
+                          </div>
+                        </div>
+                    {%- endcase -%}
+                  </li>
+                {%- endfor -%}
+              </ul>
+              {%- if paginate.pages > 1 -%}
+                {% render 'pagination', paginate: paginate %}
+              {%- endif -%}
+            </div>
+          {%- endif -%}
+        </div>
+      </div>
+    {%- endif -%}
+  </div>
+{% endpaginate %}
+{% if section.settings.image_shape == 'arch' %}
+  {{ 'mask-arch.svg' | inline_asset_content }}
+{%- endif -%}
+
+<script>
+  // Collection Page JavaScript
+  document.addEventListener('DOMContentLoaded', function () {
+    initializeCollectionPage();
+  });
+
+  function initializeCollectionPage() {
+    VariantSliderInit();
+    initFilterSystem();
+    initMobileFilterToggle();
+    setupPanelOpenClose();
+  }
+
+  // Variant Slider Functionality
+  function VariantSliderInit() {
+    document.querySelectorAll('#cst-grid.cst-product-card').forEach(function (card) {
+      const mainSliderEle = card.querySelector('.cst-main-slider');
+      const swatchSliderEle = card.querySelector('.cst-swatch-slider');
+      const swatchPrice = card.querySelector('.cst-product-price');
+
+      if (!mainSliderEle || !swatchSliderEle) return;
+
+      const mainSwiper = new Swiper(mainSliderEle, {
+        slidesPerView: 1,
+        spaceBetween: 0,
+        allowTouchMove: true,
+        simulateTouch: true, // allows mouse drag as swipe on desktop
+        cssMode: false,
+        mousewheel: {
+          invert: false,
+          forceToAxis: true,
+        },
+        on: {
+          slideChange: function () {
+            setSwatchActive(mainSwiper.activeIndex);
+          },
+        },
+      });
+
+      const swatchSwiper = new Swiper(swatchSliderEle, {
+        slidesPerView: 'auto',
+        //slidesPerView: 7,
+        breakpoints: {
+          0: {
+            slidesPerView: 4,
+            spaceBetween: 2,
+          },
+          425: {
+            slidesPerView: 5,
+            spaceBetween: 4.4,
+          },
+          768: {
+            slidesPerView: 6,
+            spaceBetween: 4.4,
+          },
+          1200: {
+            slidesPerView: 10,
+            spaceBetween: 4.4,
+          },
+        },
+        navigation: {
+          nextEl: card.querySelector('.cst-swatch-next'),
+          prevEl: card.querySelector('.cst-swatch-prev'),
+        },
+      });
+
+      swatchSwiper.slides.forEach((slideEl, idx) => {
+        slideEl.addEventListener('mouseenter', () => {
+          mainSwiper.slideTo(idx, 500);
+          setSwatchActive(idx);
+        });
+      });
+
+      function setSwatchActive(activeIndex) {
+        swatchSwiper.slides.forEach((slide, index) => {
+          slide.classList.toggle('cst-active', index === activeIndex);
+          if(index === activeIndex){
+            const swatch_price = slide.getAttribute('price');
+            swatchPrice.textContent = swatch_price;
+          }
+        });
+      }
+
+      setSwatchActive(0);
+    });
+  }
+
+  // Filter System
+  function initFilterSystem() {
+    const filterSection = document.getElementById('main-collection-filters');
+    if (!filterSection) return;
+
+    const form = document.getElementById('CSTFacetForm');
+    const sectionId = filterSection.dataset.sectionId || '{{ section.id }}';
+    const productGridContainer = document.getElementById('ProductGridContainer');
+
+    // Create search params from form
+    function createSearchParamsFromForm(formEl) {
+      const formData = new FormData(formEl);
+      return new URLSearchParams(formData).toString();
+    }
+
+    function mergeSearchParams(newParams = '') {
+      const url = new URL(window.location.href);
+      const currentParams = new URLSearchParams(url.search);
+      const incomingParams = new URLSearchParams(newParams);
+
+      incomingParams.forEach((value, key) => {
+        currentParams.set(key, value);
+      });
+
+      return currentParams.toString();
+    }
+
+
+    // Fetch and update section
+    async function fetchAndUpdateSection(searchParams = '') {
+      try {
+        const loadingOverlay = document.querySelectorAll('#ProductCount');
+        loadingOverlay.forEach(k=>k.textContent = 'Loading...');
+
+        const mergedParams = mergeSearchParams(searchParams);
+
+        const url = `/search?${mergedParams}`;
+        const response = await fetch(url);
+        const text = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+
+        // Update product grid
+        const newGrid = doc.getElementById('ProductGridContainer');
+        if (newGrid && productGridContainer) {
+          productGridContainer.innerHTML = newGrid.innerHTML;
+        }
+
+        if (!newGrid) gravityFilters();
+
+        // Update filters section
+        const newFilters = doc.getElementById('main-collection-filters');
+        if (newFilters) {
+          filterSection.innerHTML = newFilters.innerHTML;
+          // Reinitialize filter functionality
+          initFilterSystem();
+          setupPanelOpenClose();
+          initMobileFilterToggle();
+        }
+        const productGrid = doc.querySelector('#product-grid');
+        const hasProducts = productGrid && productGrid.querySelectorAll('li').length > 0;
+        // Trigger gravity effect if no products
+
+        if (!hasProducts) {
+          setTimeout(() => {
+            gravityFilters();
+          }, 100);
+        }
+        // Update URL
+        history.pushState(
+          { searchParams: mergedParams },
+          '',
+          `${window.location.pathname}?${mergedParams}`
+        );
+
+        // Reinitialize sliders
+        VariantSliderInit();
+      } catch (error) {
+        console.error('Error updating collection:', error);
+      }
+    }
+
+    // Debounce function
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    // Handle form changes
+    const handleFormChange = debounce(function (event) {
+      const searchParams = createSearchParamsFromForm(form);
+      fetchAndUpdateSection(searchParams);
+    }, 300);
+
+    // Add event listeners to form inputs
+    form.querySelectorAll('input, select').forEach((input) => {
+      input.addEventListener('change', handleFormChange);
+    });
+
+    // Clear filters
+    const clearButtons = document.querySelectorAll('#CSTClearFilters');
+    if (clearButtons) {
+      clearButtons.forEach((clearButton) => {
+        clearButton.addEventListener('click', function (e) {
+          e.preventDefault();
+          form.reset();
+          const url = new URL(window.location.href);
+          const params = new URLSearchParams(url.search);
+
+          [...params.keys()].forEach((key) => {
+            if (
+              key.startsWith('filter.') ||
+              key.startsWith('filter[')
+            ) {
+              params.delete(key);
+            }
+          });
+
+          url.search = params.toString();
+          history.pushState({}, '', url.toString());
+
+          fetchAndUpdateSection(params.toString());
+        });
+      });
+    }
+
+
+    // Handle browser back/forward
+    window.addEventListener('popstate', function (event) {
+      const searchParams = window.location.search.replace(/^\?/, '');
+      if (searchParams) {
+        // Update form to match URL parameters
+        const urlParams = new URLSearchParams(searchParams);
+        updateFormFromParams(urlParams);
+        fetchAndUpdateSection(searchParams);
+      } else {
+        form.reset();
+        fetchAndUpdateSection('');
+      }
+    });
+
+    function updateFormFromParams(urlParams) {
+      // Reset all inputs first
+      form.querySelectorAll('input[type="checkbox"]').forEach((cb) => (cb.checked = false));
+      form.querySelectorAll('input[type="number"]').forEach((input) => (input.value = ''));
+      form.querySelectorAll('input[type="radio"]').forEach((radio) => (radio.checked = false));
+
+      // Set values from URL params
+      urlParams.forEach((value, key) => {
+        const inputs = form.querySelectorAll(`[name="${key}"]`);
+        inputs.forEach((input) => {
+          if (input.type === 'checkbox' || input.type === 'radio') {
+            input.checked = input.value === value;
+          } else {
+            input.value = value;
+          }
+        });
+      });
+    }
+  }
+
+  // Mobile Filter Toggle
+  function initMobileFilterToggle() {
+    const filterToggle = document.querySelector('.cst-filters-container b');
+    const closeBtn = document.querySelector(' #main-collection-filters .cst-filters-row .fillter--close');
+    const filtersRow = document.querySelector('.cst-filters-row');
+    if (!filterToggle || !filtersRow) return;
+
+    {% comment %} function toggleMobileFilters() {
+      if (window.innerWidth <= 1024) {
+        const isVisible = filtersRow.style.display === 'flex' || filtersRow.style.display === 'inline-block';
+        filtersRow.style.display = isVisible ? 'none' : 'inline-block';
+        setTimeout(() => {
+          isVisible ? filtersRow.classList.remove('open') : filtersRow.classList.add('open');
+        }, 500);
+        // Toggle mobile icons
+        const mobileIcon = filterToggle.querySelector('.mobile-icon');
+        const mobileIconOpen = filterToggle.querySelector('.mobile-icon-open');
+
+        if (mobileIcon && mobileIconOpen) {
+          if (isVisible) {
+            mobileIcon.style.display = 'inline';
+            mobileIconOpen.style.display = 'none';
+          } else {
+            mobileIcon.style.display = 'none';
+            mobileIconOpen.style.display = 'inline';
+          }
+        }
+      }
+    } {% endcomment %}
+
+    function doCloseEnd() {
+      filtersRow.style.visibility = 'hidden';
+      filtersRow.classList.remove('open', 'closing');
+      updateMobileIcons(false);
+      requestAnimationFrame(function() {
+        filtersRow.style.visibility = '';
+      });
+    }
+    function toggleMobileFilters() {
+      if (window.innerWidth <= 1024) {
+        const isOpen = filtersRow.classList.contains('open');
+        const isClosing = filtersRow.classList.contains('closing');
+        if (isOpen && !isClosing) {
+          filtersRow.classList.add('closing');
+          var closeDone = false;
+          function finishClose() {
+            if (closeDone) return;
+            closeDone = true;
+            filtersRow.removeEventListener('transitionend', onCloseEnd);
+            clearTimeout(closeFallback);
+            doCloseEnd();
+          }
+          function onCloseEnd(e) {
+            if (e.target === filtersRow && e.propertyName === 'transform') finishClose();
+          }
+          var closeFallback = setTimeout(finishClose, 250);
+          filtersRow.addEventListener('transitionend', onCloseEnd);
+        } else if (!isOpen) {
+          filtersRow.style.visibility = '';
+          filtersRow.classList.remove('closing');
+          filtersRow.classList.add('open');
+          updateMobileIcons(true);
+        }
+      }
+    }
+
+    function handleResize() {
+      if (window.innerWidth > 1024) {
+        filtersRow.style.display = 'flex';
+        // Reset mobile icons
+        const mobileIcon = filterToggle.querySelector('.mobile-icon');
+        const mobileIconOpen = filterToggle.querySelector('.mobile-icon-open');
+        if (mobileIcon && mobileIconOpen) {
+          mobileIcon.style.display = 'none';
+          mobileIconOpen.style.display = 'none';
+        }
+      } else {
+        //filtersRow.style.display = 'none';
+        const mobileIcon = filterToggle.querySelector('.mobile-icon');
+        if (mobileIcon) {
+          mobileIcon.style.display = 'inline';
+        }
+      }
+    }
+
+    filterToggle.addEventListener('click', toggleMobileFilters);
+    closeBtn.addEventListener('click', toggleMobileFilters);
+
+    // Initialize on load
+    handleResize();
+
+    // Handle resize
+    window.addEventListener('resize', handleResize);
+  }
+
+  // Panel Open/Close Functionality
+  function setupPanelOpenClose() {
+    const filters = document.querySelectorAll('.cst-filter-label');
+
+    filters.forEach((button) => {
+
+      const icon = button.querySelector('.icon');
+
+      {% comment %} if (!button || !panel) return; {% endcomment %}
+      if (!button) return;
+
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const isOpen = button.getAttribute('aria-expanded') === 'true';
+
+        // Close all other panels
+        filters.forEach((otherButton) => {
+          if (otherButton !== button) {
+           
+            const otherIcon = otherButton.querySelector('.icon');
+
+            otherButton.setAttribute('aria-expanded', 'false');
+            {% comment %} otherPanel.style.display = 'none'; {% endcomment %}
+            if (otherIcon) {
+              otherIcon.style.transform = 'rotate(0deg)';
+            }
+          }
+        });
+
+        // Toggle current panel
+        if (isOpen) {
+          button.setAttribute('aria-expanded', 'false');
+          {% comment %} panel?.style.display = 'none'; {% endcomment %}
+          if (icon) {
+            icon.style.transform = 'rotate(0deg)';
+          }
+        } else {
+          button.setAttribute('aria-expanded', 'true');
+          {% comment %} panel.style.display = 'block'; {% endcomment %}
+          if (icon) {
+            icon.style.transform = 'rotate(180deg)';
+          }
+        }
+      });
+    });
+
+    // Close panels when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.cst-filter')) {
+        filters.forEach((filter) => {
+          const button = filter.querySelector('.cst-filter-label');
+          {% comment %} const panel = filter.querySelector('.cst-filter-panel'); {% endcomment %}
+          const icon = button.querySelector('.icon');
+
+          button.setAttribute('aria-expanded', 'false');
+          {% comment %} panel.style.display = 'none'; {% endcomment %}
+          if (icon) {
+            icon.style.transform = 'rotate(0deg)';
+          }
+        });
+      }
+    });
+  }
+
+
+
+   {%- if collection.products.size == 0 -%}
+    gravityFilters();
+   {% endif %}
+  // Gravity effect when no products are found — robust version using clones (position:fixed)
+  function gravityFilters() {
+    const sourceElements = document.querySelectorAll(
+      
+    '.cst-filters-container .cst-filters-row > div, ' +
+    '.cst-checkbox, ' +
+    '.cst-price-range-row, ' +
+    '.cst-filter-label, ' +
+    '.cst-sort-radio-item, ' +
+    '.cst-clear-btn, ' +
+    '.cst-sort-filter, ' +
+    '.cst-filters-container b, ' +
+    '.cst-product-count, ' + 
+    '.filter-top-text'
+    );
+    if (!sourceElements || sourceElements.length === 0) return;
+
+    // Physics params (tweak to taste)
+    const params = {
+      gravity: 1800, // px/s²
+      bounce: 0.35,
+      wallBounce: 0.5,
+      airDrag: 0.03,
+      groundFriction: 3.0,
+      bottomInset: 10, // distance from bottom viewport
+      sideInset: 6,
+      randomKickX: [-300, 300],
+    };
+
+    // Prevent layout shift while measuring & animating
+    const originalVisibilities = new Map();
+    sourceElements.forEach((el) => {
+      originalVisibilities.set(el, el.style.visibility || '');
+    });
+
+    // Optionally lock scrolling to keep viewport stable
+    const prevOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
+    // Create clones positioned fixed at the element's viewport coordinates
+    const clones = [];
+    sourceElements.forEach((el, idx) => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
+      // Clone
+      const clone = el.cloneNode(true);
+      clone.style.position = 'fixed';
+      clone.style.left = rect.left + 'px';
+      clone.style.top = rect.top + 'px';
+      clone.style.width = rect.width + 'px';
+      clone.style.height = rect.height + 'px';
+      clone.style.margin = '0';
+      clone.style.transform = 'translate(0, 0)';
+      clone.style.transition = 'none';
+      clone.style.pointerEvents = 'none';
+      clone.style.zIndex = 99999;
+      clone.style.willChange = 'transform';
+      // Optional: give an identifiable class for debugging
+      clone.classList.add('gravity-clone');
+
+      // Hide original but keep its space (visibility) so layout doesn't reflow
+      el.style.visibility = 'hidden';
+
+      document.body.appendChild(clone);
+      clones.push({ el: clone, original: el, rect });
+    });
+
+    if (clones.length === 0) {
+      // restore and bail
+      sourceElements.forEach((el) => (el.style.visibility = originalVisibilities.get(el) || ''));
+      document.documentElement.style.overflow = prevOverflow;
+      document.body.style.overflow = prevOverflow;
+      return;
+    }
+
+    // Create physics items using viewport coords
+    const physics = clones.map((item) => {
+      return {
+        el: item.el,
+        originalEl: item.original,
+        x: parseFloat(item.el.style.left),
+        y: parseFloat(item.el.style.top),
+        w: parseFloat(item.el.style.width),
+        h: parseFloat(item.el.style.height),
+        vx: Math.random() * (params.randomKickX[1] - params.randomKickX[0]) + params.randomKickX[0],
+        vy: 0,
+        baseLeft: parseFloat(item.el.style.left),
+        baseTop: parseFloat(item.el.style.top),
+      };
+    });
+
+    let rafId = null;
+    let last = performance.now();
+
+    function run() {
+      const now = performance.now();
+      const dt = Math.min((now - last) / 1000, 0.033);
+      last = now;
+
+      const stageH = window.innerHeight;
+      const stageW = window.innerWidth;
+      const floorY = stageH - params.bottomInset;
+      let allSettled = true;
+
+      physics.forEach((item) => {
+        const groundY = floorY - item.h;
+        const leftLimit = params.sideInset;
+        const rightLimit = stageW - params.sideInset - item.w;
+
+        // Gravity
+        item.vy += params.gravity * dt;
+
+        // Air drag
+        item.vx *= 1 - params.airDrag * dt;
+
+        // Integrate positions
+        item.x += item.vx * dt;
+        item.y += item.vy * dt;
+
+        // Floor collision
+        if (item.y > groundY) {
+          item.y = groundY;
+          item.vy = -item.vy * params.bounce;
+          // friction reduces horizontal speed on bounce
+          item.vx *= Math.max(0, 1 - params.groundFriction * dt);
+        }
+
+        // Side collisions
+        if (item.x < leftLimit) {
+          item.x = leftLimit;
+          item.vx = -item.vx * params.wallBounce;
+        } else if (item.x > rightLimit) {
+          item.x = rightLimit;
+          item.vx = -item.vx * params.wallBounce;
+        }
+
+        // Settled detection
+        const nearGround = Math.abs(groundY - item.y) < 1;
+        const slowVelocity = Math.abs(item.vx) < 2 && Math.abs(item.vy) < 5;
+        if (nearGround && slowVelocity) {
+          item.y = groundY;
+          item.vx = 0;
+          item.vy = 0;
+        } else {
+          allSettled = false;
+        }
+
+        // Apply transform (translate from starting position)
+        const dx = item.x - item.baseLeft;
+        const dy = item.y - item.baseTop;
+        item.el.style.transform = `translate(${dx}px, ${dy}px)`;
+      });
+
+      if (!allSettled) {
+        rafId = requestAnimationFrame(run);
+      } else {
+
+      }
+    }
+
+
+
+    // Start animation
+    last = performance.now();
+    rafId = requestAnimationFrame(run);
+
+    function cleanup() {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+
+      // Smoothly return clones to their original positions (translate to 0) then remove
+      physics.forEach((item) => {
+        item.el.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s';
+        item.el.style.transform = 'translate(0, 0)';
+        item.el.style.opacity = '0.95';
+      });
+
+      // After transition remove clones and restore original visibility
+      setTimeout(() => {
+        physics.forEach((item) => {
+          // Remove clone
+          if (item.el && item.el.parentNode) item.el.parentNode.removeChild(item.el);
+          // Restore original's visibility
+          if (item.originalEl) item.originalEl.style.visibility = originalVisibilities.get(item.originalEl) || '';
+        });
+
+        // Restore scrolling
+        document.documentElement.style.overflow = prevOverflow;
+        document.body.style.overflow = prevOverflow;
+
+      }, 700);
+    }
+  }
+
+  // Add CSS for the gravity effect (no rotation animations)
+  const gravityStyles = document.createElement('style');
+  gravityStyles.textContent = `
+  @keyframes gravityFadeIn {
+    0% { opacity: 0; transform: translateY(-20px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  
+  .gravity-falling {
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+  
+  /* Prevent text selection during animation */
+  .cst-filters-container * {
+    user-select: none;
+  }
+`;
+  document.head.appendChild(gravityStyles);
+</script>
+
+{% schema %}
+{
+  "name": "t:sections.main-search.name",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    {
+      "type": "range",
+      "id": "columns_desktop",
+      "min": 1,
+      "max": 6,
+      "step": 1,
+      "default": 4,
+      "label": "t:sections.main-search.settings.columns_desktop.label"
+    },
+    {
+      "type": "select",
+      "id": "columns_mobile",
+      "default": "2",
+      "label": "t:sections.main-search.settings.columns_mobile.label",
+      "options": [
+        {
+          "value": "1",
+          "label": "t:sections.main-search.settings.columns_mobile.options__1.label"
+        },
+        {
+          "value": "2",
+          "label": "t:sections.main-search.settings.columns_mobile.options__2.label"
+        }
+      ]
+    },
+    {
+      "type": "header",
+      "content": "Sold out Badge Settings"
+    },
+    {
+      "type": "text",
+      "id": "soldout_text",
+      "label":"Text",
+      "default": "Sold Out :("
+    },
+    {
+      "type": "color",
+      "label": "Overlay Color",
+      "id": "overlay_color",
+      "default": "#FF0000"
+    },
+    {
+      "type": "range",
+      "label": "Overlay Opacity",
+      "id": "overlay_opacity",
+      "min": 0,
+      "max": 1,
+      "step": 0.1,
+      "default": 0.4
+    },
+    {
+      "type": "header",
+      "content": "Special Tags Settings"
+    },
+    {
+      "type": "image_picker",
+      "id": "tag_soldout_img",
+      "label": "Soldout Image",
+      "info": "this will show if product is unavailable"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.main-search.settings.header__1.content"
+    },
+    {
+      "type": "select",
+      "id": "image_ratio",
+      "options": [
+        {
+          "value": "adapt",
+          "label": "t:sections.main-search.settings.image_ratio.options__1.label"
+        },
+        {
+          "value": "portrait",
+          "label": "t:sections.main-search.settings.image_ratio.options__2.label"
+        },
+        {
+          "value": "square",
+          "label": "t:sections.main-search.settings.image_ratio.options__3.label"
+        }
+      ],
+      "default": "adapt",
+      "label": "t:sections.main-search.settings.image_ratio.label"
+    },
+    {
+      "type": "select",
+      "id": "image_shape",
+      "options": [
+        {
+          "value": "default",
+          "label": "t:sections.all.image_shape.options__1.label"
+        },
+        {
+          "value": "arch",
+          "label": "t:sections.all.image_shape.options__2.label"
+        },
+        {
+          "value": "blob",
+          "label": "t:sections.all.image_shape.options__3.label"
+        },
+        {
+          "value": "chevronleft",
+          "label": "t:sections.all.image_shape.options__4.label"
+        },
+        {
+          "value": "chevronright",
+          "label": "t:sections.all.image_shape.options__5.label"
+        },
+        {
+          "value": "diamond",
+          "label": "t:sections.all.image_shape.options__6.label"
+        },
+        {
+          "value": "parallelogram",
+          "label": "t:sections.all.image_shape.options__7.label"
+        },
+        {
+          "value": "round",
+          "label": "t:sections.all.image_shape.options__8.label"
+        }
+      ],
+      "default": "default",
+      "label": "t:sections.all.image_shape.label"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_secondary_image",
+      "default": false,
+      "label": "t:sections.main-search.settings.show_secondary_image.label"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_vendor",
+      "default": false,
+      "label": "t:sections.main-search.settings.show_vendor.label"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_rating",
+      "default": false,
+      "label": "t:sections.main-search.settings.show_rating.label",
+      "info": "t:sections.main-search.settings.show_rating.info"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.main-collection-product-grid.settings.header__1.content"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_filtering",
+      "default": true,
+      "label": "t:sections.main-collection-product-grid.settings.enable_filtering.label",
+      "info": "t:sections.main-collection-product-grid.settings.enable_filtering.info"
+    },
+    {
+      "type": "text",
+      "id": "filter_text",
+      "label": "Filter Text",
+      "default":"here you can find everything, including bags."
+    },
+    {
+      "type": "select",
+      "id": "filter_type",
+      "options": [
+        {
+          "value": "horizontal",
+          "label": "t:sections.main-collection-product-grid.settings.filter_type.options__1.label"
+        },
+        {
+          "value": "vertical",
+          "label": "t:sections.main-collection-product-grid.settings.filter_type.options__2.label"
+        },
+        {
+          "value": "drawer",
+          "label": "t:sections.main-collection-product-grid.settings.filter_type.options__3.label"
+        }
+      ],
+      "default": "horizontal",
+      "label": "t:sections.main-collection-product-grid.settings.filter_type.label"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sorting",
+      "default": true,
+      "label": "t:sections.main-collection-product-grid.settings.enable_sorting.label"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.main-search.settings.header__2.content"
+    },
+    {
+      "type": "checkbox",
+      "id": "article_show_date",
+      "default": true,
+      "label": "t:sections.main-search.settings.article_show_date.label"
+    },
+    {
+      "type": "checkbox",
+      "id": "article_show_author",
+      "default": false,
+      "label": "t:sections.main-search.settings.article_show_author.label"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.all.padding.section_padding_heading"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "label": "t:sections.all.padding.padding_top",
+      "default": 36
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "label": "t:sections.all.padding.padding_bottom",
+      "default": 36
+    },
+    {
+        "type":"header",
+        "content":"Search - No Result"
+      },
+      {
+        "type":"image_picker",
+        "id":"search_no_image",
+        "label":"Image"
+      },
+      {
+        "type":"richtext",
+        "id":"search_content",
+        "label":"Content"
+      },
+      {
+        "type": "select",
+        "id": "search_content_size",
+        "label": "Font Size",
+        "options": [
+            {
+                "label": "S",
+                "value": "13px"
+            },
+            {
+                "label": "M",
+                "value": "26px"
+            },
+            {
+                "label": "L",
+                "value": "36px"
+            },
+            {
+                "label": "XL",
+                "value": "50px"
+            },
+            {
+                "label": "XXL",
+                "value": "134px"
+            }
+        ],
+        "default":"26px"
+      },
+      {
+        "type": "select",
+        "id": "search_content_size_m",
+        "label": "Font Size (Mobile)",
+        "options": [
+            {
+                "label": "S",
+                "value": "13px"
+            },
+            {
+                "label": "M",
+                "value": "26px"
+            },
+            {
+                "label": "L",
+                "value": "36px"
+            },
+            {
+                "label": "XL",
+                "value": "50px"
+            },
+            {
+                "label": "XXL",
+                "value": "134px"
+            }
+        ],
+        "default":"26px"
+      }
+  ]
+}
+{% endschema %}

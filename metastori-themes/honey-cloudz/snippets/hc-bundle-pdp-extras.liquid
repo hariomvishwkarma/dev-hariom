@@ -1,0 +1,142 @@
+{% doc %}
+  Bundle PDP fixes kept in their own file so they never touch shared theme files
+  (main-product.liquid, variant-selection.js, custom.css) that main also edits.
+  Rendered from sb-io-swatches, so it only loads on bundle (infinite options) products.
+
+  - Hides the "Inserts?" heading of the inserts "Why" section on the bundle templates.
+  - Gives the sticky bar the default template's "Select options" button. The sticky
+    bar's own form carries none of the bundle picker's inputs, so on bundles its form
+    is replaced by one button that follows the main Add to cart: "Select options"
+    (jumps to the picker and opens the size-selection popup) until every item is
+    picked, then Add to cart, which presses the main button so the picks go with it.
+{% enddoc %}
+
+<style>
+  .custom-classic-trio .hc-pdp-alchemy-reset .hc-pdp-r-s1m3s2.hc-pdp-rte h2,
+  .custom-plus-trio .hc-pdp-alchemy-reset .hc-pdp-r-s1m3s2.hc-pdp-rte h2,
+  .custom-push-up-duo .hc-pdp-alchemy-reset .hc-pdp-r-s1m3s2.hc-pdp-rte h2,
+  .custom-no-show-duo .hc-pdp-alchemy-reset .hc-pdp-r-s1m3s2.hc-pdp-rte h2,
+  .custom-breast-form-duo .hc-pdp-alchemy-reset .hc-pdp-r-s1m3s2.hc-pdp-rte h2,
+  .custom-breast-form-quad .hc-pdp-alchemy-reset .hc-pdp-r-s1m3s2.hc-pdp-rte h2 {
+    display: none;
+  }
+
+  .hc-bundle-sticky .sticky-cart__form {
+    display: none;
+  }
+
+  /* The bundle picker gives the sticky price a compare-at, which turns it into a sale
+     price in the sale colour. Other product pages show it in the price colour. */
+  .hc-bundle-sticky .price--on-sale .price-item--sale {
+    color: var(--color-price);
+  }
+
+  .hc-bundle-sticky .hc-bundle-sticky__button.button {
+    flex: 0 0 auto;
+    align-self: center;
+    width: auto;
+    max-width: none;
+    height: 4rem;
+    white-space: nowrap;
+  }
+</style>
+
+<script>
+  (function () {
+    /* Only the product page's own form may drive its sticky bar. Quick view re-runs
+       this script inside product cards, and on a product page those cards can sit in
+       the same section as another product's sticky bar. */
+    var script = document.currentScript;
+    if (!script || script.closest('quick-view-drawer, .quick-view, .quick-view__content')) return;
+    var mainForm = script.closest('form');
+    // getAttribute: form.id is shadowed by the form's <input name="id">.
+    var sectionId = mainForm ? (mainForm.getAttribute('id') || '').replace(/^product-form-/, '') : '';
+    var selectLabel = {{ settings.variant_selection_button_text | default: 'Select options' | json }};
+
+    /* Same jump as VariantSelection.scrollToPicker, aimed at the bundle picker: that
+       one only looks for the theme's variant picker, which is hidden on bundles. The
+       jump has to land before the popup locks the body, so smooth scrolling is
+       suspended for it. */
+    function scrollToPicker(picker) {
+      var header = document.querySelector('sticky-header, .header-wrapper, #shopify-section-header');
+      var offset = 20 + (header ? header.getBoundingClientRect().height : 0);
+      var top = Math.max(0, window.pageYOffset + picker.getBoundingClientRect().top - offset);
+      var root = document.documentElement;
+      var prev = root.style.getPropertyValue('scroll-behavior');
+      var prevPriority = root.style.getPropertyPriority('scroll-behavior');
+      root.style.setProperty('scroll-behavior', 'auto', 'important');
+      try {
+        window.scrollTo({ top: top, behavior: 'instant' });
+      } catch (e) {
+        window.scrollTo(0, top);
+      }
+      if (prev) root.style.setProperty('scroll-behavior', prev, prevPriority);
+      else root.style.removeProperty('scroll-behavior');
+    }
+
+    function showPopup() {
+      if (window.VariantSelection && typeof window.VariantSelection.showPopup === 'function') {
+        window.VariantSelection.showPopup();
+        return;
+      }
+      var modal = document.getElementById('SizeSelectionModal');
+      if (modal && typeof modal.show === 'function') modal.show();
+    }
+
+    function setup() {
+      if (!sectionId) return;
+      var sticky = document.getElementById('sticky-cart-' + sectionId);
+      var stickyRow = sticky && sticky.querySelector('.sticky-cart');
+      var picker = mainForm.querySelector('[data-sb-io]');
+      var mainAdd = mainForm.querySelector('button.product-form__submit[name="add"]');
+      if (!stickyRow || !picker || !mainAdd || sticky.querySelector('.hc-bundle-sticky__button')) return;
+
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'product-form__select-options button button--small hc-bundle-sticky__button';
+      stickyRow.appendChild(button);
+      sticky.classList.add('hc-bundle-sticky');
+
+      // Until the picker has checked the main button (data-sb-io-lock-obs), nothing
+      // is picked yet, so start on Select options like the default template does.
+      function isMissing() {
+        return !mainAdd.hasAttribute('data-sb-io-lock-obs') || mainAdd.getAttribute('data-sb-io-locked') === 'missing';
+      }
+
+      function sync() {
+        var missing = isMissing();
+        var label = mainAdd.querySelector('.hc-atc__label') || mainAdd;
+        button.textContent = missing ? selectLabel : label.textContent.trim();
+        button.disabled = !missing && mainAdd.disabled;
+        if (missing) button.setAttribute('aria-haspopup', 'dialog');
+        else button.removeAttribute('aria-haspopup');
+      }
+
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        if (isMissing()) {
+          scrollToPicker(picker);
+          // Let the jump paint first, so the customer sees where they were taken.
+          window.requestAnimationFrame(showPopup);
+          return;
+        }
+        if (!mainAdd.disabled) mainAdd.click();
+      });
+
+      new MutationObserver(sync).observe(mainAdd, {
+        attributes: true,
+        attributeFilter: ['data-sb-io-locked', 'data-sb-io-lock-obs', 'disabled'],
+        childList: true,
+        characterData: true,
+        subtree: true
+      });
+      sync();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setup);
+    } else {
+      setup();
+    }
+  })();
+</script>

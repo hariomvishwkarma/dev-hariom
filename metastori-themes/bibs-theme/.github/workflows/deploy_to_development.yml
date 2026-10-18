@@ -1,0 +1,62 @@
+name: Deploy to Development
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Merge main into development (with conflict check)
+        run: |
+          git fetch origin
+          BRANCH="development"
+
+          # Check if the remote branch exists
+          if git ls-remote --exit-code --heads origin $BRANCH; then
+            echo "✅ Remote branch $BRANCH exists. Checking out..."
+            git checkout -B $BRANCH origin/$BRANCH
+          else
+            echo "⚠️ Remote branch $BRANCH does not exist. Creating from main."
+            git checkout -B $BRANCH origin/main
+          fi
+
+          # Attempt merge
+          if git merge origin/main --no-ff -m "Merge main into $BRANCH [auto]"; then
+            echo "✅ Merge successful"
+          else
+            echo "❌ Merge conflict detected. Aborting deploy."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Commit and push built assets to development
+        run: |
+          git add assets/parcel_scripts.js assets/parcel_style.css
+          git commit -m "Add built parcel_scripts.js and parcel_style.css [auto]" || echo "No changes to commit"
+          git push --set-upstream origin development

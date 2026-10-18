@@ -1,0 +1,72 @@
+{% comment %}
+  Renders product media gallery
+
+  Accepts:
+  - product {Object}: Product object
+  - show_watermark {Boolean}: Show watermark
+  - product_watermark_image {Object}: Product watermark image
+  - watermark_size {String}: Watermark size
+  Usage:
+  {% render 'product-media-gallery', product: product, show_watermark: _, product_watermark_image: _, watermark_size: _ %}
+{% endcomment %}
+
+{% liquid
+  assign media_fit = section.settings.media_fit
+  assign hide_variants = section.settings.hide_variants
+  assign variant_images = product.images | where: 'attached_to_variant?', true | map: 'src'
+
+  if hide_variants and variant_images.size == product.media.size
+    assign single_media_visible = true
+  endif
+%}
+
+{%- capture swiper_options -%}
+  {
+    "slidesPerView": 1,
+    "loop": true,
+    "fadeEffect":{
+      "crossFade": true
+    },
+    "speed": 1,
+    {% if single_media_visible -%}
+      "allowTouchMove": false
+    {%- else -%}
+      "pagination": {
+        "enabled": true,
+        "el": ".swiper-pagination",
+        "type": "fraction"
+      },
+      "breakpoints": {
+        "768": {
+          "pagination": {
+            "enabled": false
+          }
+        }
+      }
+    {%- endif -%}
+  }
+{%- endcapture -%}
+
+{%- capture swiper_attribute -%}
+  data-swiper='{{- swiper_options -}}'
+{%- endcapture -%}
+
+<div class="swiper product-media-gallery-swiper w-full h-full" {{ swiper_attribute }}>
+  <div class="swiper-wrapper">
+    {% render 'product-media-gallery-items',
+      product: product,
+      enable_popup: true,
+      zoom_type: 'hover',
+      media_fit: media_fit,
+      hide_variants: hide_variants
+    %}
+  </div>
+  {%- unless single_media_visible -%}
+    <div class="swiper-pagination"></div>
+  {%- endunless -%}
+  {% if show_watermark and template.name == 'product' %}
+    {% render 'product-watermark', product_watermark_image: product_watermark_image, watermark_size: watermark_size %}
+  {% endif %}
+</div>
+
+{% render 'product-image-zoom-modal', product: product %}

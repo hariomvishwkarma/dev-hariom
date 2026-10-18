@@ -1,0 +1,28 @@
+{% doc %}
+Renders pre-order messaging for a cart or order line item.
+@param {line_item} line_item - Cart item or order line item
+{% enddoc %}
+
+{%- liquid
+  # Theme settings > Preorder > Enable pre-order gates the whole feature, so older
+  # carts that still carry the line item properties stay silent while it is off.
+  assign is_preorder = false
+
+  if settings.preorder_enabled
+    if line_item.properties['Pre-order'] == 'Yes' or line_item.properties['_preorder'] == 'true'
+      assign is_preorder = true
+    elsif line_item.variant.inventory_policy == 'continue' and line_item.variant.inventory_quantity <= 0
+      assign is_preorder = true
+    endif
+  endif
+-%}
+
+{%- if is_preorder -%}
+  <div class="preorder-line-item-message rte">
+    {%- if line_item.properties['Pre-order message'] != blank -%}
+      <p>{{ line_item.properties['Pre-order message'] }}</p>
+    {%- else -%}
+      {% render 'preorder-variant-message', variant: line_item.variant %}
+    {%- endif -%}
+  </div>
+{%- endif -%}

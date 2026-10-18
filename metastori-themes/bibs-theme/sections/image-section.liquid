@@ -1,0 +1,382 @@
+{% liquid
+  assign flip_order = section.settings.flip_order
+  assign heading_font_size = section.settings.heading_font_size
+  assign image_height = section.settings.image_height
+  assign margin_bottom = section.settings.margin_bottom
+
+  assign all_blocks_empty = true
+  for block in section.blocks
+    if block.settings.description != blank
+      assign all_blocks_empty = false
+    endif
+  endfor
+%}
+
+{%- unless all_blocks_empty -%}
+  {% style %}
+    #shopify-section-{{ section.id }} {
+      --custom-bg-color: {{ section.settings.custom_bg_color }};
+      --custom-header-color: {{ section.settings.header_color }};
+      --custom-text-color: {{ section.settings.text_color }};
+      --custom-button-color: {{ section.settings.button_color }};
+      --section-padding-y: {{ section.settings.padding_y }}px;
+      --section-padding-y-mobile: {{ section.settings.padding_y_mobile }}px;
+    }
+    #shopify-section-{{ section.id }} .image-section-block-heading {
+      color: var(--custom-header-color);
+    }
+    #shopify-section-{{ section.id }} .image-section-block-text {
+      color: var(--custom-text-color);
+    }
+    #shopify-section-{{ section.id }} .button_outline--primary {
+      color: var(--custom-button-color);
+      border-color: var(--custom-button-color);
+    }
+  {% endstyle %}
+
+  <div class="bg-[var(--custom-bg-color)]">
+    <div class="image-section-grid grid grid-cols-1 lg:grid-cols-2 lg:gap-x-20 gap-y-5 lg:gap-y-0 py-[var(--section-padding-y-mobile)] md:py-[var(--section-padding-y)]">
+      {% for block in section.blocks %}
+        {% liquid
+          assign block_title_settings = block.settings.title
+          assign custom_color = block.settings.custom_color
+          assign description = block.settings.description
+          assign block_image = block.settings.image
+          assign button_text = block.settings.button_text
+          assign button_text_2 = block.settings.button_text_2
+          assign button_link = block.settings.button_link
+          assign button_link_2 = block.settings.button_link_2
+          assign remainder = forloop.index0 | modulo: 2
+        %}
+
+        {%- if description == blank -%}
+          {%- continue -%}
+        {%- endif -%}
+
+        {%- if remainder == 1 -%}
+          {%- assign is_even = true -%}
+        {%- else -%}
+          {%- assign is_even = false -%}
+        {%- endif -%}
+        {%- capture block_image_text -%}
+        {%- case forloop.index -%}
+        {%- when 1 -%}
+          {%- assign row_start = ' lg:row-start-1' -%}
+          {%- assign row_start_image = ' order-1' -%}
+          {%- assign row_start_content = ' order-2' -%}
+        {%- when 2 -%}
+          {%- assign row_start = ' lg:row-start-2' -%}
+          {%- assign row_start_image = ' order-3' -%}
+          {%- assign row_start_content = ' order-4' -%}
+          {%- when 3 -%}
+          {%- assign row_start = ' lg:row-start-3' -%}
+          {%- assign row_start_image = ' order-5' -%}
+          {%- assign row_start_content = ' order-6' -%}
+        {%- when 4 -%}
+          {%- assign row_start = ' lg:row-start-4' -%}
+          {%- assign row_start_image = ' order-7' -%}
+          {%- assign row_start_content = ' order-8' -%}
+        {%- when 5 -%}
+          {%- assign row_start = ' lg:row-start-5' -%}
+          {%- assign row_start_image = ' order-8' -%}
+          {%- assign row_start_content = ' order-9' -%}
+        {%- endcase -%}
+      {%- endcapture -%}
+
+        {%- if is_even -%}
+          {%- assign image_wrapper_classes = 'lg:col-start-1' -%}
+          {%- assign content_wrapper_classes = 'lg:pr-16' -%}
+          {{ block_image_text }}
+          {%- assign image_wrapper_classes = image_wrapper_classes | append: row_start -%}
+          {%- if flip_order -%}
+            {%- assign content_wrapper_classes = content_wrapper_classes | append: row_start_content -%}
+            {%- assign image_wrapper_classes = image_wrapper_classes | append: row_start_image -%}
+          {%- endif -%}
+        {%- else -%}
+          {%- assign image_wrapper_classes = 'lg:col-start-2' -%}
+          {%- assign content_wrapper_classes = 'lg:pl-16' -%}
+          {{ block_image_text }}
+          {%- assign image_wrapper_classes = image_wrapper_classes | append: ' ' | append: row_start -%}
+          {%- if flip_order -%}
+            {%- assign content_wrapper_classes = content_wrapper_classes | append: row_start_content -%}
+            {%- assign image_wrapper_classes = image_wrapper_classes | append: row_start_image -%}
+          {%- endif -%}
+        {%- endif -%}
+
+        {%- if section.blocks.size > 1 -%}
+          {%- if forloop.first -%}
+            {%- assign image_wrapper_classes = image_wrapper_classes -%}
+          {%- endif -%}
+        {%- endif -%}
+
+        <div
+          class="image-section-content{% unless heading_font_size == 'default' %} heading--{{ heading_font_size }}{% endunless %} space-y-4 z-1 {{ content_wrapper_classes }} flex flex-col justify-center items-center"
+        >
+          <div class="md:max-w-[563px] 2xl:max-w-[770px] px-10">
+            {%- if block_title_settings != blank -%}
+              {% liquid
+                if block_title_settings contains '[' and block_title_settings contains ']' and custom_color != blank and custom_color != 'rgba(0,0,0,0)'
+                  assign opening_tag = '<span ' | append: 'style="color:' | append: custom_color | append: ';">'
+                  assign block_title = block_title_settings | replace: '[', opening_tag | replace: ']', '</span>'
+                else
+                  assign block_title = block_title_settings
+                endif
+              %}
+              {% render 'c-title', content: block_title, custom_tag: 'h2', classes: 'image-section-block-heading' %}
+            {%- endif -%}
+            {% render 'c-richtext', content: description, classes: 'image-section-block-text paragraph-1' %}
+
+            {%- if button_text != blank or button_text_2 != blank -%}
+              <div class="flex flex-wrap gap-4 pt-6 lg:pt-8">
+                {% if button_text != blank %}
+                  {%- assign button_1href = button_link | default: '#' -%}
+                  {% render 'c-link', href: button_1href, content: button_text, type: 'button_outline--primary' %}
+                {% endif %}
+                {% if button_text_2 != blank %}
+                  {%- assign button_2href = button_link_2 | default: '#' -%}
+                  {% render 'c-link', href: button_2href, content: button_text_2, type: 'button_outline--primary' %}
+                {% endif %}
+              </div>
+            {%- endif -%}
+          </div>
+        </div>
+
+        <div class="image-section-image {{ image_wrapper_classes }} z-1">
+          {% liquid
+            case image_height
+              when 'small'
+                assign image_height_class = 'max-h-[400px] lg:max-h-[500px]'
+              when 'medium'
+                assign image_height_class = 'max-h-[500px] lg:max-h-[600px]'
+              when 'large'
+                assign image_height_class = 'max-h-[600px] lg:max-h-[700px]'
+              else
+                assign image_height_class = ''
+            endcase
+            assign image_alt = block_title_settings | strip_html | strip
+            render 'c-image', image: block_image, classes: 'h-full', image_classes: image_height_class, alt: image_alt
+          %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {%- render 'divider', height: margin_bottom, color_scheme: section.settings.color_scheme -%}
+{%- endunless -%}
+
+{% schema %}
+{
+  "name": "t:sections.image-section.name",
+  "class": "section-image-section",
+  "settings": [
+    {
+      "type": "color",
+      "id": "custom_bg_color",
+      "label": "Background color"
+    },
+    {
+      "type": "color",
+      "id": "header_color",
+      "label": "Header color",
+      "default": "#5A5357"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#5A5357"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button color",
+      "default": "#5A5357"
+    },
+    {
+      "type": "checkbox",
+      "id": "flip_order",
+      "label": "t:sections.image-section.settings.flip_order.label",
+      "default": true
+    },
+    {
+      "type": "select",
+      "id": "image_height",
+      "label": "t:sections.image-section.settings.image_height.label",
+      "options": [
+        {
+          "value": "auto",
+          "label": "t:sections.image-section.settings.image_height.options.auto.label"
+        },
+        {
+          "value": "small",
+          "label": "t:sections.image-section.settings.image_height.options.small.label"
+        },
+        {
+          "value": "medium",
+          "label": "t:sections.image-section.settings.image_height.options.medium.label"
+        },
+        {
+          "value": "large",
+          "label": "t:sections.image-section.settings.image_height.options.large.label"
+        }
+      ],
+      "default": "auto"
+    },
+    {
+      "type": "select",
+      "id": "heading_font_size",
+      "label": "t:sections.image-section.settings.heading_font_size.label",
+      "options": [
+        {
+          "value": "default",
+          "label": "t:sections.image-section.settings.heading_font_size.options.default.label"
+        },
+        {
+          "value": "h1",
+          "label": "t:sections.image-section.settings.heading_font_size.options.h1.label"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.image-section.settings.heading_font_size.options.h2.label"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.image-section.settings.heading_font_size.options.h3.label"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.image-section.settings.heading_font_size.options.h4.label"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.image-section.settings.heading_font_size.options.h5.label"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.image-section.settings.heading_font_size.options.h6.label"
+        }
+      ],
+      "default": "default"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.all.margin.heading"
+    },
+    {
+      "type": "select",
+      "id": "margin_bottom",
+      "label": "t:sections.all.margin.margin_bottom.label",
+      "options": [
+        {
+          "label": "t:sections.all.margin.margin_bottom.none",
+          "value": "none"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.small",
+          "value": "small"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.normal",
+          "value": "normal"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.large",
+          "value": "large"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.custom.label",
+          "value": "custom"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "default": 16,
+      "step": 1,
+      "label": "t:sections.all.margin.margin_bottom.custom.value",
+      "visible_if": "{{ section.settings.margin_bottom == 'custom' }}",
+      "unit": "px",
+      "id": "margin_bottom_custom"
+    },
+    {
+      "type": "range",
+      "id": "padding_y",
+      "label": "Padding top and bottom",
+      "min": 0,
+      "max": 80,
+      "step": 5,
+      "default": 20,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "padding_y_mobile",
+      "label": "Mobile Padding top and bottom",
+      "min": 0,
+      "max": 80,
+      "step": 5,
+      "default": 20,
+      "unit": "px"
+    }
+  ],
+  "blocks": [
+    {
+      "name": "t:sections.image-section.blocks.section.name",
+      "type": "section",
+      "limit": 7,
+      "settings": [
+        {
+          "type": "richtext",
+          "id": "title",
+          "label": "t:sections.image-section.blocks.section.settings.title.label",
+          "info": "t:sections.image-section.blocks.section.settings.title.info"
+        },
+        {
+          "type": "color",
+          "id": "custom_color",
+          "label": "t:sections.image-section.blocks.section.settings.custom_color.label",
+          "info": "t:sections.image-section.blocks.section.settings.custom_color.info"
+        },
+        {
+          "type": "richtext",
+          "id": "description",
+          "label": "Description"
+        },
+        {
+          "type": "text",
+          "id": "button_text",
+          "label": "Button 1 name"
+        },
+        {
+          "type": "url",
+          "id": "button_link",
+          "label": "Button 1 link"
+        },
+        {
+          "type": "text",
+          "id": "button_text_2",
+          "label": "Button 2 name"
+        },
+        {
+          "type": "url",
+          "id": "button_link_2",
+          "label": "Button 2 link"
+        },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Image"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.image-section.name"
+    }
+  ]
+}
+{% endschema %}

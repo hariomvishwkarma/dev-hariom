@@ -1,0 +1,84 @@
+{%- liquid
+  capture free_delivery_limit
+    render 'get-free-limit', limit: settings.free_delivery_limit, custom_limits: settings.free_delivery_limit_custom, custom_eu_limits: settings.eu_free_delivery_limit_custom
+  endcapture
+
+  assign free_delivery_limit = free_delivery_limit | abs
+  assign diff_to_free_delivery = cart.total_price | divided_by: 100.0 | times: 1.0 | minus: free_delivery_limit
+  assign diff_to_free_delivery_abs = diff_to_free_delivery | abs
+  assign diff_percentage = cart.total_price | divided_by: 100.0 | divided_by: free_delivery_limit | times: 100.0 | round
+  assign diff_to_free_delivery_abs = diff_to_free_delivery_abs | times: 100 | money
+  assign free_delivery_limit_empty_cart = free_delivery_limit | divided_by: 100.0 | times: 10000 | money
+  assign free_gift_limit = false
+
+  if settings.free_gift != blank and settings.free_gift_limit > 0
+    capture free_gift_limit
+      render 'get-free-limit', limit: settings.free_gift_limit, custom_limits: settings.free_gift_limit_custom, custom_eu_limits: settings.eu_free_gift_limit_custom
+    endcapture
+
+    assign free_gift_limit = free_gift_limit | abs
+    assign diff_to_free_gift = cart.total_price | divided_by: 100.0 | times: 1.0 | minus: free_gift_limit
+    assign diff_to_free_gift_abs = diff_to_free_gift | abs
+    assign diff_percentage = cart.total_price | divided_by: 100.0 | divided_by: free_gift_limit | times: 100.0 | round
+    assign diff_to_free_gift_abs = diff_to_free_gift_abs | times: 100 | money
+
+    assign x = free_gift_limit | divided_by: 100.0 | times: 1.0
+    assign delivery_percentage_of_gift_limit = free_delivery_limit | divided_by: x
+  endif
+-%}
+
+<div
+  data-free-delivery-cart-bar
+  data-cart-delivery-limit="{{ free_delivery_limit }}"
+  {% if free_gift_limit %}
+    data-cart-gift-limit="{{ free_gift_limit }}"
+  {% endif %}
+  {{ attributes }}
+  class="
+    free-delivery-cart-bar flex flex-col justify-start {{ classes }}
+    {% if diff_to_free_delivery >= 0 %} success_delivery{% endif %}
+    {% if free_gift_limit %} gift_option{% endif %}
+    {% if diff_to_free_gift >= 0 and free_gift_limit %} success_gift{% endif %}
+    {% if cart.total_price == 0 %} empty{% endif %}
+    {% if section.settings.free_cart_bar_border_color_enable_border %} bordered{% endif %}
+  "
+>
+  <div class="free-delivery-cart-bar__progress w-full relative mt-4 rounded-full overflow-hidden">
+    <div class="free-delivery-cart-bar__progress-bar bg-secondary-background"></div>
+    <div
+      class="free-delivery-cart-bar__progress-status bg-button"
+      style="--width: {{- diff_percentage | round | at_most: 100 -}}%;"
+      data-progress
+    ></div>
+    {% if free_gift_limit %}
+      <div
+        class="delivery-line absolute bg-button top-0 h-2 w-px left-[var(--delivery-percentage-of-gift-limit)]"
+        style="--delivery-percentage-of-gift-limit: {{delivery_percentage_of_gift_limit}}%;"
+      ></div>
+    {% endif %}
+  </div>
+  <div class="free-delivery-cart-bar__inner w-full block text-left pt-2.5 paragraph-3">
+    {% if free_gift_limit %}
+      {% comment %} With gifts turned on {% endcomment %}
+      <p class="free-delivery-cart-bar__text success_delivery">
+        {{ 'sections.cart.free_delivery_bar.text_delivery_and_gift_html' | t: limit: diff_to_free_gift_abs }}
+      </p>
+
+      <p class="free-delivery-cart-bar__text success_gift">
+        {{ 'sections.cart.free_delivery_bar.text_delivery_and_gift_cart_success' | t }}
+      </p>
+    {% else %}
+      {% comment %} With gift turned off {% endcomment %}
+      <p class="free-delivery-cart-bar__text success_delivery">
+        {{ 'sections.cart.free_delivery_bar.text_delivery_success' | t: limit: diff_to_free_delivery_abs }}
+      </p>
+    {% endif %}
+
+    <p class="free-delivery-cart-bar__text empty">
+      {{ 'sections.cart.free_delivery_bar.text_delivery_cart_empty_html' | t: limit: free_delivery_limit_empty_cart }}
+    </p>
+    <p class="free-delivery-cart-bar__text">
+      {{ 'sections.cart.free_delivery_bar.text_delivery_html' | t: limit: diff_to_free_delivery_abs }}
+    </p>
+  </div>
+</div>

@@ -1,0 +1,108 @@
+{% liquid
+  for tag in customer.tags
+    if tag contains 'birthday'
+      assign birth_date = tag | split: ':' | last | date: '%d/%m/%Y'
+    endif
+  endfor
+
+  assign last_order = customer.orders | last
+  assign last_order_items = last_order.line_items
+  assign last_order_date = last_order.created_at | date: '%d/%m/%Y'
+  assign last_order_delivery = ''
+
+  assign order_padding = ''
+  if last_order == blank
+    assign order_padding = 'text-center pt-4 pb-4'
+  else
+    assign order_padding = 'md:flex'
+  endif
+
+  if last_order.fulfillment_status == 'unfulfilled'
+    assign order_status = 'New Order'
+  else
+    assign order_status = 'Completed One'
+  endif
+
+  if last_order.pickup_in_store
+    assign last_order_delivery = 'Pickup in store'
+  else
+    assign last_order_delivery = 'Home delivery'
+  endif
+%}
+
+{% capture last_order_status %}
+  {% if last_order.fulfillment_status == 'unfulfilled' %}
+    <div class="flex basis-full items-center gap-2 pb-6">
+      {% render 'c-icon', icon: 'clock' %}
+      {% render 'c-text', content: order_status, type: 'paragraph-2', classes: 'inline-block' %}
+    </div>
+  {% else %}
+    <div class="flex basis-full items-center gap-2 pb-6">
+      {% render 'c-icon', icon: 'checkmark', classes: 'w-5 h-5' %}
+      {% render 'c-text', content: order_status, type: 'paragraph-2', classes: 'inline-block' %}
+    </div>
+  {% endif %}
+{% endcapture %}
+
+<div class="container-fluid color-{{ section.settings.color_scheme }}">
+  <div class="my-6">
+    <div class="md:flex flex-wrap">
+      {% render 'account-navigation' %}
+
+      <div class="flex flex-wrap flex-col mt-10 flex-1 gap-y-12 max-w-[784px]">
+        <div class="flex items-baseline justify-between">
+          {% render 'c-title', type: 'h3', custom_tag: 'h2', translatable_content: 'customer.orders.title' %}
+
+          {% if customer.orders.size > 0 %}
+            {% capture print_label %}
+              <span class="[&>svg]:inline-block flex items-baseline gap-1 font-medium">{% render 'c-icon', icon: 'print', classes: 'w-[14px] h-[11px]' %}{% render 'c-text', translatable_content: 'customer.orders.print_orders', type: 'h8-bold' %}</span>
+            {% endcapture %}
+            {% render 'c-link', content: print_label, href: '#', classes: 'link decoration-grey-400' %}
+          {% endif %}
+        </div>
+
+        {% if customer.orders.size > 0 %}
+          <div class="relative">
+            {% render 'c-icon', icon: 'search', classes: 'absolute w-6 h-6 z-1 ml-2 translate-y-[calc(50%_-_2px)]' %}
+            {% render 'c-input',
+              input_translatable_placeholder: 'customer.orders.page.search_placeholder',
+              input_type: 'text',
+              input_name: 'search_orders',
+              input_classes: 'py-3 px-8 peer-placeholder-shown:top-4 leading-4 placeholder-foreground'
+            %}
+
+            {% capture clear_search_button_content %}
+                {% render 'c-icon',
+                  icon: 'clear',
+                  classes: 'w-6 h-6'
+                %}
+              {% endcapture %}
+
+            {% render 'c-button',
+              content: clear_search_button_content,
+              custom_attributes: 'data-clear-search hidden',
+              classes: 'absolute right-2 top-0 z-1 cursor-pointer translate-y-[calc(50%_-_2px)]'
+            %}
+          </div>
+        {% endif %}
+
+        {% render 'customer-orders', customer: customer, paginate_by: 250 %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "t:sections.main-account.name",
+  "class": "customer account",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    }
+  ]
+}
+{% endschema %}

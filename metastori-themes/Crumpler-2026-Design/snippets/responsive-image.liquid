@@ -1,0 +1,50 @@
+{%- comment -%}
+  Responsive Image Snippet
+  Usage: {% render 'responsive-image', image: image, class: 'custom-class', sizes: '100vw' %}
+{%- endcomment -%}
+
+{%- liquid
+  # Default values
+  assign image_class = class | default: ''
+  assign image_sizes = sizes | default: '100%'
+  assign image_alt = alt | default: image.alt | escape
+  assign image_widths = widths | default: '375, 550, 750, 1100, 1500, 1780, 2000, 3000, 3840'
+  assign lazy_loading = lazy | default: true
+  assign preload = preload | default: false
+  
+  # Check if image exists
+  if image == blank
+    echo '<div class="responsive-image--placeholder ' | append: image_class | append: '">No image</div>'
+    break
+  endif
+-%}
+
+{%- if image -%}
+  {%- liquid
+    # Generate srcset
+    assign srcset = ''
+    assign width_array = image_widths | split: ','
+    
+    for width in width_array
+      assign width_num = width | strip | times: 1
+      if image.width >= width_num
+        assign image_url = image | image_url: width: width_num
+        assign srcset = srcset | append: image_url | append: ' ' | append: width_num | append: 'w, '
+      endif
+    endfor
+    
+    # Remove trailing comma and space
+    assign srcset = srcset | remove: ', ' | strip
+  -%}
+
+  {{ image | image_url: width: image.width | image_tag:
+    class: image_class,
+    srcset: srcset,
+    sizes: image_sizes,
+    loading: lazy_loading,
+    preload: preload,
+    alt: image_alt,
+    width: image.width,
+    height: image.height
+  }}
+{%- endif -%}

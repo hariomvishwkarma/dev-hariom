@@ -1,0 +1,428 @@
+{%- style -%}
+  .faq-card {
+    {% if section.settings.card_bg_image != blank %}
+      background-image: url('{{ section.settings.card_bg_image | image_url: width: 800 }}');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    {% endif %}
+    color: {{ section.settings.card_text_color }};
+  }
+
+  .faq-card::before {
+    background-color: var(--overlay-color, {{ section.settings.card_overlay_color }});
+    opacity: calc(var(--overlay-opacity, {{ section.settings.card_overlay_opacity }}) / 100);
+  }
+
+  {% if section.settings.enable_card_hover %}
+  .faq-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.1);
+  }
+  {% endif %}
+
+  .faq-arrow {
+    color: {{ section.settings.arrow_color }};
+  }
+
+  .faq-card:hover .faq-arrow {
+    color: {{ section.settings.arrow_hover_color }};
+  }
+
+  .faq-button-wrapper {
+    justify-content: {% if section.settings.button_alignment == 'center' %}center{% elsif section.settings.button_alignment == 'right' %}flex-end{% else %}flex-start{% endif %};
+  }
+
+  /* Mobile (below 990px) */
+  .section-{{ section.id }}-padding {
+    padding-top: {{ section.settings.padding_top_mobile }}px;
+    padding-bottom: {{ section.settings.padding_bottom_mobile }}px;
+  }
+
+  /* Desktop (990px and above) */
+  @media screen and (min-width: 990px) {
+    .section-{{ section.id }}-padding {
+      padding-top: {{ section.settings.padding_top_desktop }}px;
+      padding-bottom: {{ section.settings.padding_bottom_desktop }}px;
+    }
+  }
+{%- endstyle -%}
+
+<div class="help-center-faq-wrapper section-{{ section.id }}-padding">
+  <div class="container">
+    {%- if section.settings.section_heading != blank -%}
+      <h2 class="faq-section-heading">{{ section.settings.section_heading | escape }}</h2>
+    {%- endif -%}
+
+    <div class="faq-slider" id="faq-slider-{{ section.id }}">
+      {%- for block in section.blocks -%}
+        {%- capture card_style -%}
+          --color-bg: {{ block.settings.card_bg_color | default: '#dde9f8' }};
+          {%- if block.settings.card_bg_image != blank -%}
+            background-image: url('{{ block.settings.card_bg_image | image_url: width: 800 }}'); background-size: cover; background-position: center; background-repeat: no-repeat;
+          {%- endif -%}
+          {%- if block.settings.card_overlay_opacity > 0 -%}
+            --overlay-color: {{ block.settings.card_overlay_color }};
+            --overlay-opacity: {{ block.settings.card_overlay_opacity }};
+          {%- endif -%}
+        {%- endcapture -%}
+
+        <div class="faq-slide" {{ block.shopify_attributes }}>
+          {%- if block.settings.faq_link != blank -%}
+            <a href="{{ block.settings.faq_link }}" class="faq-card" style="{{ card_style | strip_newlines }}">
+          {%- else -%}
+            <div class="faq-card" style="{{ card_style | strip_newlines }}">
+          {%- endif -%}
+
+          <div class="faq-card-content">
+            {%- if block.settings.title != blank -%}
+              <h3 class="faq-card-title">{{ block.settings.title | escape }}</h3>
+            {%- endif -%}
+            {%- if block.settings.text != blank -%}
+              <p class="faq-card-text">{{ block.settings.text | escape }}</p>
+            {%- endif -%}
+          </div>
+
+          {%- if section.settings.show_arrow -%}
+            <div class="faq-arrow-wrapper">
+              <div class="faq-arrow">
+                {%- if section.settings.custom_arrow_image != blank -%}
+                  {{ section.settings.custom_arrow_image | image_url: width: 160 | image_tag: loading: 'lazy' }}
+                {%- else -%}
+                  {% render 'c-icon', icon: 'faq-arrow', classes: 'faq-arrow' %}
+                {%- endif -%}
+              </div>
+            </div>
+          {%- endif -%}
+
+          {%- if block.settings.faq_link != blank -%}
+            </a>
+          {%- else -%}
+            </div>
+          {%- endif -%}
+        </div>
+      {%- endfor -%}
+    </div>
+
+    {%- if section.settings.button_text != blank and section.settings.button_link != blank -%}
+      <div class="faq-button-wrapper">
+        <a
+          href="{{ section.settings.button_link }}"
+          class="faq-global-button border border-[var(--bibs-dark-grey)] border-solid"
+          style="--color-button: {{ section.settings.button_bg_color | default: '#7e7ebc' }}; color: {{ section.settings.button_text_color | default: '#ffffff' }}"
+        >
+          {{ section.settings.button_text | escape }}
+        </a>
+      </div>
+    {%- endif -%}
+  </div>
+</div>
+
+<script>
+  (function () {
+    function initGrabScroll(sliderId) {
+      const slider = document.getElementById(sliderId);
+      if (!slider) return;
+
+      let isDown = false;
+      let startX;
+      let scrollLeft;
+      let velX = 0;
+      let momentumId = null;
+      let lastX;
+      let lastTime;
+
+      function momentum() {
+        if (Math.abs(velX) > 0.3) {
+          slider.scrollLeft += velX;
+          velX *= 0.95;
+          momentumId = requestAnimationFrame(momentum);
+        } else {
+          cancelAnimationFrame(momentumId);
+          momentumId = null;
+          /* Re-enable scroll-snap only after momentum fully stops */
+          slider.classList.remove('is-grabbing');
+        }
+      }
+
+      slider.addEventListener('mousedown', function (e) {
+        isDown = true;
+        if (momentumId) {
+          cancelAnimationFrame(momentumId);
+          momentumId = null;
+        }
+        slider.classList.add('is-grabbing');
+        startX = e.pageX - slider.offsetLeft;
+        scrollLeft = slider.scrollLeft;
+        lastX = e.pageX;
+        lastTime = Date.now();
+        velX = 0;
+      });
+
+      slider.addEventListener('mouseleave', function () {
+        if (isDown) {
+          isDown = false;
+          /* Keep is-grabbing class active — momentum() will remove it */
+          momentum();
+        }
+      });
+
+      slider.addEventListener('mouseup', function () {
+        isDown = false;
+        /* Keep is-grabbing class active — momentum() will remove it */
+        momentum();
+      });
+
+      slider.addEventListener('mousemove', function (e) {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - slider.offsetLeft;
+        const walk = (x - startX) * 1.5;
+        slider.scrollLeft = scrollLeft - walk;
+
+        var now = Date.now();
+        var dt = now - lastTime;
+        if (dt > 0) {
+          velX = (lastX - e.pageX) * (16 / dt);
+        }
+        lastX = e.pageX;
+        lastTime = now;
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () {
+        initGrabScroll('faq-slider-{{ section.id }}');
+      });
+    } else {
+      initGrabScroll('faq-slider-{{ section.id }}');
+    }
+
+    if (window.Shopify && window.Shopify.designMode) {
+      document.addEventListener('shopify:section:load', function () {
+        initGrabScroll('faq-slider-{{ section.id }}');
+      });
+    }
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Help Center FAQ Slider",
+  "tag": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "section_heading",
+      "label": "Section Heading",
+      "default": "Frequently asked questions"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_card_hover",
+      "label": "Enable Card Hover Shadow",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Card Background & Overlay"
+    },
+    {
+      "type": "image_picker",
+      "id": "card_bg_image",
+      "label": "Global Card Background Image"
+    },
+    {
+      "type": "color",
+      "id": "card_overlay_color",
+      "label": "Overlay Color",
+      "default": "#000000"
+    },
+    {
+      "type": "range",
+      "id": "card_overlay_opacity",
+      "label": "Overlay Opacity",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "default": 0,
+      "unit": "%"
+    },
+    {
+      "type": "color",
+      "id": "card_text_color",
+      "label": "Card Text Color",
+      "default": "#333333"
+    },
+    {
+      "type": "header",
+      "content": "Arrow Settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_arrow",
+      "label": "Show Arrow",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "arrow_color",
+      "label": "Arrow Color (Hex)",
+      "default": "#7e7ebc"
+    },
+    {
+      "type": "color",
+      "id": "arrow_hover_color",
+      "label": "Arrow Hover Color (Hex)",
+      "default": "#5a5357"
+    },
+    {
+      "type": "image_picker",
+      "id": "custom_arrow_image",
+      "label": "Custom Arrow Image",
+      "info": "Replaces the default SVG arrow."
+    },
+    {
+      "type": "header",
+      "content": "Bottom Button"
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button Text",
+      "default": "Read all FAQ"
+    },
+    {
+      "type": "url",
+      "id": "button_link",
+      "label": "Button Link"
+    },
+    {
+      "type": "color",
+      "id": "button_bg_color",
+      "label": "Button Background Color",
+      "default": "#7e7ebc"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button Text Color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "select",
+      "id": "button_alignment",
+      "label": "Button Alignment",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "header",
+      "content": "Mobile Padding"
+    },
+    {
+      "type": "range",
+      "id": "padding_top_mobile",
+      "label": "Padding top (mobile)",
+      "default": 20,
+      "min": 0,
+      "max": 100,
+      "step": 2
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_mobile",
+      "label": "Padding bottom (mobile)",
+      "default": 20,
+      "min": 0,
+      "max": 100,
+      "step": 2
+    },
+    {
+      "type": "header",
+      "content": "Desktop Padding"
+    },
+    {
+      "type": "range",
+      "id": "padding_top_desktop",
+      "label": "Padding top (desktop)",
+      "default": 40,
+      "min": 0,
+      "max": 200,
+      "step": 2
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_desktop",
+      "label": "Padding bottom (desktop)",
+      "default": 40,
+      "min": 0,
+      "max": 200,
+      "step": 2
+    }
+  ],
+  "blocks": [
+    {
+      "type": "faq_item",
+      "name": "FAQ Slide",
+      "limit": 10,
+      "settings": [
+        {
+          "type": "color",
+          "id": "card_bg_color",
+          "label": "Card Background Color",
+          "default": "#dde9f8"
+        },
+        {
+          "type": "image_picker",
+          "id": "card_bg_image",
+          "label": "Card Background Image Override"
+        },
+        {
+          "type": "color",
+          "id": "card_overlay_color",
+          "label": "Overlay Color Override",
+          "default": "#000000"
+        },
+        {
+          "type": "range",
+          "id": "card_overlay_opacity",
+          "label": "Overlay Opacity Override",
+          "min": 0,
+          "max": 100,
+          "step": 1,
+          "default": 0,
+          "unit": "%"
+        },
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Question Heading",
+          "default": "Where can I track my order?"
+        },
+        {
+          "type": "textarea",
+          "id": "text",
+          "label": "Answer Snippet",
+          "default": "Your order will be shipped via Deutsche Post. Once it arrives..."
+        },
+        {
+          "type": "url",
+          "id": "faq_link",
+          "label": "Link to FAQ Page"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Help Center FAQ Slider",
+      "blocks": [{ "type": "faq_item" }, { "type": "faq_item" }, { "type": "faq_item" }, { "type": "faq_item" }]
+    }
+  ]
+}
+{% endschema %}

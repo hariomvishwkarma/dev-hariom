@@ -1,0 +1,76 @@
+{%- comment -%}
+  Renders the complementary products block.
+
+  Accepts:
+    - block {Object}: The block object
+
+  Usage:
+    {% render 'complementary-products', products_list: products_list %}
+{%- endcomment -%}
+
+{%- liquid
+  assign products_list = block.settings.complementary_products_list | where: 'available', true
+-%}
+
+{%- if products_list != blank -%}
+  {%- capture swiper_options -%}
+    {
+      "slidesPerView": 2.5
+    }
+  {%- endcapture -%}
+
+  {%- capture swiper_attribute -%}
+    data-swiper='{{- swiper_options -}}'
+  {%- endcapture -%}
+
+  {%- liquid
+    assign color_scheme = block.settings.color_scheme
+    assign heading_tag = block.settings.heading_tag
+    assign font_size = block.settings.font_size
+    assign font_weight = block.settings.font_weight
+    assign heading_type = font_size | append: ' ' | append: font_weight
+    assign italic_header_text = block.settings.italic_header_text
+    if italic_header_text
+      assign heading_type = heading_type | append: ' !italic'
+    endif
+    assign country_iso = localization.country.iso_code | downcase
+  -%}
+
+  <div class="block-complementary-products color-{{ color_scheme }} space-y-4">
+    {% render 'c-title',
+      translatable_content: 'products.product.complementary_products.title',
+      custom_tag: heading_tag,
+      type: heading_type
+    %}
+
+    <div class="swiper swiper-card" {{ swiper_attribute }}>
+      <div class="swiper-wrapper">
+        {%- for product in products_list -%}
+          {% liquid
+            assign product_tags = product.tags
+            assign product_hidden = false
+            assign tag_to_hide = 'pfs:hidden:' | append: country_iso
+            for product_tag in product_tags
+              assign product_tag_downcase = product_tag | downcase
+              if product_tag_downcase == tag_to_hide
+                assign product_hidden = true
+                break
+              endif
+            endfor
+          %}
+          {%- unless product_hidden -%}
+            <div class="swiper-slide">
+              {% render 'card-product',
+                card_product: product,
+                show_secondary_media: true,
+                media_aspect_ratio: 'bibs',
+                set_default_color_swatch: true
+              %}
+            </div>
+          {%- endunless -%}
+        {%- endfor -%}
+      </div>
+    </div>
+  </div>
+{%- endif -%}
+{% render 'divider', height: block.settings.margin_bottom, color_scheme: section.settings.color_scheme %}

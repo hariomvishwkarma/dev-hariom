@@ -1,0 +1,308 @@
+{% liquid
+  assign quiz = section.settings.quiz_metaobject
+  assign quiz_title = quiz.quiz_name
+  assign subheading = quiz.subheading
+  assign description = quiz.rich_text | metafield_tag
+  assign button_text = quiz.button_text
+  assign text_color = quiz.text_color
+  assign background_color = quiz.background_color
+  assign highlight_color = quiz.button_and_headline_color
+  assign questions = quiz.questions.value
+  assign result_collection = quiz.result_collection.value
+  assign hero_desktop = quiz.hero_desktop
+  assign hero_mobile = quiz.hero_mobile
+  assign delay = quiz.redirect_delay
+  assign delay_text = quiz.delay_text
+  assign delay_icon = quiz.delay_icon
+  assign error_message = quiz.error_message
+%}
+
+<script>
+  document.body.classList.add('quiz-page');
+</script>
+
+{% if quiz %}
+  <custom-quiz
+    data-current-step="intro"
+    data-total-questions="{{ questions.count }}"
+    data-result-collection="{{ result_collection.handle }}"
+    data-quiz-handle="{{ quiz }}"
+    data-quiz-delay="{{ delay }}"
+    data-quiz-delay-text="{{ delay_text }}"
+    style="
+      --background-color: {{ background_color }};
+      --highlight-color: {{ highlight_color }};
+      --text-color: {{ text_color }};
+    "
+  >
+    {% comment %} QUIZ NAV {% endcomment %}
+    <div class="quiz__nav">
+      {% render 'c-icon', icon: 'arrow-left', classes: 'quiz__button--back' %}
+      {% render 'c-icon', icon: 'close', classes: 'quiz__button--close' %}
+    </div>
+
+    <div class="quiz__step-progress">
+      {% for i in (1..questions.count) %}
+        <div class="{% if forloop.last %}active{% endif %}">
+          <span class="quiz__step-progress__label">{{ i }}/{{ questions.count }}</span>
+          {% if forloop.last %}
+            <div class="tail-end">‎</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    {% comment %} QUIZ INTRO STEP {% endcomment %}
+    <div
+      class="quiz__container quiz__container__intro current-step"
+      data-step-no="0"
+    >
+      <div class="quiz__step-wrapper">
+        <h1 class="quiz__title">{{ quiz_title }}</h1>
+        <div class="quiz__intro-content">
+          <h3 class="quiz__intro-content__subheading">{{ subheading }}</h3>
+          <div class="quiz__intro-content__description">
+            {{ description }}
+          </div>
+        </div>
+        <div class="quiz__button--container">
+          <div class="quiz__buttons">
+            <button class="quiz__button quiz__button--continue">{{ button_text }}</button>
+          </div>
+          {% if hero_mobile %}
+            <div class="quiz__bg-hero quiz__bg-hero--mobile">
+              {{ hero_mobile | image_url: width: 200 | image_tag }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="quiz__bg-hero quiz__bg-hero--desktop">
+        {{ hero_desktop | image_url: width: 1200 | image_tag }}
+      </div>
+    </div>
+
+    {% comment %} QUIZ QUESTION STEPS {% endcomment %}
+    {% for question in questions %}
+      {% liquid
+        assign question_description = question.rich_text | metafield_tag
+        assign background_color = question.background_color
+        assign highlight_color = question.button_and_headline_color
+        assign text_color = question.text_color
+        assign filter_handle = question.filter_handle
+        assign options = question.options.value
+        assign multiple_choices_allowed = question.allow_multiple_choices.value
+        assign help_box_text = question.help_box_text | metafield_tag
+        assign help_box_title = question.help_box_title
+        assign help_box_bg_color = question.help_box_background_color
+        assign help_box_text_color = question.help_box_text_color
+        assign help_box_icon = question.help_box_icon
+        assign layout_type = question.layout_type.value.name | downcase | default: 'standard'
+
+        if layout_type == 'color'
+          assign first_option = options | first
+          assign background_color = first_option.background_color
+          assign highlight_color = first_option.button_and_headline_color
+        endif
+      %}
+      <div
+        data-step-no="{{ forloop.index }}"
+        class="quiz__container quiz__question quiz__question--{{ layout_type }} quiz__container__question-{{ forloop.index }}"
+        style="
+          {% if background_color %}
+            --background-color: {{ background_color }};
+          {% endif %}
+          {% if highlight_color %}
+            --highlight-color: {{ highlight_color }};
+          {% endif %}
+          {% if text_color %}
+            --text-color: {{ text_color }};
+          {% endif %}
+          {% if help_box_bg_color %}
+            --help-box-bg-color: {{ help_box_bg_color }};
+          {% endif %}
+          {% if help_box_text_color %}
+            --help-box-text-color: {{ help_box_text_color }};
+          {% endif %}
+        "
+      >
+        <div class="quiz__step-wrapper">
+          <template id="quiz__selected-value-template">
+            <input class="quiz__selected-value" type="hidden" name="{{filter_handle}}" value="">
+          </template>
+          <h2 class="quiz__question__title">
+            {{ question.main_heading }}
+          </h2>
+          {% if question.rich_text or question.text %}
+            <div class="quiz__question__description_wrapper">
+              {% if question.rich_text %}
+                <div class="quiz__question__description">{{ question_description }}</div>
+              {% endif %}
+              {% if question.text %}
+                <p class="quiz__question__text">{{ question.text }}</p>
+              {% endif %}
+            </div>
+          {% endif %}
+          <div
+            class="quiz__question__answers"
+            style="
+              {% if layout_type == 'compressed' %}
+                {% if question.help_box_text != blank %}
+                  --compressed-cols-l: 0.9fr 1fr;
+                {% endif %}
+                --compressed-rows-s: repeat({{ options.count  | plus: 1}}, auto);
+                --compressed-rows-l: repeat({{ options.count }}, 1fr);
+              {% endif %}
+              {% if layout_type == 'color' %}
+              max-width: {{ options.count | times: 79 }}px;
+              {% endif %}
+            "
+          >
+            {% if layout_type == 'color' %}
+              <div class="mobile-color-instruction"></div>
+              <div class="mobile-color-marker"></div>
+            {% endif %}
+            {% for answer_option in options %}
+              {% liquid
+                assign answer_icon = answer_option.icon.value
+                assign filter_value = answer_option.filter_value
+                assign heading = answer_option.heading
+                assign description = answer_option.description | metafield_tag | strip | strip_newlines
+                assign answer_help_box_text = answer_option.help_box_text | metafield_tag | default: null
+              %}
+              <div
+                class="quiz__answer {% if layout_type == 'color' and forloop.first %}selected{% endif %} {% if layout_type == 'color' %}not-selected-color{% endif %}"
+                data-filter-value="{{ filter_value }}"
+                {% if multiple_choices_allowed %}
+                  data-multiple-choices-allowed
+                {% endif %}
+                style="
+                  {% if layout_type == 'color' %}
+                    background-color: {{ answer_option.color }};
+                  {%endif %}
+                "
+                {% if layout_type == 'color' %}
+                  data-bg-color="{{ answer_option.background_color }}"
+                  data-highlight-color="{{ answer_option.button_and_headline_color }}"
+                  data-text-color="{{ answer_option.text_color }}"
+                {% endif %}
+              >
+                {% if answer_icon and layout_type != 'color' %}
+                  {{ answer_icon | image_url: width: 52 | image_tag }}
+                {% endif %}
+                {% if heading %}
+                  <h3 class="quiz__answer__title {% if forloop.first %}selected{% endif %}">{{ heading }}</h3>
+                {% endif %}
+                {% if layout_type == 'color' %}
+                  <div class="quiz__answer__color-instructions">
+                    <span class="color-instruction color-instruction-select">
+                      {{- question.click_to_select_text -}}
+                    </span>
+                    <span class="color-instruction color-instruction-unselect">
+                      {{- question.click_to_unselect_text -}}
+                    </span>
+                  </div>
+                {% endif %}
+                {% if answer_option.description != blank and layout_type == 'standard' %}
+                  <div class="quiz__answer__description">
+                    {{ description }}
+                  </div>
+                {% endif %}
+                {% if answer_help_box_text and layout_type == 'standard' %}
+                  <div class="quiz__answer__help-box">
+                    {{ answer_help_box_text }}
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+            {% if question.help_box_text and layout_type != 'color' %}
+              <div
+                class="quiz__question__help-box quiz__question__help-box--mobile"
+                style="
+                  {% if layout_type == 'compressed' %}
+                  --help-box-grid-row: 1 / -1;
+                  --help-box-grid-col: 2;
+                  {% endif %}
+                  {% if help_box_bg_color %}--help-box-bg-color: {{ help_box_bg_color }};{% endif %}
+                  {% if help_box_text_color %}--help-box-text-color: {{ help_box_text_color }};{% endif %}
+                "
+              >
+                {% if help_box_icon %}
+                  {{ help_box_icon | image_url: width: 24 | image_tag }}
+                {% endif %}
+                {% if help_box_title %}
+                  <h3>{{ help_box_title }}</h3>
+                {% endif %}
+                {{ help_box_text }}
+              </div>
+            {% endif %}
+          </div>
+          {% if question.help_box_text and layout_type != 'color' %}
+            <div
+              class="quiz__question__help-box quiz__question__help-box--desktop"
+              style="
+                {% if layout_type == 'compressed' %}
+                --help-box-grid-row: 1 / -1;
+                --help-box-grid-col: 2;
+                {% endif %}
+                {% if help_box_bg_color %}--help-box-bg-color: {{ help_box_bg_color }};{% endif %}
+                {% if help_box_text_color %}--help-box-text-color: {{ help_box_text_color }};{% endif %}
+              "
+            >
+              {% if help_box_icon %}
+                {{ help_box_icon | image_url: width: 24 | image_tag }}
+              {% endif %}
+              {% if help_box_title %}
+                <h3>{{ help_box_title }}</h3>
+              {% endif %}
+              {{ help_box_text }}
+            </div>
+          {% endif %}
+          <div class="quiz__buttons">
+            {% if question.skip_button and question.skip_button_text %}
+              <button class="quiz__button quiz__button--skip">
+                {{ question.skip_button_text }}
+              </button>
+            {% endif %}
+            <button
+              class="quiz__button quiz__button--continue"
+              style="{% if error_message %}--error-message: '{{ error_message }}'{% endif %}"
+            >
+              {{ question.button_text }}
+            </button>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+    <div class="quiz__redirection-view">
+      {% if delay_icon %}
+        <div class="quiz__delay-icon">
+          {{ delay_icon | image_url: width: 101 | image_tag }}
+        </div>
+      {% endif %}
+      <p class="quiz__delay-text">{{ delay_text }}</p>
+    </div>
+  </custom-quiz>
+{% else %}
+  Please select which quiz you want to start in this section.
+{% endif %}
+
+{% schema %}
+{
+  "name": "Quiz",
+  "tag": "section",
+  "class": "section-quiz",
+  "settings": [
+    {
+      "type": "metaobject",
+      "id": "quiz_metaobject",
+      "label": "Quiz",
+      "metaobject_type": "quiz"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Quiz"
+    }
+  ]
+}
+{% endschema %}

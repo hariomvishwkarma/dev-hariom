@@ -1,0 +1,139 @@
+{%- comment -%}
+  Renders mobile filtering controls
+
+  Accepts:
+    - results: {Object} Collection or Search object
+    - enable_filtering: {Boolean} Show filtering when true
+
+  Usage:
+    {% render 'filters-mobile', results: collection, enable_filtering: true %}
+{%- endcomment -%}
+
+<div class="flex flex-wrap justify-between gap-4">
+  {%- capture filter_toggle_label -%}
+    {% render 'c-icon', icon: 'filter' %}
+    <span>{{ 'products.facets.filters' | t }}</span>
+  {%- endcapture -%}
+
+  {%- capture filter_drawer_header -%}
+    <div class="space-x-2">
+      <span>{{ 'products.facets.filter_and_sort' | t }}</span>
+      <!-- Products count -->
+      <span id="ProductCountDrawerContainer">
+        {%- if results.results_count -%}
+          ({{ 'products.facets.product_count' | t: count: results.results_count }})
+        {%- else -%}
+          ({{ 'products.facets.product_count' | t: count: results.products_count }})
+        {%- endif -%}
+      </span>
+    </div>
+  {%- endcapture -%}
+
+  {%- capture filter_drawer_content -%}
+    <div class="flex flex-col gap-4">
+      {%- for filter in results.filters -%}
+        {%- capture accordion_label -%}
+          <span>{{ filter.label }}</span>
+        {%- endcapture -%}
+
+        {%- capture accordion_content -%}
+          {%- case filter.type -%}
+            {%- when 'boolean', 'list' -%}
+              <ul class="space-y-2">
+                {%- for filter_value in filter.values -%}
+                  <li>
+                    <label for="Filter-{{ filter.param_name }}-mobile-{{ forloop.index }}" class="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        class="w-4 h-4"
+                        name="{{ filter_value.param_name }}"
+                        value="{{ filter_value.value }}"
+                        id="Filter-{{ filter.param_name }}-mobile-{{ forloop.index }}"
+                        {% if filter_value.active -%}
+                          checked
+                        {%- endif %}
+                        {% if filter_value.count == 0 and filter_value.active == false -%}
+                          disabled
+                        {%- endif %}
+                      >
+                      <span>{{ filter_value.label | escape }} ({{ filter_value.count }})</span>
+                    </label>
+                  </li>
+                {%- endfor -%}
+              </ul>
+
+              <div class="js-hidden px-4 py-2 border-t">
+                <input type="submit" value="{{ 'products.facets.apply' | t }}" class="button--primary">
+              </div>
+            {%- when 'price_range' -%}
+              <div>
+                <div>
+                  <span>{{ cart.currency.symbol }}</span>
+
+                  <input
+                    name="{{ filter.min_value.param_name }}"
+                    id="Filter-{{ filter.min_value.param_name }}"
+                    {% if filter.min_value.value -%}
+                      value="{{ filter.min_value.value | money_without_currency | replace: ',', '' }}"
+                    {%- endif %}
+                    type="number"
+                    placeholder="0"
+                    min="0"
+                    max="{{ filter.range_max | money_without_currency | replace: ',', '' }}"
+                  >
+
+                  <label for="Filter-{{ filter.min_value.param_name }}">{{ 'products.facets.from' | t }}</label>
+                </div>
+                <div>
+                  <span>{{ cart.currency.symbol }}</span>
+
+                  <input
+                    name="{{ filter.max_value.param_name }}"
+                    id="Filter-{{ filter.max_value.param_name }}"
+                    {% if filter.max_value.value -%}
+                      value="{{ filter.max_value.value | money_without_currency | replace: ',', '' }}"
+                    {%- endif %}
+                    type="number"
+                    placeholder="{{ filter.range_max | money_without_currency | replace: ',', '' }}"
+                    min="0"
+                    max="{{ filter.range_max | money_without_currency | replace: ',', '' }}"
+                  >
+
+                  <label for="Filter-{{ filter.max_value.param_name }}">{{ 'products.facets.to' | t }}</label>
+                </div>
+              </div>
+
+              <div class="js-hidden border-t">
+                <input type="submit" value="{{ 'products.facets.apply' | t }}" class="button--primary">
+              </div>
+          {%- endcase -%}
+        {%- endcapture -%}
+
+        {%- assign index = 'mobile-' | append: forloop.index -%}
+        {% render 'c-accordion', accordion_label: accordion_label, accordion_borders: true, accordion_content: accordion_content, index: index %}
+      {%- endfor -%}
+    </div>
+
+    <div class="py-3 px-4">
+      {% render 'sorting', results: results, mobile: true %}
+    </div>
+  {%- endcapture -%}
+
+  {% render 'c-drawer',
+    drawer_id: 'Mobile-filters-drawer',
+    toggle_label: filter_toggle_label,
+    drawer_header: filter_drawer_header,
+    drawer_content: filter_drawer_content,
+    toggle_type: 'link',
+    drawer_classes: 'bg-background'
+  %}
+
+  <!-- Products count -->
+  <span id="ProductCountMobileContainer">
+    {%- if results.results_count -%}
+      {{ 'products.facets.product_count' | t: count: results.results_count }}
+    {%- else -%}
+      {{ 'products.facets.product_count' | t: count: results.products_count }}
+    {%- endif -%}
+  </span>
+</div>

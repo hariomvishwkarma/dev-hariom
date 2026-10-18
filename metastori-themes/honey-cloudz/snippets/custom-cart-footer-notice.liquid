@@ -1,0 +1,62 @@
+{%- comment -%} Custom Cart — footer notice (position: above or below checkout) {%- endcomment -%}
+
+{%- liquid
+  assign notice_position = position | default: settings.custom_cart_footer_notice_position | default: 'below_checkout'
+
+  comment
+    B2B customers who fall under the minimum order value get the MOV notice here
+    instead of the standard shipping notice.
+  endcomment
+  assign b2b_notice_tag = settings.b2b_mov_customer_tag | default: 'B2B Customer' | strip
+  assign b2b_notice_has_company = false
+  assign b2b_notice_applies = false
+
+  assign b2b_notice_feature_on = false
+  if settings.b2b_mov_enable or settings.b2b_moq_enable
+    assign b2b_notice_feature_on = true
+  endif
+
+  if b2b_notice_feature_on and customer != blank and b2b_notice_tag != blank
+    if customer.tags contains b2b_notice_tag
+      if customer.b2b?
+        assign b2b_notice_has_company = true
+      endif
+      if customer.current_company != blank
+        assign b2b_notice_has_company = true
+      endif
+      if customer.company_available_locations_count > 0
+        assign b2b_notice_has_company = true
+      endif
+      if b2b_notice_has_company
+        assign b2b_notice_applies = true
+      endif
+    endif
+  endif
+
+  assign show_standard_notice = false
+  if b2b_notice_applies == false
+    if settings.custom_cart_enable_footer_notice and settings.custom_cart_footer_notice_text != blank
+      assign show_standard_notice = true
+    endif
+  endif
+-%}
+
+{%- if b2b_notice_applies -%}
+  <div
+    class="custom-cart__footer-notice custom-cart__footer-notice--{{ notice_position }} custom-cart__footer-notice--b2b"
+    data-custom-footer-notice
+    data-footer-notice-position="{{ notice_position }}"
+  >
+    {% render 'b2b-min-order', notice_only: true %}
+  </div>
+{%- elsif show_standard_notice -%}
+  <div
+    class="custom-cart__footer-notice custom-cart__footer-notice--{{ notice_position }}"
+    data-custom-footer-notice
+    data-footer-notice-position="{{ notice_position }}"
+  >
+    <div class="custom-cart__footer-notice-text rte">
+      {{ settings.custom_cart_footer_notice_text }}
+    </div>
+  </div>
+{%- endif -%}

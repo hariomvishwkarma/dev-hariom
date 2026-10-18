@@ -1,0 +1,60 @@
+{%- comment -%}
+  Renders a dropdown to switch between markets
+
+  Accepts:
+    - hide_name {boolean}: Hides the name of the current market,
+    - display_language {boolean}: Displays the language of the current market
+    - leaftlet_switcher {boolean}: Displays the leaftlet switcher
+
+  Usage:
+    {% render 'markets-switcher' %}
+{%- endcomment -%}
+
+{% liquid
+  assign markets_obj = shop.metaobjects.markets.values
+  assign current_iso_code = localization.country.iso_code
+
+  assign current_markets_obj = markets_obj | where: 'iso', current_iso_code | first
+
+  assign custom_tag = 'localization-form'
+  if leaftlet_switcher
+    assign custom_tag = 'leaflet-switcher'
+  endif
+%}
+
+{%- capture dropdown_content -%}
+  <ul role="list">
+    {%- for market_obj in markets_obj -%}
+      {%- if market_obj.link != blank and market_obj.name != blank -%}
+        <li class="disclosure__item" tabindex="-1">
+          <a
+            href="#"
+            data-href="{{ market_obj.link | downcase }}"
+            data-country="{{ market_obj.iso | upcase }}"
+            data-language="{{ market_obj.locale_iso | downcase }}"
+            class="disclosure__link{% if market_obj == current_markets_obj %} bg-grey-300 pointer-events-none{% endif %}"
+          >
+            {% render 'localization-item', current_market_obj: market_obj, hide_icon: true, display_language: display_language %}
+          </a>
+        </li>
+      {%- endif -%}
+    {%- endfor -%}
+  </ul>
+{%- endcapture -%}
+
+<{{ custom_tag }}>
+  {%- form 'localization' -%}
+    {%- capture default_content -%}
+      {% render 'localization-item', current_market_obj: current_markets_obj, display_language: display_language %}
+    {%- endcapture -%}
+    {%- capture trigger_attributes -%}
+      data-link="{{ current_markets_obj.link }}"
+    {%- endcapture -%}
+    {% render 'c-disclosure',
+      trigger_attributes: trigger_attributes,
+      trigger: default_content,
+      content: dropdown_content,
+      content_class: 'color-background-1'
+    %}
+  {%- endform -%}
+</{{ custom_tag }}>

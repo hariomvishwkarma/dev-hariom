@@ -1,0 +1,429 @@
+{% liquid
+  assign input_classes = 'py-3 peer-placeholder-shown:top-4'
+%}
+
+<div class="container-fluid color-{{ section.settings.color_scheme }}">
+  <div class="my-6">
+    <div class="mb-4 md:flex flex-wrap">
+      {% render 'account-navigation' %}
+
+      <div class="flex flex-wrap flex-col mt-10 flex-1 gap-y-12" data-addresses-main-content>
+        {%- paginate customer.addresses by 6 -%}
+          <div>
+            {% render 'c-title',
+              type: 'h3',
+              custom_tag: 'h2',
+              translatable_content: 'customer.addresses.title',
+              classes: 'mb-2'
+            %}
+            {% render 'c-text',
+              translatable_content: 'customer.addresses.hint',
+              type: 'paragraph-2',
+              classes: 'text-grey-600'
+            %}
+          </div>
+
+          <!-- Addresses list -->
+          <ul role="list" class="grid gap-4 sm:grid-cols-2 max-w-3xl">
+            {%- for address in customer.addresses -%}
+              {%- assign address_heading = 'customer.addresses.address_no' | t: addressNumber: forloop.index -%}
+
+              {% form 'customer_address', address, class: 'self-stretch' %}
+                {% assign submit_attribute = 'data-submit-default-address-' | append: form.id %}
+                <li
+                  data-address
+                  class="card justify-between bg-grey-200 flex flex-row overflow-hidden h-full"
+                  onchange="document.querySelector('button[{{ submit_attribute }}]').click()"
+                >
+                  <div class="flex flex-row gap-3 relative max-w-[calc(100%_-_24px)]">
+                    <input
+                      class="mt-[6px] self-start appearance-none p-[6px] border border-foreground rounded-full peer cursor-pointer"
+                      name="address[default]"
+                      type="radio"
+                      id="address_default_address_{{ form.id }}"
+                      value="{{ forloop.index }}"
+                      {%- if address == customer.default_address -%}
+                        checked
+                      {%- endif -%}
+                    >
+                    <span
+                      class="peer-checked:bg-foreground p-[3px] pr-[2.5px] absolute mt-[10px] ml-[4px] rounded-full"
+                    ></span>
+                    <div class="overflow-hidden">
+                      <label class="cursor-pointer" for="address_default_address_{{ form.id }}">
+                        {%- render 'c-title',
+                          content: address_heading,
+                          type: 'h7-bold',
+                          custom_tag: 'h5',
+                          classes: 'inline-block'
+                        -%}
+                        {%- if address == customer.default_address -%}
+                          {%- render 'c-text',
+                            custom_tag: 'span',
+                            type: 'paragraph-2',
+                            translatable_content: 'customer.addresses.default'
+                          -%}
+                        {%- endif -%}
+                      </label>
+
+                      <div class="flex overflow-hidden">
+                        {% assign content_address = address.street
+                          | append: ', '
+                          | append: address.zip
+                          | append: ' '
+                          | append: address.city
+                          | append: ', '
+                          | append: address.country
+                        %}
+                        {% render 'c-text',
+                          content: content_address,
+                          type: 'paragraph-2',
+                          classes: 'overflow-ellipsis soverflow-hidden sm:line-clamp-1 w-full line-clamp-2'
+                        %}
+                      </div>
+                      {% render 'c-text',
+                        translatable_content: 'customer.addresses.delivery_details',
+                        type: 'text-2-regular',
+                        classes: 'text-grey-700 mt-4'
+                      %}
+                      {% render 'c-text', content: address.name, type: 'paragraph-2' %}
+                      {% render 'c-text', content: customer.email, type: 'paragraph-2' %}
+                      {% render 'c-text', content: address.phone, type: 'paragraph-2' %}
+                    </div>
+                  </div>
+
+                  {%- capture delete_button_custom_attributes -%}
+                    aria-label="{{ 'customer.addresses.delete' | t }} {{ forloop.index }}"
+                    data-target="{{ address.url }}"
+                    data-delete-customer-address
+                  {%- endcapture -%}
+                  {% capture delete_address_modal_header %}
+                    {% render 'c-title', translatable_content: 'customer.addresses.delete_confirm_header', classes: 'h8-bold', custom_tag: 'h6'%}
+                  {% endcapture %}
+                  {% capture delete_address_modal_content %}
+                    <div class="bg-foreground text-background pt-6 pl-4 pr-4 pb-8">
+                      {% render 'c-title', translatable_content: 'customer.addresses.delete_confirm_title', classes: 'h6-bold mb-4', cusstom_tag: 'h2'%}
+                      {% render 'c-text', content: content_address, type: 'paragraph-2' %}
+                    </div>
+                  {% endcapture %}
+                  {% capture delete_address_modal_footer %}
+                    {% render 'c-button', translatable_content: 'customer.addresses.delete_confirm_button', design: 'secondary', classes: 'rounded-full mt-3 mb-3', custom_attributes: delete_button_custom_attributes %}
+                  {% endcapture %}
+
+                  <div class="flex flex-wrap gap-2 flex-col justify-between">
+                    {% liquid
+                      capture edit_button_content
+                        render 'c-icon', icon: 'pen'
+                      endcapture
+                      assign edit_modal_attributes = 'data-show-edit-address-content data-toggle-section=data-address-edit-' | append: address.id
+                      render 'c-button', content: edit_button_content, custom_attributes: edit_modal_attributes
+
+                      capture delete_button_content
+                        render 'c-icon', icon: 'trash', classes: 'w-5 h-5'
+                      endcapture
+                      assign modal_id = 'DeleteAddress_' | append: address.id
+                      render 'c-modal', modal_id: modal_id, toggle_label: delete_button_content, modal_content: delete_address_modal_content, size: 'sm', modal_header: delete_address_modal_header, modal_footer: delete_address_modal_footer, modal_classes: '!w-[300px] ml-auto mr-auto !p-0', modal_content_classes: '!p-0', modal_footer_classes: '!p-0 bg-[#192C77] text-background flex justify-center border-t-0', close_classes: '!text-foreground [&>svg]:h-5 [&>svg]:w-5 !top-2'
+                    %}
+                  </div>
+                  {% render 'c-button',
+                    content: 'submit',
+                    type: 'submit',
+                    classes: 'hidden',
+                    custom_attributes: submit_attribute
+                  %}
+                </li>
+              {% endform %}
+            {%- endfor -%}
+          </ul>
+
+          <div data-address>
+            <div class="mb-8">
+              {%- capture add_address_content -%}
+              <div class="hidden flex-wrap flex-col mt-10 flex-1 max-w-[484px]" data-address-new>
+
+                {% assign edit_title = 'customer.addresses.add_new' | t %}
+                {% render 'c-title', type: 'h3', custom_tag: 'h2', content: edit_title, classes: 'mb-6 md:mb-8' %}
+
+                {%- form 'customer_address', customer.new_address, aria-labelledBy: 'AddressNewHeading' -%}
+                  <div class="mb-8">
+                    {% assign input_name_id = 'AddressFirstName_' | append: form.id %}
+                    {% render 'c-input',
+                      input_type: 'text',
+                      input_name: 'address[first_name]',
+                      id: input_name_id,
+                      input_autocomplete: 'given-name',
+                      label_translatable_content: 'customer.addresses.first_name',
+                      input_classes: input_classes,
+                      label_classes: label_classes,
+                      input_value: form.first_name
+                    %}
+                  </div>
+                  <div class="mb-8">
+                    {% assign input_surname_id = 'AddressLastName_' | append: form.id %}
+                    {% render 'c-input',
+                      input_type: 'text',
+                      input_name: 'address[last_name]',
+                      id: input_surname_id,
+                      input_autocomplete: 'family-name',
+                      label_translatable_content: 'customer.addresses.last_name',
+                      input_classes: input_classes,
+                      label_classes: label_classes,
+                      input_value: form.last_name
+                    %}
+                  </div>
+                  <div class="mb-8 select border-grey-300 border">
+                    <select
+                      class="{{ input_classes }} w-[calc(100%_-_10px)] outline-none p-3"
+                      id="AddressCountry_{{ form.id }}"
+                      name="address[country]"
+                      data-address-country-select
+                      data-default="{{ form.country }}"
+                      data-form-id="{{ form.id }}"
+                      autocomplete="country"
+                    >
+                      {{ all_country_option_tags }}
+                    </select>
+                  </div>
+                  <div class="mb-8">
+                    {% assign input_zip_id = 'AddressOther_' | append: form.id %}
+                    {% render 'c-input',
+                      input_type: 'text',
+                      input_name: 'address[address1]',
+                      id: input_zip_id,
+                      input_autocomplete: 'street-address',
+                      input_translatable_placeholder: 'customer.addresses.start_typing_address',
+                      input_classes: input_classes,
+                      label_classes: label_classes
+                    %}
+                  </div>
+                  <div class="mb-8">
+                    {% assign input_phone_id = 'AddressPhone_' | append: form.id %}
+                    {% render 'c-input',
+                      input_type: 'tel',
+                      input_name: 'address[phone]',
+                      id: input_phone_id,
+                      input_autocomplete: 'tel',
+                      label_translatable_content: 'customer.addresses.phone',
+                      input_classes: input_classes,
+                      label_classes: label_classes,
+                      input_value: form.phone
+                    %}
+                  </div>
+    
+                  <div class="flex items-center gap-1 mb-6 mt-7">
+                    <label for="address_default_address_new" class="relative pl-7 mb-3 cursor-pointer select-none">
+                      <input id="address_default_address_new" class="absolute opacity-0 cursor-pointer h-0 w-0 peer" type="checkbox" name="address[default]" value="1"{%- if address == customer.default_address -%} checked{%- endif -%} />
+                      <span class="border rounded-sm border-foreground absolute top-[1px] left-0 w-4 h-4 bg-background after:content-[''] after:absolute after:hidden peer-checked:bg-foreground peer-checked:after:block after:left-[5px] after:top-[1px] after:w-1 after:h-[10px] after:border-solid after:border-white after:border-b-[2.5px] after:border-r-2 after:rotate-45"></span>
+                      {% render 'c-text', translatable_content: 'customer.addresses.set_default' | t, type: 'paragraph-2', classes: 'text-grey-600' %}
+                    </label>
+                  </div> 
+                  
+                  <div class="flex flex-wrap gap-2 md:gap-6">
+                    {%- assign close_edit_attributes = "data-modal-hide data-show-main-address-content data-toggle-section=data-address-new" -%}
+                    {% render 'c-button',
+                      type: 'reset',
+                      translatable_content: 'customer.addresses.cancel',
+                      design: 'grey',
+                      classes: 'rounded-full disabled:bg-grey-400 w-full md:w-auto',
+                      custom_attributes: close_edit_attributes,
+                    %}
+                    
+                    {%- assign add_button_content = 'customer.addresses.update' | t -%}
+                    {% render 'c-button',
+                      type: 'submit',
+                      translatable_content: 'customer.addresses.add',
+                      design: 'primary',
+                      classes: 'rounded-full disabled:bg-grey-400 w-full md:w-auto',
+                    %}
+                  </div>
+                {%- endform -%}
+              </div>
+              {%- endcapture -%}
+
+              {% capture button_content %}
+                {%- render 'c-icon', icon: 'plus' -%}
+                {%- render 'c-text', translatable_content: 'customer.addresses.add_new', custom_tag: 'span', classes: 'ml-1', type: 'paragraph-2' -%}
+              {% endcapture %}
+
+              {% assign button_attributes = 'data-show-edit-address-content data-toggle-section=data-address-new' %}
+              {% render 'c-button', content: button_content, custom_attributes: button_attributes %}
+            </div>
+          </div>
+
+          {% render 'pagination', pagination: paginate %}
+        {%- endpaginate -%}
+      </div>
+
+      {% for address in customer.addresses %}
+        {%- capture edit_address_content -%}
+          <div class="hidden flex-wrap flex-col mt-10 flex-1 md:pl-6" data-address-edit-{{ address.id }}>
+            {% assign edit_title = 'customer.addresses.edit_address' | t | append: ' №' | append: forloop.index %}
+            {% render 'c-title', type: 'h3', custom_tag: 'h2', content: edit_title, classes: 'mb-6 md:mb-8' %}
+            {%- form 'customer_address', address, class: 'max-w-[484px]' -%}
+              <div class="mb-8">
+                {% assign input_name_id = 'AddressFirstName_' | append: form.id %}
+                {% render 'c-input',
+                  input_type: 'text',
+                  input_name: 'address[first_name]',
+                  id: input_name_id,
+                  input_autocomplete: 'given-name',
+                  label_translatable_content: 'customer.addresses.first_name',
+                  input_classes: input_classes,
+                  label_classes: label_classes,
+                  input_value: form.first_name
+                %}
+              </div>
+              <div class="mb-8">
+                {% assign input_surname_id = 'AddressLastName_' | append: form.id %}
+                {% render 'c-input',
+                  input_type: 'text',
+                  input_name: 'address[last_name]',
+                  id: input_surname_id,
+                  input_autocomplete: 'family-name',
+                  label_translatable_content: 'customer.addresses.last_name',
+                  input_classes: input_classes,
+                  label_classes: label_classes,
+                  input_value: form.last_name
+                %}
+              </div>
+              <div class="mb-8">
+                {% assign input_email_id = 'AddressEmail_' | append: form.id %}
+                {% render 'c-input',
+                  input_type: 'tel',
+                  input_name: 'customer[email]',
+                  id: input_email_id,
+                  input_autocomplete: 'tel',
+                  label_translatable_content: 'customer.addresses.email',
+                  input_classes: input_classes,
+                  label_classes: label_classes,
+                  input_value: customer.email
+                %}
+              </div>
+              <div class="mb-8">
+                {% assign input_phone_id = 'AddressEmail_' | append: form.id %}
+                {% render 'c-input',
+                  input_type: 'tel',
+                  input_name: 'address[phone]',
+                  id: input_phone_id,
+                  input_autocomplete: 'tel',
+                  label_translatable_content: 'customer.addresses.phone',
+                  input_classes: input_classes,
+                  label_classes: label_classes,
+                  input_value: form.phone
+                %}
+              </div>
+              <div class="mb-8">
+                {% assign input_street_id = 'AddressStreet&Num_' | append: form.id %}
+                {% render 'c-input',
+                  input_type: 'text',
+                  input_name: 'address[address1]',
+                  id: input_street_id,
+                  input_autocomplete: 'address-level2',
+                  label_translatable_content: 'customer.addresses.street',
+                  input_classes: input_classes,
+                  label_classes: label_classes,
+                  input_value: form.address1
+                %}
+              </div>
+              <div class="mb-8 select bg-grey-200">
+                <select
+                  class="{{ input_classes }} w-[calc(100%_-_10px)] outline-none p-3  bg-grey-200"
+                  id="AddressCountry_{{ form.id }}"
+                  name="address[country]"
+                  data-address-country-select
+                  data-default="{{ form.country }}"
+                  data-form-id="{{ form.id }}"
+                  autocomplete="country"
+                >
+                  {{ all_country_option_tags }}
+                </select>
+              </div>
+              <div class="mb-8 flex flex-wrap gap-4 child:flex-1 child:basis-48">
+                {% assign input_city_id = 'AddressCity_' | append: form.id %}
+                {% render 'c-input',
+                  input_type: 'text',
+                  input_name: 'address[city]',
+                  id: input_city_id,
+                  input_autocomplete: 'address-level2',
+                  label_translatable_content: 'customer.addresses.city',
+                  input_classes: input_classes,
+                  label_classes: label_classes,
+                  input_value: form.city
+                %}
+                
+                {% assign input_zip_id = 'AddressZip_' | append: form.id %}
+                {% render 'c-input',
+                  input_type: 'text',
+                  input_name: 'address[zip]',
+                  id: input_zip_id,
+                  input_autocomplete: 'postal-code',
+                  label_translatable_content: 'customer.addresses.zip',
+                  input_classes: input_classes,
+                  label_classes: label_classes,
+                  input_value: form.zip
+                %}
+              </div>
+
+              <div class="mb-8">
+                {% assign input_zip_id = 'AddressOther_' | append: form.id %}
+                {% render 'c-input',
+                  input_type: 'text',
+                  input_name: 'address[other]',
+                  id: input_zip_id,
+                  input_autocomplete: 'postal-code',
+                  label_translatable_content: 'customer.addresses.other_details',
+                  input_classes: input_classes,
+                  label_classes: label_classes
+                %}
+              </div>
+
+              <div class="flex items-center gap-1 mb-6 mt-7">
+                <label class="relative pl-7 mb-3 cursor-pointer select-none">
+                  <input class="absolute opacity-0 cursor-pointer h-0 w-0 peer" type="checkbox" name="address[default]" value="1"{%- if address == customer.default_address -%} checked{%- endif -%} />
+                  <span class="border rounded-sm border-foreground absolute top-[1px] left-0 w-4 h-4 bg-background after:content-[''] after:absolute after:hidden peer-checked:bg-foreground peer-checked:after:block after:left-[5px] after:top-[1px] after:w-1 after:h-[10px] after:border-solid after:border-white after:border-b-[2.5px] after:border-r-2 after:rotate-45"></span>
+                  {% render 'c-text', translatable_content: 'customer.addresses.set_default' | t, type: 'paragraph-2', classes: 'text-grey-600' %}
+                </label>
+              </div> 
+
+              <div class="flex flex-wrap gap-2 md:gap-6">
+                {%- assign close_edit_attributes = "data-show-main-address-content data-modal-hide data-toggle-section=data-address-edit-" | append: address.id -%}
+                {% render 'c-button',
+                  type: 'reset',
+                  translatable_content: 'customer.addresses.cancel',
+                  design: 'grey',
+                  classes: 'rounded-full disabled:bg-grey-400 w-full md:w-auto',
+                  custom_attributes: close_edit_attributes,
+                %}
+                
+                {%- assign add_button_content = 'customer.addresses.update' | t -%}
+                {% render 'c-button',
+                  type: 'submit',
+                  translatable_content: 'customer.addresses.update',
+                  design: 'primary',
+                  classes: 'rounded-full disabled:bg-grey-400 w-full md:w-auto',
+                %}
+              </div>
+            {%- endform -%}
+          </div>
+        {%- endcapture -%}
+        {{ edit_address_content }}
+      {% endfor %}
+      {{ add_address_content }}
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "t:sections.main-addresses.name",
+  "class": "customer addresses",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    }
+  ]
+}
+{% endschema %}

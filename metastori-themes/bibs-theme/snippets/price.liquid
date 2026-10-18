@@ -1,0 +1,45 @@
+{%- comment -%}
+  Renders the price of a product or variant.
+
+  Accepts:
+    - main_product {Object}: The product to render the price for. Defaults to the current product.
+    - product_variant {Object}: The variant to render the price for. Defaults to the current variant.
+    - type {String}: The type of text style to render.
+    - sale_price_color {String}: The color of the sale price.
+    - classes {String}: Additional classes to add to the price.
+    - wrapper_classes {String}: Additional classes to add to the wrapper.
+
+
+    Usage:
+    {% render 'price', main_product: product %}
+{%- endcomment -%}
+
+{% liquid
+  assign current_variant = main_product.selected_or_first_available_variant | default: product_variant
+  assign compare_at_price = current_variant.compare_at_price
+  assign price = current_variant.price
+  assign type = type | default: 'h4'
+  assign sale_price_color = sale_price_color | default: 'text-accent'
+%}
+
+{% if price %}
+  {%- capture price_content -%}
+    <span class="flex items-center gap-x-1 font-medium {{ classes | default: '' }}" ref="priceContainer">
+      {% if compare_at_price %}
+        <span class="price-item whitespace-nowrap {{ sale_price_color }}">
+          <bdi>{{ price | money_without_trailing_zeros }}</bdi>
+        </span>
+        <del aria-hidden="true">
+          <span class="price-item whitespace-nowrap">
+            <bdi>{{ compare_at_price | money_without_trailing_zeros }}</bdi>
+          </span>
+        </del>
+      {% else %}
+        <span class="price-item whitespace-nowrap">
+          <bdi>{{ price | money_without_trailing_zeros }}</bdi>
+        </span>
+      {% endif %}
+    </span>
+  {%- endcapture -%}
+  {% render 'c-text', content: price_content, type: type, classes: wrapper_classes %}
+{% endif %}

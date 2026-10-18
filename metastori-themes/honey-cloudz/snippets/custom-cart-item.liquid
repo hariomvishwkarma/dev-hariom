@@ -1,0 +1,258 @@
+{%- comment -%}
+  Custom Cart — single line item.
+  @param item {line_item}
+  @param section {section}
+  @param gift_wrap_id {number} optional
+{%- endcomment -%}
+
+{%- liquid
+  # Theme settings > Preorder > Enable pre-order gates the whole feature.
+  assign is_preorder = false
+
+  if settings.preorder_enabled
+    if item.properties['Pre-order'] == 'Yes' or item.properties._preorder == 'true'
+      assign is_preorder = true
+    elsif item.variant.inventory_policy == 'continue' and item.variant.inventory_quantity <= 0
+      assign is_preorder = true
+    elsif item.product.template_suffix == 'pre-order'
+      assign is_preorder = true
+    endif
+  endif
+-%}
+
+{% comment %} Wholesale_Club_Item_Prices Start {% endcomment %}
+{% if item.product %}{% assign base_product = item.product %}{% else %}{% assign base_product = item %}{% endif %}
+{% if item.variant %}{% assign base_variant = item.variant %}{% else %}{% assign base_variant = item.selected_or_first_available_variant %}{% endif %}
+
+{% if shop.metafields.sawholesale['base_price'] == blank %}
+  {% assign base_price = 'compare_at_price' %}
+{% else %}
+  {% assign base_price = shop.metafields.sawholesale['base_price'] %}
+{% endif %}
+
+{% assign saw_discount = 0 %}{% assign saw_has_discount = false %}
+
+{% if customer.tags != blank %}
+  {% for mf in base_product.metafields.sawholesale %}
+    {% capture product_customer_tag %}{{ mf | first | replace: 'discount_', '' }}{% endcapture %}
+    {% if customer.tags contains product_customer_tag %}
+      {% assign saw_has_discount = true %}
+      {% assign discount_key = product_customer_tag | prepend: 'discount_' %}
+      {% assign price_key = product_customer_tag | prepend: 'price_' %}
+      {% assign saw_discount = base_product.metafields.sawholesale[discount_key] | divided_by: 100.0 %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+{% assign saw_discount = 1 | minus: saw_discount %}
+
+{% if base_price == 'price' or base_variant.compare_at_price == blank or base_variant.compare_at_price == 0 or base_variant.compare_at_price < base_variant.price %}
+  {% assign saw_variant_compare_at_price = base_variant.price %}
+{% else %}
+  {% assign saw_variant_compare_at_price = base_variant.compare_at_price %}
+{% endif %}
+
+{% assign cpe = shop.metafields.sawholesale['cpe'] | default: 'true' %}
+{% if base_variant.metafields.sawholesale[price_key] != blank and cpe == 'true' %}
+  {% assign saw_variant_price = base_variant.metafields.sawholesale[price_key] %}
+{% else %}
+  {% assign saw_variant_price = saw_variant_compare_at_price | times: saw_discount %}
+{% endif %}
+
+{% if saw_has_discount == false or saw_variant_price >= saw_variant_compare_at_price %}
+  {% assign WCItem_OriginalPrice = item.original_price %}
+  {% assign WCItem_FinalPrice = item.final_price %}
+  {% assign WCItem_OriginalLinePrice = item.original_line_price %}
+  {% assign WCItem_FinalLinePrice = item.final_line_price %}
+{% else %}
+  {% assign WCItem_OriginalPrice = saw_variant_compare_at_price %}
+  {% assign WCItem_FinalPrice = saw_variant_price %}
+  {% assign WCItem_OriginalLinePrice = WCItem_OriginalPrice | round | times: item.quantity %}
+  {% assign WCItem_FinalLinePrice = WCItem_FinalPrice | round | times: item.quantity %}
+{% endif %}
+{% comment %} Wholesale_Club_Item_Prices End {% endcomment %}
+
+{%- liquid
+  assign line_savings = WCItem_OriginalLinePrice | minus: WCItem_FinalLinePrice
+  assign show_compare = false
+  assign compare_price = 0
+  assign b2b_moq_default = settings.b2b_moq_default | default: 6 | plus: 0
+  if b2b_moq_default < 1
+    assign b2b_moq_default = 6
+  endif
+  assign b2b_moq_metafield_path = settings.b2b_moq_metafield | default: 'custom.moq' | strip
+  assign b2b_moq_metafield_parts = b2b_moq_metafield_path | split: '.'
+  assign b2b_moq_namespace = b2b_moq_metafield_parts | first | default: 'custom'
+  assign b2b_moq_key = b2b_moq_metafield_parts | last | default: 'moq'
+  assign b2b_moq_required = b2b_moq_default
+  assign b2b_moq_mf = item.product.metafields[b2b_moq_namespace][b2b_moq_key]
+  if b2b_moq_mf != blank
+    assign b2b_moq_mf_value = b2b_moq_mf.value | default: b2b_moq_mf | plus: 0
+    if b2b_moq_mf_value > 0
+      assign b2b_moq_required = b2b_moq_mf_value
+    endif
+  endif
+
+  if WCItem_OriginalLinePrice != WCItem_FinalLinePrice
+    assign show_compare = true
+    assign compare_price = WCItem_OriginalLinePrice
+  elsif item.variant.compare_at_price > item.variant.price
+    assign compare_price = item.variant.compare_at_price | times: item.quantity
+    if compare_price > WCItem_FinalLinePrice
+      assign show_compare = true
+      assign line_savings = compare_price | minus: WCItem_FinalLinePrice
+    endif
+  endif
+-%}
+
+<li
+  class="custom-cart__item"
+  id="CartItem-{{ item.index | plus: 1 }}"
+  data-custom-item
+  data-line="{{ item.index | plus: 1 }}"
+  data-product-id="{{ item.product_id }}"
+  data-variant-id="{{ item.variant_id }}"
+  data-moq-required="{{ b2b_moq_required }}"
+  data-unit-price="{{ WCItem_FinalPrice | round }}"
+  data-line-price="{{ WCItem_FinalLinePrice | round }}"
+  data-qty="{{ item.quantity }}"
+  {% if item.product.metafields.sawholesale != blank %}
+    data-sawholesale="{{ item.product.metafields.sawholesale | json | escape }}"
+  {% endif %}
+>
+  <div class="custom-cart__item-inner">
+    {%- if item.image -%}
+      <a href="{{ item.url }}" class="custom-cart__item-media" tabindex="-1" aria-hidden="true">
+        <img
+          src="{{ item.image | image_url: width: 200 }}"
+          srcset="{{ item.image | image_url: width: 100 }} 1x, {{ item.image | image_url: width: 200 }} 2x"
+          alt="{{ item.image.alt | escape | split: '#' | first }}"
+          width="88"
+          height="88"
+          loading="lazy"
+        >
+      </a>
+    {%- endif -%}
+
+    <div class="custom-cart__item-details">
+      <div class="custom-cart__item-header">
+        <a href="{{ item.url }}" class="custom-cart__item-title">{{ item.product.title | escape }}</a>
+        <cart-remove-button
+          class="custom-cart__item-remove-btn"
+          data-custom-remove
+          data-index="{{ item.index | plus: 1 }}"
+          aria-label="{{ 'sections.cart.remove_title' | t: title: item.title | escape }}"
+        >
+          {% render 'custom-cart-icons', icon: 'trash' %}
+        </cart-remove-button>
+      </div>
+
+      <p class="cart-item__error form__message errors" id="Line-item-error-{{ item.index | plus: 1 }}">
+        <span class="cart-item__error-text"></span>
+      </p>
+
+      {%- unless item.product.has_only_default_variant -%}
+        <p class="custom-cart__item-variant">
+          {%- for option in item.options_with_values -%}
+            {%- unless forloop.first -%}, {%- endunless -%}
+            {{ option.name }}: {{ option.value }}
+          {%- endfor -%}
+        </p>
+      {%- endunless -%}
+
+      {%- for property in item.properties -%}
+        {%- assign property_first_char = property.first | slice: 0 -%}
+        {%- if property.last != blank and property_first_char != '_' -%}
+          <p class="custom-cart__item-property">{{ property.first }}: {{ property.last }}</p>
+        {%- endif -%}
+      {%- endfor -%}
+
+      {%- if is_preorder -%}
+        {%- unless item.properties['Pre-order'] != blank -%}
+          <p class="custom-cart__item-property">Pre-order: Yes</p>
+        {%- endunless -%}
+        {%- if item.properties['Pre-order message'] == blank -%}
+          {%- capture fallback_preorder_message -%}
+            {%- render 'preorder-variant-message', variant: item.variant, format: 'text' -%}
+          {%- endcapture -%}
+          {%- assign fallback_preorder_message = fallback_preorder_message | strip -%}
+          {%- if fallback_preorder_message != blank -%}
+            <p class="custom-cart__item-property">Pre-order message: {{ fallback_preorder_message }}</p>
+          {%- endif -%}
+        {%- endif -%}
+      {%- elsif item.selling_plan_allocation != nil -%}
+        <p class="custom-cart__item-selling-plan">{{ item.selling_plan_allocation.selling_plan.name }}</p>
+      {%- endif -%}
+
+      {% render 'final-sale-line-note', item: item %}
+
+      <div class="custom-cart__item-pricing">
+        {%- if show_compare -%}
+          <span class="visually-hidden">{{ 'products.product.price.regular_price' | t }}</span>
+          <s class="custom-cart__item-price-compare">{{ compare_price | money }}</s>
+        {%- endif -%}
+        <span class="visually-hidden">{{ 'products.product.price.sale_price' | t }}</span>
+        <span class="custom-cart__item-price-final" data-custom-line-price>{{ WCItem_FinalLinePrice | money }}</span>
+        {%- assign line_discount_savings = WCItem_OriginalLinePrice | minus: WCItem_FinalLinePrice -%}
+        {%- if line_discount_savings > 0 -%}
+          <span class="custom-cart__item-savings">(You saved {{ line_discount_savings | money }})</span>
+        {%- endif -%}
+      </div>
+
+      <div class="custom-cart__item-footer">
+        <quantity-input class="custom-cart__qty">
+          <button class="custom-cart__qty-btn custom-cart__qty-btn--minus" name="minus" type="button" aria-label="{{ 'products.product.quantity.decrease' | t: product: item.product.title | escape }}">
+            <span class="custom-cart__qty-icon">{% render 'custom-cart-icons', icon: 'minus' %}</span>
+            <span class="custom-cart__qty-spinner" aria-hidden="true">{% render 'custom-cart-icons', icon: 'spinner' %}</span>
+          </button>
+          <input
+            class="custom-cart__qty-input"
+            type="number"
+            name="updates[]"
+            value="{{ item.quantity }}"
+            min="0"
+            id="Quantity-{{ item.index | plus: 1 }}"
+            data-index="{{ item.index | plus: 1 }}"
+            aria-label="{{ 'products.product.quantity.input_label' | t: product: item.product.title | escape }}"
+          >
+          <button class="custom-cart__qty-btn custom-cart__qty-btn--plus" name="plus" type="button" aria-label="{{ 'products.product.quantity.increase' | t: product: item.product.title | escape }}">
+            <span class="custom-cart__qty-icon">{% render 'custom-cart-icons', icon: 'plus' %}</span>
+            <span class="custom-cart__qty-spinner" aria-hidden="true">{% render 'custom-cart-icons', icon: 'spinner' %}</span>
+          </button>
+        </quantity-input>
+
+        {%- if item.discounts.size > 0 -%}
+          <div class="custom-cart__item-discount-badges">
+            {%- for discount in item.discounts -%}
+              <span class="custom-cart__discount-badge custom-cart__discount-badge--item">
+                {% render 'custom-cart-icons', icon: 'tag' %}
+                <span class="custom-cart__discount-badge-text">{{ discount.title | upcase }}</span>
+              </span>
+            {%- endfor -%}
+          </div>
+        {%- endif -%}
+      </div>
+
+      {%- if settings.custom_cart_remove_confirm_enabled -%}
+        <div class="custom-cart__confirm" data-custom-cart-confirm hidden>
+          <span class="custom-cart__confirm-text">Remove this item?</span>
+          <button
+            type="button"
+            class="custom-cart__confirm-btn custom-cart__confirm-btn--no"
+            data-custom-cart-confirm-no
+          >
+            No
+          </button>
+          <button
+            type="button"
+            class="custom-cart__confirm-btn custom-cart__confirm-btn--yes"
+            data-custom-cart-confirm-yes
+          >
+            Yes
+          </button>
+        </div>
+      {%- endif -%}
+    </div>
+  </div>
+  {% render 'b2b-moq-line-notice', item: item %}
+</li>

@@ -1,0 +1,1417 @@
+{%- liquid
+  assign open_first = section.settings.open_first
+  assign pill_border_alpha = section.settings.pill_border_opacity | times: 1.0 | divided_by: 100
+
+  comment
+    Motion tuning. Kept as plain assigns rather than schema settings — this
+    section is already at theme-check's settings ceiling, and these are
+    build-time numbers, not something a merchant should be dialling in.
+
+    motion_duration is the single source of truth: the same number drives the
+    CSS transition on the answer panel and the scroll tween in the script, so
+    the question never finishes travelling before the panel finishes opening
+    (or the other way round). Set it to 0 for an instant swap.
+
+    scroll_gap is the breathing room left between the sticky header and the
+    question that was just opened.
+  endcomment
+  assign motion_duration = 380
+  assign scroll_gap = 20
+
+  comment
+    Resting colour for the answer-link underline. The link sweeps from this
+    muted tone to the full answer colour on hover, the same two-layer trick the
+    rest of the site uses for .rte links.
+  endcomment
+  assign answer_link_rest = section.settings.answer_color | color_modify: 'alpha', 0.35
+-%}
+
+{%- style -%}
+  {% # theme-check-disable RemoteAsset %}
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap');
+  {% # theme-check-enable RemoteAsset %}
+  @font-face {
+    font-family: "Satoshi";
+    src: url("https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Medium.woff2?v=1750649880") format("woff2");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Satoshi";
+    src: url("https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Medium.woff2?v=1750649880") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Satoshi Medium";
+    src: url("https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Medium.woff2?v=1750649880") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  #shopify-section-{{ section.id }} .cfq {
+    --cfq-bg: {{ section.settings.background_color }};
+    --cfq-max: {{ section.settings.content_max_width }}px;
+    --cfq-pad-top: {{ section.settings.padding_top_mobile }}px;
+    --cfq-pad-bottom: {{ section.settings.padding_bottom_mobile }}px;
+    --cfq-side-pad: {{ section.settings.side_padding_mobile }}px;
+    --cfq-item-gap: {{ section.settings.item_gap_mobile }}px;
+    --cfq-heading-gap: {{ section.settings.heading_gap_mobile }}px;
+    --cfq-heading-size: {{ section.settings.heading_font_size_mobile }}px;
+    --cfq-q-size: {{ section.settings.question_font_size_mobile }}px;
+    --cfq-a-size: {{ section.settings.answer_font_size_mobile }}px;
+    --cfq-pill-pad-y: {{ section.settings.pill_padding_y_mobile }}px;
+    --cfq-pill-pad-x: {{ section.settings.pill_padding_x_mobile }}px;
+    --cfq-pill-radius: {{ section.settings.pill_radius_mobile }}px;
+    --cfq-answer-pad-x: {{ section.settings.answer_padding_x_mobile }}px;
+    --cfq-icon-size: {{ section.settings.icon_size_mobile }}px;
+    --cfq-pill-bg: {{ section.settings.pill_background }};
+    --cfq-pill-border: {{ section.settings.pill_border_color | color_modify: 'alpha', pill_border_alpha }};
+    --cfq-pill-border-w: {{ section.settings.pill_border_width }}px;
+    --cfq-heading-color: {{ section.settings.heading_color }};
+    --cfq-q-color: {{ section.settings.question_color }};
+    --cfq-a-color: {{ section.settings.answer_color }};
+    --cfq-anim: {{ motion_duration }}ms;
+    /* easeInOutCubic, the same curve the scroll tween uses. The two have to
+       match: content below the clicked question is being pushed down by the
+       answer opening and pulled up by the page scrolling at the same time, so
+       if one curve leads the other, that content drifts down and then back up.
+       Same curve, same duration, and it just slides one way. */
+    --cfq-ease: cubic-bezier(0.645, 0.045, 0.355, 1);
+    background-color: var(--cfq-bg);
+    padding: var(--cfq-pad-top) 0 var(--cfq-pad-bottom);
+
+    /* The script pins the clicked question to a fixed screen position while
+       the answers above it collapse. Chrome's own scroll anchoring would be
+       tugging at the same scrollTop from the other side, which reads as
+       jitter, so hand it over entirely. Safari has no anchoring at all — with
+       this off, every browser now behaves identically. */
+    overflow-anchor: none;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__inner {
+    width: 100%;
+    max-width: var(--cfq-max);
+    margin: 0 auto;
+    padding-inline: var(--cfq-side-pad);
+    box-sizing: border-box;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cfq-item-gap);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__heading-block {
+    margin: var(--cfq-heading-gap) 0;
+    text-align: {{ section.settings.heading_alignment }};
+  }
+
+  #shopify-section-{{ section.id }} .cfq__heading {
+    margin: 0;
+    color: var(--cfq-heading-color);
+    font-family: Poppins, {{ settings.type_header_font.family }}, {{ settings.type_header_font.fallback_families }};
+    font-style: normal;
+    font-weight: {{ section.settings.heading_font_weight }};
+    font-size: var(--cfq-heading-size);
+    line-height: 1.2;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__item {
+    display: block;
+    margin: 0;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__item details {
+    border: none;
+    background: transparent;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.2rem;
+    list-style: none;
+    cursor: pointer;
+    padding: var(--cfq-pill-pad-y) var(--cfq-pill-pad-x);
+    background-color: var(--cfq-pill-bg);
+    border: var(--cfq-pill-border-w) solid var(--cfq-pill-border);
+    border-radius: var(--cfq-pill-radius);
+    color: var(--cfq-q-color);
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__summary::-webkit-details-marker {
+    display: none;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__question {
+    flex: 1;
+    min-width: 0;
+    font-family:  inherit;
+    font-weight: {{ section.settings.question_font_weight }};
+    font-size: var(--cfq-q-size);
+    line-height: 1.55;
+    letter-spacing: 0;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__icon {
+    flex: 0 0 var(--cfq-icon-size);
+    width: var(--cfq-icon-size);
+    height: var(--cfq-icon-size);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  #shopify-section-{{ section.id }} .cfq__icon img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Closed = right, Open = rotate to down.
+
+     Without JS the `open` attribute is the only truth there is. With JS the
+     attribute lingers for the length of the closing animation (the answer has
+     to stay rendered while it collapses), so the .is-open class becomes the
+     truth instead and this :not() rule spins the arrow back on time. */
+  #shopify-section-{{ section.id }} .cfq__item details[open] .cfq__icon {
+    transform: rotate(90deg);
+  }
+
+  #shopify-section-{{ section.id }}
+    .cfq--js
+    .cfq__item:not(.is-open)
+    details[open]
+    .cfq__icon {
+    transform: rotate(0deg);
+  }
+
+  /* The answer panel.
+
+     Height is animated with grid-template-rows 0fr -> 1fr rather than by
+     measuring pixels in JS. That matters here for one specific reason: an
+     interrupted `fr` transition interpolates from wherever it currently is,
+     so a question caught mid-open closes from that exact height. The old
+     height animation cancelled and restarted from a stale measurement, which
+     is the snap you could see when clicking two questions quickly.
+
+     It also means opening adds literally zero height in the frame the click
+     happens, so there is nothing to jump before the scroll even starts. */
+  #shopify-section-{{ section.id }} .cfq__panel {
+    display: grid;
+    grid-template-rows: 1fr;
+  }
+
+  #shopify-section-{{ section.id }} .cfq--js .cfq__panel {
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--cfq-anim) var(--cfq-ease);
+  }
+
+  #shopify-section-{{ section.id }} .cfq--js .cfq__item.is-open .cfq__panel {
+    grid-template-rows: 1fr;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__panel-inner {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Text fades slightly behind the height so the answer arrives settled
+     instead of sliding in mid-sentence. */
+  #shopify-section-{{ section.id }} .cfq--js .cfq__content {
+    opacity: 0;
+    transition: opacity calc(var(--cfq-anim) * 0.6) ease;
+  }
+
+  #shopify-section-{{ section.id }} .cfq--js .cfq__item.is-open .cfq__content {
+    opacity: 1;
+    transition-delay: calc(var(--cfq-anim) * 0.25);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #shopify-section-{{ section.id }} .cfq--js .cfq__panel,
+    #shopify-section-{{ section.id }} .cfq--js .cfq__content,
+    #shopify-section-{{ section.id }} .cfq__icon,
+    #shopify-section-{{ section.id }} .cfq__summary {
+      transition-duration: 1ms;
+      transition-delay: 0s;
+    }
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content {
+    padding: {{ section.settings.answer_padding_top_mobile }}px var(--cfq-answer-pad-x) {{ section.settings.answer_padding_bottom_mobile }}px;
+    color: var(--cfq-a-color);
+    font-family: "Satoshi Medium", "Satoshi", {{ settings.type_body_font.family }}, sans-serif;
+    font-size: var(--cfq-a-size);
+    font-weight: 400;
+    line-height: 1.65;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte > *:first-child {
+    margin-top: 0;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte > *:last-child {
+    margin-bottom: 0;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte p {
+    margin: 0 0 0.85em;
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte p:last-child {
+    margin-bottom: 0;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte strong {
+    font-weight: 700;
+  }
+
+  /* Default richtext lists — dots / numbers via normal CSS */
+  #shopify-section-{{ section.id }} .cfq__content.rte ul,
+  #shopify-section-{{ section.id }} .cfq__content.rte ol {
+    display: block;
+    margin: 0.75em 0;
+    padding-left: 1.5em;
+    list-style-position: outside;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte ul {
+    list-style-type: disc !important;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte ol {
+    list-style-type: decimal !important;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte li {
+    display: list-item;
+    margin: 0 0 0.65em;
+    padding-left: 0.6em;
+    font-size: inherit;
+    line-height: inherit;
+    list-style: inherit !important;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte li:last-child {
+    margin-bottom: 0;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte li::marker {
+    color: var(--cfq-a-color);
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte a {
+    color: inherit;
+    font-weight: 400;
+    position: relative;
+    cursor: pointer;
+    text-decoration: none;
+    padding-bottom: 0.2rem;
+    background-color: transparent;
+    background-image:
+      linear-gradient(to top, currentColor 0px, currentColor 0px),
+      linear-gradient(to top, {{ answer_link_rest }} 0px, {{ answer_link_rest }} 0px);
+    background-repeat: no-repeat;
+    background-position: right bottom, right bottom;
+    background-size: 0% 0.1rem, 100% 0.1rem;
+    transition-property: background-size;
+    transition-timing-function: ease;
+    transition-duration: var(--duration-default, 250ms);
+  }
+
+  @media screen and (hover: hover) {
+    #shopify-section-{{ section.id }} .cfq__content.rte a:hover {
+      background-position: left bottom, left bottom;
+      background-size: 100% 0.1rem, 100% 0.1rem;
+    }
+  }
+
+  /* Keyboard users get the same signal the mouse does, plus a real focus ring. */
+  #shopify-section-{{ section.id }} .cfq__content.rte a:focus-visible {
+    background-position: left bottom, left bottom;
+    background-size: 100% 0.1rem, 100% 0.1rem;
+    outline: 0.2rem solid currentColor;
+    outline-offset: 0.3rem;
+    border-radius: 0.2rem;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte a strong {
+    font-weight: 400;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte a,
+  #shopify-section-{{ section.id }} .cfq__content.rte a * {
+    text-decoration: none !important;
+  }
+
+  #shopify-section-{{ section.id }} .cfq__content.rte u {
+    text-decoration: underline;
+  }
+
+  @media screen and (min-width: 750px) {
+    #shopify-section-{{ section.id }} .cfq {
+      --cfq-pad-top: {{ section.settings.padding_top }}px;
+      --cfq-pad-bottom: {{ section.settings.padding_bottom }}px;
+      --cfq-side-pad: {{ section.settings.side_padding }}px;
+      --cfq-item-gap: {{ section.settings.item_gap }}px;
+      --cfq-heading-gap: {{ section.settings.heading_gap }}px;
+      --cfq-heading-size: {{ section.settings.heading_font_size }}px;
+      --cfq-q-size: {{ section.settings.question_font_size }}px;
+      --cfq-a-size: {{ section.settings.answer_font_size }}px;
+      --cfq-pill-pad-y: {{ section.settings.pill_padding_y }}px;
+      --cfq-pill-pad-x: {{ section.settings.pill_padding_x }}px;
+      --cfq-pill-radius: {{ section.settings.pill_radius }}px;
+      --cfq-answer-pad-x: {{ section.settings.answer_padding_x }}px;
+      --cfq-icon-size: {{ section.settings.icon_size }}px;
+    }
+
+    #shopify-section-{{ section.id }} .cfq__content {
+      padding: {{ section.settings.answer_padding_top }}px var(--cfq-answer-pad-x) {{ section.settings.answer_padding_bottom }}px;
+    }
+  }
+{%- endstyle -%}
+
+<div class="cfq">
+  <div class="cfq__inner">
+    <div class="cfq__list">
+      {%- comment -%}
+        question_index restarts at every heading and only drives the group
+        exclusivity in the script below. total_question_index counts across the
+        whole section, so "open first" means the first question on the page
+        rather than the first of each of the eight groups.
+
+        The pre-scan matters: as soon as a Question block is marked "Open by
+        default", that block is the one that should open — otherwise the merchant
+        picks question 7 and question 1 keeps opening alongside it, which reads
+        as the setting doing nothing.
+      {%- endcomment -%}
+      {%- liquid
+        assign question_index = 0
+        assign total_question_index = 0
+        assign group_index = 0
+
+        assign has_explicit_open = false
+        for scan_block in section.blocks
+          if scan_block.type == 'question' and scan_block.settings.open_by_default
+            assign has_explicit_open = true
+            break
+          endif
+        endfor
+      -%}
+      {%- for block in section.blocks -%}
+        {%- case block.type -%}
+          {%- when 'heading' -%}
+            {%- assign question_index = 0 -%}
+            {%- assign group_index = group_index | plus: 1 -%}
+            {%- if block.settings.title != blank -%}
+              <div class="cfq__heading-block" {{ block.shopify_attributes }}>
+                <{{ block.settings.heading_tag }} class="cfq__heading">
+                  {{- block.settings.title | escape -}}
+                </{{ block.settings.heading_tag }}>
+              </div>
+            {%- endif -%}
+
+          {%- when 'question' -%}
+            {%- liquid
+              assign question_index = question_index | plus: 1
+              assign total_question_index = total_question_index | plus: 1
+
+              assign is_open = false
+              if block.settings.open_by_default
+                assign is_open = true
+              elsif open_first and has_explicit_open == false and total_question_index == 1
+                assign is_open = true
+              endif
+            -%}
+            {%- comment -%}
+              Deliberately a plain <div>, not the theme's <accordion-tab>. That
+              component animates the height by measuring pixels and cancels the
+              animation on every re-click, and its click handler would run
+              alongside the one below — two scripts driving the same <details>.
+              This section owns the whole interaction instead.
+            {%- endcomment -%}
+            <div
+              class="cfq__item{% if is_open %} is-open{% endif %}"
+              data-cfq-group="{{ group_index }}"
+              {{ block.shopify_attributes }}
+            >
+              <details{% if is_open %} open{% endif %}>
+                <summary class="cfq__summary">
+                  <span class="cfq__question">{{ block.settings.title | escape }}</span>
+                  <span class="cfq__icon" aria-hidden="true">
+                    {% # theme-check-disable RemoteAsset %}
+                    <img
+                      src="https://assets.replocdn.com/projects/a2c7c51a-ec22-4e36-a9ea-6f00296360e2/b8841636-2636-4c73-ac94-db12e1167639"
+                      alt=""
+                      width="24"
+                      height="24"
+                      loading="lazy"
+                    >
+                    {% # theme-check-enable RemoteAsset %}
+                  </span>
+                </summary>
+                {%- if block.settings.text != blank -%}
+                  <div class="cfq__panel">
+                    <div class="cfq__panel-inner">
+                      <div class="accordion__content cfq__content rte">
+                        {{ block.settings.text }}
+                      </div>
+                    </div>
+                  </div>
+                {%- endif -%}
+              </details>
+            </div>
+        {%- endcase -%}
+      {%- endfor -%}
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var container = document.getElementById('shopify-section-{{ section.id }}');
+  if (!container) return;
+
+  var root = container.querySelector('.cfq');
+  if (!root) return;
+
+  // Runs during parse, before the section has painted, so there is no frame
+  // where the answers are styled for JS but the script has not arrived. Every
+  // rule that would break a no-JS visitor (panels collapsed to 0fr) hangs off
+  // this class, so without JS the <details> elements just work natively.
+  root.classList.add('cfq--js');
+
+  var items = Array.prototype.slice.call(root.querySelectorAll('.cfq__item'));
+  if (!items.length) return;
+
+  var DURATION = {{ motion_duration }};
+  var GAP = {{ scroll_gap }};
+
+  // How long the current interaction is running for. Set per click, because a
+  // longer scroll stretches the panel animation to match it.
+  var currentDuration = DURATION;
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function motionOff() {
+    return DURATION <= 0 || reduceMotion.matches;
+  }
+
+  // ---------------------------------------------------------------------
+  // Scrolling primitive
+  // ---------------------------------------------------------------------
+
+  // base.css ends with `html { scroll-behavior: smooth !important }`, so every
+  // plain scrollTo/scrollBy on this site is quietly routed through the
+  // browser's own smooth scroller. The per-frame corrections below have to
+  // land immediately or they queue up behind each other and the page turns to
+  // treacle, so the behavior is pinned to 'instant' — which, per spec, beats
+  // the stylesheet. The fallback for engines that predate 'instant' has to use
+  // an important inline value, because a normal one loses to that !important.
+  var canScrollInstantly = null;
+  function scrollToY(y) {
+    if (canScrollInstantly === null) {
+      try {
+        window.scrollTo({ top: window.pageYOffset, behavior: 'instant' });
+        canScrollInstantly = true;
+      } catch (e) {
+        canScrollInstantly = false;
+      }
+    }
+
+    if (canScrollInstantly) {
+      window.scrollTo({ top: y, behavior: 'instant' });
+      return;
+    }
+
+    var html = document.documentElement;
+    html.style.setProperty('scroll-behavior', 'auto', 'important');
+    window.scrollTo(0, y);
+    html.style.removeProperty('scroll-behavior');
+  }
+
+  // How much of the top of the viewport the header is going to cover once we
+  // get there. <sticky-header> is only in the DOM when the merchant has sticky
+  // headers switched on, so its absence means nothing overlaps and the answer
+  // can sit flush at the top. When it is present but currently hidden it is
+  // only translated out of view, not collapsed, so the height still reads
+  // true — and it is about to slide back in anyway, because scrolling up is
+  // exactly what reveals it.
+  function headerOffset() {
+    var header = document.querySelector('sticky-header');
+    if (!header) return 0;
+
+    var height = header.getBoundingClientRect().height;
+    return height > 0 && height < window.innerHeight * 0.5 ? height : 0;
+  }
+
+  // ---------------------------------------------------------------------
+  // Open / close
+  // ---------------------------------------------------------------------
+
+  function detailsOf(item) {
+    return item.querySelector('details');
+  }
+
+  // The <details> has to stay open for the whole collapse or the browser stops
+  // rendering the answer and it vanishes instead of shrinking. So the class
+  // leads and the attribute follows, once the height has actually reached zero.
+  function settleClosed(item) {
+    if (item.classList.contains('is-open')) return; // re-opened mid-collapse
+
+    var details = detailsOf(item);
+    if (details) details.open = false;
+  }
+
+  function closeItem(item) {
+    if (!item.classList.contains('is-open')) return;
+
+    item.classList.remove('is-open');
+    clearTimeout(item.cfqTimer);
+
+    if (motionOff()) {
+      settleClosed(item);
+      return;
+    }
+
+    // transitionend does the real work; this is only here for the cases where
+    // it never fires at all — a panel scrolled into a display:none ancestor,
+    // a transition interrupted by a resize.
+    item.cfqTimer = setTimeout(function () {
+      settleClosed(item);
+    }, currentDuration + 80);
+  }
+
+  function openItem(item) {
+    if (item.classList.contains('is-open')) return;
+
+    clearTimeout(item.cfqTimer);
+
+    var details = detailsOf(item);
+    var panel = item.querySelector('.cfq__panel');
+
+    if (details && !details.open) {
+      details.open = true;
+      // Force the 0fr starting row to be resolved now that the panel is being
+      // rendered. Without this the browser can coalesce "became visible" and
+      // "became 1fr" into one style pass and there is nothing to animate from.
+      if (panel) panel.getBoundingClientRect();
+    }
+
+    item.classList.add('is-open');
+  }
+
+  items.forEach(function (item) {
+    var panel = item.querySelector('.cfq__panel');
+    if (!panel) return;
+
+    panel.addEventListener('transitionend', function (event) {
+      if (event.target !== panel || event.propertyName !== 'grid-template-rows') return;
+      settleClosed(item);
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // The scroll itself
+  // ---------------------------------------------------------------------
+
+  var frame = null;
+  var onScrollDone = null;
+
+  function releaseScroll() {
+    if (frame) {
+      cancelAnimationFrame(frame);
+      frame = null;
+    }
+    window.removeEventListener('wheel', onUserScroll);
+    window.removeEventListener('touchmove', onUserScroll);
+    window.removeEventListener('keydown', onUserKey);
+
+    // Cleared before it runs, so a callback that starts another scroll — or
+    // that lands back here — cannot see a stale one.
+    var done = onScrollDone;
+    onScrollDone = null;
+    if (done) done();
+  }
+
+  function onUserScroll() {
+    releaseScroll();
+  }
+
+  function onUserKey(event) {
+    // Space, page up/down, home/end, arrows — anything that means "I am
+    // steering now". Handing control straight back beats fighting the user.
+    var key = event.keyCode;
+    if (key === 32 || (key >= 33 && key <= 40)) releaseScroll();
+  }
+
+  function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  // This is the fix for the jump.
+  //
+  // The old version mutated the DOM and then asked the browser to smooth-scroll
+  // to wherever the question had landed. But closing a question that sits
+  // *above* the clicked one deletes its height out of the flow, so everything
+  // below — including the question you just clicked — snapped upward by that
+  // many pixels first. The smooth scroll then started from the wrong place.
+  // Two movements, the first of them instant: that is the glitch.
+  //
+  // So instead of choosing a scroll destination and hoping the layout holds
+  // still, this drives the *question's position on screen* directly. Every
+  // frame it asks where the question actually is, works out where it should be
+  // at this point in the easing curve, and corrects scrollTop by the
+  // difference. Whatever the collapsing answer above is doing to the layout is
+  // absorbed the same frame it happens and never reaches the screen. The
+  // question travels from where you clicked it to just under the header in one
+  // unbroken movement — and if it was already in the right place, it simply
+  // does not move at all while everything reflows around it.
+  // Longer trips get a little longer to run. Whatever comes out of this drives
+  // the panel transition too — see syncPanelDuration — so the two never
+  // disagree about how long this interaction lasts.
+  function durationFor(travel) {
+    return Math.max(DURATION, Math.min(620, 260 + travel * 0.35));
+  }
+
+  function syncPanelDuration(duration) {
+    currentDuration = duration;
+    root.style.setProperty('--cfq-anim', duration + 'ms');
+  }
+
+  function glideIntoView(item, startTop, shouldScroll, duration, onDone) {
+    releaseScroll();
+
+    function destination() {
+      // Re-measured each frame: the header compacts as it turns sticky, and a
+      // moving target is still smooth as long as we are easing toward it.
+      return shouldScroll ? headerOffset() + GAP : startTop;
+    }
+
+    if (motionOff()) {
+      scrollToY(window.pageYOffset + (item.getBoundingClientRect().top - destination()));
+      if (onDone) onDone();
+      return;
+    }
+
+    var startedAt = null;
+
+    // Runs whether the scroll finished or the visitor grabbed the page
+    // mid-way, so the deferred collapse below can never be stranded.
+    onScrollDone = onDone || null;
+
+    window.addEventListener('wheel', onUserScroll, { passive: true });
+    window.addEventListener('touchmove', onUserScroll, { passive: true });
+    window.addEventListener('keydown', onUserKey);
+
+    frame = requestAnimationFrame(function step(now) {
+      if (startedAt === null) startedAt = now;
+
+      var progress = Math.min(1, (now - startedAt) / duration);
+      var wantedTop = startTop + (destination() - startTop) * easeInOutCubic(progress);
+      var drift = item.getBoundingClientRect().top - wantedTop;
+
+      // Sub-pixel drift is below what a display can show and correcting it
+      // would only add scroll events for the sticky header to react to.
+      if (Math.abs(drift) > 0.5) scrollToY(window.pageYOffset + drift);
+
+      if (progress < 1) {
+        frame = requestAnimationFrame(step);
+      } else {
+        releaseScroll();
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Wiring
+  // ---------------------------------------------------------------------
+
+  // Shuts an answer without any animation at all. Dropping the open attribute
+  // stops the browser rendering the panel, so the height is gone in the same
+  // frame — there is no transition for anyone to catch a glimpse of.
+  function closeInstantly(item) {
+    clearTimeout(item.cfqTimer);
+
+    var panel = item.querySelector('.cfq__panel');
+
+    if (panel) {
+      // Collapse the rows with the transition switched off first. A panel that
+      // stops being rendered while it is still at 1fr has that state preserved
+      // for it, so the next open finds nothing to animate from and the answer
+      // snaps to full height. Squashing it to 0fr while it is still rendered
+      // means the state it is frozen in is the closed one.
+      //
+      // Both steps land in one JS turn, so the closed state is never painted —
+      // this is invisible, exactly like the rest of the collapse.
+      panel.style.transition = 'none';
+      item.classList.remove('is-open');
+      panel.getBoundingClientRect();
+      panel.style.transition = '';
+    } else {
+      item.classList.remove('is-open');
+    }
+
+    var details = detailsOf(item);
+    if (details) details.open = false;
+  }
+
+  // Phase two: the answer that was open above the click is now, thanks to the
+  // scroll, sitting off the top of the screen. Closing it here costs nothing
+  // visually — the scroll correction is measured and applied inside a single
+  // JS turn, so the browser never paints the state in between.
+  function collapseAbove(other, anchor) {
+    // Unless it could not actually be scrolled away: near the end of the page
+    // there may be no room left to scroll, and a short answer may still be on
+    // screen. Then fall back to animating it and holding the anchor still.
+    if (other.getBoundingClientRect().bottom > headerOffset() + 1) {
+      var from = anchor.getBoundingClientRect().top;
+      syncPanelDuration(DURATION);
+      closeItem(other);
+      glideIntoView(anchor, from, false, DURATION, null);
+      return;
+    }
+
+    var before = anchor.getBoundingClientRect().top;
+    closeInstantly(other);
+    var after = anchor.getBoundingClientRect().top;
+
+    if (Math.abs(after - before) > 0.5) {
+      scrollToY(window.pageYOffset + (after - before));
+    }
+  }
+
+  // Closing an answer that sits *above* the click is the whole problem. Its
+  // height comes out of the flow, and to keep the clicked question still the
+  // scroll has to come up by exactly that much — so the question holds, but
+  // every other thing on screen slides down to fill the gap and then the
+  // scroll travels back. Pinning alone cannot hide that: the page really did
+  // go up and come back, which is precisely what it looked like.
+  //
+  // So the collapse is not raced against the scroll, it is deferred until
+  // after it. The scroll runs first, with the layout completely still, and
+  // carries the old answer off the top of the screen. Only then does it close
+  // — and closing something nobody can see moves nothing anybody can see.
+  // From the visitor's side there is one short scroll downward, and nothing
+  // else moves at all.
+  function reveal(item, shouldScroll) {
+    releaseScroll(); // settles anything the previous click left deferred
+
+    // Measured before anything moves, so it is the position the visitor is
+    // actually looking at as they click.
+    var startTop = item.getBoundingClientRect().top;
+    var itemY = startTop + window.pageYOffset;
+    var openAbove = [];
+
+    // One duration for both halves of the movement, settled before anything
+    // starts moving. The answer opening and the page scrolling act on the
+    // content below the click in opposite directions, so they have to run on
+    // the same clock as well as the same curve.
+    var duration = durationFor(shouldScroll ? Math.abs(startTop - (headerOffset() + GAP)) : 0);
+    syncPanelDuration(duration);
+
+    items.forEach(function (other) {
+      if (other === item || !other.classList.contains('is-open')) return;
+
+      if (other.getBoundingClientRect().top + window.pageYOffset > itemY) {
+        // Below the click. Nothing above the clicked question moves when this
+        // closes, so it is just an ordinary accordion collapse — animate it
+        // now, where the visitor can see it happen.
+        closeItem(other);
+      } else {
+        openAbove.push(other);
+      }
+    });
+
+    // Opened immediately for the feedback, and it costs nothing: the panel
+    // starts at zero height and grows downward, so nothing above it moves.
+    openItem(item);
+
+    glideIntoView(item, startTop, shouldScroll, duration, function () {
+      openAbove.forEach(function (other) {
+        collapseAbove(other, item);
+      });
+    });
+  }
+
+  items.forEach(function (item) {
+    var summary = item.querySelector('summary');
+    if (!summary) return;
+
+    summary.addEventListener('click', function (event) {
+      // The class, not the attribute, is the state — during a collapse the
+      // attribute is still 'open' while the question is on its way out.
+      event.preventDefault();
+
+      if (item.classList.contains('is-open')) {
+        // Collapsing the question you are already reading. Nothing above it
+        // changes height, so its pill stays exactly where it is: no scroll,
+        // and no reason to take the page away from the user.
+        releaseScroll();
+        syncPanelDuration(DURATION); // back to the plain speed, not a scroll's
+        closeItem(item);
+        return;
+      }
+
+      reveal(item, true);
+    });
+  });
+
+  // Selecting a Question in the theme editor should show its answer. The
+  // editor does its own scrolling to the block, so this only opens it — and
+  // still pins it, so the other answer closing underneath does not shift the
+  // block out from under the merchant.
+  container.addEventListener('shopify:block:select', function (event) {
+    var item = event.target && event.target.closest ? event.target.closest('.cfq__item') : null;
+    if (!item || items.indexOf(item) === -1) return;
+
+    reveal(item, false);
+  });
+})();
+</script>
+{% render 'schema-faq', section: section %}
+
+{% schema %}
+{
+  "name": "Custom FAQ",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#FDF6F2"
+    },
+    {
+      "type": "range",
+      "id": "content_max_width",
+      "min": 480,
+      "max": 1200,
+      "step": 20,
+      "unit": "px",
+      "label": "Container max width",
+      "default": 840
+    },
+    {
+      "type": "range",
+      "id": "side_padding",
+      "min": 0,
+      "max": 80,
+      "step": 4,
+      "unit": "px",
+      "label": "Side padding (desktop)",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "side_padding_mobile",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "label": "Side padding (mobile)",
+      "default": 20
+    },
+    {
+      "type": "checkbox",
+      "id": "open_first",
+      "label": "Open first question by default",
+      "info": "Opens only the very first question on the page. To open a different one, use \"Open by default\" on that Question block instead.",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Spacing"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding top (desktop)",
+      "default": 100
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding bottom (desktop)",
+      "default": 80
+    },
+    {
+      "type": "range",
+      "id": "padding_top_mobile",
+      "min": 0,
+      "max": 100,
+      "step": 2,
+      "unit": "px",
+      "label": "Padding top (mobile)",
+      "default": 56
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_mobile",
+      "min": 0,
+      "max": 100,
+      "step": 2,
+      "unit": "px",
+      "label": "Padding bottom (mobile)",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "item_gap",
+      "min": 8,
+      "max": 64,
+      "step": 2,
+      "unit": "px",
+      "label": "Gap between FAQs (desktop)",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "item_gap_mobile",
+      "min": 8,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "label": "Gap between FAQs (mobile)",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "heading_gap",
+      "min": 0,
+      "max": 80,
+      "step": 4,
+      "unit": "px",
+      "label": "Gap under heading (desktop)",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "heading_gap_mobile",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "label": "Gap under heading (mobile)",
+      "default": 28
+    },
+    {
+      "type": "header",
+      "content": "Heading style"
+    },
+    {
+      "type": "select",
+      "id": "heading_alignment",
+      "label": "Heading alignment",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "range",
+      "id": "heading_font_size",
+      "min": 18,
+      "max": 56,
+      "step": 1,
+      "unit": "px",
+      "label": "Heading size (desktop)",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "heading_font_size_mobile",
+      "min": 16,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "label": "Heading size (mobile)",
+      "default": 24
+    },
+    {
+      "type": "select",
+      "id": "heading_font_weight",
+      "label": "Heading weight",
+      "options": [
+        { "value": "400", "label": "Regular" },
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semi bold" },
+        { "value": "700", "label": "Bold" }
+      ],
+      "default": "500"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#333333"
+    },
+    {
+      "type": "header",
+      "content": "Pill / question style"
+    },
+    {
+      "type": "color",
+      "id": "pill_background",
+      "label": "Pill background",
+      "default": "#D3F1FB"
+    },
+    {
+      "type": "color",
+      "id": "pill_border_color",
+      "label": "Pill border",
+      "default": "#000000"
+    },
+    {
+      "type": "range",
+      "id": "pill_border_opacity",
+      "min": 20,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "label": "Pill border opacity",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "pill_border_width",
+      "min": 0,
+      "max": 4,
+      "step": 1,
+      "unit": "px",
+      "label": "Pill border width",
+      "default": 1
+    },
+    {
+      "type": "range",
+      "id": "pill_radius",
+      "min": 0,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "label": "Pill radius (desktop)",
+      "default": 118
+    },
+    {
+      "type": "range",
+      "id": "pill_radius_mobile",
+      "min": 0,
+      "max": 80,
+      "step": 2,
+      "unit": "px",
+      "label": "Pill radius (mobile)",
+      "default": 68
+    },
+    {
+      "type": "range",
+      "id": "pill_padding_y",
+      "min": 8,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Pill padding vertical (desktop)",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "pill_padding_y_mobile",
+      "min": 8,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "label": "Pill padding vertical (mobile)",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "pill_padding_x",
+      "min": 12,
+      "max": 64,
+      "step": 2,
+      "unit": "px",
+      "label": "Pill padding horizontal (desktop)",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "pill_padding_x_mobile",
+      "min": 12,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Pill padding horizontal (mobile)",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "question_font_size",
+      "min": 12,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "label": "Question size (desktop)",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "question_font_size_mobile",
+      "min": 12,
+      "max": 22,
+      "step": 1,
+      "unit": "px",
+      "label": "Question size (mobile)",
+      "default": 16
+    },
+    {
+      "type": "select",
+      "id": "question_font_weight",
+      "label": "Question weight",
+      "options": [
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semi bold" },
+        { "value": "700", "label": "Bold" }
+      ],
+      "default": "700"
+    },
+    {
+      "type": "color",
+      "id": "question_color",
+      "label": "Question color",
+      "default": "#333333"
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "min": 14,
+      "max": 36,
+      "step": 1,
+      "unit": "px",
+      "label": "Arrow size (desktop)",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "icon_size_mobile",
+      "min": 12,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "label": "Arrow size (mobile)",
+      "default": 20
+    },
+    {
+      "type": "paragraph",
+      "content": "Single Replo arrow — rotates right → down on open."
+    },
+    {
+      "type": "header",
+      "content": "Answer style"
+    },
+    {
+      "type": "range",
+      "id": "answer_font_size",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "label": "Answer size (desktop)",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "answer_font_size_mobile",
+      "min": 12,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "label": "Answer size (mobile)",
+      "default": 14
+    },
+    {
+      "type": "color",
+      "id": "answer_color",
+      "label": "Answer color",
+      "default": "#333333"
+    },
+    {
+      "type": "range",
+      "id": "answer_padding_x",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "label": "Answer side padding (desktop)",
+      "default": 30
+    },
+    {
+      "type": "range",
+      "id": "answer_padding_x_mobile",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Answer side padding (mobile)",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "answer_padding_top",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Answer padding top (desktop)",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "answer_padding_top_mobile",
+      "min": 0,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "label": "Answer padding top (mobile)",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "answer_padding_bottom",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Answer padding bottom (desktop)",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "answer_padding_bottom_mobile",
+      "min": 0,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "label": "Answer padding bottom (mobile)",
+      "default": 0
+    }
+  ],
+  "max_blocks": 80,
+  "blocks": [
+    {
+      "type": "heading",
+      "name": "Heading",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Heading",
+          "default": "How They Work"
+        },
+        {
+          "type": "select",
+          "id": "heading_tag",
+          "label": "Heading tag",
+          "options": [
+            { "value": "h2", "label": "H2" },
+            { "value": "h3", "label": "H3" },
+            { "value": "h4", "label": "H4" },
+            { "value": "p", "label": "Paragraph" }
+          ],
+          "default": "h2"
+        }
+      ]
+    },
+    {
+      "type": "question",
+      "name": "Question",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Question",
+          "default": "How do I wear them?"
+        },
+        {
+          "type": "richtext",
+          "id": "text",
+          "label": "Answer",
+          "default": "<p>It's super easy:</p><p>1. Place the inserts inside your bra, bralette, or swimsuit.<br>2. Face the grippy side out: it gently holds to your fabric for all-day stay.<br>3. Adjust as needed, then go! Move freely, feel supported, and forget they're even there.</p><p>Tip: Placement matters! Visit our <a href=\"/pages/how-to-use\"><strong><u>How to Wear Guide</u></strong></a> for quick visuals on getting the perfect fit.</p>"
+        },
+        {
+          "type": "checkbox",
+          "id": "open_by_default",
+          "label": "Open by default",
+          "info": "Opens this question when the page loads. Overrides the section's \"Open first question by default\".",
+          "default": false
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Custom FAQ",
+      "blocks": [
+        {
+          "type": "heading",
+          "settings": {
+            "title": "How They Work"
+          }
+        },
+        {
+          "type": "question",
+          "settings": {
+            "open_by_default": true,
+            "title": "How do I wear them?",
+            "text": "<p>It's super easy:</p><p>1. Place the inserts inside your bra, bralette, or swimsuit.<br>2. Face the grippy side out: it gently holds to your fabric for all-day stay.<br>3. Adjust as needed, then go! Move freely, feel supported, and forget they're even there.</p><p>Tip: Placement matters! Visit our <a href=\"/pages/how-to-use\"><strong><u>How to Wear Guide</u></strong></a> for quick visuals on getting the perfect fit.</p>"
+          }
+        },
+        {
+          "type": "question",
+          "settings": {
+            "open_by_default": false,
+            "title": "Will these work for me?",
+            "text": "<p>We understand that every individual is unique. There are many factors that contribute to the success of our inserts — the fit, fabric they are worn with, along with breast shape and density.</p>"
+          }
+        },
+        {
+          "type": "question",
+          "settings": {
+            "open_by_default": false,
+            "title": "Can I return what doesn't fit?",
+            "text": "<p>Yes! Inserts that are just tried on and don't work for you can be returned. We also offer one free exchange with every order.</p>"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

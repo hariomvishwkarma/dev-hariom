@@ -1,0 +1,73 @@
+{% doc %}
+  Outputs an OfferShippingDetails JSON object for merchant listings.
+  @param {boolean} [include_id] - Include @id for shared reference (default true)
+  @example
+  {% render 'schema-shipping-details' %}
+{% enddoc %}
+
+{%- liquid
+  assign currency_code = cart.currency.iso_code | default: shop.currency
+  assign shipping_country = settings.schema_shipping_country | strip
+  if shipping_country == blank
+    assign shipping_country = localization.country.iso_code | default: shop.address.country_code
+  endif
+  assign shipping_country = shipping_country | upcase
+  assign shipping_region = settings.schema_shipping_region | strip
+  assign shipping_rate = settings.schema_shipping_rate | default: '0' | strip
+  if shipping_rate == blank
+    assign shipping_rate = '0'
+  endif
+  assign handling_min = settings.schema_handling_min_days | default: 1
+  assign handling_max = settings.schema_handling_max_days | default: 3
+  assign transit_min = settings.schema_transit_min_days | default: 2
+  assign transit_max = settings.schema_transit_max_days | default: 8
+  assign shipping_policy_url = settings.schema_shipping_policy_url
+  if shipping_policy_url == blank and shop.shipping_policy != blank and shop.shipping_policy.url != blank
+    assign shipping_policy_url = shop.shipping_policy.url
+  endif
+  if shipping_policy_url != blank
+    unless shipping_policy_url contains 'http'
+      assign shipping_policy_url = request.origin | append: shipping_policy_url
+    endunless
+  endif
+  assign output_id = true
+  if include_id == false
+    assign output_id = false
+  endif
+-%}
+{
+  "@type": "OfferShippingDetails"
+  {%- if output_id -%}
+  ,"@id": {{ request.origin | append: '/#shipping-policy' | json }}
+  {%- endif -%}
+  ,"shippingRate": {
+    "@type": "MonetaryAmount",
+    "value": {{ shipping_rate }},
+    "currency": {{ currency_code | json }}
+  },
+  "shippingDestination": {
+    "@type": "DefinedRegion",
+    "addressCountry": {{ shipping_country | json }}
+    {%- if shipping_region != blank -%}
+    ,"addressRegion": {{ shipping_region | json }}
+    {%- endif -%}
+  }
+  {%- if shipping_policy_url != blank -%}
+  ,"shippingSettingsLink": {{ shipping_policy_url | json }}
+  {%- endif -%}
+  ,"deliveryTime": {
+    "@type": "ShippingDeliveryTime",
+    "handlingTime": {
+      "@type": "QuantitativeValue",
+      "minValue": {{ handling_min }},
+      "maxValue": {{ handling_max }},
+      "unitCode": "DAY"
+    },
+    "transitTime": {
+      "@type": "QuantitativeValue",
+      "minValue": {{ transit_min }},
+      "maxValue": {{ transit_max }},
+      "unitCode": "DAY"
+    }
+  }
+}

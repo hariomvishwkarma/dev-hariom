@@ -1,0 +1,141 @@
+{%- comment -%}
+  Renders a promo block
+
+  Accepts:
+    - promo_block {Object}: The promo block to render
+
+  Usage:
+   {% render 'promo-block', promo_block: promo_block %}
+{%- endcomment -%}
+
+{% liquid
+  assign promo_block_obj = promo_block.promo_block.value
+
+  assign col_span_classes = ''
+
+  if promo_block.width > number_of_columns_mobile
+    assign col_span_classes = col_span_classes | append: 'col-span-' | append: number_of_columns_mobile | append: ' '
+  else
+    assign col_span_classes = col_span_classes | append: 'col-span-' | append: promo_block.width | append: ' '
+  endif
+
+  if promo_block.width > number_of_columns_desktop
+    assign col_span_classes = col_span_classes | append: 'lg:col-span-' | append: number_of_columns_desktop | append: ' '
+    assign width_minus_one = number_of_columns_desktop | minus: 1
+    assign col_span_classes = col_span_classes | append: 'md:col-span-' | append: width_minus_one | append: ' '
+  else
+    assign col_span_classes = col_span_classes | append: 'lg:col-span-' | append: promo_block.width | append: ' '
+    assign width_minus_one = number_of_columns_desktop | minus: 1
+    if promo_block.width > width_minus_one and promo_block.width != 1
+      assign promo_width_minus_one = promo_block.width | minus: 1
+      assign col_span_classes = col_span_classes | append: 'md:col-span-' | append: promo_width_minus_one | append: ' '
+    else
+      assign col_span_classes = col_span_classes | append: 'md:col-span-' | append: promo_block.width | append: ' '
+    endif
+  endif
+
+  if promo_block.width > number_of_columns_large
+    assign col_span_classes = col_span_classes | append: '2xl:col-span-' | append: number_of_columns_large | append: ' '
+  else
+    assign col_span_classes = col_span_classes | append: '2xl:col-span-' | append: promo_block.width | append: ' '
+  endif
+
+  assign link = promo_block_obj.button_url.value
+  assign link_label = promo_block_obj.button_text.value
+
+  assign share_wishlist_button = promo_block.share_wishlist_button.value
+%}
+
+{% if promo_block_obj.background_color %}
+  <style>
+    .promo-block-card--{{ promo_block.position }}{
+      --promo_bg_color: {{ promo_block_obj.background_color }};
+    }
+    .promo_slider {
+      display: flex;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+  </style>
+{% endif %}
+
+<div
+  class="promo-block-card promo-block-card--{{ promo_block.position }} relative {{col_span_classes}} row-span-1"
+  data-index="{{promo_block.position}}"
+>
+  <div class="h-full relative">
+    <div class="promo_slider" data-timing="{{ slider_timing }}">
+      {% if promo_block_obj.background_image %}
+        {% render 'c-image', image: promo_block_obj.background_image, classes: 'top-0 w-full h-full absolute overlay' %}
+      {% endif %}
+      {% if promo_block_obj.background_image_2 %}
+        {% render 'c-image',
+          image: promo_block_obj.background_image_2,
+          classes: 'top-0 w-full h-full absolute overlay'
+        %}
+      {% endif %}
+      {% if promo_block_obj.background_image_3 %}
+        {% render 'c-image',
+          image: promo_block_obj.background_image_3,
+          classes: 'top-0 w-full h-full absolute overlay'
+        %}
+      {% endif %}
+    </div>
+    <div class="text-background w-full h-full relative z-10 px-6 pt-8 pb-6 md:py-7.5 md:px-[30px] flex flex-col justify-end gap-6 break-words">
+      <div class="space-y-2">
+        {% capture richtext_header %}
+            {{ promo_block_obj.header | metafield_tag }}
+          {% endcapture %}
+
+        {%- if richtext_header != blank -%}
+          {% liquid
+            assign custom_color = promo_block_obj.custom_color
+            # condition to apply custom color
+            if richtext_header contains '[' and richtext_header contains ']' and custom_color != blank and custom_color != 'rgba(0,0,0,0)'
+              assign opening_tag = '<span ' | append: 'style="color:' | append: custom_color | append: ';">'
+              assign block_title = richtext_header | replace: '[', opening_tag | replace: ']', '</span>'
+            else
+              assign block_title = richtext_header
+            endif
+          %}
+          {%- assign title_classes = 'md:text-5xl leading-none' -%}
+          {%- if promo_block.width == 1 -%}
+            {%- assign title_classes = title_classes | append: ' text-[30px] sm:text-[38px]' -%}
+            {%- assign description_classes = 'text-md sm:text-lg' -%}
+          {%- else -%}
+            {%- assign title_classes = title_classes | append: ' text-[38px]' -%}
+            {%- assign description_classes = 'text-lg' -%}
+          {%- endif -%}
+          {% render 'c-title', content: block_title, custom_tag: 'h4', classes: title_classes %}
+        {%- endif -%}
+
+        {% liquid
+          assign description = promo_block_obj.body_text.value
+          render 'c-text', content: description, classes: description_classes
+        %}
+      </div>
+
+      {%- if share_wishlist_button -%}
+        <button
+          id="open-share-wishlist-button"
+          class="flex gap-1.5 items-center button--primary rounded-full shadow-none w-fit disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {% render 'c-icon', icon: 'share', classes: 'w-4 h-4' %}
+          {{ 'sections.wishlist.share.share' | t }}
+        </button>
+      {%- else -%}
+        {% liquid
+          if link and link_label
+            render 'c-link', href: link, content: link_label, classes: 'button--primary rounded-full shadow-none w-fit disabled:opacity-60 disabled:cursor-not-allowed'
+          endif
+        %}
+      {%- endif -%}
+    </div>
+  </div>
+</div>
+{% comment %} this one is just here to make sure tailwind understands all the col combinations {% endcomment %}
+<div
+  class="hidden col-span-1 col-span-2 col-span-3 col-span-4 col-span-5 col-span-6 col-span-7 col-span-8 col-span-9 col-span-10 col-span-11 col-span-12 md:col-span-1 md:col-span-2 md:col-span-3 md:col-span-4 md:col-span-5 md:col-span-6 md:col-span-7 md:col-span-8 md:col-span-9 md:col-span-10 md:col-span-11 md:col-span-12 lg:col-span-1 lg:col-span-2 lg:col-span-3 lg:col-span-4 lg:col-span-5 lg:col-span-6 lg:col-span-7 lg:col-span-8 lg:col-span-9 lg:col-span-10 lg:col-span-11 lg:col-span-12 2xl:col-span-1 2xl:col-span-2 2xl:col-span-3 2xl:col-span-4 2xl:col-span-5 2xl:col-span-6 2xl:col-span-7 2xl:col-span-8 2xl:col-span-9 2xl:col-span-10 2xl:col-span-11 2xl:col-span-12"
+></div>

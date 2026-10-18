@@ -1,0 +1,33 @@
+{% doc %}
+  Outputs WebPage, SearchResultsPage, or similar page-level JSON-LD.
+  @param {string} [page_type] - Schema @type override (WebPage, SearchResultsPage)
+  @param {string} [page_name] - Page name override
+  @param {string} [page_url] - Absolute page URL override
+  @example
+  {% render 'schema-webpage', page_type: 'SearchResultsPage' %}
+{% enddoc %}
+
+{%- liquid
+  assign schema_type = page_type | default: 'WebPage'
+  assign schema_name = page_name | default: page_title
+  assign schema_url = page_url | default: canonical_url
+
+  if schema_url == blank
+    assign schema_url = request.origin
+  endif
+-%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": {{ schema_type | json }},
+  "@id": {{ schema_url | append: '#webpage' | json }},
+  "name": {{ schema_name | json }},
+  "url": {{ schema_url | json }}
+  {%- if page_description != blank -%}
+  ,"description": {{ page_description | json }}
+  {%- endif -%}
+  ,"isPartOf": {
+    "@id": {{ request.origin | append: '/#website' | json }}
+  }
+}
+</script>

@@ -1,0 +1,749 @@
+{%- liquid
+  assign slides = section.blocks | where: 'type', 'slide'
+  assign pair_count = slides.size
+  assign pair_last_index = pair_count | minus: 1
+-%}
+
+{%- style -%}
+  #shopify-section-{{ section.id }} {
+    --section-padding-top: {{ section.settings.padding_top }}px;
+    --section-padding-bottom: {{ section.settings.padding_bottom }}px;
+    --hc-reviews-bg: {{ section.settings.background_color }};
+    --hc-reviews-accent: {{ section.settings.accent_color }};
+  }
+
+  .hc-reviews {
+    background: var(--hc-reviews-bg);
+    padding-top: calc(var(--section-padding-top) * 0.75);
+    padding-bottom: calc(var(--section-padding-bottom) * 0.75);
+  }
+
+  @media screen and (min-width: 750px) {
+    .hc-reviews {
+      padding-top: var(--section-padding-top);
+      padding-bottom: var(--section-padding-bottom);
+    }
+  }
+
+  .hc-reviews__badge {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 4rem;
+  }
+
+  .hc-reviews__badge-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.6rem 1.2rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    font-size: 1.3rem;
+    line-height: 1;
+  }
+
+  .hc-reviews__stars {
+    display: inline-flex;
+    color: var(--hc-reviews-accent);
+  }
+
+  .hc-reviews__stars svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+  }
+
+  .hc-reviews__heading {
+    text-align: center;
+    margin: 0 0 4rem;
+    letter-spacing: 0;
+  }
+
+  .hc-review-carousel {
+    display: flex;
+    gap: 2.4rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 1.2rem;
+  }
+
+  .hc-review-carousel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hc-review {
+    text-align: center;
+    max-width: 34rem;
+    margin: 0 auto;
+    scroll-snap-align: center;
+    flex: 0 0 70%;
+    max-width: 70%;
+    transform: scale(0.96);
+    transform-origin: center center;
+    transition: transform 220ms ease, opacity 220ms ease;
+    opacity: 0.72;
+  }
+
+  /* Mobile: only show the active review text */
+  @media screen and (max-width: 749px) {
+    .hc-review {
+      flex-basis: 100%;
+      max-width: 100%;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(1);
+    }
+
+    .hc-review.is-active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
+  @media screen and (min-width: 750px) {
+    .hc-review {
+      /* Exactly 3 visible cards (2 gaps of 2.4rem) */
+      flex-basis: calc((100% - 4.8rem) / 3);
+      max-width: calc((100% - 4.8rem) / 3);
+    }
+  }
+
+  .hc-review.is-active {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+
+  .hc-review__stars {
+    display: inline-flex;
+    justify-content: center;
+    color: var(--hc-reviews-accent);
+    margin-bottom: 2rem;
+  }
+
+  .hc-review__stars svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+  }
+
+  .hc-review__headline {
+    margin: 0 0 1rem;
+    font-style: italic;
+    font-weight: 800;
+    letter-spacing: 0;
+    font-size: 1.6rem;
+    line-height: 1.35;
+  }
+
+  .hc-review__body {
+    margin: 0 0 3rem;
+    color: black;
+    font-size: 1.35rem;
+    line-height: 1.55;
+  }
+
+  .hc-review__author {
+    margin: 0;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+
+  .hc-review__verified {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 1.2rem;
+    color: black;
+  }
+
+  .hc-review__verified svg {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    display: block;
+  }
+
+  /* Video carousel */
+  .hc-reviews__videos {
+    position: relative;
+    overflow: visible;
+  }
+
+  /* Tunables for video sizing */
+  #shopify-section-{{ section.id }} {
+    --hc-video-gap: 1.6rem;
+    /* Fixed-ish card width so sides can be half/fully visible depending on viewport */
+    --hc-video-w: clamp(180px, 22vw, 280px);
+    /* Maximum fully-visible set (5 cards + 4 gaps) */
+    --hc-video-max-track: calc((var(--hc-video-w) * 5) + (var(--hc-video-gap) * 4));
+  }
+
+  /* Full-bleed video row (to screen edges) */
+  .hc-reviews__videos {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+  }
+
+  .hc-video-carousel {
+    display: flex;
+    gap: var(--hc-video-gap);
+    overflow-x: auto;
+    overflow-y: visible;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 1.2rem;
+    padding-top: 5rem; /* room for active card to stick up */
+    align-items: flex-end;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: var(--hc-video-max-track);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1.6rem;
+    padding-right: 1.6rem;
+  }
+
+  .hc-video-carousel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hc-video {
+    scroll-snap-align: center;
+    flex: 0 0 var(--hc-video-w);
+    max-width: var(--hc-video-w);
+    filter: saturate(0.92);
+    transition: filter 220ms ease;
+    display: flex;
+    align-items: flex-end;
+    position: relative;
+    z-index: 1;
+  }
+
+  @media screen and (min-width: 750px) {
+    .hc-video {
+      flex-basis: var(--hc-video-w);
+      max-width: var(--hc-video-w);
+    }
+  }
+
+  /* (min-width: 1200px) no longer needs percentage sizing; fixed width + padding handles max-5 */
+
+  .hc-video.is-active {
+    filter: saturate(1);
+    z-index: 5;
+  }
+
+  .hc-video__card {
+    position: relative;
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    background: rgba(255, 255, 255, 0.35);
+    border: 1px solid #111;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.06);
+    aspect-ratio: 3 / 4;
+    transform: translateZ(0);
+    isolation: isolate;
+    /*
+      When the parent slide is transformed (scaled), some browsers (notably Safari)
+      may stop clipping <video controls> to border-radius/overflow:hidden.
+      A WebKit mask forces consistent rounding.
+    */
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
+    mask-image: radial-gradient(white, black);
+
+    /* Scale the rounded element itself (fixes transform+radius issues) */
+    transform-origin: center bottom;
+    transform: scale(0.94) translateZ(0);
+    transition: transform 220ms ease;
+  }
+
+  .hc-video.is-active .hc-video__card {
+    transform: scale(1.06) translateZ(0);
+  }
+
+  .hc-video__card button.hc-video__btn {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
+  }
+
+  .hc-video__card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 18px !important;
+  }
+
+  .hc-video__card video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+    border-radius: 18px !important;
+  }
+
+  .hc-video.is-playing .hc-video__card img,
+  .hc-video.is-playing .hc-video__play {
+    display: none;
+  }
+
+  .hc-video.is-playing .hc-video__card video {
+    display: block;
+  }
+
+  .hc-video__play {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+
+  .hc-video__play-badge {
+    width: 52px;
+    height: 52px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: grid;
+    place-items: center;
+  }
+
+  .hc-video__play-badge svg {
+    width: 52px;
+    height: 52px;
+    fill: #fff;
+  }
+
+  .hc-video__link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .hc-reviews__dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.8rem;
+    margin-top: 1.2rem;
+  }
+
+  .hc-reviews__dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    border: 0;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+  }
+
+  .hc-reviews__dot[aria-current='true'] {
+    background: rgba(0, 0, 0, 0.88);
+  }
+{%- endstyle -%}
+
+<section class="hc-reviews">
+  <div class="page-width">
+    {%- if section.settings.show_badge -%}
+      <div class="hc-reviews__badge">
+        <div class="hc-reviews__badge-inner">
+          <span class="hc-reviews__stars" aria-hidden="true">
+            {%- for i in (1..5) -%}
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+              </svg>
+            {%- endfor -%}
+          </span>
+          <span>{{ section.settings.badge_text | escape }}</span>
+        </div>
+      </div>
+    {%- endif -%}
+
+    <{{ section.settings.heading_tag }} class="hc-reviews__heading {{ section.settings.heading_size }}">
+      {{ section.settings.heading | escape }}
+    </{{ section.settings.heading_tag }}>
+
+    {%- if pair_count > 0 -%}
+      <div class="hc-review-carousel" data-hc-review-track>
+        {%- for i in (0..pair_last_index) -%}
+          {%- assign block = slides[i] -%}
+          <article class="hc-review" data-hc-review-slide {{ block.shopify_attributes }}>
+            <div class="hc-review__stars" aria-hidden="true">
+              {%- for i in (1..5) -%}
+                <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                </svg>
+              {%- endfor -%}
+            </div>
+
+            {%- if block.settings.review_headline != blank -%}
+              <h3 class="hc-review__headline">“{{ block.settings.review_headline | escape }}”</h3>
+            {%- endif -%}
+
+            {%- if block.settings.review_body != blank -%}
+              <p class="hc-review__body">“{{ block.settings.review_body | escape }}”</p>
+            {%- endif -%}
+
+            {%- if block.settings.review_author != blank -%}
+              <p class="hc-review__author">-{{ block.settings.review_author | escape }}</p>
+              {%- if block.settings.verified_buyer -%}
+                <div class="hc-review__verified">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                    <path d="M7.81235 0.976562C6.46036 0.976562 5.13873 1.37747 4.01459 2.1286C2.89045 2.87973 2.01429 3.94733 1.49691 5.19641C0.979524 6.44548 0.844153 7.81993 1.10791 9.14594C1.37167 10.472 2.02272 11.69 2.97872 12.646C3.93472 13.602 5.15274 14.253 6.47876 14.5168C7.80477 14.7805 9.17922 14.6452 10.4283 14.1278C11.6774 13.6104 12.745 12.7342 13.4961 11.6101C14.2472 10.486 14.6481 9.16434 14.6481 7.81235C14.6481 5.99939 13.9279 4.26068 12.646 2.97872C11.364 1.69676 9.62532 0.976563 7.81235 0.976562ZM6.83581 10.5418L4.39446 8.10043L5.17081 7.32408L6.83581 8.98908L10.4539 5.371L11.2332 6.14539L6.83581 10.5418Z" fill="black"/>
+                  </svg>
+                  <span>Verified Buyer</span>
+                </div>
+              {%- endif -%}
+            {%- endif -%}
+          </article>
+        {%- endfor -%}
+      </div>
+    {%- endif -%}
+
+    {%- if pair_count > 0 -%}
+      <div class="hc-reviews__videos" data-hc-review-videos>
+        <div class="hc-video-carousel" data-hc-video-track>
+          {%- for i in (0..pair_last_index) -%}
+            {%- assign block = slides[i] -%}
+            <div class="hc-video" data-hc-video-slide {{ block.shopify_attributes }}>
+              <div class="hc-video__card">
+                <button class="hc-video__btn" type="button" aria-label="Play video" data-hc-video-play>
+                  {%- if block.settings.video != blank and block.settings.video.preview_image != blank -%}
+                    {{
+                      block.settings.video.preview_image
+                      | image_url: width: 900
+                      | image_tag: loading: 'lazy', widths: '360, 550, 750, 900', sizes: '(min-width: 990px) 25vw, 70vw', alt: block.settings.video_cover_alt
+                    }}
+                  {%- elsif block.settings.video_cover != blank -%}
+                    {{
+                      block.settings.video_cover
+                      | image_url: width: 900
+                      | image_tag: loading: 'lazy', widths: '360, 550, 750, 900', sizes: '(min-width: 990px) 25vw, 70vw', alt: block.settings.video_cover_alt
+                    }}
+                  {%- else -%}
+                    {{ 'image' | placeholder_svg_tag: 'placeholder' }}
+                  {%- endif -%}
+
+                  {%- if block.settings.video != blank -%}
+                    {{ block.settings.video | video_tag: controls: true, autoplay: false, muted: false, loop: false, preload: 'none' }}
+                  {%- endif -%}
+
+                  <div class="hc-video__play" aria-hidden="true">
+                    <div class="hc-video__play-badge">
+                      <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                        <path d="M9 7l10 5-10 5V7z"></path>
+                      </svg>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          {%- endfor -%}
+        </div>
+
+        {%- if pair_count > 1 -%}
+          <div class="hc-reviews__dots" role="tablist" aria-label="Reviews">
+            {%- for i in (0..pair_last_index) -%}
+              <button
+                type="button"
+                class="hc-reviews__dot"
+                data-hc-pair-dot="{{ i }}"
+                aria-current="{% if i == 0 %}true{% else %}false{% endif %}"
+                aria-label="Go to review {{ i | plus: 1 }}"
+              ></button>
+            {%- endfor -%}
+          </div>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+  </div>
+</section>
+
+<script>
+  (function () {
+    const root = document.getElementById('shopify-section-{{ section.id }}');
+    if (!root) return;
+    const reviewTrack = root.querySelector('[data-hc-review-track]');
+    const videoTrack = root.querySelector('[data-hc-video-track]');
+    if (!reviewTrack || !videoTrack) return;
+
+    const dots = Array.from(root.querySelectorAll('[data-hc-pair-dot]'));
+    const reviewSlides = Array.from(root.querySelectorAll('[data-hc-review-slide]'));
+    const videoSlides = Array.from(root.querySelectorAll('[data-hc-video-slide]'));
+    if (reviewSlides.length === 0 || reviewSlides.length !== videoSlides.length) return;
+
+    const realCount = reviewSlides.length;
+
+    const clampIndex = (idx) => {
+      const n = realCount;
+      if (n <= 0) return 0;
+      const num = Number(idx);
+      if (!Number.isFinite(num)) return 0;
+      return Math.min(n - 1, Math.max(0, num));
+    };
+
+    // Non-infinite carousel: no clones, no wrap/jump behavior.
+    reviewSlides.forEach((el, i) => el.setAttribute('data-hc-real-index', String(i)));
+    videoSlides.forEach((el, i) => el.setAttribute('data-hc-real-index', String(i)));
+
+    const scrollToCentered = (track, el, behavior = 'smooth') => {
+      const left = el.offsetLeft - (track.clientWidth - el.clientWidth) / 2;
+      track.scrollTo({ left, behavior });
+    };
+
+    const getCenteredIndex = (track, slides) => {
+      const center = track.scrollLeft + track.clientWidth / 2;
+      let best = 0;
+      let bestDist = Infinity;
+      slides.forEach((s, i) => {
+        const sCenter = s.offsetLeft + s.clientWidth / 2;
+        const dist = Math.abs(sCenter - center);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = i;
+        }
+      });
+      return best;
+    };
+
+    const getRealIndexFromEl = (el) => clampIndex(el?.getAttribute('data-hc-real-index'));
+
+    const setActiveForReal = (slides, realIdx) => {
+      slides.forEach((s, i) => s.classList.toggle('is-active', i === realIdx));
+      return slides[realIdx] || null;
+    };
+
+    const pauseAllVideosExceptSlide = (keepSlideEl) => {
+      const allSlideEls = Array.from(root.querySelectorAll('[data-hc-video-slide]'));
+      allSlideEls.forEach((slideEl) => {
+        if (keepSlideEl && slideEl === keepSlideEl) return;
+        slideEl.classList.remove('is-playing');
+        const video = slideEl.querySelector('video');
+        if (!video) return;
+        try {
+          video.pause();
+        } catch (err) {
+          // ignore
+        }
+      });
+    };
+
+    const setCurrent = (idx) => {
+      const safeIdx = clampIndex(idx);
+      dots.forEach((d, i) => d.setAttribute('aria-current', i === safeIdx ? 'true' : 'false'));
+      setActiveForReal(reviewSlides, safeIdx);
+      const activeVideoSlide = setActiveForReal(videoSlides, safeIdx);
+      pauseAllVideosExceptSlide(activeVideoSlide);
+    };
+
+    let syncing = false;
+    const syncTo = (idx, source, opts = {}) => {
+      if (syncing) return;
+      syncing = true;
+      const safeIdx = clampIndex(idx);
+      setCurrent(safeIdx);
+      if (source !== 'review') {
+        const targetReview = opts.reviewEl || reviewSlides[safeIdx];
+        if (targetReview) scrollToCentered(reviewTrack, targetReview);
+      }
+      if (source !== 'video') {
+        const targetVideo = opts.videoEl || videoSlides[safeIdx];
+        if (targetVideo) scrollToCentered(videoTrack, targetVideo);
+      }
+      window.setTimeout(() => { syncing = false; }, 250);
+    };
+
+    dots.forEach((dot) => {
+      dot.addEventListener('click', () => {
+        const idx = Number(dot.getAttribute('data-hc-pair-dot'));
+        if (Number.isFinite(idx)) syncTo(idx, 'dot');
+      });
+    });
+
+    let rafR = null;
+    reviewTrack.addEventListener('scroll', () => {
+      if (syncing) return;
+      if (rafR) return;
+      rafR = requestAnimationFrame(() => {
+        rafR = null;
+        const idx = getCenteredIndex(reviewTrack, reviewSlides);
+        syncTo(idx, 'review');
+      });
+    });
+
+    let rafV = null;
+    videoTrack.addEventListener('scroll', () => {
+      if (syncing) return;
+      if (rafV) return;
+      rafV = requestAnimationFrame(() => {
+        rafV = null;
+        const idx = getCenteredIndex(videoTrack, videoSlides);
+        syncTo(idx, 'video');
+      });
+    });
+
+    // Video play (uploaded videos)
+    root.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-hc-video-play]');
+      if (!btn) return;
+      const slide = btn.closest('[data-hc-video-slide]');
+      if (!slide) return;
+      const video = btn.querySelector('video');
+      if (!video) return;
+
+      // If you clicked a non-centered slide, center it first (and sync reviews/dots).
+      const clickedRealIdx = getRealIndexFromEl(slide);
+      syncTo(clickedRealIdx, 'video-click', { videoEl: slide });
+
+      slide.classList.add('is-playing');
+      try {
+        video.play();
+      } catch (err) {
+        // ignore
+      }
+    });
+
+    // Initialize to a middle slide when possible (matches "active is in the middle")
+    // When we can show 5-up, the true middle is index 2.
+    const initialIdx = realCount >= 5 ? 2 : realCount >= 3 ? 1 : 0;
+    requestAnimationFrame(() => {
+      const reviewStart = reviewSlides[initialIdx];
+      const videoStart = videoSlides[initialIdx];
+      if (reviewStart) scrollToCentered(reviewTrack, reviewStart, 'auto');
+      if (videoStart) scrollToCentered(videoTrack, videoStart, 'auto');
+      syncTo(initialIdx, 'init');
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Homepage reviews",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#f6efe9"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Star color",
+      "default": "#d75aa8"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_badge",
+      "label": "Show rating badge",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "badge_text",
+      "label": "Badge text",
+      "default": "Rated 4.5/5 | 85,000+ Products Sold"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Why 67,000+ Women (And Counting) Love Honey Cloudz"
+    },
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "Heading tag",
+      "options": [
+        { "value": "h2", "label": "H2" },
+        { "value": "h3", "label": "H3" },
+        { "value": "div", "label": "Div" }
+      ],
+      "default": "h2"
+    },
+    {
+      "type": "select",
+      "id": "heading_size",
+      "label": "Heading size",
+      "options": [
+        { "value": "h2", "label": "Small" },
+        { "value": "h1", "label": "Medium" },
+        { "value": "h0", "label": "Large" }
+      ],
+      "default": "h1"
+    },
+    {
+      "type": "header",
+      "content": "Spacing"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding top",
+      "default": 72
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding bottom",
+      "default": 72
+    }
+  ],
+  "blocks": [
+    {
+      "type": "slide",
+      "name": "Slide",
+      "settings": [
+        { "type": "header", "content": "Review" },
+        { "type": "text", "id": "review_headline", "label": "Headline", "default": "I absolutely love them." },
+        { "type": "text", "id": "review_body", "label": "Body", "default": "Cloudz inserts look so smooth in my bathing suits and stay put in the wash." },
+        { "type": "text", "id": "review_author", "label": "Author", "default": "Kathleen S." },
+        { "type": "checkbox", "id": "verified_buyer", "label": "Verified buyer", "default": true },
+        { "type": "header", "content": "Video" },
+        { "type": "video", "id": "video", "label": "Video upload" },
+        { "type": "image_picker", "id": "video_cover", "label": "Cover image" },
+        { "type": "text", "id": "video_cover_alt", "label": "Cover alt text", "default": "Review video" },
+        { "type": "url", "id": "video_url", "label": "Video URL (optional fallback)" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Homepage reviews",
+      "category": "Homepage",
+      "blocks": [
+        { "type": "slide" },
+        { "type": "slide" },
+        { "type": "slide" },
+        { "type": "slide" }
+      ]
+    }
+  ]
+}
+{% endschema %}
+

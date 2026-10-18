@@ -1,0 +1,814 @@
+{%- liquid
+  assign overlay_alpha = section.settings.overlay_opacity | times: 1.0 | divided_by: 100
+  assign heading_font = section.settings.heading_font
+  assign use_replo_script = true
+  if section.settings.use_custom_script_font
+    assign use_replo_script = false
+    assign script_font = section.settings.script_font
+  endif
+
+  case section.settings.text_alignment
+    when 'left'
+      assign text_align = 'left'
+      assign justify = 'flex-start'
+    when 'right'
+      assign text_align = 'right'
+      assign justify = 'flex-end'
+    else
+      assign text_align = 'center'
+      assign justify = 'center'
+  endcase
+
+  case section.settings.mobile_text_alignment
+    when 'left'
+      assign mobile_text_align = 'left'
+      assign mobile_justify = 'flex-start'
+    when 'right'
+      assign mobile_text_align = 'right'
+      assign mobile_justify = 'flex-end'
+    else
+      assign mobile_text_align = 'center'
+      assign mobile_justify = 'center'
+  endcase
+
+  assign heading_tag = section.settings.heading_tag | default: 'h1'
+
+  assign bg_image_desktop = section.settings.background_image_url_desktop | default: 'https://assets.replocdn.com/projects/a2c7c51a-ec22-4e36-a9ea-6f00296360e2/2ff1adb6-9a41-4842-b013-86c15811784a'
+  assign bg_image_mobile = section.settings.background_image_url_mobile | default: 'https://assets.replocdn.com/projects/a2c7c51a-ec22-4e36-a9ea-6f00296360e2/515c12d5-ae0a-43f8-beb0-f53adcb81944'
+  if section.settings.background_image != blank
+    assign bg_image_desktop = section.settings.background_image | image_url: width: 2400
+    assign bg_image_mobile = section.settings.background_image | image_url: width: 1200
+  endif
+-%}
+
+{%- style -%}
+  {%- unless use_replo_script -%}
+    {{ script_font | font_face: font_display: 'swap' }}
+  {%- else -%}
+    {% # theme-check-disable RemoteAsset %}
+    @import url('https://fonts.googleapis.com/css2?family=Send+Flowers&display=swap');
+    {% # theme-check-enable RemoteAsset %}
+  {%- endunless -%}
+  {{ heading_font | font_face: font_display: 'swap' }}
+
+  /* Replo Frequently text CSS (same across breakpoints) */
+  @font-face {
+    font-family: "Satoshi Medium";
+    src: url("https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Medium.woff2?v=1750649880") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  #shopify-section-{{ section.id }} .cfh {
+    --cfh-pad-top: {{ section.settings.padding_top_mobile }}px;
+    --cfh-pad-bottom: {{ section.settings.padding_bottom_mobile }}px;
+    --cfh-script-size: {{ section.settings.script_font_size_mobile }}px;
+    --cfh-script-lh: {{ section.settings.script_lh_mobile }}px;
+    --cfh-heading-size: {{ section.settings.heading_font_size_mobile }}px;
+    --cfh-heading-lh: {{ section.settings.heading_lh_mobile }}px;
+    --cfh-sub-size: {{ section.settings.subheading_font_size_mobile }}px;
+    --cfh-sub-lh: {{ section.settings.subheading_lh_mobile }}px;
+    --cfh-gap: {{ section.settings.heading_gap_mobile }}px;
+    --cfh-word-gap: {{ section.settings.word_gap_mobile }}px;
+    --cfh-align: {{ mobile_text_align }};
+    --cfh-justify: {{ mobile_justify }};
+    --cfh-max-width: {{ section.settings.content_max_width }}px;
+    --cfh-side-pad: {{ section.settings.side_padding_mobile }}px;
+    --cfh-min-height: {{ section.settings.min_height_mobile }}px;
+    --cfh-script-color: {{ section.settings.script_color }};
+    --cfh-heading-color: {{ section.settings.heading_color }};
+    --cfh-sub-color: {{ section.settings.subheading_color }};
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--cfh-min-height);
+    padding: var(--cfh-pad-top) 0 var(--cfh-pad-bottom);
+    text-align: var(--cfh-align);
+    border-bottom: 1px solid #000000;
+    {% if section.settings.background_type == 'gradient' %}
+      background: linear-gradient(
+        {{ section.settings.gradient_angle }}deg,
+        {{ section.settings.gradient_color_1 }} {{ section.settings.gradient_stop_1 }}%,
+        {{ section.settings.gradient_color_2 }} {{ section.settings.gradient_stop_2 }}%,
+        {{ section.settings.gradient_color_3 }} {{ section.settings.gradient_stop_3 }}%,
+        {{ section.settings.gradient_color_4 }} {{ section.settings.gradient_stop_4 }}%
+      );
+    {% elsif section.settings.background_type == 'image' %}
+      background-color: {{ section.settings.background_color }};
+      background-image: url('{{ bg_image_mobile }}');
+      background-position: {{ section.settings.background_position }};
+      background-size: {{ section.settings.background_size }};
+      background-repeat: no-repeat;
+    {% else %}
+      background-color: {{ section.settings.background_color }};
+    {% endif %}
+  }
+
+  {% if section.settings.background_blur > 0 and section.settings.background_type == 'gradient' %}
+  #shopify-section-{{ section.id }} .cfh::before {
+    content: '';
+    position: absolute;
+    inset: -40px;
+    background: inherit;
+    filter: blur({{ section.settings.background_blur }}px);
+    z-index: 0;
+    pointer-events: none;
+  }
+  {% endif %}
+
+  {% if section.settings.background_type == 'image' and section.settings.overlay_opacity > 0 %}
+  #shopify-section-{{ section.id }} .cfh::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: {{ section.settings.overlay_color | color_modify: 'alpha', overlay_alpha }};
+    z-index: 0;
+    pointer-events: none;
+  }
+  {% endif %}
+
+  {% unless section.settings.use_theme_page_width %}
+  #shopify-section-{{ section.id }} .cfh__inner {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: var(--cfh-max-width);
+    margin: 0 auto;
+    padding-inline: var(--cfh-side-pad);
+    box-sizing: border-box;
+  }
+  {% else %}
+  #shopify-section-{{ section.id }} .cfh__inner {
+    position: relative;
+    z-index: 1;
+  }
+  {% endunless %}
+
+  #shopify-section-{{ section.id }} .cfh__heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: var(--cfh-justify);
+    column-gap: var(--cfh-word-gap);
+    row-gap: var(--cfh-word-gap);
+    margin: 0;
+  }
+
+  /* Frequently — same Replo CSS */
+  #shopify-section-{{ section.id }} .cfh__script {
+    display: inline-block;
+    color: var(--cfh-script-color);
+    font-size: var(--cfh-script-size);
+    font-weight: 400;
+    line-height: var(--cfh-script-lh);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    {% if use_replo_script %}
+      font-family: "Send Flowers", sans-serif;
+    {% else %}
+      font-family: {{ script_font.family }}, {{ script_font.fallback_families }};
+      font-style: {{ script_font.style }};
+      font-weight: {{ script_font.weight }};
+    {% endif %}
+  }
+
+  /* Asked Questions? — same Replo CSS */
+  #shopify-section-{{ section.id }} .cfh__rest {
+    display: inline-block;
+    color: var(--cfh-heading-color);
+    font-family: {{ heading_font.family }}, {{ heading_font.fallback_families }};
+    font-style: {{ heading_font.style }};
+    font-weight: {{ section.settings.heading_font_weight }};
+    font-size: var(--cfh-heading-size);
+    line-height: var(--cfh-heading-lh);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Answers to Your Questions! — same Replo CSS */
+  #shopify-section-{{ section.id }} .cfh__subheading {
+    margin: var(--cfh-gap) 0 0;
+    color: var(--cfh-sub-color);
+    font-family: "Satoshi Medium", "Satoshi", sans-serif;
+    font-weight: 400;
+    font-size: var(--cfh-sub-size);
+    line-height: var(--cfh-sub-lh);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  @media screen and (min-width: 750px) {
+    #shopify-section-{{ section.id }} .cfh {
+      --cfh-pad-top: {{ section.settings.padding_top }}px;
+      --cfh-pad-bottom: {{ section.settings.padding_bottom }}px;
+      --cfh-script-size: {{ section.settings.script_font_size }}px;
+      --cfh-script-lh: {{ section.settings.script_lh }}px;
+      --cfh-heading-size: {{ section.settings.heading_font_size }}px;
+      --cfh-heading-lh: {{ section.settings.heading_lh }}px;
+      --cfh-sub-size: {{ section.settings.subheading_font_size }}px;
+      --cfh-sub-lh: {{ section.settings.subheading_lh }}px;
+      --cfh-gap: {{ section.settings.heading_gap }}px;
+      --cfh-word-gap: {{ section.settings.word_gap }}px;
+      --cfh-align: {{ text_align }};
+      --cfh-justify: {{ justify }};
+      --cfh-side-pad: {{ section.settings.side_padding }}px;
+      --cfh-min-height: {{ section.settings.min_height }}px;
+      text-align: var(--cfh-align);
+      {% if section.settings.background_type == 'image' %}
+        background-image: url('{{ bg_image_desktop }}');
+      {% endif %}
+    }
+
+    #shopify-section-{{ section.id }} .cfh__heading {
+      justify-content: var(--cfh-justify);
+      align-items: center;
+    }
+  }
+{%- endstyle -%}
+
+<div class="cfh">
+  <div class="{% if section.settings.use_theme_page_width %}page-width {% endif %}cfh__inner">
+    {%- if section.settings.script_text != blank or section.settings.heading_text != blank -%}
+      <{{ heading_tag }} class="cfh__heading">
+        {%- if section.settings.script_text != blank -%}
+          <span class="cfh__script">{{ section.settings.script_text | escape }}</span>
+        {%- endif -%}
+        {%- if section.settings.heading_text != blank -%}
+          <span class="cfh__rest">{{ section.settings.heading_text | escape }}</span>
+        {%- endif -%}
+      </{{ heading_tag }}>
+    {%- endif -%}
+
+    {%- if section.settings.subheading != blank -%}
+      <p class="cfh__subheading">{{ section.settings.subheading | escape }}</p>
+    {%- endif -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "FAQ heading banner",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "script_text",
+      "label": "Script text (Frequently)",
+      "default": "Frequently",
+      "info": "Uses Send Flowers font — same CSS as Replo"
+    },
+    {
+      "type": "text",
+      "id": "heading_text",
+      "label": "Heading text",
+      "default": "Asked Questions?"
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Answers to Your Questions!"
+    },
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "Heading tag",
+      "options": [
+        { "value": "h1", "label": "H1" },
+        { "value": "h2", "label": "H2" },
+        { "value": "h3", "label": "H3" },
+        { "value": "p", "label": "Paragraph" }
+      ],
+      "default": "h1"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "select",
+      "id": "text_alignment",
+      "label": "Desktop alignment",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "select",
+      "id": "mobile_text_alignment",
+      "label": "Mobile alignment",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "checkbox",
+      "id": "use_theme_page_width",
+      "label": "Use theme page width",
+      "default": false
+    },
+    {
+      "type": "range",
+      "id": "content_max_width",
+      "min": 400,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "label": "Content max width",
+      "default": 1320
+    },
+    {
+      "type": "range",
+      "id": "side_padding",
+      "min": 0,
+      "max": 80,
+      "step": 4,
+      "unit": "px",
+      "label": "Side padding (desktop)",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "side_padding_mobile",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "label": "Side padding (mobile)",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "min_height",
+      "min": 0,
+      "max": 600,
+      "step": 10,
+      "unit": "px",
+      "label": "Min height (desktop)",
+      "default": 400
+    },
+    {
+      "type": "range",
+      "id": "min_height_mobile",
+      "min": 0,
+      "max": 500,
+      "step": 10,
+      "unit": "px",
+      "label": "Min height (mobile)",
+      "default": 400
+    },
+    {
+      "type": "header",
+      "content": "Background"
+    },
+    {
+      "type": "select",
+      "id": "background_type",
+      "label": "Background type",
+      "options": [
+        { "value": "image", "label": "Image (Replo default)" },
+        { "value": "gradient", "label": "Gradient" },
+        { "value": "solid", "label": "Solid color" }
+      ],
+      "default": "image"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Solid / fallback background",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Background image (optional override)"
+    },
+    {
+      "type": "text",
+      "id": "background_image_url_desktop",
+      "label": "Default desktop image URL",
+      "default": "https://assets.replocdn.com/projects/a2c7c51a-ec22-4e36-a9ea-6f00296360e2/2ff1adb6-9a41-4842-b013-86c15811784a",
+      "info": "Used when no image is uploaded"
+    },
+    {
+      "type": "text",
+      "id": "background_image_url_mobile",
+      "label": "Default mobile image URL",
+      "default": "https://assets.replocdn.com/projects/a2c7c51a-ec22-4e36-a9ea-6f00296360e2/515c12d5-ae0a-43f8-beb0-f53adcb81944"
+    },
+    {
+      "type": "select",
+      "id": "background_position",
+      "label": "Image position",
+      "options": [
+        { "value": "center center", "label": "Center" },
+        { "value": "top center", "label": "Top" },
+        { "value": "bottom center", "label": "Bottom" }
+      ],
+      "default": "center center"
+    },
+    {
+      "type": "select",
+      "id": "background_size",
+      "label": "Image size",
+      "options": [
+        { "value": "cover", "label": "Cover" },
+        { "value": "contain", "label": "Contain" }
+      ],
+      "default": "cover"
+    },
+    {
+      "type": "color",
+      "id": "overlay_color",
+      "label": "Image overlay color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "range",
+      "id": "overlay_opacity",
+      "min": 0,
+      "max": 80,
+      "step": 5,
+      "unit": "%",
+      "label": "Image overlay opacity",
+      "default": 0
+    },
+    {
+      "type": "color",
+      "id": "gradient_color_1",
+      "label": "Gradient color 1",
+      "default": "#F5D0DE"
+    },
+    {
+      "type": "range",
+      "id": "gradient_stop_1",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "label": "Color 1 stop",
+      "default": 0
+    },
+    {
+      "type": "color",
+      "id": "gradient_color_2",
+      "label": "Gradient color 2",
+      "default": "#F8E8C8"
+    },
+    {
+      "type": "range",
+      "id": "gradient_stop_2",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "label": "Color 2 stop",
+      "default": 35
+    },
+    {
+      "type": "color",
+      "id": "gradient_color_3",
+      "label": "Gradient color 3",
+      "default": "#E8F0C8"
+    },
+    {
+      "type": "range",
+      "id": "gradient_stop_3",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "label": "Color 3 stop",
+      "default": 65
+    },
+    {
+      "type": "color",
+      "id": "gradient_color_4",
+      "label": "Gradient color 4",
+      "default": "#C8EBE8"
+    },
+    {
+      "type": "range",
+      "id": "gradient_stop_4",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "label": "Color 4 stop",
+      "default": 100
+    },
+    {
+      "type": "range",
+      "id": "gradient_angle",
+      "min": 0,
+      "max": 360,
+      "step": 5,
+      "unit": "deg",
+      "label": "Gradient angle",
+      "default": 90
+    },
+    {
+      "type": "range",
+      "id": "background_blur",
+      "min": 0,
+      "max": 80,
+      "step": 2,
+      "unit": "px",
+      "label": "Gradient soft blur",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Frequently (script) — Replo CSS"
+    },
+    {
+      "type": "checkbox",
+      "id": "use_custom_script_font",
+      "label": "Override Send Flowers with font picker",
+      "default": false
+    },
+    {
+      "type": "font_picker",
+      "id": "script_font",
+      "label": "Custom script font",
+      "default": "pacifico_n4"
+    },
+    {
+      "type": "range",
+      "id": "script_font_size",
+      "min": 24,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "label": "Script size (desktop)",
+      "default": 56
+    },
+    {
+      "type": "range",
+      "id": "script_font_size_mobile",
+      "min": 18,
+      "max": 80,
+      "step": 1,
+      "unit": "px",
+      "label": "Script size (mobile)",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "script_lh",
+      "min": 20,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "label": "Script line height (desktop)",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "script_lh_mobile",
+      "min": 18,
+      "max": 80,
+      "step": 1,
+      "unit": "px",
+      "label": "Script line height (mobile)",
+      "default": 38
+    },
+    {
+      "type": "color",
+      "id": "script_color",
+      "label": "Script color",
+      "default": "#333333"
+    },
+    {
+      "type": "header",
+      "content": "Asked Questions (heading)"
+    },
+    {
+      "type": "font_picker",
+      "id": "heading_font",
+      "label": "Heading font",
+      "default": "poppins_n4"
+    },
+    {
+      "type": "select",
+      "id": "heading_font_weight",
+      "label": "Heading weight",
+      "options": [
+        { "value": "300", "label": "Light" },
+        { "value": "400", "label": "Regular" },
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semi bold" },
+        { "value": "700", "label": "Bold" }
+      ],
+      "default": "400"
+    },
+    {
+      "type": "range",
+      "id": "heading_font_size",
+      "min": 18,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "label": "Heading size (desktop)",
+      "default": 48
+    },
+    {
+      "type": "range",
+      "id": "heading_font_size_mobile",
+      "min": 14,
+      "max": 64,
+      "step": 1,
+      "unit": "px",
+      "label": "Heading size (mobile)",
+      "default": 28
+    },
+    {
+      "type": "range",
+      "id": "heading_lh",
+      "min": 20,
+      "max": 100,
+      "step": 2,
+      "unit": "px",
+      "label": "Heading line height (desktop)",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "heading_lh_mobile",
+      "min": 18,
+      "max": 80,
+      "step": 1,
+      "unit": "px",
+      "label": "Heading line height (mobile)",
+      "default": 38
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#333333"
+    },
+    {
+      "type": "range",
+      "id": "word_gap",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Gap between script & heading (desktop)",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "word_gap_mobile",
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "label": "Gap between script & heading (mobile)",
+      "default": 8
+    },
+    {
+      "type": "header",
+      "content": "Subheading"
+    },
+    {
+      "type": "range",
+      "id": "subheading_font_size",
+      "min": 12,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "label": "Subheading size (desktop)",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "subheading_font_size_mobile",
+      "min": 11,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "label": "Subheading size (mobile)",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "subheading_lh",
+      "min": 16,
+      "max": 60,
+      "step": 1,
+      "unit": "px",
+      "label": "Subheading line height (desktop)",
+      "default": 30
+    },
+    {
+      "type": "range",
+      "id": "subheading_lh_mobile",
+      "min": 16,
+      "max": 60,
+      "step": 1,
+      "unit": "px",
+      "label": "Subheading line height (mobile)",
+      "default": 38
+    },
+    {
+      "type": "color",
+      "id": "subheading_color",
+      "label": "Subheading color",
+      "default": "#333333"
+    },
+    {
+      "type": "range",
+      "id": "heading_gap",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "label": "Gap under heading (desktop)",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "heading_gap_mobile",
+      "min": 0,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "label": "Gap under heading (mobile)",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Section spacing"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding top (desktop)",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding bottom (desktop)",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding_top_mobile",
+      "min": 0,
+      "max": 100,
+      "step": 2,
+      "unit": "px",
+      "label": "Padding top (mobile)",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_mobile",
+      "min": 0,
+      "max": 100,
+      "step": 2,
+      "unit": "px",
+      "label": "Padding bottom (mobile)",
+      "default": 0
+    }
+  ],
+  "presets": [
+    {
+      "name": "FAQ heading banner",
+      "settings": {
+        "script_text": "Frequently",
+        "heading_text": "Asked Questions?",
+        "subheading": "Answers to Your Questions!",
+        "text_alignment": "center",
+        "mobile_text_alignment": "center",
+        "background_type": "image"
+      }
+    }
+  ]
+}
+{% endschema %}

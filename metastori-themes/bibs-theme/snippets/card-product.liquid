@@ -1,0 +1,233 @@
+{%- comment -%}
+  Renders a product card
+
+  Accepts:
+    - card_product {Object}: The product object to render
+    - media_aspect_ratio {String}: The aspect ratio of the image
+    - show_secondary_media {Boolean}: Show the secondary image
+    - show_vendor {Boolean}: Show the product vendor
+    - classes {String}: added to the wrapper
+    - show_add_to_cart {Boolean}: Show the add to cart button
+    - set_default_color_swatch {Boolean}: Set the default color swatch
+    - prioritize_image {Boolean}: Load the main card image eagerly
+
+  Usage:
+    {% render 'card-product', card_product: product %}
+{%- endcomment -%}
+
+{%- if card_product and card_product != empty -%}
+  {%- liquid
+    assign show_vendor = show_vendor | default: section.settings.show_vendor
+    assign media_aspect_ratio = media_aspect_ratio | default: section.settings.media_aspect_ratio
+    assign show_secondary_media = show_secondary_media | default: section.settings.show_secondary_media
+    assign prioritize_main_image = false
+    if prioritize_image == true or prioritize_image == 'true'
+      assign prioritize_main_image = true
+    endif
+
+    assign product_available = card_product.available
+
+    case media_aspect_ratio
+      when 'portrait'
+        assign padding_bottom = 'before:pb-[133.33%]'
+      when 'bibs'
+        assign padding_bottom = 'before:pb-[110%]'
+      else
+        assign padding_bottom = 'before:pb-[100%]'
+    endcase
+
+    assign connected_products = card_product.metafields.custom.connected_products.value
+    if template.suffix contains 'subscription'
+      assign connected_products = connected_products | where: 'selected_or_first_available_selling_plan_allocation' | compact
+    endif
+    assign connected_products_length = 1
+    for connected_product in connected_products
+      if connected_product != empty
+        assign connected_products_length = connected_products_length | plus: 1
+      endif
+    endfor
+  -%}
+
+  {% capture link_content %}
+    {% if quiz_cp %}
+      {{ card_product.metafields.accentuate.color }}
+    {% else %}
+      {{- card_product.title -}}
+    {% endif %}
+  {% endcapture %}
+
+  <product-card
+    class="product-card h-full bg-secondary-background color-{{ section.settings.color_scheme }} {{classes}} {% unless product_available %}sold-out{% endunless %}"
+    id="CardWrapper-{{ card_product.id }}"
+    {% if set_default_color_swatch %}
+      data-set-default-color-swatch="true"
+    {% endif %}
+  >
+    <div class="h-full flex flex-col">
+      <div class="product-card-image-wrapper relative">
+        <div class="absolute top-0 left-0 right-0 flex flex-row gap-2 justify-between p-1.5 md:p-2 product-card-tags">
+          <div class="flex-1 flex flex-row flex-wrap gap-2 z-5 h-fit pointer-events-none">
+            {% render 'c-badges-switch', badge_item: card_product, hide_custom_labels: 'night' %}
+          </div>
+          {%- render 'button-wishlist', product: card_product, circle: true -%}
+          {% comment %} Remove confirmation popup {% endcomment %}
+          <div class="remove-wishlist-confirmation -translate-y-full" tabindex="0">
+            <div class="remove-wishlist-confirmation--wrapper">
+              <div class="remove-wishlist-confirmation--content">
+                <p>{{ 'sections.wishlist.remove_confirmation' | t }}</p>
+                <div class="flex justify-end gap-3">
+                  <button class="remove-wishlist-confirmation--cancel" data-action="close-wishlist-confirmation">
+                    {{ 'sections.wishlist.cancel' | t }}
+                  </button>
+                  <button class="remove-wishlist-confirmation--confirm" data-action="remove-wishlist-item">
+                    {{ 'sections.wishlist.remove' | t }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {% render 'c-badge-night',
+          badge_item: card_product,
+          classes: 'z-5 absolute bottom-2 left-2 md:bottom-3 md:left-3'
+        %}
+
+        <div class="product-card--cta-btn text-shade-1 z-5 absolute bottom-2 right-2 md:bottom-3 md:right-3">
+          {%- render 'add-to-cart',
+            main_product: card_product,
+            hide_button_label: true,
+            classes: 'product-card-add_to_cart',
+            section: section
+          -%}
+
+          {%- if settings.enable_quick_view -%}
+            {% comment %} Quick-view button {% endcomment %}
+            {% if card_product.available %}
+              {%- capture add_to_cart_button_content -%}
+                {% if with_text %}
+                  {% render 'c-icon', icon: 'plus', classes: 'w-3 h-3 md:w-3 md:h-3 inline' %}
+                  <span class="product-quickview-btn-text">{{ 'products.product.view_product' | t }}</span>
+                {% else %}
+                  {% render 'c-icon', icon: 'bag', classes: 'w-5 h-5 md:w-6 md:h-6 inline' %}
+                {% endif %}
+              {%- endcapture -%}
+              {%- capture custom_attributes -%}
+                data-product-handle="{{ card_product.handle }}"
+                tabindex="-1"
+                aria-label="{{ 'products.product.view_product' | t }}"
+              {%- endcapture -%}
+              <quick-view>
+                {% render 'c-button',
+                  design: 'none',
+                  custom_attributes: custom_attributes,
+                  content: add_to_cart_button_content,
+                  classes: 'product-quickview-button'
+                %}
+              </quick-view>
+            {% endif %}
+          {%- endif -%}
+
+          {% if card_product.available == false %}
+            {%- capture add_to_cart_button_content -%}
+              {% render 'c-icon', icon: 'envelope', classes: 'w-4 h-4 md:w-6 md:h-4 md:w-4 inline' %}
+            {%- endcapture -%}
+            {%- capture custom_attributes -%}
+              data-product-handle="{{ card_product.handle }}"
+              data-open-drawer="notify-sold-out-drawer"
+              tabindex="-1"
+              aria-label="{{ 'products.product.sold_out' | t }}"
+            {%- endcapture -%}
+            {% render 'c-button',
+              design: 'none',
+              custom_attributes: custom_attributes,
+              content: add_to_cart_button_content,
+              classes: 'notify-sold-out-from-collection product-card-notify'
+            %}
+          {% endif %}
+        </div>
+        <a
+          href="{{ card_product.url }}"
+          class="product-card-image-link {{ padding_bottom }} {% if card_product.media[1] != null and show_secondary_media %}has-secondary-image{% endif %}"
+        >
+          {% liquid
+            assign main_image_loading = 'lazy'
+            assign main_image_fetch_priority = 'low'
+
+            if prioritize_main_image
+              assign main_image_loading = 'eager'
+              assign main_image_fetch_priority = 'high'
+            endif
+
+            render 'c-image', image: card_product.featured_media, aspect_ratio: 'bibs', image_fit: 'contain', classes: 'product-card-main-image', object_position: 'top', loading: main_image_loading, fetch_priority: main_image_fetch_priority, alt: card_product.title
+            if card_product.media[1] != null and show_secondary_media
+              render 'c-image', image: card_product.media[1], aspect_ratio: 'bibs', classes: 'product-card-secondary-image', image_fit: 'cover', loading: 'lazy', fetch_priority: 'low', alt: card_product.title
+            endif
+          %}
+        </a>
+      </div>
+
+      <div class="product-card-content-wrapper border-t border-borders p-4 space-y-1.5 relative">
+        {%- liquid
+          if show_vendor
+            render 'c-text', content: card_product.vendor, classes: 'product-card-vendor-wrapper text-sm'
+          endif
+        -%}
+        <div class="flex items-start gap-2 justify-between product-card-title-wrapper">
+          {%- render 'c-link',
+            href: card_product.url,
+            content: link_content,
+            type: 'product-title',
+            classes: 'inline-block tracking-sm md:tracking-base truncate-2'
+          -%}
+          {%- render 'price',
+            main_product: card_product,
+            type: 'p',
+            wrapper_classes: 'flex-[0] hidden md:block product-card-price',
+            classes: 'flex-col !items-end [&>del]:text-xs [&>del]:leading-[15px] [&>.price-item]:leading-5'
+          -%}
+        </div>
+        <div class="flex items-center justify-between flex-wrap gap-x-1.5 text-xs md:text-sm leading-6{% if connected_products_length > 1 %} product-card-main-info relative{% else %} md:hidden{% endif %}">
+          {%- render 'price', main_product: card_product, type: 'p', wrapper_classes: 'md:hidden' -%}
+          {%- if connected_products_length > 1 -%}
+            <p>
+              {{ 'products.product.color_count_plural' | t: amount: connected_products_length }}
+            </p>
+            {%- if settings.enable_swatches_on_product_card -%}
+              {%- unless hide_color_swatch -%}
+                {%- render 'connected-products',
+                  main_product: card_product,
+                  classes: 'in-product-card absolute inset-0 overflow-hidden',
+                  wrapper_classes: 'flex-nowrap',
+                  is_product_card: true,
+                  gap: 'gap-1.5'
+                -%}
+              {%- endunless -%}
+            {%- endif -%}
+          {%- endif -%}
+        </div>
+      </div>
+    </div>
+  </product-card>
+
+  {% if with_text %}
+    <div class="result-quiz-product-cp">
+      {% for cp_product in connected_products %}
+        {% assign filter_colors = cp_product.metafields.custom.filter_colors.value %}
+        {% assign classes = '' %}
+        {% if filter_colors.first %}
+          {% for color in filter_colors %}
+            {% assign classes = classes | append: color | append: '-color ' %}
+          {% endfor %}
+        {% endif %}
+        {% render 'card-product',
+          card_product: cp_product,
+          with_text: false,
+          media_aspect_ratio: 'bibs',
+          quiz_cp: true,
+          classes: classes
+        %}
+      {% endfor %}
+    </div>
+  {% endif %}
+{%- endif -%}

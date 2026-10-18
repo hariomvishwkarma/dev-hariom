@@ -1,0 +1,52 @@
+<script type="text/javascript">
+  const customerData = {
+    {% if customer %}
+        customerType: "customer",
+        id: "{{- customer.id | json -}}",
+        lastOrder: "{{- customer.last_order.created_at | date: '%B %d, %Y %I:%M%p' -}}",
+        customerEmail: "{{ customer.email }}",
+        orderCount: "{{- customer.orders_count | json -}}",
+        totalSpent: "{{- customer.total_spent | times: 0.01 | json -}}",
+        tags: {{- customer.tags | json -}}
+        {% else %}
+        customerType: "guest",
+        {% endif %}
+    }
+
+  startTrackingCart();
+
+  function startTrackingCart() {
+    const cartDrawers = document.querySelectorAll('#cart-drawer');
+    cartDrawers.forEach(cartDrawer => {
+      cartDrawer.querySelectorAll('[data-tracking-remove-item]')?.forEach((button) => {
+        button.dataset.trackingInit = true;
+        button.addEventListener('click', (event) => {
+          removeFromCartGEvents(event.target);
+        });
+      });
+    })
+
+    function removeFromCartGEvents(el) {
+      const productItem = el.closest('[data-tracking-cart-item]');
+      if (!productItem) return;
+
+      window.dataLayer = window.dataLayer || [];
+
+      dataLayer.push({
+        event: 'remove_from_cart',
+        currency: '{{shop.currency}}',
+        ecommerce: {
+          customer: customerData,
+          items: [
+            {
+              item_id: productItem.dataset.id,
+              item_name: productItem.dataset.title,
+              item_brand: productItem.dataset.brand,
+              price: productItem.dataset.price,
+            },
+          ],
+        },
+      });
+    }
+  }
+</script>

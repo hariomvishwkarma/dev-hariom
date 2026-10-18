@@ -1,0 +1,77 @@
+{%- comment -%}
+  Renders the product options that should start preselected while
+  "Require option selection before add to cart" is on. Anything left out stays
+  empty, so the customer still has to choose it.
+
+  Driven by Theme settings > Product page > Size selection (deferred):
+    Preselect the color option
+    Preselect the size option
+  Both off leaves every option empty. Both on picks a whole variant, so the
+  gate is satisfied on load and Add to cart shows straight away.
+
+  When a toggle is on but the product has no such option we fall back to its
+  first option, so asking for a preselection always gives you one.
+
+  Output is a pipe-delimited list of option names, e.g. |Color|Size| — test it
+  with `hc_preselect_option_names contains hc_opt_key`, where hc_opt_key is
+  `option.name | prepend: '|' | append: '|'`. Empty when nothing is preselected.
+
+  Accepts:
+  - product: {Object} Product object
+
+  Usage:
+  {%- capture hc_preselect_option_names -%}
+    {%- render 'hc-preselect-option-names', product: product -%}
+  {%- endcapture -%}
+  {%- assign hc_preselect_option_names = hc_preselect_option_names | strip -%}
+{%- endcomment -%}
+{%- liquid
+  assign hc_want_color = settings.preselect_color
+  assign hc_want_size = settings.preselect_size
+  # An unsaved theme has neither key yet: keep the colour-only default.
+  if settings.preselect_color == nil and settings.preselect_size == nil
+    assign hc_want_color = true
+  endif
+
+  assign hc_color_trigger = 'products.product.color_swatch_trigger' | t | downcase
+  assign hc_size_trigger = 'products.product.size_chart_trigger' | t | downcase
+  assign hc_names = '|'
+
+  if hc_want_color or hc_want_size
+    # Each toggle claims one option, so a product with both Size and Bundle
+    # size does not end up with two preselected size pickers.
+    assign hc_color_found = false
+    assign hc_size_found = false
+
+    for option in product.options_with_values
+      assign hc_opt_down = option.name | downcase
+      assign hc_wanted = false
+
+      if hc_want_color and hc_color_found == false
+        if hc_opt_down contains hc_color_trigger
+          assign hc_wanted = true
+          assign hc_color_found = true
+        elsif hc_color_trigger == 'color' and hc_opt_down contains 'colour'
+          assign hc_wanted = true
+          assign hc_color_found = true
+        endif
+      endif
+
+      if hc_want_size and hc_size_found == false and hc_opt_down contains hc_size_trigger
+        assign hc_wanted = true
+        assign hc_size_found = true
+      endif
+
+      if hc_wanted
+        assign hc_names = hc_names | append: option.name | append: '|'
+      endif
+    endfor
+
+    if hc_names == '|'
+      assign hc_names = product.options_with_values.first.name | prepend: '|' | append: '|'
+    endif
+  else
+    assign hc_names = ''
+  endif
+-%}
+{{- hc_names -}}

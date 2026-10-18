@@ -1,0 +1,245 @@
+{%- comment -%}
+  Custom Cart Drawer — rendered inside header <mini-cart> via Section Rendering API.
+  All settings live in Theme settings → Custom cart drawer (global).
+{%- endcomment -%}
+
+{%- liquid
+  assign cart_product_ids = cart.items | map: 'product_id'
+
+  # Redo can be switched off per shopper (B2B or everyone) from
+  # Theme settings → Redo easy returns. Line items stay governed by
+  # the protection setting below so MOV / MOQ totals don't change.
+  capture redo_hidden
+    render 'redo-hidden-for-customer'
+  endcapture
+  assign redo_hidden = redo_hidden | strip
+  assign redo_hidden_for_customer = false
+  assign redo_enabled = settings.custom_cart_enable_checkout_protection
+  if redo_hidden == 'true'
+    assign redo_hidden_for_customer = true
+    assign redo_enabled = false
+  endif
+
+  assign protection_variant_id = blank
+  assign hide_protection_line_item = false
+  if settings.custom_cart_enable_checkout_protection
+    assign hide_protection_line_item = true
+    if settings.custom_cart_protection_product != blank
+      assign protection_variant_id = settings.custom_cart_protection_product.selected_or_first_available_variant.id
+    endif
+  endif
+
+  assign has_empty_products = false
+  if settings.custom_cart_empty_product_1 != blank
+    assign has_empty_products = true
+  elsif settings.custom_cart_empty_product_2 != blank
+    assign has_empty_products = true
+  elsif settings.custom_cart_empty_product_3 != blank
+    assign has_empty_products = true
+  elsif settings.custom_cart_empty_product_4 != blank
+    assign has_empty_products = true
+  elsif settings.custom_cart_empty_product_5 != blank
+    assign has_empty_products = true
+  endif
+
+  assign empty_seed_product_id = settings.custom_cart_empty_seed_product.id | default: blank
+  if empty_seed_product_id == blank and settings.custom_cart_empty_product_1 != blank
+    assign empty_seed_product_id = settings.custom_cart_empty_product_1.id
+  endif
+
+  assign visible_cart_count = 0
+  for item in cart.items
+    assign item_vendor_downcase = item.vendor | downcase
+    assign is_redo_line_item = false
+    if item_vendor_downcase == 'redo' or item_vendor_downcase == 'returngo' or item_vendor_downcase == 'return go'
+      assign is_redo_line_item = true
+    endif
+
+    assign hide_this_item = false
+    if hide_protection_line_item
+      if protection_variant_id != blank and item.variant_id == protection_variant_id
+        assign hide_this_item = true
+      endif
+      if is_redo_line_item
+        assign hide_this_item = true
+      endif
+    endif
+
+    unless hide_this_item
+      assign visible_cart_count = visible_cart_count | plus: 1
+    endunless
+  endfor
+-%}
+
+{%- if recommendations.performed -%}
+  {%- if settings.custom_cart_enable_cross_sell -%}
+    <div class="custom-cart__cross-sell-cards">
+      {%- for recommendation in recommendations.products -%}
+        {% render 'custom-cart-cross-sell-if-eligible', product: recommendation %}
+      {%- endfor -%}
+    </div>
+  {%- endif -%}
+{%- else -%}
+  <form
+    class="custom-cart{% if visible_cart_count == 0 %} is-empty{% endif %}"
+    action="{{ routes.cart_url }}"
+    method="post"
+    id="cart"
+    data-custom-cart
+  >
+    <script type="application/json" data-custom-cart-config>
+      {
+        "enabled": {{ settings.custom_cart_drawer_enabled | json }},
+        "cartProductIds": {{ cart_product_ids | json }},
+        "progress": {
+          "enabled": {{ settings.custom_cart_enable_progress_bar | json }},
+          "threshold": {{ settings.custom_cart_free_shipping_threshold | default: 75 | json }},
+          "message": {{ settings.custom_cart_progress_message | default: "You're [amount] away from unlocking FREE shipping (after discounts are applied!)" | json }},
+          "successMessage": {{ settings.custom_cart_success_message | default: '🐝 Yay, FREE shipping on us—perk for being part of the hive!' | json }}
+        },
+        "crossSell": {
+          "enabled": {{ settings.custom_cart_enable_cross_sell | json }},
+          "maxRecommendations": {{ settings.custom_cart_cross_sell_max_products | default: 4 }},
+          "sectionId": "custom-cart-recommendations"
+        },
+        "emptyRecommendations": {
+          "enabled": {{ settings.custom_cart_enable_empty_recommendations | json }},
+          "seedProductId": {{ empty_seed_product_id | json }},
+          "hasSelectedProducts": {{ has_empty_products | json }},
+          "maxRecommendations": 10,
+          "sectionId": "custom-cart-recommendations"
+        },
+        "protection": {
+          "enabled": {{ settings.custom_cart_enable_checkout_protection | json }},
+          "hiddenForCustomer": {{ redo_hidden_for_customer | json }},
+          "provider": "redo",
+          "variantId": {{ protection_variant_id | json }},
+          "productId": {{ settings.custom_cart_protection_product.id | json }}
+        },
+        "moneyFormat": {{ shop.money_format | json }}
+      }
+    </script>
+
+    {% render 'custom-cart-header' %}
+
+    {%- if visible_cart_count == 0 -%}
+      <div class="custom-cart__body">
+        {% render 'custom-cart-empty' %}
+      </div>
+    {%- else -%}
+      <div class="custom-cart__body" data-custom-cart-scroll>
+        {% render 'custom-cart-progress' %}
+
+        <div class="custom-cart__items-wrap" id="custom-cart-line-items">
+          <cart-items>
+            <ul class="custom-cart__items" role="list">
+              {%- for item in cart.items -%}
+                {%- liquid
+                  assign item_vendor_downcase = item.vendor | downcase
+                  assign is_redo_line_item = false
+                  if item_vendor_downcase == 'redo' or item_vendor_downcase == 'returngo' or item_vendor_downcase == 'return go'
+                    assign is_redo_line_item = true
+                  endif
+
+                  assign hide_this_item = false
+                  if hide_protection_line_item
+                    if protection_variant_id != blank and item.variant_id == protection_variant_id
+                      assign hide_this_item = true
+                    endif
+                    if is_redo_line_item
+                      assign hide_this_item = true
+                    endif
+                  endif
+                -%}
+                {%- unless hide_this_item -%}
+                  {% render 'custom-cart-item', item: item %}
+                {%- endunless -%}
+              {%- endfor -%}
+            </ul>
+          </cart-items>
+        </div>
+
+        {%- if settings.custom_cart_enable_cross_sell -%}
+          <div class="custom-cart__cross-sell" data-custom-cross-sell hidden>
+            <h2 class="custom-cart__cross-sell-heading">{{ settings.custom_cart_cross_sell_heading | escape }}</h2>
+            <div class="custom-cart__cross-sell-slot" data-custom-cross-sell-slot></div>
+          </div>
+        {%- endif -%}
+
+        {%- if settings.custom_cart_tagline != blank -%}
+          <p class="custom-cart__tagline">{{ settings.custom_cart_tagline }}</p>
+        {%- endif -%}
+      </div>
+
+      <div class="custom-cart__bottom" data-custom-cart-bottom>
+        <div class="custom-cart__footer-wrap">
+          {%- liquid
+            assign footer_notice_position = settings.custom_cart_footer_notice_position | default: 'below_checkout'
+          -%}
+          {% render 'custom-cart-savings' %}
+          {%- liquid
+            # Pinned add-on. Sits in the footer wrap alongside the Redo widget,
+            # so it holds the same slot above the checkout button and never
+            # scrolls away. Blank picker renders nothing at all.
+            assign addon_product = settings.custom_cart_addon_product
+            assign show_addon = false
+            if addon_product != blank and addon_product.available
+              assign show_addon = true
+              for item in cart.items
+                if item.product_id == addon_product.id
+                  assign show_addon = false
+                  break
+                endif
+              endfor
+            endif
+          -%}
+          {%- if show_addon -%}
+            {%- capture addon_hidden -%}{% render 'wc_product_visibility', resource: addon_product %}{%- endcapture -%}
+            {%- unless addon_hidden == 'true' -%}
+              {%- liquid
+                # Image size rides in as a custom property so the shared card CSS
+                # keeps working untouched; the size preset is a class.
+                assign addon_image = settings.custom_cart_addon_image_size | default: 44
+                assign addon_size = settings.custom_cart_addon_size | default: 'medium'
+                assign addon_classes = 'custom-cart__addon custom-cart__addon--' | append: addon_size
+                unless settings.custom_cart_addon_show_reviews
+                  assign addon_classes = addon_classes | append: ' custom-cart__addon--no-reviews'
+                endunless
+              -%}
+              <div
+                class="{{ addon_classes }}"
+                data-custom-cart-addon
+                style="--custom-cart-upsell-image-size: {{ addon_image }}px;"
+              >
+                {%- if settings.custom_cart_addon_heading != blank -%}
+                  <h2 class="custom-cart__addon-heading">{{ settings.custom_cart_addon_heading | escape }}</h2>
+                {%- endif -%}
+                {% render 'custom-cart-cross-sell', product: addon_product %}
+              </div>
+            {%- endunless -%}
+          {%- endif -%}
+          {% render 'custom-cart-redo', redo_enabled: redo_enabled %}
+          {%- if footer_notice_position == 'above_checkout' -%}
+            {% render 'custom-cart-footer-notice', position: 'above_checkout' %}
+          {%- endif -%}
+          {% render 'final-sale-cart-ack' %}
+          {% render 'custom-cart-sticky-footer', redo_enabled: redo_enabled %}
+          {%- if footer_notice_position == 'below_checkout' -%}
+            {% render 'custom-cart-footer-notice', position: 'below_checkout' %}
+          {%- endif -%}
+        </div>
+      </div>
+    {%- endif -%}
+
+    {% render 'custom-cart-modal' %}
+  </form>
+
+  {% render 'wc_cart' %}
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Custom Cart Drawer",
+  "settings": []
+}
+{% endschema %}

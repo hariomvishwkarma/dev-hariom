@@ -1,0 +1,685 @@
+﻿{%- liquid
+  assign has_left = false
+  for block in section.blocks
+    if block.type == 'dropdown_stub' and block.settings.label != blank
+      assign has_left = true
+      break
+    endif
+    if block.type == 'filter_checkbox_menu' and block.settings.menu_label != blank
+      assign has_left = true
+      break
+    endif
+  endfor
+-%}
+
+<div
+  id="CollectionFilterBar-{{ section.id }}"
+  class="collection-filter-bar page-width section-{{ section.id }}-padding"
+>
+  {%- liquid
+    assign filter_bar_padding_top = section.settings.filter_bar_padding_top | default: section.settings.padding_top
+    assign filter_bar_padding_bottom = section.settings.filter_bar_padding_bottom | default: section.settings.padding_bottom
+  -%}
+  {%- style -%}
+    .section-{{ section.id }}-padding {
+      padding-top: {{ filter_bar_padding_top }}px;
+      padding-bottom: {{ filter_bar_padding_bottom }}px;
+    }
+  {%- endstyle -%}
+
+  <div class="collection-filter-bar__row{% if has_left %} collection-filter-bar__row--split{% endif %}">
+    <div
+      class="collection-filter-bar__left collection-filter-bar__left--desktop"
+      {% unless has_left %}
+        hidden
+      {% endunless %}
+    >
+      {%- if section.settings.filter_label != blank -%}
+        <span class="collection-filter-bar__label">{{ section.settings.filter_label | escape }}</span>
+      {%- endif -%}
+      {%- for block in section.blocks -%}
+        {%- if block.type == 'dropdown_stub' and block.settings.label != blank -%}
+          <span class="collection-filter-bar__stub" {{ block.shopify_attributes }}>
+            {{- block.settings.label | escape -}}
+          </span>
+        {%- elsif block.type == 'filter_checkbox_menu' and block.settings.menu_label != blank -%}
+          {%- assign ff = block.settings.filter_field | default: 'solution' | handleize -%}
+          <div
+            class="collection-filter-bar__menu"
+            data-filter-menu
+            data-filter-field="{{ ff | escape }}"
+            {{ block.shopify_attributes }}
+          >
+            <button
+              type="button"
+              class="collection-filter-bar__trigger"
+              aria-expanded="false"
+              aria-haspopup="true"
+            >
+              <span class="collection-filter-bar__trigger-text">{{ block.settings.menu_label | escape }}</span>
+              <span class="collection-filter-bar__trigger-caret" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                  <path d="M2.75 4.25L6 7.5L9.25 4.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            </button>
+            <div class="collection-filter-bar__panel" hidden role="dialog" aria-modal="false">
+              <div class="collection-filter-bar__panel-header">
+                <span class="collection-filter-bar__selected-count" data-selected-count>
+                  0 {{ section.settings.filter_selected_suffix | escape -}}
+                </span>
+                <button type="button" class="collection-filter-bar__reset" data-filter-reset>
+                  {{ section.settings.filter_reset_label | escape }}
+                </button>
+              </div>
+              {% render 'collection-filter-menu-options', block: block %}
+            </div>
+          </div>
+        {%- endif -%}
+      {%- endfor -%}
+    </div>
+
+    {%- if has_left -%}
+      <button
+        type="button"
+        class="collection-filter-bar__mobile-filters-btn"
+        data-mobile-filters-open
+        aria-expanded="false"
+        aria-controls="CollectionFilterDrawerPanel-{{ section.id }}"
+      >
+        <span class="collection-filter-bar__mobile-filters-label">{{ section.settings.mobile_filters_button_label | escape }}</span>
+        <span class="collection-filter-bar__trigger-caret" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+            <path d="M2.75 4.25L6 7.5L9.25 4.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </button>
+    {%- endif -%}
+
+    {%- unless section.settings.show_segment == false -%}
+    <div
+      class="collection-filter-bar__segment"
+      role="group"
+      aria-label="{{ section.settings.segment_aria_label | escape }}"
+    >
+      <button
+        type="button"
+        class="collection-filter-bar__pill is-active"
+        data-bra-type-filter="all"
+        aria-pressed="true"
+      >
+        {{ section.settings.label_all | escape }}
+      </button>
+      <button
+        type="button"
+        class="collection-filter-bar__pill"
+        data-bra-type-filter="inserts"
+        aria-pressed="false"
+      >
+        {{ section.settings.label_inserts | escape }}
+      </button>
+      <button
+        type="button"
+        class="collection-filter-bar__pill"
+        data-bra-type-filter="breast-form"
+        aria-pressed="false"
+      >
+        {{ section.settings.label_breast_forms | escape }}
+      </button>
+    </div>
+    {%- endunless -%}
+
+    {%- if section.settings.show_sort and collection.sort_options.size > 0 -%}
+      {%- assign filter_bar_sort_by = collection.sort_by | default: collection.default_sort_by -%}
+      <div class="collection-filter-bar__sort">
+        <label class="collection-filter-bar__sort-label" for="CollectionFilterSort-{{ section.id }}">
+          {{- section.settings.sort_label | escape -}}
+        </label>
+        <div class="collection-filter-bar__sort-select-wrap">
+          <select
+            id="CollectionFilterSort-{{ section.id }}"
+            class="collection-filter-bar__sort-select"
+            data-filter-sort
+            autocomplete="off"
+          >
+            {%- for option in collection.sort_options -%}
+              <option value="{{ option.value | escape }}"{% if option.value == filter_bar_sort_by %} selected{% endif %}>
+                {{- option.name | escape -}}
+              </option>
+            {%- endfor -%}
+          </select>
+          <span class="collection-filter-bar__trigger-caret" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+              <path d="M2.75 4.25L6 7.5L9.25 4.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
+      </div>
+    {%- endif -%}
+  </div>
+
+  <p
+    class="collection-filter-bar__empty hidden"
+    data-bra-type-empty-message
+    role="status"
+  >
+    {{ section.settings.empty_message | escape }}
+  </p>
+
+  {%- if has_left -%}
+    <div
+      class="collection-filter-bar__drawer"
+      id="CollectionFilterDrawer-{{ section.id }}"
+      data-collection-filter-drawer
+      aria-hidden="true"
+    >
+      <div
+        class="collection-filter-bar__drawer-backdrop"
+        data-drawer-close
+        tabindex="-1"
+      ></div>
+      <div
+        class="collection-filter-bar__drawer-panel"
+        id="CollectionFilterDrawerPanel-{{ section.id }}"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="CollectionFilterDrawerTitle-{{ section.id }}"
+        tabindex="-1"
+      >
+        <div class="collection-filter-bar__drawer-header">
+          <h2 class="collection-filter-bar__drawer-title" id="CollectionFilterDrawerTitle-{{ section.id }}">
+            {{ section.settings.drawer_title | escape }}
+          </h2>
+          <button
+            type="button"
+            class="collection-filter-bar__drawer-close"
+            data-drawer-close
+            aria-label="{{ section.settings.drawer_close_label | escape }}"
+          >
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="collection-filter-bar__drawer-summary">
+          <span class="collection-filter-bar__drawer-count" data-drawer-selected-count>
+            0 {{ section.settings.filter_selected_suffix | escape }}
+          </span>
+          <button type="button" class="collection-filter-bar__drawer-reset" data-drawer-reset>
+            {{ section.settings.filter_reset_label | escape }}
+          </button>
+        </div>
+        <div class="collection-filter-bar__drawer-body">
+          {%- for block in section.blocks -%}
+            {%- if block.type == 'dropdown_stub' and block.settings.label != blank -%}
+              <div class="collection-filter-bar__accordion">
+                <button
+                  type="button"
+                  class="collection-filter-bar__accordion-trigger"
+                  aria-expanded="false"
+                  aria-controls="acc-{{ section.id }}-{{ block.id }}"
+                  id="acc-trig-{{ section.id }}-{{ block.id }}"
+                >
+                  <span>{{ block.settings.label | escape }}</span>
+                  <span class="collection-filter-bar__accordion-icon" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                      <path d="M2.75 4.25L6 7.5L9.25 4.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </button>
+                <div
+                  class="collection-filter-bar__accordion-panel"
+                  id="acc-{{ section.id }}-{{ block.id }}"
+                  role="region"
+                  aria-labelledby="acc-trig-{{ section.id }}-{{ block.id }}"
+                  hidden
+                ></div>
+              </div>
+            {%- elsif block.type == 'filter_checkbox_menu' and block.settings.menu_label != blank -%}
+              {%- assign ff = block.settings.filter_field | default: 'solution' | handleize -%}
+              <div class="collection-filter-bar__accordion">
+                <button
+                  type="button"
+                  class="collection-filter-bar__accordion-trigger"
+                  aria-expanded="false"
+                  aria-controls="acc-{{ section.id }}-{{ block.id }}"
+                  id="acc-trig-{{ section.id }}-{{ block.id }}"
+                >
+                  <span>{{ block.settings.menu_label | escape }}</span>
+                  <span class="collection-filter-bar__accordion-icon" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                      <path d="M2.75 4.25L6 7.5L9.25 4.25" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </button>
+                <div
+                  class="collection-filter-bar__accordion-panel"
+                  id="acc-{{ section.id }}-{{ block.id }}"
+                  role="region"
+                  aria-labelledby="acc-trig-{{ section.id }}-{{ block.id }}"
+                  hidden
+                >
+                  <div
+                    class="collection-filter-bar__menu collection-filter-bar__menu--drawer-only"
+                    data-filter-menu
+                    data-filter-field="{{ ff | escape }}"
+                  >
+                    {% render 'collection-filter-menu-options',
+                      block: block,
+                      badge_extra_class: 'collection-filter-bar__option-badge--outline'
+                    %}
+                  </div>
+                </div>
+              </div>
+            {%- endif -%}
+          {%- endfor -%}
+        </div>
+      </div>
+    </div>
+  {%- endif -%}
+</div>
+
+<script>
+  (function () {
+    var rootId = 'CollectionFilterBar-{{ section.id }}';
+    var selectedSuffix = {{ section.settings.filter_selected_suffix | json }};
+
+    function init() {
+      var root = document.getElementById(rootId);
+      if (!root) return false;
+      if (root.dataset.collectionFilterBarBound === '1') return true;
+
+      /* All product cards with data-product-handle in main (main grid + subcategories panels, etc.) */
+      var mainContent = document.getElementById('MainContent');
+
+      function getProductItems() {
+        var gridRoot = document.getElementById('ProductGridContainer');
+        if (gridRoot) {
+          return gridRoot.querySelectorAll('.grid__item[data-product-handle]');
+        }
+        return mainContent
+          ? mainContent.querySelectorAll('.grid__item[data-product-handle]')
+          : document.querySelectorAll('.grid__item[data-product-handle]');
+      }
+
+      var pills = root.querySelectorAll('[data-bra-type-filter]');
+
+      var emptyMessage = root.querySelector('[data-bra-type-empty-message]');
+      var drawer = root.querySelector('[data-collection-filter-drawer]');
+      var drawerPanel = drawer ? drawer.querySelector('.collection-filter-bar__drawer-panel') : null;
+      var drawerCountEl = root.querySelector('[data-drawer-selected-count]');
+      var mobileOpenBtn = root.querySelector('[data-mobile-filters-open]');
+
+      root.dataset.collectionFilterBarBound = '1';
+
+      /* One saved state per page (search keeps its terms) so Back restores the filters the shopper left with */
+      var searchTerms = new URLSearchParams(window.location.search).get('q');
+      var storageKey = 'hc-filter-bar:' + window.location.pathname + (searchTerms ? '?q=' + searchTerms : '');
+
+      function normalizeToken(s) {
+        return (s || '').toString().trim().toLowerCase();
+      }
+
+      function getBraMode() {
+        var active = root.querySelector('[data-bra-type-filter].is-active');
+        return active ? active.getAttribute('data-bra-type-filter') || 'all' : 'all';
+      }
+
+      function getUniqueFilterFields() {
+        var fields = [];
+        root.querySelectorAll('[data-filter-menu]').forEach(function (m) {
+          var f = m.getAttribute('data-filter-field') || 'solution';
+          if (fields.indexOf(f) === -1) fields.push(f);
+        });
+        return fields;
+      }
+
+      function getCheckedValuesForField(field) {
+        var vals = [];
+        // Each block renders twice, once in the bar menu and once in the mobile
+        // drawer, and syncCheckboxAcrossPlacements keeps both ticked. Collect
+        // unique values so a single selection isn't counted once per placement.
+        root.querySelectorAll('[data-filter-menu][data-filter-field="' + field + '"] input[type="checkbox"]:checked').forEach(function (cb) {
+          var token = normalizeToken(cb.value);
+          if (vals.indexOf(token) === -1) vals.push(token);
+        });
+        return vals;
+      }
+
+      function syncCheckboxAcrossPlacements(field, value, checked) {
+        root.querySelectorAll('[data-filter-menu][data-filter-field="' + field + '"] input[type="checkbox"]').forEach(function (input) {
+          if (normalizeToken(input.value) === normalizeToken(value)) input.checked = checked;
+        });
+      }
+
+      function hasAnyCheckboxFilter() {
+        var fields = getUniqueFilterFields();
+        for (var i = 0; i < fields.length; i++) {
+          if (getCheckedValuesForField(fields[i]).length) return true;
+        }
+        return false;
+      }
+
+      function getTotalSelectedFilterCount() {
+        var fields = getUniqueFilterFields();
+        var n = 0;
+        for (var i = 0; i < fields.length; i++) {
+          n += getCheckedValuesForField(fields[i]).length;
+        }
+        return n;
+      }
+
+      function solutionMenusPass(item) {
+        var fields = getUniqueFilterFields();
+        for (var fi = 0; fi < fields.length; fi++) {
+          var field = fields[fi];
+          var checkedVals = getCheckedValuesForField(field);
+          if (!checkedVals.length) continue;
+
+          var attrName = 'data-product-filter-' + field.replace(/[^a-z0-9-]/gi, '');
+          var raw = item.getAttribute(attrName) || '';
+          var productToks = raw.split('||').map(normalizeToken).filter(Boolean);
+
+          var any = false;
+          for (var ci = 0; ci < checkedVals.length; ci++) {
+            if (productToks.indexOf(checkedVals[ci]) !== -1) any = true;
+          }
+          if (!any) return false;
+        }
+        return true;
+      }
+
+      function hasActiveShapeFilter() {
+        return !!(
+          document.querySelector('[data-collection-filter].is-active') ||
+          document.querySelector('[data-collection-filter-small].is-active:not([data-view-all="true"])')
+        );
+      }
+
+      function isReallyVisible(item) {
+        return !item.classList.contains('collection-filter-hidden')
+          && !item.classList.contains('collection-filter-small-hidden')
+          && !item.classList.contains('collection-filter-bar-hidden')
+          && !item.classList.contains('hidden_product');
+      }
+
+      function saveState() {
+        var state = { bra: getBraMode(), fields: {} };
+        getUniqueFilterFields().forEach(function (field) {
+          state.fields[field] = getCheckedValuesForField(field);
+        });
+        try {
+          sessionStorage.setItem(storageKey, JSON.stringify(state));
+        } catch (e) {}
+      }
+
+      function isHistoryNavigation() {
+        var nav = window.performance && performance.getEntriesByType ? performance.getEntriesByType('navigation')[0] : null;
+        if (nav) return nav.type === 'back_forward';
+        return !!(window.performance && performance.navigation && performance.navigation.type === 2);
+      }
+
+      /* Browsers restore checkbox state on Back after this script has already counted
+         and filtered, which left boxes ticked with "0 selected" and an unfiltered grid.
+         The checkboxes opt out of that (autocomplete="off") and the state is restored here. */
+      function restoreState() {
+        /* Changing the sort reloads the page, so the sort handler flags the next load to keep the filters */
+        var restoreAfterSort = false;
+        try {
+          restoreAfterSort = sessionStorage.getItem(storageKey + ':restore') === '1';
+          sessionStorage.removeItem(storageKey + ':restore');
+        } catch (e) {}
+        if (!restoreAfterSort && !isHistoryNavigation()) return;
+        var state = null;
+        try {
+          state = JSON.parse(sessionStorage.getItem(storageKey));
+        } catch (e) {}
+        if (!state) return;
+
+        root.querySelectorAll('[data-filter-menu] input[type="checkbox"]').forEach(function (cb) {
+          var field = cb.closest('[data-filter-menu]').getAttribute('data-filter-field');
+          var vals = (state.fields && state.fields[field]) || [];
+          cb.checked = vals.indexOf(normalizeToken(cb.value)) !== -1;
+        });
+
+        var pill = state.bra ? root.querySelector('[data-bra-type-filter="' + state.bra + '"]') : null;
+        if (pill) setActivePill(pill);
+      }
+
+      function syncGrid() {
+        saveState();
+        var productItems = getProductItems();
+        if (!productItems.length) return;
+
+        var braMode = getBraMode();
+
+        productItems.forEach(function (item) {
+          var braOk = true;
+          var token = normalizeToken(item.getAttribute('data-product-bra-type'));
+          if (braMode === 'inserts') {
+            braOk = token === 'inserts';
+          } else if (braMode === 'breast-form') {
+            braOk = token === 'breast-form';
+          }
+
+          var menuOk = solutionMenusPass(item);
+          var show = braOk && menuOk;
+          item.classList.toggle('collection-filter-bar-hidden', !show);
+        });
+
+        var visibleCount = 0;
+        productItems.forEach(function (item) {
+          if (isReallyVisible(item)) visibleCount += 1;
+        });
+
+        if (emptyMessage) {
+          var barFiltered = braMode !== 'all' || hasAnyCheckboxFilter();
+          var anyFilterActive = barFiltered || hasActiveShapeFilter();
+          emptyMessage.classList.toggle('hidden', !(anyFilterActive && visibleCount === 0));
+        }
+
+        document.dispatchEvent(new CustomEvent('hc:collection-filters-changed', {
+          detail: { source: 'bar' }
+        }));
+      }
+
+      function setActivePill(target) {
+        if (!pills.length) return;
+        pills.forEach(function (p) {
+          var on = p === target;
+          p.classList.toggle('is-active', on);
+          p.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      }
+
+      function updateMenuCount(menu) {
+        var countEl = menu.querySelector('[data-selected-count]');
+        if (!countEl) return;
+        var n = 0;
+        var field = menu.getAttribute('data-filter-field');
+        if (field) n = getCheckedValuesForField(field).length;
+        countEl.textContent = n + ' ' + selectedSuffix;
+      }
+
+      function updateAllCounts() {
+        root.querySelectorAll('[data-filter-menu]').forEach(function (menu) {
+          updateMenuCount(menu);
+        });
+        if (drawerCountEl) {
+          drawerCountEl.textContent = getTotalSelectedFilterCount() + ' ' + selectedSuffix;
+        }
+      }
+
+      function closeAllPanels(exceptMenu) {
+        root.querySelectorAll('[data-filter-menu]').forEach(function (m) {
+          if (exceptMenu && m === exceptMenu) return;
+          var panel = m.querySelector('.collection-filter-bar__panel');
+          var trig = m.querySelector('.collection-filter-bar__trigger');
+          if (panel) panel.hidden = true;
+          if (trig) {
+            trig.classList.remove('is-open');
+            trig.setAttribute('aria-expanded', 'false');
+          }
+        });
+      }
+
+      function setDrawerOpen(open) {
+        if (!drawer) return;
+        /* Use .is-open instead of [hidden]: display:none blocks transform transitions */
+        drawer.classList.toggle('is-open', open);
+        drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+        document.documentElement.classList.toggle('collection-filter-bar-drawer-open', open);
+        if (mobileOpenBtn) {
+          mobileOpenBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+        if (open && drawerPanel) {
+          try {
+            drawerPanel.focus();
+          } catch (e) {}
+        }
+        if (!open) closeAllPanels(null);
+      }
+
+      root.querySelectorAll('[data-filter-menu]').forEach(function (menu) {
+        var trigger = menu.querySelector('.collection-filter-bar__trigger');
+        var panel = menu.querySelector('.collection-filter-bar__panel');
+        var resetBtn = menu.querySelector('[data-filter-reset]');
+
+        if (trigger && panel) {
+          trigger.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var willOpen = panel.hidden;
+            closeAllPanels(willOpen ? menu : null);
+            panel.hidden = !willOpen;
+            trigger.classList.toggle('is-open', willOpen);
+            trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+          });
+        }
+
+        if (resetBtn) {
+          resetBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var field = menu.getAttribute('data-filter-field');
+            if (!field) return;
+            root.querySelectorAll('[data-filter-menu][data-filter-field="' + field + '"] input[type="checkbox"]').forEach(function (cb) {
+              cb.checked = false;
+            });
+            updateAllCounts();
+            syncGrid();
+          });
+        }
+      });
+
+      root.addEventListener('change', function (e) {
+        var t = e.target;
+        if (!t.matches || !t.matches('input[type="checkbox"]')) return;
+        var menu = t.closest('[data-filter-menu]');
+        if (!menu || !root.contains(menu)) return;
+        var field = menu.getAttribute('data-filter-field');
+        if (!field) return;
+        syncCheckboxAcrossPlacements(field, t.value, t.checked);
+        updateAllCounts();
+        syncGrid();
+      });
+
+      if (drawer) {
+        root.querySelectorAll('[data-drawer-close]').forEach(function (el) {
+          el.addEventListener('click', function () {
+            setDrawerOpen(false);
+          });
+        });
+
+        var drawerReset = root.querySelector('[data-drawer-reset]');
+        if (drawerReset) {
+          drawerReset.addEventListener('click', function (e) {
+            e.preventDefault();
+            root.querySelectorAll('[data-filter-menu] input[type="checkbox"]').forEach(function (cb) {
+              cb.checked = false;
+            });
+            updateAllCounts();
+            syncGrid();
+          });
+        }
+
+        if (mobileOpenBtn) {
+          mobileOpenBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            setDrawerOpen(!drawer.classList.contains('is-open'));
+          });
+        }
+
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && drawer && drawer.classList.contains('is-open')) setDrawerOpen(false);
+        });
+      }
+
+      root.querySelectorAll('.collection-filter-bar__accordion-trigger').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var panel = document.getElementById(btn.getAttribute('aria-controls'));
+          if (!panel) return;
+          var isHidden = panel.hidden;
+          panel.hidden = !isHidden;
+          btn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+          btn.classList.toggle('is-open', isHidden);
+        });
+      });
+
+      document.addEventListener('click', function () {
+        closeAllPanels(null);
+      });
+
+      root.addEventListener('click', function (e) {
+        e.stopPropagation();
+      });
+
+      pills.forEach(function (pill) {
+        pill.addEventListener('click', function () {
+          setActivePill(pill);
+          syncGrid();
+        });
+      });
+
+      var sortSelect = root.querySelector('[data-filter-sort]');
+      if (sortSelect) {
+        sortSelect.addEventListener('change', function () {
+          saveState();
+          try {
+            sessionStorage.setItem(storageKey + ':restore', '1');
+          } catch (e) {}
+          var url = new URL(window.location.href);
+          url.searchParams.set('sort_by', sortSelect.value);
+          url.searchParams.delete('page');
+          window.location.href = url.toString();
+        });
+      }
+
+      document.addEventListener('collection:reloaded', syncGrid);
+
+      document.addEventListener('hc:collection-filters-changed', function (e) {
+        if (e.detail && e.detail.source === 'bar') return;
+        syncGrid();
+      });
+
+      if (pills.length) {
+        setActivePill(root.querySelector('[data-bra-type-filter="all"]'));
+      }
+      restoreState();
+      updateAllCounts();
+      syncGrid();
+
+      /* Re-read the checkboxes once the page is shown (incl. bfcache) so counts and grid always match them */
+      window.addEventListener('pageshow', function () {
+        updateAllCounts();
+        syncGrid();
+      });
+
+      return true;
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      if (!init()) setTimeout(init, 250);
+    }
+  })();
+</script>

@@ -1,0 +1,790 @@
+{%- doc -%}
+  This snippet is used to render the product grid on collection and search pages.
+
+  @param {object} section - The section object
+  @param {object} paginate - Pagination object
+  @param {object} products - Array of product objects
+  @param {string} [title] - Header of the collection or search results
+  @param {string} children - List or grid of product cards
+{%- enddoc -%}
+
+{% capture product_card_size %}
+  {% render 'util-product-grid-card-size' section: section %}
+{% endcapture %}
+{% assign product_card_size = product_card_size | strip %}
+
+{% style %}
+  @media (min-width: 750px) {
+    {% case section.settings.layout_type %}
+      {% when 'grid' %}
+        .product-grid--{{ section.id }}:is(.product-grid--grid) {
+          --product-grid-columns-desktop: repeat(auto-fill, minmax({{ product_card_size }}, 1fr));
+        }
+      {% when 'organic' %}
+        {% assign large_span = 2 %}
+        {% assign row_cycle = 3 %}
+        {% assign product_cycle = row_cycle | times: 2 %}
+        {% assign right_large_start_col = 3 %}
+        .product-grid--{{ section.id }}:not([product-grid-view='zoom-out']):is(.product-grid--organic) .product-grid__item:nth-child({{ product_cycle }}n + 1) {
+          grid-column: 1 / span {{ large_span }};
+        }
+
+        .product-grid--{{ section.id }}:not([product-grid-view='zoom-out']):is(.product-grid--organic) .product-grid__item:nth-child({{ product_cycle }}n + 2),
+        .product-grid--{{ section.id }}:not([product-grid-view='zoom-out']):is(.product-grid--organic) .product-grid__item:nth-child({{ product_cycle }}n + 5) {
+          align-self: end;
+        }
+
+        .product-grid--{{ section.id }}:not([product-grid-view='zoom-out']):is(.product-grid--organic) .product-grid__item:nth-child({{ product_cycle }}n + {{ product_cycle }}) {
+          grid-column: {{ right_large_start_col }} / span {{ large_span }};
+        }
+
+        .product-grid--{{ section.id }}:not([product-grid-view='zoom-out']):is(.product-grid--organic) {
+          --product-grid-columns-desktop: repeat(4, 1fr);
+        }
+    {% endcase %}
+
+    /* This logic helps prevent displaying one column for an large or extra-large product card size on a small screen. We want it to display at least two columns. */
+    {% case section.settings.product_card_size %}
+      {% when 'extra-large' or 'large' %}
+        @container product-grid (width < calc({{ product_card_size }} * 3 + {{ section.settings.columns_gap_horizontal }}px * 2)) {
+          .product-grid--{{ section.id }}:is(.product-grid--grid) {
+            --product-grid-columns-desktop: repeat(2, 1fr);
+          }
+        }
+    {% endcase %}
+
+    /* When zoomed out, fit as many 100px-wide columns as possible */
+    .product-grid--{{ section.id }}:is([product-grid-view='zoom-out']) {
+      --product-grid-columns-desktop: repeat(auto-fill, minmax(6.25rem, 1fr));
+    }
+
+    .product-grid--{{ section.id }}:is([product-grid-view='zoom-out']) .product-grid-view-zoom-out--details {
+      display: block;
+    }
+
+    .product-grid--{{ section.id }}:is([product-grid-view='zoom-out']) .product-grid__card {
+      padding-inline-start: var(--zoom-out-padding-inline-start, 0);
+      padding-inline-end: var(--zoom-out-padding-inline-end, 0);
+      padding-block-start: var(--zoom-out-padding-block-start, 0);
+      padding-block-end: var(--zoom-out-padding-block-end, 0);
+    }
+  }
+{% endstyle %}
+
+<div
+  id="ResultsList"
+  class="
+    grid main-collection-grid
+    {%- if section.settings.inherit_color_scheme == false %} color-{{ section.settings.color_scheme }}{% endif %}
+    {%- if section.settings.product_grid_width == 'full-width' %} collection-wrapper--full-width{% endif %}
+    {%- if section.settings.full_width_on_mobile == true %} collection-wrapper--full-width-on-mobile{% endif %}
+    spacing-style
+  "
+  style="
+    --grid--margin--mobile: 0{% if section.settings.product_grid_width == 'centered' and section.settings.full_width_on_mobile == false %} var(--margin-lg){% else %} 0{% endif %};
+    --grid-column--desktop: var(--{% if section.settings.product_grid_width == 'centered' %}centered{% else %}full-width{% endif %});
+    --grid-column--mobile: var(--{% if section.settings.full_width_on_mobile %}full-width{% else %}{% if section.settings.product_grid_width == 'centered' %}centered{% else %}full-width{% endif %}{% endif %});
+    --padding-inline-start: {{ section.settings.padding-inline-start }}px;
+    --padding-inline-end: {{ section.settings.padding-inline-end }}px;
+  "
+>
+  <div
+    style="
+      grid-column: var(--full-width);
+      --product-grid-gap-mobile: {{ section.settings.columns_gap_vertical | at_most: 12 }}px {{ section.settings.columns_gap_horizontal | at_most: 12 }}px;
+      --product-grid-gap-desktop: {{ section.settings.columns_gap_vertical }}px {{ section.settings.columns_gap_horizontal }}px;
+      container-type: inline-size;
+      container-name: product-grid;
+    "
+  >
+    {% if products.size == 0 %}
+      <div class="main-collection-grid__empty">
+        <h2 class="main-collection-grid__empty-title h2">
+          {{ 'content.no_products_found' | t }}
+        </h2>
+        <p>
+          {{ 'content.use_fewer_filters_html' | t: link: collection.url, class: 'main-collection-grid__empty-link' }}
+        </p>
+      </div>
+    {% else %}
+      <span ref="viewMorePrevious"></span>
+
+      {% if title %}
+        <h4 class="main-collection-grid__title">{{ title }}</h4>
+      {% endif %}
+
+      <div class="showing-count">Showing: {{ collection.products_count }} Products</div>
+
+      <ul
+        class="product-grid product-grid--{{ section.id }} product-grid--{{ section.settings.layout_type }} {% if section.settings.mobile_product_card_size == 'large' %} product-grid-mobile--large{% endif %}"
+        product-grid-view="default"
+        ref="grid"
+        last-page="{{ paginate.pages }}"
+        role="list"
+        data-product-card-size="{{ section.settings.product_card_size }}"
+      >
+        {{ children }}
+
+        {% if section.settings.show_promo_banners %}
+          {% assign show_banners = false %}
+          {% if section.settings.show_on_all_collections or collection.handle == 'all' %}
+            {% assign show_banners = true %}
+          {% endif %}
+          {% if show_banners %}
+            {% if section.settings.promo_image_1 %}
+              <div class="custom-collection-insert first">
+                <div class="promo-banner">
+                  <img
+                    src="{{ section.settings.promo_image_1 | img_url: 'master' }}"
+                    alt="{{ section.settings.promo_image_alt_1 | escape }}"
+                  >
+                  <div class="promo-text">
+                    <div class="promo-inner">
+                      {% if section.settings.promo_title_1 %}
+                        <h3>{{ section.settings.promo_title_1 | escape }}</h3>
+                      {% endif %}
+                      {% if section.settings.promo_description_1 %}
+                        <p>{{ section.settings.promo_description_1 | newline_to_br }}</p>
+                      {% endif %}
+                      {% if section.settings.promo_button_url_1 and section.settings.promo_button_text_1 %}
+                        <a href="{{ section.settings.promo_button_url_1 }}" class="btn">
+                          {{- section.settings.promo_button_text_1 | escape -}}
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+            {% if section.settings.promo_image_2 %}
+              <div class="custom-collection-insert second">
+                <div class="promo-banner">
+                  <img
+                    src="{{ section.settings.promo_image_2 | img_url: 'master' }}"
+                    alt="{{ section.settings.promo_image_alt_2 | escape }}"
+                  >
+                  <div class="promo-text">
+                    <div class="promo-inner">
+                      {% if section.settings.promo_icon2 != blank %}
+                        <img class="logo-icon" src="{{ section.settings.promo_icon2 | img_url: 'master' }}" alt="Logo">
+                      {% endif %}
+                      {% if section.settings.promo_title_2 %}
+                        <h3>{{ section.settings.promo_title_2 | escape }}</h3>
+                      {% endif %}
+                      {% if section.settings.promo_description_2 %}
+                        <p>{{ section.settings.promo_description_2 | newline_to_br }}</p>
+                      {% endif %}
+                      {% if section.settings.promo2_mid_image != blank %}
+                        <img src="{{ section.settings.promo2_mid_image | img_url: 'master' }}" alt="Logo">
+                      {% endif %}
+                      {% if section.settings.promo_button_url_2 and section.settings.promo_button_text_2 %}
+                        <a href="{{ section.settings.promo_button_url_2 }}" class="btn">
+                          {{- section.settings.promo_button_text_2 | escape -}}
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+            {% if section.settings.promo_image_3 %}
+              <div class="custom-collection-insert third">
+                <div class="promo-banner">
+                  <img
+                    src="{{ section.settings.promo_image_3 | img_url: 'master' }}"
+                    alt="{{ section.settings.promo_image_alt_3 | escape }}"
+                  >
+                  <div class="promo-text">
+                    <div class="promo-inner">
+                      {% if section.settings.promo_title_3 %}
+                        <h3>{{ section.settings.promo_title_3 | escape }}</h3>
+                      {% endif %}
+                      {% if section.settings.promo_description_3 %}
+                        <p>{{ section.settings.promo_description_3 | newline_to_br }}</p>
+                      {% endif %}
+                      {% if section.settings.promo_icon3 != blank %}
+                        <img class="logo-icon" src="{{ section.settings.promo_icon3 | img_url: 'master' }}" alt="Logo">
+                      {% endif %}
+
+                      {% if section.settings.promo_button_url_3 and section.settings.promo_button_text_3 %}
+                        <a href="{{ section.settings.promo_button_url_3 }}" class="btn">
+                          {{- section.settings.promo_button_text_3 | escape -}}
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+          {% endif %}
+        {% endif %}
+      </ul>
+      <span ref="viewMoreNext"></span>
+    {% endif %}
+  </div>
+</div>
+
+{% unless request.design_mode %}
+  <script>
+    (() => {
+      // Existing script for grid view
+      const grid = document.querySelector('.product-grid');
+      if (grid) {
+        const currentDevice = window.innerWidth >= 750 ? 'desktop' : 'mobile';
+        const storedLayout = sessionStorage.getItem(`product-grid-view-${currentDevice}`);
+        if (storedLayout) {
+          const options = document.querySelectorAll(`input[type="radio"][name="grid"]`);
+          grid.setAttribute('product-grid-view', storedLayout);
+          for (const option of options) {
+            option.checked = option.value === storedLayout;
+          }
+        }
+      }
+
+      // New script to handle filter updates
+      const promoBanners = document.querySelectorAll('.custom-collection-insert');
+      const defaultSortBy = 'manual'; // Adjust based on theme's default sort_by value
+      const updateBannerVisibility = (event) => {
+        console.log('FilterUpdate event triggered', event);
+        const urlParameters = event?.detail?.urlParameters || new URLSearchParams(window.location.search);
+        // Only count filter.* parameters, exclude sort_by if it's the default
+        const isFilterActive = Array.from(urlParameters.keys()).some(key => 
+          key.startsWith('filter.') || 
+          (key === 'sort_by' && urlParameters.get('sort_by') !== defaultSortBy)
+        );
+        console.log('Is filter active?', isFilterActive, 'Parameters:', urlParameters.toString());
+        promoBanners.forEach(banner => {
+          if (isFilterActive) {
+            banner.classList.add('filter-active');
+          } else {
+            banner.classList.remove('filter-active');
+          }
+        });
+      };
+
+      // Listen for FilterUpdate events
+      document.addEventListener('theme:filter:update', updateBannerVisibility);
+
+      // Handle Clear All button
+      const clearButton = document.querySelector('facet-clear-component [ref="clearButton"]');
+      if (clearButton) {
+        clearButton.addEventListener('click', () => {
+          console.log('Clear All button clicked');
+          updateBannerVisibility();
+        });
+      }
+
+      // Observe for dynamically loaded filters
+      const facetsForm = document.querySelector('facets-form-component');
+      if (facetsForm) {
+        const observer = new MutationObserver(() => {
+          console.log('Facets form content changed');
+          updateBannerVisibility();
+        });
+        observer.observe(facetsForm, { childList: true, subtree: true });
+      }
+
+      // Initial check on page load
+      updateBannerVisibility();
+    })();
+  </script>
+{% endunless %}
+
+{% stylesheet %}
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Bold.eot?v=1753282671');
+    src: url('https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Bold.eot?v=1753282671?#iefix') format('embedded-opentype'),
+        url('https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Bold_00132ed2-d62b-418c-be09-b812f11e23e0.woff2?v=1753282671') format('woff2'),
+        url('https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Bold_214b2b15-0f3c-4cb7-9a19-9f776afff5ae.woff?v=1753282671') format('woff'),
+        url('https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Bold.ttf?v=1753282671') format('truetype'),
+        url('Satoshi-Bold.svg#Satoshi-Bold') format('svg');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+  @font-face {
+    font-family: 'Satoshi';
+    src: url('https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Medium.eot?v=1753274312');
+    src: url('https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Medium.eot?v=1753274312?#iefix') format('embedded-opentype'),
+        url('https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Medium_59f605a4-3704-44f7-b771-416c7681e193.woff2?v=1753274313') format('woff2'),
+        url('https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Medium_f96718c5-cd85-41f7-b434-0f4d35200acb.woff?v=1753274313') format('woff'),
+        url('https://cdn.shopify.com/s/files/1/1711/0419/files/Satoshi-Medium.ttf?v=1753274313') format('truetype'),
+        url('Satoshi-Medium.svg#Satoshi-Medium') format('svg');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+  .template-collection span.compare-at-price {
+    display: none;
+}
+  .metafield-rich_text_field ul li{ color:#333; font-family: 'Satoshi'; font-weight: 500; font-size:15px !important;}
+      h4.facets--filters-title {
+        text-transform: uppercase;
+        font-size: 18px;
+    }
+
+  .facets .checkbox .checkbox__label-text {
+    color: black;
+    line-height: 22px;
+    padding-inline-start: 10px;
+}
+  .facets .checkbox .icon-checkmark {
+    width: 22px;
+    height: 22px;
+    border: 1px solid rgb(from rgba(0 0 0 / 1.0) r g b / 60%);
+}
+  .products-count-wrapper {
+    display: none !important;
+}
+  .product-card__content.layout-panel-flex.layout-panel-flex--column.product-grid__card.spacing-style {
+    gap: 20px;
+}
+  .product-card .text-block p{
+    font-family: 'Satoshi' !important; font-weight: bold !important; color:#333 !important;
+  }
+      .showing-count {
+          text-transform: uppercase;
+          font-weight: 700;
+          display: flex;
+          margin-bottom: 42px;
+          margin-top: -45px;
+          justify-content: flex-end;
+      }
+        .resource-list--grid .product-media-container.media-fit img {
+          border: 1px solid rgb(0 0 0 / 40%);
+          border-radius: 40px;
+        }
+       .product-card .text-block p { text-transform: none !important; }
+        .resource-list .product-media-container.media-fit img {
+          border: 1px solid rgb(0 0 0 / 40%);
+          border-radius: 40px;
+        }
+        .product-badges__badge.product-badges__badge--rectangle {
+          display: none;
+        }
+        .quick-add__product-form-component {
+          display: none;
+        }
+        .resource-list--grid {
+          gap: 36px;
+        }
+        ::marker {
+          font-size: 0;
+        }
+        .product-card__content.layout-panel-flex.layout-panel-flex--column.product-grid__card.spacing-style.border-style.gap-style.color-scheme-1 {
+          gap: 15px;
+        }
+        .resource-list__item .text-block p {
+          margin-bottom: 10px !important;
+        }
+        .section-resource-list__content p {
+          font-family: "Poppins", sans-serif;
+          font-weight: 500;
+          font-style: normal;
+          font-size: 18px;
+        }
+        .section-resource-list__content img {
+          max-width: 430px;
+        }
+        .promo-banner {
+          position: relative;
+        }
+        .promo-text {
+          position: absolute;
+          top: 30px;
+          text-align: center;
+          color: #fff;
+          width: 100%;
+          height:100%;
+        }
+        .promo-inner {
+          max-width: 280px;
+          margin: 0 auto;
+        }
+        .promo-inner h3 {
+          font-size: 32px;
+          font-family: 'Satoshi-Bold';
+          max-width: 210px;
+          margin: 0 auto 5px;
+        }
+        .promo-inner p {
+          font-size: 16px;
+          font-family: 'Satoshi-Bold';
+          margin-bottom: 20px;
+        }
+        .promo-inner a.btn {
+          background: #000000;
+          width: 100%;
+          display: inline-block;
+          color: #fff;
+          line-height: 44px;
+          border-radius: 30px;
+          font-size: 12px;
+          font-family: 'Satoshi-Bold';
+          border:1px solid #000;
+        }
+        .promo-inner a.btn:hover {
+          background: #fff;
+          color: #000;
+        }
+        .buy-buttons-block .add-to-cart-button.button-secondary {
+          border-radius: 40px;
+          text-transform: uppercase;
+          background: transparent;
+          font-family: 'Satoshi';
+          font-weight: bold;
+          font-size: 16px;
+        }
+  .price, .compare-at-price, .unit-price{
+    font-family: 'Satoshi';
+          font-weight: bold;
+  }
+        .buy-buttons-block .add-to-cart-button.button-secondary:hover {
+          background: #fff;
+          color: #000;
+        }
+        .buy-buttons-block .add-to-cart-button.button-secondary span.svg-wrapper.add-to-cart-icon {
+          display: none;
+        }
+        button.button.quick-add__button.quick-add__button--choose {
+          display: none;
+        }
+        .product-grid {
+          --product-grid-gap: var(--product-grid-gap-mobile);
+          isolation: isolate;
+        }
+        .facets__filters-wrapper accordion-custom.facets__item:nth-child(1) summary.facets__summary {
+          background: #D3F1FB url(/cdn/shop/files/prime_sparkles.svg?v=1751881891) no-repeat 20px center;
+          padding-left: 50px;
+        }
+        .facets__filters-wrapper accordion-custom.facets__item:nth-child(2) summary.facets__summary {
+          background: #D3F1FB url(https://cdn.shopify.com/s/files/1/1711/0419/files/Frame_48099628.svg?v=1751883639) no-repeat 20px center;
+          padding-left: 50px;
+        }
+        .facets__filters-wrapper accordion-custom.facets__item:nth-child(3) summary.facets__summary {
+          background: #D3F1FB url(https://cdn.shopify.com/s/files/1/1711/0419/files/coat-hook_1.png?v=1751883774) no-repeat 20px center;
+          padding-left: 50px;
+          background-size: 25px;
+        }
+        .facets__filters-wrapper accordion-custom.facets__item:nth-child(4) summary.facets__summary {
+          background: #D3F1FB url(https://cdn.shopify.com/s/files/1/1711/0419/files/Frame_3.svg?v=1751883897) no-repeat 20px center;
+          padding-left: 50px;
+        }
+        .facets__filters-wrapper accordion-custom.facets__item:nth-child(5) summary.facets__summary {
+          background: #D3F1FB url(https://cdn.shopify.com/s/files/1/1711/0419/files/Frame_4.svg?v=1751883931) no-repeat 20px center;
+          padding-left: 50px;
+        }
+        .facets__filters-wrapper accordion-custom.facets__item:nth-child(6) summary.facets__summary {
+          background: #D3F1FB url(https://cdn.shopify.com/s/files/1/1711/0419/files/Frame_5.svg?v=1751884004) no-repeat 20px center;
+          padding-left: 50px;
+        }
+        .facets__filters-wrapper accordion-custom.facets__item:nth-child(7) summary.facets__summary {
+          background: #D3F1FB url(https://cdn.shopify.com/s/files/1/1711/0419/files/breast-pad_1.png?v=1751884086) no-repeat 20px center;
+          padding-left: 50px;
+          background-size: 26px;
+        }
+        .custom-collection-insert.third .promo-inner p {
+          font-size: 26px;
+          font-family: 'Satoshi-Bold';
+          margin-bottom: 0px;
+        }
+        .custom-collection-insert.second .promo-text {
+          color: black;
+        }
+        .promo-banner img {
+          max-height: 620px;
+        }
+        @media screen and (min-width: 750px) {
+          .custom-collection-insert.second .promo-inner img.logo-icon {
+          max-width: 91px;
+          margin: 10px auto 40px;
+      }
+         .custom-collection-insert.second a.btn{
+           max-width:230px;
+           margin:30px auto 0;
+         }
+          .custom-collection-insert.third .promo-inner img.logo-icon {
+          max-width: 91px;
+          margin: 10px auto 10px;
+      }
+          .custom-collection-insert.first {
+            grid-row-start: 2;
+            grid-column-start: 2;
+          }
+          .custom-collection-insert.second {
+            grid-row-start: 4;
+            grid-column-start: 3;
+          }
+          .custom-collection-insert.third {
+            grid-row-start: 6;
+            grid-column-start: 1;
+          }
+          .facets.facets-controls-wrapper {
+            margin-bottom: 20px;
+          }
+          .product-grid {
+            gap: 36px;
+          }
+          .facets-block-wrapper.facets-block-wrapper--vertical {
+            margin-right: 60px;
+          }
+          facet-inputs-component#facet-inputs-component-filter-p-tag {
+            margin-top: 20px;
+          }
+          .custom-collection-insert.third a.btn {
+            margin-top: 0px; max-width: 230px;
+          }
+        }
+
+        @media screen and (width >= 750px) {
+          --product-grid-gap: var(--product-grid-gap-desktop);
+        }
+        .product-grid slideshow-arrows .slideshow-control {
+          display: none;
+          @media screen and (width >= 750px) {
+            display: grid;
+          }
+        }
+        .main-collection-grid {
+          padding: var(--grid--margin--mobile);
+          @media screen and (width >= 750px) {
+            padding: var(--padding-block-start) var(--padding-inline-end) var(--padding-block-end) var(--padding-inline-start);
+          }
+        }
+        .main-collection-grid__empty {
+          padding-block: var(--padding-6xl);
+          padding-inline: var(--page-margin);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          gap: var(--padding-sm);
+        }
+        .main-collection-grid__empty-title {
+          margin: 0;
+        }
+        .collection-wrapper--full-width .main-collection-grid__title {
+          margin-left: var(--page-margin);
+        }
+        .collection-wrapper--full-width-on-mobile .main-collection-grid__title {
+          @media screen and (width < 750px) {
+            margin-left: var(--page-margin);
+          }
+        }
+
+
+      @media screen and (min-device-width: 750px) and (max-device-width: 1200px) {
+        .showing-count{ display: none;}
+        .product-grid {
+        gap: 15px;
+    }
+        .group-block-content.layout-panel-flex.layout-panel-flex--column.mobile-column p {
+      font-size: 14px;
+  }
+        .facets-block-wrapper.facets-block-wrapper--vertical {
+        margin-right: 20px;
+    }
+        .product-grid {
+        --product-grid-columns-desktop: auto !important;
+    }
+        .product-form-buttons button{ width:auto !important; font-size:10px !important;
+                                            padding-inline: 20px;
+            height:auto;
+                                    }
+        .metafield-rich_text_field ul li {
+        font-size: 13px !important;
+    }
+        .product-grid span.price {
+        font-size: 16px;
+        line-height: normal;
+    }
+        .promo-inner h3 {
+        font-size: 14px;
+        font-family: 'Satoshi-Bold';
+        max-width: 120px;
+        margin: 0 auto 5px;
+    }
+        .promo-inner p {
+        font-size: 12px;
+        font-family: 'Satoshi-Bold';
+        margin-bottom: 10px;
+    }
+        .promo-inner a.btn {
+        background: #000000;
+        width: 94%;
+        display: inline-block;
+        color: #fff;
+        line-height: 24px;
+        border-radius: 30px;
+        font-size: 7px;
+        font-family: 'Satoshi-Bold';
+        border: 1px solid #000;
+    }
+        .custom-collection-insert.second .promo-inner img.logo-icon {
+        max-width: 71px;
+        margin: 0px auto 10px;
+    }
+        .custom-collection-insert.second a.btn {
+        max-width: 230px;
+        margin: 0px auto 0;
+    }
+        .custom-collection-insert.third .promo-inner p {
+        font-size: 12px;
+        font-family: 'Satoshi-Bold';
+        margin-bottom: 0px;
+    }
+        .custom-collection-insert.third .promo-inner img.logo-icon {
+        max-width: 71px;
+        margin: 10px auto 10px;
+    }
+      }
+        @media screen and (max-width: 749px) {
+          .showing-count {
+        text-transform: uppercase;
+        font-weight: 700;
+        display: flex;
+        margin-bottom: 30px;
+        justify-content: flex-start;
+        margin-left: 20px;
+        margin-top: 20px;
+    }
+          .facets-toggle__button {
+        box-shadow: none;
+        background: #000 !important;
+        color: #fff;
+        padding: 12px 42px;
+        text-transform: uppercase;
+        font-size: 17px;
+        border-radius: 65px;
+    }
+          h2.facets-drawer__title.h3 {
+        font-family: sans-serif;
+        font-size: 20px;
+        text-transform: uppercase;
+    }
+        .facets-drawer__close .svg-wrapper--small {
+          width: 40px;
+          height: 40px;
+        }
+          .filter-count-bubble__text {
+        color: #fff;
+    }
+          .facets__title-wrapper {
+        border-bottom: 1px solid #000;
+        margin-bottom: 20px;
+    }
+          .promo-left-banner {
+          display: none;
+          }
+          .facets__actions {
+          background: #fff;
+          padding-top: 20px;
+          border-top: 1px solid #000;
+          gap: 0;
+          }
+          button.button.button-primary.facets__see-results {
+          border-radius: 30px;
+          font-weight: bold;
+          }
+          .facets__inputs-wrapper .facets__inputs-list {
+          gap: 12px;
+          }
+          .facets__inputs-wrapper--row .facets__inputs-list {
+          flex-wrap: wrap;
+          flex-direction: column;
+          }
+          .variant-option__button-label--has-swatch {
+          display: flex;
+          gap: 10px;
+          }
+          .facets-drawer__close .svg-wrapper>svg {
+          width: 26px;
+          height: 26px;
+          }
+          .facets__inputs-list--swatches .variant-option__button-label label.hidden {
+        display: inline-block !important;
+    }
+          .facets__inputs-list--swatches .variant-option__button-label{ display: flex; }
+      .facets__filters-wrapper accordion-custom.facets__item:nth-child(1) summary.facets__summary {
+        margin-bottom: 20px;
+    }
+          .custom-collection-insert.first {
+            grid-row-start: 2;
+            grid-column-start: 2;
+          }
+          .custom-collection-insert.second {
+            grid-row-start: 4;
+          }
+          .custom-collection-insert.third {
+            grid-row-start: 6;
+            grid-column-start: 1;
+          }
+          ul.product-grid {
+            padding: 10px 0;
+          }
+          .buy-buttons-block .add-to-cart-button.button-secondary {
+            font-size: 12px;
+            height: 42px;
+          }
+          .product-form-buttons > *:not(.quantity-selector) {
+            min-width: fit-content;
+          }
+          span.price {
+            font-size: 20px;
+          }
+          .promo-inner h3 {
+            font-size: 17px;
+            font-family: 'Satoshi-Bold';
+            max-width: 160px;
+            margin: 0 auto 20px;
+          }
+          .promo-inner p {
+            font-size: 13px;
+            font-family: 'Satoshi-Bold';
+            margin-bottom: 0px;
+          }
+          .metafield-rich_text_field ul li {
+            font-size: 13px !important;
+          }
+          .promo-inner a.btn {
+            width: 100%;
+              line-height: 32px;
+              font-size: 9px;
+              max-width: 158px;
+          }
+          .custom-collection-insert.second .promo-inner img.logo-icon {
+          max-width: 71px;
+          margin: 0px auto 10px;
+      }
+         .custom-collection-insert.second a.btn{
+           max-width:158px;
+           margin:0px auto 0;
+         }
+          .custom-collection-insert.third .promo-inner img.logo-icon {
+          max-width: 71px;
+          margin: 10px auto 10px;
+      }
+          .promo-text{ top:15px; }
+          .custom-collection-insert.first .promo-inner p{ margin-bottom:10px; }
+          .custom-collection-insert.third .promo-inner p {
+          font-size: 13px;
+          font-family: 'Satoshi-Bold';
+          margin-bottom: 0px;
+          line-height: normal;
+      }
+          .custom-collection-insert.third .promo-inner h3{
+            margin-bottom:5px;
+          }
+          .custom-collection-insert.second .promo-inner h3 {
+          font-size: 20px;
+          font-family: 'Satoshi-Bold';
+          max-width: 130px;
+          margin: 0 auto 10px;
+      }
+        }
+        /* Hide promo banners when filter is active */
+        .custom-collection-insert.filter-active {
+          display: none;
+        }
+{% endstylesheet %}

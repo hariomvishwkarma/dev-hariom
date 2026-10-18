@@ -1,0 +1,109 @@
+{%- comment -%}
+  Renders the brands menu
+
+  Accepts:
+    - block: the brands menu block
+
+  Usage:
+    {% render 'brands-menu' %}
+{%- endcomment -%}
+
+{% liquid
+  assign vendors = shop.vendors
+  assign brands_size = vendors.size
+  assign menu_type = block.settings.menu_type
+  assign color_scheme = block.settings.color_scheme
+  assign brands_page = block.settings.brands_page
+  assign brands_page_url = brands_page.url | default: '#'
+  assign brands_page_title = brands_page.title | default: 'Brands'
+
+  assign display_top_brands = block.settings.display_top_brands
+  assign limit_top_brands = block.settings.limit_top_brands
+
+  case menu_type
+    when 'secondary'
+      assign menu_type_class = 'font-lg'
+      assign menu_display_class = 'lg:flex lg:items-center'
+    else
+      assign menu_type_class = 'font-lg'
+      assign menu_display_class = 'lg:flex lg:items-center'
+  endcase
+
+  assign menu_type_class = menu_type_class | append: ' py-2 lg:!px-5'
+%}
+
+{% if brands_size > 0 %}
+  {%- capture collapse_toggle -%}
+    {% render 'c-link', href: brands_page_url, type: 'link--menu block', content: brands_page_title, classes: menu_type_class %}
+  {%- endcapture -%}
+  <ul class="hidden {{ menu_display_class }} font-medium space-x-4">
+    <li>
+      {%- capture collapse_content -%}
+        {%- assign color_scheme_class = 'color-' | append: color_scheme -%}
+        <div class="border-b-4 flex px-8 pt-8 pb-10 {{ color_scheme_class }}">
+          <ul class="flex-1">
+            <li>
+              {%- assign all_brands = 'sections.header.brands.all' | t -%}
+              {% render 'c-text', type: 'h5', content: all_brands, custom_attributes: custom_attributes_2, classes: 'mb-4' %}
+
+              {%- assign view_all = 'sections.header.brands.view_all' | t -%}
+              {% render 'c-link', href: brands_page_url, type: 'link--hover text-2-medium', content: view_all, classes: 'block' %}
+            </li>
+          </ul>
+          <ul class="{% if display_top_brands %}grid grid-cols-5 gap-y-5{% else %}columns-5 space-y-3{% endif %} gap-x-4 flex-[5]">
+            {%- assign top_brands_count = 0 -%}
+            {% if display_top_brands %}
+              {%- assign top_brands = shop.metaobjects.top_brands['top-brands'].brand.value -%}
+
+              {%- for top_brand in top_brands -%}
+                {% for vendor in vendors %}
+                  {% liquid
+                    assign brand_handleize = vendor | handleize
+                    assign top_brand_handleize = top_brand.brand_name | handleize
+                  %}
+                  {% if brand_handleize == top_brand_handleize %}
+                    {% if limit_top_brands > top_brands_count %}
+                      {%- assign top_brands_count = top_brands_count | plus: 1 -%}
+                      <li class="text-2-medium">
+                        {% capture brand_icon_content %}
+                          <div class="brands-icon w-full flex items-center justify-center aspect-video bg-shade-3 mb-1">
+                            {% liquid
+                              assign brand_obj = shop.metaobjects.brand_icons[brand_handleize]
+                              assign brand_icon = brand_obj.brand_icon
+                              assign brand_url = brand_obj.brands_collection.value.url | default: '#'
+                              echo brand_icon
+                            %}
+                          </div>
+                        {% endcapture %}
+                        {% render 'c-link', href: brand_url, content: brand_icon_content %}
+                        {% render 'c-link', href: brand_url, type: 'link--hover', content: vendor %}
+                      </li>
+                    {% endif %}
+                  {% endif %}
+                {%- endfor -%}
+              {% endfor %}
+            {% else %}
+              {% for vendor in vendors %}
+                <li class="text-2-medium">
+                  {% render 'c-link', href: '#', type: 'link--hover', content: vendor %}
+                </li>
+              {% endfor %}
+            {% endif %}
+            {% if display_top_brands and top_brands_count < 1 %}
+              <li class="text-2-medium">
+                {{ 'sections.header.brands.no_top_brands' | t }}
+              </li>
+            {% endif %}
+          </ul>
+        </div>
+      {%- endcapture -%}
+
+      {% render 'c-collapse',
+        toggle_label: collapse_toggle,
+        collapse_content: collapse_content,
+        collapse_content_class: 'w-full absolute left-0 z-10 pt-2.5',
+        collapse_backdrop: true
+      %}
+    </li>
+  </ul>
+{% endif %}

@@ -1,0 +1,2543 @@
+{% comment %}
+  Corporate Order Form
+  =====================
+  All blocks are flat at the section level (Shopify sections do not
+  support nested blocks). Liquid groups them at render time:
+
+    email_field      → email input synced to Shopify Forms #email (limit 1)
+    file_upload      → logo upload dropzone (limit 1)
+    product_select   → dropdown shell — label & placeholder only (limit 1)
+    product_option   → one per product; rendered as <li> inside the dropdown
+                       carries: title, value, image, p1/p2 top/left/width
+    placement_select → placement radio buttons (limit 1)
+
+  When a product with an image is selected a live mockup preview
+  appears below the dropdown with the uploaded logo overlaid at the
+  coordinates set in that product_option block.
+{% endcomment %}
+
+{%- liquid
+  assign heading = section.settings.heading
+  assign subheading = section.settings.subheading
+  assign btn_label = section.settings.submit_label
+-%}
+
+<section
+  class="coe-section"
+  id="coe-{{ section.id }}"
+  data-section-id="{{ section.id }}"
+  hidden
+>
+  {%- if heading != blank or subheading != blank -%}
+    <header class="coe-header">
+      {%- if heading != blank -%}
+        <h2 class="coe-header__heading">{{ heading }}</h2>
+      {%- endif -%}
+      {%- if subheading != blank -%}
+        <p class="coe-header__sub">{{ subheading }}</p>
+      {%- endif -%}
+    </header>
+  {%- endif -%}
+
+  <div class="coe-form">
+    {%- for block in section.blocks -%}
+      {%- case block.type -%}
+          {%- comment -%} ══ EMAIL FIELD ══════════════════════════ {%- endcomment -%}
+        {%- when 'email_field' -%}
+          <div class="coe-field" data-coe-type="email_field" {{ block.shopify_attributes }}>
+            <label class="coe-label" for="coe-email">
+              {{ block.settings.label | default: 'Email' }}
+              {%- if block.settings.required -%}
+                <span class="coe-required" aria-hidden="true"> *</span>
+              {%- endif -%}
+            </label>
+            <input
+              id="coe-email"
+              class="coe-input"
+              type="email"
+              inputmode="email"
+              autocomplete="email"
+              placeholder="{{ block.settings.placeholder | default: 'you@example.com' | escape }}"
+              aria-label="{{ block.settings.label | default: 'Email' | escape }}"
+              data-shadow-id="{{ block.settings.shadow_field_id | default: 'email' }}"
+              {%- if block.settings.required %}
+                required aria-required="true"
+              {% endif %}
+            >
+          </div>
+
+          {%- comment -%} ══ FILE UPLOAD ══════════════════════════ {%- endcomment -%}
+        {%- when 'file_upload' -%}
+          <div class="coe-field" data-coe-type="file_upload" data-logo-section {{ block.shopify_attributes }}>
+            <label class="coe-label" for="coe-logo-upload">
+              {{ block.settings.label | default: 'Logo File' }}
+            </label>
+
+            <div
+              class="coe-dropzone"
+              id="coe-dropzone"
+              role="button"
+              tabindex="0"
+              aria-label="Upload logo — click or drag and drop"
+            >
+              <input
+                id="coe-logo-upload"
+                type="file"
+                accept=".png,.jpg,.jpeg,.svg,.eps,.pdf"
+                aria-label="{{ block.settings.label | default: 'Logo file' | escape }}"
+                hidden
+              >
+              <span class="coe-dz-cta" id="coe-dz-idle">{{ block.settings.cta_text | default: 'Add File +' }}</span>
+              <div class="coe-dz-filled" id="coe-dz-filled" hidden>
+                <span class="coe-dz-filename" id="coe-dz-filename"></span>
+                <button type="button" class="coe-dz-remove" id="coe-remove-logo" aria-label="Remove logo">
+                  &#x2715; Remove
+                </button>
+              </div>
+            </div>
+
+            {%- if block.settings.upload_hint != blank -%}
+              <p class="coe-upload-hint">{{ block.settings.upload_hint }}</p>
+            {%- endif -%}
+            {%- if block.settings.description != blank -%}
+              <p class="coe-upload-desc">{{ block.settings.description }}</p>
+            {%- endif -%}
+          </div>
+
+          {%- comment -%}
+            ══ PRODUCT SELECT SHELL ═════════════════
+              Renders the dropdown container. product_option blocks
+              (defined below) are collected here via a nested for loop.
+            ════════════════════════════════════════════
+          {%- endcomment -%}
+        {%- when 'product_select' -%}
+          <div
+            class="coe-field"
+            data-coe-type="product_select"
+            data-logo-section
+            data-shadow-name="{{ block.settings.shadow_field_name | default: 'custom#select_your_product' }}"
+            {{ block.shopify_attributes }}
+          >
+            <label class="coe-label" id="coe-product-label">
+              {{ block.settings.label | default: 'Select Your Product' }}
+            </label>
+
+            <div
+              class="coe-dropdown"
+              id="coe-product-dropdown"
+              role="listbox"
+              aria-labelledby="coe-product-label"
+              aria-expanded="false"
+              tabindex="0"
+            >
+              <div class="coe-dropdown__trigger" aria-haspopup="listbox">
+                <span class="coe-dropdown__value" id="coe-dropdown-value">
+                  {{ block.settings.placeholder | default: 'Choose a product…' }}
+                </span>
+                <svg
+                  class="coe-dropdown__caret"
+                  aria-hidden="true"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  width="18"
+                  height="18"
+                >
+                  <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clip-rule="evenodd"/>
+                </svg>
+              </div>
+
+              <ul class="coe-dropdown__menu" role="listbox" id="coe-product-menu">
+                {%- comment -%}
+                  Collect all product_option blocks and render them as list items.
+                  Each carries image + placement coordinates as data attributes.
+                {%- endcomment -%}
+                {%- for opt in section.blocks -%}
+                  {%- if opt.type == 'product_option' -%}
+                    {%- liquid
+                      assign img_url = ''
+                      if opt.settings.product_image != blank
+                        assign img_url = opt.settings.product_image | img_url: '400x'
+                      endif
+                    -%}
+                    <li
+                      class="coe-dropdown__item"
+                      role="option"
+                      aria-selected="false"
+                      tabindex="-1"
+                      data-product-value="{{ opt.settings.product_value | escape }}"
+                      data-variant-id="{{ opt.settings.variant_id | escape }}"
+                      data-image="{{ img_url }}"
+                      data-p1-top="{{ opt.settings.p1_top    | default: 28 }}"
+                      data-p1-left="{{ opt.settings.p1_left   | default: 30 }}"
+                      data-p1-width="{{ opt.settings.p1_width  | default: 35 }}"
+                      data-p1-height="{{ opt.settings.p1_height | default: 5 }}"
+                      data-p2-top="{{ opt.settings.p2_top    | default: 55 }}"
+                      data-p2-left="{{ opt.settings.p2_left   | default: 25 }}"
+                      data-p2-width="{{ opt.settings.p2_width  | default: 20 }}"
+                      data-p2-height="{{ opt.settings.p2_height | default: 5 }}"
+                      data-show-p2="{%- if opt.settings.show_placement_2 -%}true{%- else -%}false{%- endif -%}"
+                      {{ opt.shopify_attributes }}
+                    >
+                      {{ opt.settings.product_title | escape }}
+                    </li>
+                  {%- endif -%}
+                {%- endfor -%}
+              </ul>
+            </div>
+
+            {%- comment -%}
+              Live preview — hidden until a product with an image is chosen.
+              Dashed guides mark placement 1 / 2; uploaded logo is drawn in the active guide’s box (object-fit: contain).
+            {%- endcomment -%}
+            <div class="coe-preview" id="coe-preview" hidden aria-live="polite" aria-label="Mockup preview">
+              <img id="coe-mockup-img" class="coe-preview__mockup" src="" alt="Product mockup" loading="lazy">
+              <div
+                id="coe-placement-guide-p1"
+                class="coe-preview__placement-guide"
+                hidden
+                aria-hidden="true"
+              ></div>
+              <div
+                id="coe-placement-guide-p2"
+                class="coe-preview__placement-guide"
+                hidden
+                aria-hidden="true"
+              ></div>
+              <img id="coe-logo-overlay" class="coe-preview__logo" src="" alt="Your logo" hidden>
+            </div>
+          </div>
+
+          {%- comment -%} ══ FULL NAME ════════════════════════════ {%- endcomment -%}
+        {%- when 'full_name' -%}
+          <div class="coe-field" data-coe-type="full_name" {{ block.shopify_attributes }}>
+            <label class="coe-label" for="coe-full-name">
+              {{ block.settings.label | default: 'Full Name' }}
+              {%- if block.settings.required -%}
+                <span class="coe-required" aria-hidden="true"> *</span>
+              {%- endif -%}
+            </label>
+            <input
+              id="coe-full-name"
+              class="coe-input"
+              type="text"
+              autocomplete="name"
+              placeholder="{{ block.settings.placeholder | default: 'Full Name' | escape }}"
+              data-shadow-id="{{ block.settings.shadow_field_id | default: 'first_name' }}"
+              {%- if block.settings.required %}
+                required aria-required="true"
+              {% endif %}
+            >
+          </div>
+
+          {%- comment -%} ══ COMPANY NAME ═════════════════════════ {%- endcomment -%}
+        {%- when 'company_name' -%}
+          <div class="coe-field" data-coe-type="company_name" {{ block.shopify_attributes }}>
+            <label class="coe-label" for="coe-company">
+              {{ block.settings.label | default: 'Company Name' }}
+              {%- if block.settings.required -%}
+                <span class="coe-required" aria-hidden="true"> *</span>
+              {%- endif -%}
+            </label>
+            <input
+              id="coe-company"
+              class="coe-input"
+              type="text"
+              autocomplete="organization"
+              placeholder="{{ block.settings.placeholder | default: 'Company Name' | escape }}"
+              data-shadow-id="{{ block.settings.shadow_field_id | default: 'custom#company_name' }}"
+              {%- if block.settings.required %}
+                required aria-required="true"
+              {% endif %}
+            >
+          </div>
+
+          {%- comment -%} ══ QUANTITY ═════════════════════════════ {%- endcomment -%}
+        {%- when 'quantity' -%}
+          <div class="coe-field" data-coe-type="quantity" {{ block.shopify_attributes }}>
+            <label class="coe-label" for="coe-quantity">
+              {{ block.settings.label | default: 'Quantity' }}
+              {%- if block.settings.required -%}
+                <span class="coe-required" aria-hidden="true"> *</span>
+              {%- endif -%}
+            </label>
+            <input
+              id="coe-quantity"
+              class="coe-input"
+              type="number"
+              inputmode="numeric"
+              min="{{ block.settings.min_qty | default: 1 }}"
+              data-min-qty="{{ block.settings.min_qty | default: 1 }}"
+              placeholder="{{ block.settings.placeholder | default: 'Quantity (minimum 20 units)' | escape }}"
+              data-shadow-id="{{ block.settings.shadow_field_id | default: 'custom#number_of_bags' }}"
+              {%- if block.settings.required %}
+                required aria-required="true"
+              {% endif %}
+            >
+            {%- if block.settings.pricing_tiers != blank -%}
+              <div class="coe-pricing-tiers">{{ block.settings.pricing_tiers }}</div>
+            {%- endif -%}
+          </div>
+
+          {%- comment -%} ══ CUSTOM LOGO TOGGLE ════════════════════ {%- endcomment -%}
+        {%- when 'custom_logo_toggle' -%}
+          <div
+            class="coe-field"
+            data-coe-type="custom_logo_toggle"
+            data-shadow-name="{{ block.settings.shadow_field_name | default: 'custom#do_you_want_custom_logo' }}"
+            {{ block.shopify_attributes }}
+          >
+            <div
+              class="coe-placement coe-placement--inline"
+              role="group"
+              aria-label="{{ block.settings.label | default: 'Do You Want Custom Logo?' | escape }}"
+            >
+              <span class="coe-label coe-label--inline">
+                {{ block.settings.label | default: 'Do You Want Custom Logo?' }}
+              </span>
+              <div class="coe-placement__options">
+                <label class="coe-placement__option">
+                  <input
+                    type="radio"
+                    name="coe_custom_logo"
+                    value="{{ block.settings.yes_value | default: 'Yes' | escape }}"
+                    class="coe-placement__radio coe-custom-logo__radio"
+                    checked
+                  >
+                  <span class="coe-placement__pip"></span>
+                  {{ block.settings.yes_label | default: 'Yes' }}
+                </label>
+                <label class="coe-placement__option">
+                  <input
+                    type="radio"
+                    name="coe_custom_logo"
+                    value="{{ block.settings.no_value | default: 'No' | escape }}"
+                    class="coe-placement__radio coe-custom-logo__radio"
+                  >
+                  <span class="coe-placement__pip"></span>
+                  {{ block.settings.no_label | default: 'No' }}
+                </label>
+              </div>
+            </div>
+            {%- if block.settings.fee_info != blank -%}
+              <div class="coe-logo-fee">{{ block.settings.fee_info }}</div>
+            {%- endif -%}
+          </div>
+
+          {%- comment -%} ══ NOTES TEXTAREA ═══════════════════════ {%- endcomment -%}
+        {%- when 'notes_field' -%}
+          <div class="coe-field" data-coe-type="notes_field" {{ block.shopify_attributes }}>
+            <label class="coe-label" for="coe-notes">
+              {{ block.settings.label | default: 'Any extra notes and comments?' }}
+              {%- if block.settings.required -%}
+                <span class="coe-required" aria-hidden="true"> *</span>
+              {%- endif -%}
+            </label>
+            <textarea
+              id="coe-notes"
+              class="coe-textarea"
+              rows="{{ block.settings.rows | default: 4 }}"
+              placeholder="{{ block.settings.placeholder | default: 'Any extra notes and comments?' | escape }}"
+              data-shadow-name="{{ block.settings.shadow_field_name | default: 'custom#any_extra_notes_and_comments' }}"
+              {%- if block.settings.required %}
+                required aria-required="true"
+              {% endif %}
+            ></textarea>
+          </div>
+
+          {%- comment -%}
+            ══ PRODUCT OPTION ═══════════════════════
+              Not rendered individually — consumed inside product_select above.
+              shopify_attributes still needed so the editor can highlight it.
+            ════════════════════════════════════════════
+          {%- endcomment -%}
+        {%- when 'product_option' -%}
+          {%- comment -%} Intentionally empty — rendered inside product_select {%- endcomment -%}
+
+          {%- comment -%} ══ PLACEMENT SELECT ═════════════════════ {%- endcomment -%}
+        {%- when 'placement_select' -%}
+          <div
+            class="coe-field"
+            data-coe-type="placement_select"
+            id="coe-placement-field"
+            hidden
+            data-shadow-name="{{ block.settings.shadow_field_name | default: 'custom#where_do_you_want_the_logo_to_be_placed' }}"
+            {{ block.shopify_attributes }}
+          >
+            <fieldset class="coe-placement">
+              <legend class="coe-label">
+                {{ block.settings.label | default: 'Where do you want the logo to be placed?' }}
+              </legend>
+              <div class="coe-placement__options">
+                <label class="coe-placement__option">
+                  <input
+                    type="radio"
+                    name="coe_placement"
+                    value="{{ block.settings.p1_value | default: 'Placement 1' }}"
+                    class="coe-placement__radio"
+                    checked
+                  >
+                  <span class="coe-placement__pip"></span>
+                  {{ block.settings.p1_label | default: 'Placement 1' }}
+                </label>
+                <label class="coe-placement__option" id="coe-placement-p2-option">
+                  <input
+                    type="radio"
+                    name="coe_placement"
+                    value="{{ block.settings.p2_value | default: 'Placement 2' }}"
+                    class="coe-placement__radio"
+                  >
+                  <span class="coe-placement__pip"></span>
+                  {{ block.settings.p2_label | default: 'Placement 2' }}
+                </label>
+              </div>
+            </fieldset>
+          </div>
+      {%- endcase -%}
+    {%- endfor -%}
+
+    {%- if section.settings.closing_text != blank -%}
+      <div class="coe-closing-text">{{ section.settings.closing_text }}</div>
+    {%- endif -%}
+
+    <div class="coe-field" data-coe-type="submit">
+      <button type="button" class="coe-submit" id="coe-submit-btn">
+        {{ btn_label | default: 'Submit Order' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="coe-sr-only" aria-hidden="true"></div>
+</section>
+
+<style>
+  /* ── Tokens ──────────────────────────────────────────────────── */
+  #coe-{{ section.id }} {
+    --coe-max:      100%;
+    --coe-font:     'Neue Haas Grotesk Text Pro', sans-serif;
+    --coe-border:   #C4C4C4;
+    --coe-focus:    #000;
+    --coe-surface:  #f9f9f9;
+    --coe-text:     #000;
+    --coe-muted:    rgba(196,196,196,1);
+    --coe-red:      #FF0000;
+    --coe-ease:     240ms cubic-bezier(.4, 0, .2, 1);
+
+    font-family: var(--coe-font);
+    color: var(--coe-text);
+    box-sizing: border-box;
+  }
+  @media (max-width: 1024px) {
+    #coe-{{ section.id }} {
+      --coe-max:      100%;
+    }
+  }
+  #coe-{{ section.id }} *,
+  #coe-{{ section.id }} *::before,
+  #coe-{{ section.id }} *::after { box-sizing: inherit; }
+
+  /* ── Header ──────────────────────────────────────────────────── */
+  .coe-header { max-width: var(--coe-max); margin: 0 auto 20px; }
+  .coe-header__heading {
+    font-family: var(--coe-font);
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .coe-header__sub {
+    font-family: var(--coe-font);
+    font-size: 13px;
+    color: var(--coe-text);
+    margin: 0;
+  }
+
+  /* ── Form ────────────────────────────────────────────────────── */
+  .coe-form {
+    max-width: var(--coe-max);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  /* ── Per-block spacing overrides ─────────────────────────────── */
+  #coe-{{ section.id }} .coe-field[data-coe-type="custom_logo_toggle"] { margin-top: 14px; }
+  #coe-{{ section.id }} .coe-field[data-coe-type="file_upload"]        { margin-top: 7px; }
+  #coe-{{ section.id }} .coe-field[data-coe-type="product_select"]     { margin-top: 27px; }
+  #coe-{{ section.id }} .coe-field[data-coe-type="placement_select"]   { margin-top: 7px; }
+  #coe-{{ section.id }} .coe-field[data-coe-type="notes_field"]        { margin-top: 14px; }
+  #coe-{{ section.id }} .coe-field[data-coe-type="submit"]             { margin-top: 13px; }
+
+  /* ── Field ───────────────────────────────────────────────────── */
+  .coe-field { display: flex; flex-direction: column; gap: 4px; }
+
+  /* Hide <label> field labels; keep <legend> and inline <span> labels visible */
+  #coe-{{ section.id }} label.coe-label { display: none; }
+  #coe-{{ section.id }} .coe-label--inline { display: inline; }
+
+  .coe-label {
+    display: block;
+    font-family: var(--coe-font);
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: none;
+    color: var(--coe-text);
+    padding-left: 0;
+  }
+  .coe-required { color: var(--coe-red); }
+
+  /* ── Field error state ───────────────────────────────────────── */
+  .coe-field-error {
+    font-family: var(--coe-font);
+    font-size: 11px;
+    color: var(--coe-red);
+    margin: 2px 0 0;
+  }
+  .coe-field--error .coe-dropzone          { border-color: var(--coe-red); }
+  .coe-field--error .coe-dropdown__trigger { border-color: var(--coe-red); }
+
+  /* ── Text inputs ─────────────────────────────────────────────── */
+  .coe-input {
+    width: 100%;
+    height: 30px;
+    max-height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--coe-border) !important;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 13px;
+    font-family: var(--coe-font);
+    color: var(--coe-text);
+
+    transition: border-color var(--coe-ease);
+    appearance: none;
+    font-weight: 500;
+  }
+  .coe-input::placeholder {
+    color: var(--coe-muted);
+    font-family: var(--coe-font);
+    font-size: 13px;
+
+    font-weight: 500;
+  }
+  .coe-input:focus {
+    border-color: var(--coe-focus);
+    outline: none;
+    text-decoration: underline;
+  }
+  .coe-input:focus::placeholder { color: #000; }
+
+  /* ── Upload hint / description ───────────────────────────────── */
+  .coe-upload-hint {
+    font-family: var(--coe-font);
+    font-size: 11px;
+    color: var(--coe-red);
+    line-height: 1;
+    margin: 0;
+  }
+  .coe-upload-desc {
+    font-family: var(--coe-font);
+    font-size: 11px;
+    color: var(--coe-text);
+    line-height: 1;
+    margin: 0;
+  }
+
+  /* ── Textarea ────────────────────────────────────────────────── */
+  .coe-textarea {
+    width: 100%;
+    height: 132px;
+    padding: 8px 10px;
+    border: 1px solid var(--coe-border);
+    border-radius: 6px;
+    background: #fff;
+    font-size: 13px;
+    font-family: var(--coe-font);
+    color: var(--coe-text);
+    transition: border-color var(--coe-ease);
+    resize: vertical;
+  }
+  .coe-textarea::placeholder {
+    color: var(--coe-muted);
+    font-family: var(--coe-font);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .coe-textarea:focus {
+    border-color: var(--coe-focus);
+    outline: none;
+    text-decoration: underline;
+  }
+  .coe-textarea:focus::placeholder { color: #000; }
+
+  /* ── Dropzone ────────────────────────────────────────────────── */
+  .coe-dropzone {
+      border: 1px dashed rgba(196,196,196,1);
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      transition: border-color var(--coe-ease), background var(--coe-ease);
+  }
+  .coe-dropzone:hover,
+  .coe-dropzone:focus-visible { border-color: #999; outline: none; }
+  .coe-dropzone.is-dragover   { border-color: var(--coe-focus); background: #f5f5f5; }
+
+  #coe-{{ section.id }} .coe-dropzone [hidden] { display: none !important; }
+  #coe-{{ section.id }} .coe-field[hidden]     { display: none !important; }
+
+  .coe-dz-cta {
+    font-family: var(--coe-font);
+    font-size: 13px;
+    color: var(--coe-muted);
+    padding: 6px 12px;
+    pointer-events: none;
+  }
+
+  .coe-dz-filled {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    width: 100%;
+  }
+  .coe-dz-filename {
+    font-family: var(--coe-font);
+    font-size: 13px;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--coe-text);
+  }
+  .coe-dz-remove {
+    background: none;
+    border: none;
+    color: var(--coe-red);
+    font-family: var(--coe-font);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 4px 6px;
+    flex-shrink: 0;
+    transition: opacity var(--coe-ease);
+  }
+  .coe-dz-remove:hover { opacity: .7; }
+
+  /* ── Dropdown ────────────────────────────────────────────────── */
+  .coe-dropdown { position: relative; user-select: none; }
+  .coe-dropdown__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--coe-border);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-family: var(--coe-font);
+    font-size: 13px;
+    transition: border-color var(--coe-ease);
+  }
+  .coe-dropdown:hover .coe-dropdown__trigger,
+  .coe-dropdown[aria-expanded="true"] .coe-dropdown__trigger { border-color: var(--coe-focus); }
+  .coe-dropdown[aria-expanded="true"] .coe-dropdown__trigger { border-radius: 6px 6px 0 0; }
+  .coe-dropdown__value          { color: var(--coe-muted); font-family: var(--coe-font); font-size: 13px;  }
+  .coe-dropdown__value.selected { color: var(--coe-text); }
+  .coe-dropdown__caret {
+    color: var(--coe-text);
+    flex-shrink: 0;
+    transition: transform var(--coe-ease);
+  }
+  .coe-dropdown[aria-expanded="true"] .coe-dropdown__caret { transform: rotate(180deg); }
+
+  .coe-dropdown__menu {
+    display: none;
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    border: 1px solid var(--coe-focus);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    background: #fff;
+    list-style: none;
+    margin: 0; padding: 4px 0;
+    z-index: 50;
+    max-height: 220px;
+    overflow-y: auto;
+    box-shadow: 0 4px 16px rgba(0,0,0,.08);
+  }
+  .coe-dropdown[aria-expanded="true"] .coe-dropdown__menu { display: block; }
+  .coe-dropdown__item {
+    padding: 8px 10px;
+    font-family: var(--coe-font);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background var(--coe-ease);
+  }
+  label#coe-placement-p2-option[hidden] {
+      display: none;
+  }
+  [data-forms-id="forms-root-{{section.settings.contact_form_id}}"] {
+      display: none !important;
+  }
+  .coe-dropdown__item:hover,
+  .coe-dropdown__item:focus { background: var(--coe-surface); outline: none; }
+  .coe-dropdown__item[aria-selected="true"] { font-weight: 600; background: #f0f0f0; }
+
+  /* ── Mockup preview ──────────────────────────────────────────── */
+  .coe-preview {
+    position: relative;
+    width: 100%;
+    border-radius: var(--coe-radius);
+    overflow: hidden;
+    border: 1px solid var(--coe-border);
+    background: var(--coe-surface);
+  }
+  .coe-preview__mockup {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+  /* Logo placed absolutely over the mockup using top/left/width % from block settings */
+  .coe-preview__logo {
+    position: absolute;
+    z-index: 2;
+    object-fit: contain !important;
+    object-position: center center;
+    pointer-events: none;
+    transform-origin: top left;
+    transition: top var(--coe-ease), left var(--coe-ease), width var(--coe-ease), height var(--coe-ease);
+  }
+  /* Dashed frames: empty divs — beat theme `div:empty { display:none }` */
+  #coe-{{ section.id }} .coe-preview__placement-guide:empty {
+    display: block !important;
+  }
+  .coe-preview__placement-guide {
+    position: absolute;
+    z-index: 1;
+    box-sizing: border-box;
+    pointer-events: none;
+    transform-origin: top left;
+    border: 2px dashed rgba(255, 255, 255, 0.92);
+    border-radius: 2px;
+    background: transparent;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.28), inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+    transition: top var(--coe-ease), left var(--coe-ease), width var(--coe-ease), height var(--coe-ease);
+  }
+  /* Editor-only placeholder shown when no logo is uploaded */
+  .coe-preview__logo--placeholder {
+    background: rgba(26, 115, 232, 0.2);
+    border: 2px dashed #1a73e8;
+    border-radius: 3px;
+    min-width: 20px;
+    min-height: 20px;
+  }
+
+  /* ── Placement radios ────────────────────────────────────────── */
+  .coe-placement { border: none; margin: 0; padding: 0; }
+  .coe-placement__options { display: flex; gap: 20px; flex-wrap: wrap;margin-top: 3px; }
+  /* Inline variant for custom logo toggle */
+  .coe-placement--inline { display: flex; flex-direction: row; align-items: center; gap: 16px; }
+  .coe-placement--inline .coe-placement__options { gap: 16px; }
+  .coe-placement__option {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    font-family: var(--coe-font);
+    font-size: 13px;
+    font-weight: 500;
+    flex-direction: row-reverse;
+  }
+  #coe-{{ section.id }} input[type="radio"] {
+    position: absolute;
+    appearance: none;
+    -webkit-appearance: none;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    margin: 0;
+    pointer-events: none;
+  }
+  .coe-placement__pip {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--coe-border);
+    background: #fff;
+    flex-shrink: 0;
+    transition: border-color var(--coe-ease), border-width var(--coe-ease);
+  }
+  .coe-placement__radio:checked + .coe-placement__pip {
+    border: 6px solid #1a73e8;
+  }
+  .coe-placement__radio:focus-visible + .coe-placement__pip {
+    outline: 2px solid #1a73e8;
+    outline-offset: 2px;
+  }
+
+  /* ── Pricing tiers ───────────────────────────────────────────── */
+  .coe-pricing-tiers {
+      font-family: var(--coe-font);
+      font-size: 11px;
+      color: var(--coe-text);
+      line-height: 1;
+  }
+  .coe-pricing-tiers p {
+      margin: 0;
+  }
+  /* ── Logo fee info ───────────────────────────────────────────── */
+  .coe-logo-fee {
+      font-family: var(--coe-font);
+      font-size: 11px;
+      color: var(--coe-red);
+      line-height: 1;
+      margin-top: -2px;
+  }
+  .coe-logo-fee p {
+      margin: 0;
+  }
+  /* ── Closing text ────────────────────────────────────────────── */
+  .coe-closing-text {
+    font-family: var(--coe-font);
+    font-size: 13px;
+    color: var(--coe-text);
+    line-height: 1;
+    margin: 0;
+  }
+  .coe-closing-text p { margin: 0; }
+
+  /* ── Submit ──────────────────────────────────────────────────── */
+  .coe-submit {
+      width: 100%;
+      height: 30px;
+      padding: 0 14px;
+      background: #000;
+      color: #fff;
+      border: 1px solid #000;
+      border-radius: 6px;
+      font-family: var(--coe-font);
+      font-size: 13px;
+      font-weight: 500;
+
+      cursor: pointer;
+      transition: opacity var(--coe-ease);
+  }
+  .coe-submit:hover  { opacity: .75; }
+  .coe-submit:active { opacity: .55; }
+  .coe-submit:disabled { cursor: not-allowed; opacity: .6; }
+
+  /* Loading spinner replaces button text */
+  .coe-submit--loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+  }
+  .coe-submit--loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border: 2px solid currentColor;
+    border-color: #fff #fff #fff transparent;
+    border-radius: 50%;
+    animation: coe-spin 0.65s linear infinite;
+  }
+  @keyframes coe-spin { to { transform: rotate(360deg); } }
+
+  /* ── Visually hidden ─────────────────────────────────────────── */
+  .coe-sr-only {
+    position: absolute !important;
+    width: 1px !important; height: 1px !important;
+    overflow: hidden !important;
+    clip: rect(0,0,0,0) !important;
+    white-space: nowrap !important;
+    pointer-events: none !important;
+  }
+</style>
+
+<script>
+  (function () {
+    'use strict';
+
+    /* ── sessionStorage keys (namespaced per section) ────────── */
+    const STORE = {
+      LOGO_DATA: 'coe_{{ section.id }}_logo_data',
+      LOGO_NAME: 'coe_{{ section.id }}_logo_name',
+      FULL_NAME: 'coe_{{ section.id }}_full_name',
+      COMPANY: 'coe_{{ section.id }}_company',
+      EMAIL: 'coe_{{ section.id }}_email',
+      QUANTITY: 'coe_{{ section.id }}_quantity',
+      CUSTOM_LOGO: 'coe_{{ section.id }}_custom_logo',
+      PRODUCT: 'coe_{{ section.id }}_product',
+      PLACEMENT: 'coe_{{ section.id }}_placement',
+      NOTES: 'coe_{{ section.id }}_notes',
+    };
+
+    /* ── Storage helpers ─────────────────────────────────────── */
+    function save(key, value) {
+      try {
+        sessionStorage.setItem(key, value);
+      } catch (_) {}
+    }
+    function load(key) {
+      return sessionStorage.getItem(key) || '';
+    }
+    function del(key) {
+      sessionStorage.removeItem(key);
+    }
+
+    /* ── AbortController — replaced on every boot() call ─────── */
+    let ctrl = new AbortController();
+    let contactPoll;
+    let contactMatchId = '';
+
+    /* ── Boot on first load ──────────────────────────────────── */
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+
+    /* ── Re-boot when the theme editor reloads this section ──── */
+    document.addEventListener('shopify:section:load', (e) => {
+      if (e.detail.sectionId === '{{ section.id }}') boot();
+    });
+
+    /* ═══════════════════════════════════════════════════════════
+     BOOT
+     Runs on DOMContentLoaded AND on every Shopify editor reload.
+     AbortController removes all previous listeners automatically.
+  ═══════════════════════════════════════════════════════════ */
+    function boot() {
+      ctrl.abort();
+      ctrl = new AbortController();
+      clearInterval(contactPoll);
+      const sig = { signal: ctrl.signal };
+
+      const root = document.getElementById('coe-{{ section.id }}');
+      if (!root) return;
+
+      /* ── Refs ────────────────────────────────────────────── */
+      const fullNameInput = root.querySelector('#coe-full-name');
+      const companyInput = root.querySelector('#coe-company');
+      const emailInput = root.querySelector('#coe-email');
+      const quantityInput = root.querySelector('#coe-quantity');
+      const customLogoRadios = root.querySelectorAll('.coe-custom-logo__radio');
+      const notesInput = root.querySelector('#coe-notes');
+
+      const dropzone = root.querySelector('#coe-dropzone');
+      const fileInput = root.querySelector('#coe-logo-upload');
+      const dzIdle = root.querySelector('#coe-dz-idle');
+      const dzFilled = root.querySelector('#coe-dz-filled');
+      const filenameEl = root.querySelector('#coe-dz-filename');
+      const removeBtn = root.querySelector('#coe-remove-logo');
+
+      const dropdown = root.querySelector('#coe-product-dropdown');
+      const dropValue = root.querySelector('#coe-dropdown-value');
+      const dropPlaceholder = dropValue?.textContent.trim() || '';
+      const dropItems = Array.from(root.querySelectorAll('.coe-dropdown__item'));
+
+      const placementField = root.querySelector('#coe-placement-field');
+      /* Placement 1/2 only — custom logo Yes/No also uses .coe-placement__radio
+         and must not share this list or they overwrite activePlacement. */
+      const placementRadios = placementField
+        ? Array.from(placementField.querySelectorAll('input[name="coe_placement"]'))
+        : [];
+      const placementP1Radio = placementRadios[0] || null;
+      const placementP2Radio = placementRadios[1] || null;
+      const placementP2Option = root.querySelector('#coe-placement-p2-option');
+
+      const preview = root.querySelector('#coe-preview');
+      const mockupImg = root.querySelector('#coe-mockup-img');
+      const guideP1 = root.querySelector('#coe-placement-guide-p1');
+      const guideP2 = root.querySelector('#coe-placement-guide-p2');
+      const logoOverlay = root.querySelector('#coe-logo-overlay');
+
+      const submitBtn = root.querySelector('#coe-submit-btn');
+
+      /* ── State ───────────────────────────────────────────── */
+      let currentFile = null;
+      let logoDataURL = null;
+      let selectedItem = null;
+      let activeCustomLogo = load(STORE.CUSTOM_LOGO) || 'Yes';
+      let activePlacement =
+        load(STORE.PLACEMENT) ||
+        placementField?.querySelector('input[name="coe_placement"]:checked')?.value ||
+        placementP1Radio?.value ||
+        'Placement 1';
+
+      /* ── Shadow DOM ──────────────────────────────────────── */
+      /* On pages with multiple embeds (e.g. contact page tabs),
+       find the one that owns the corporate-order fields by
+       checking for a known unique field ID from the form. */
+      let _sr = null;
+      function sr() {
+        if (_sr) return _sr;
+        const sel = '{{ section.settings.form_embed_selector | default: "shopify-forms-embed" | escape }}';
+        const embeds = document.querySelectorAll(sel);
+        for (const embed of embeds) {
+          const root = embed.shadowRoot;
+          if (!root) continue;
+          /* Identify the corporate-order embed by looking for the
+           company-name field which is unique to that form */
+          if (root.querySelector('[id="custom#company_name"], [id="custom\\#company_name"]')) {
+            _sr = root;
+            break;
+          }
+        }
+        /* Fallback: first available embed */
+        if (!_sr) {
+          const first = document.querySelector(sel);
+          if (first?.shadowRoot) _sr = first.shadowRoot;
+        }
+        return _sr;
+      }
+
+      /*
+      waitForShadow(cb)
+      The Shopify Forms embed initialises asynchronously — its
+      shadowRoot may not exist yet at DOMContentLoaded or after an
+      editor section reload. We poll every 250 ms (up to 8 s) and
+      call cb() as soon as it's ready.
+    */
+      function waitForShadow(cb, attempt) {
+        attempt = attempt || 0;
+        if (sr()) {
+          cb();
+          return;
+        }
+        if (attempt < 32) setTimeout(() => waitForShadow(cb, attempt + 1), 250);
+      }
+
+      /* ── Sync helpers ────────────────────────────────────── */
+      function fire(el) {
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      /* ── Field error helpers ─────────────────────────────────── */
+      function showFieldError(fieldEl, msg) {
+        if (!fieldEl) return;
+        fieldEl.classList.add('coe-field--error');
+        let el = fieldEl.querySelector('.coe-field-error');
+        if (!el) {
+          el = document.createElement('p');
+          el.className = 'coe-field-error';
+          fieldEl.appendChild(el);
+        }
+        el.textContent = msg;
+      }
+      function clearFieldError(fieldEl) {
+        if (!fieldEl) return;
+        fieldEl.classList.remove('coe-field--error');
+        fieldEl.querySelector('.coe-field-error')?.remove();
+      }
+
+      /* ── Generic sync helpers — read selector from data attrs ─ */
+      function shadowId(el) {
+        /* Escape # so it works as a CSS ID selector */
+        const id = el?.dataset.shadowId || '';
+        return id ? id.replace(/#/g, '\\#') : null;
+      }
+      function shadowName(el) {
+        return el?.dataset.shadowName || null;
+      }
+
+      function syncInput(sourceEl, value) {
+        const shadow = sr();
+        if (!shadow) return;
+        const sel = shadowId(sourceEl);
+        if (!sel) return;
+        const target = shadow.querySelector('#' + sel);
+        if (!target) return;
+        target.value = value;
+        fire(target);
+      }
+      function syncRadioGroup(containerEl, value) {
+        const shadow = sr();
+        if (!shadow) return;
+        const name = shadowName(containerEl);
+        if (!name) return;
+        shadow.querySelectorAll(`input[name="${name}"]`).forEach((r) => {
+          if (r.value === value) {
+            r.checked = true;
+            fire(r);
+          }
+        });
+      }
+      function syncTextarea(sourceEl, value) {
+        const shadow = sr();
+        if (!shadow) return;
+        const name = shadowName(sourceEl);
+        if (!name) return;
+        const target = shadow.querySelector(`textarea[name="${name}"]`);
+        if (!target) return;
+        target.value = value;
+        fire(target);
+      }
+
+      /* Named wrappers used by callers that don't have the element ref */
+      const customLogoContainer = root.querySelector('[data-shadow-name="{{ "custom#do_you_want_custom_logo" }}"]');
+      const productContainer = root.querySelector('[data-shadow-name="{{ "custom#select_your_product" }}"]');
+
+      function syncFullName(v) {
+        syncInput(fullNameInput, v);
+      }
+      function syncCompany(v) {
+        syncInput(companyInput, v);
+      }
+      function syncEmail(v) {
+        syncInput(emailInput, v);
+      }
+      function syncQuantity(v) {
+        syncInput(quantityInput, v);
+      }
+      function syncCustomLogo(v) {
+        syncRadioGroup(customLogoContainer || root.querySelector('[data-shadow-name]'), v);
+      }
+      function syncNotes(v) {
+        syncTextarea(notesInput, v);
+      }
+      function syncFile(file) {
+        const shadow = sr();
+        if (!shadow) return;
+        const el = shadow.querySelector('#custom\\#logo_file-field');
+        if (!el) return;
+        const dt = new DataTransfer();
+        if (file) dt.items.add(file);
+        el.files = dt.files;
+        fire(el);
+      }
+      function syncProduct(value) {
+        const shadow = sr();
+        if (!shadow) return;
+        const name = productContainer?.dataset.shadowName || 'custom#select_your_product';
+        shadow.querySelectorAll(`input[name="${name}"]`).forEach((r) => {
+          if (r.value === value) {
+            r.checked = true;
+            fire(r);
+          }
+        });
+      }
+      function syncPlacement(value) {
+        const shadow = sr();
+        if (!shadow) return false;
+        const name = placementField?.dataset.shadowName || 'custom#where_do_you_want_the_logo_to_be_placed';
+        const radios = Array.from(shadow.querySelectorAll(`input[name="${name}"]`));
+        if (!radios.length) return false; /* not rendered yet */
+        const target = radios.find((r) => r.value === value) || radios[0];
+        if (target) {
+          target.checked = true;
+          fire(target);
+        }
+        return true;
+      }
+
+      /*
+      syncAllToShadow — pushes every stored value into the hidden
+      Shopify form. Called once the shadowRoot is confirmed ready.
+      The File object is lost on refresh so we skip file sync here;
+      the user must re-upload to include the file in the submission.
+    */
+      function syncAllToShadow() {
+        const fullName = load(STORE.FULL_NAME);
+        const company = load(STORE.COMPANY);
+        const email = load(STORE.EMAIL);
+        const quantity = load(STORE.QUANTITY);
+        const customLogo = load(STORE.CUSTOM_LOGO) || 'Yes';
+        const product = load(STORE.PRODUCT);
+        const placement = load(STORE.PLACEMENT);
+        const notes = load(STORE.NOTES);
+        if (fullName) syncFullName(fullName);
+        if (company) syncCompany(company);
+        if (email) syncEmail(email);
+        if (quantity) syncQuantity(quantity);
+        syncCustomLogo(customLogo);
+        if (product) syncProduct(product);
+        if (notes) syncNotes(notes);
+        /* Placement radio may only render after Shopify Forms processes the
+         product selection — retry until the radio appears in the shadow DOM */
+        const placementValue = placement || activePlacement;
+        (function retryPlacement(tries) {
+          if (syncPlacement(placementValue)) return;
+          if (tries > 0) setTimeout(() => retryPlacement(tries - 1), 200);
+        })(10);
+      }
+
+      /* ── Logo section visibility (tied to custom_logo_toggle) ─ */
+      function updateLogoSections(show) {
+        root.querySelectorAll('[data-logo-section]').forEach((el) => {
+          el.hidden = !show;
+          if (!show) clearFieldError(el);
+        });
+        if (placementField) {
+          /* Show placement only when logo=Yes AND a product is already picked */
+          placementField.hidden = !(show && selectedItem);
+        }
+        positionLogo();
+      }
+
+      /* ── Dashed placement guides (no logo file yet) ─────── */
+      function clearGuideBox(el) {
+        if (!el) return;
+        el.hidden = true;
+        el.style.top = '';
+        el.style.left = '';
+        el.style.width = '';
+        el.style.height = '';
+      }
+
+      function layoutPlacementGuides() {
+        if (!guideP1 || !guideP2) return;
+        const logoSectionEl = preview?.closest?.('[data-logo-section]');
+        if (!selectedItem || !preview || preview.hidden || logoSectionEl?.hidden || activeCustomLogo !== 'Yes') {
+          clearGuideBox(guideP1);
+          clearGuideBox(guideP2);
+          return;
+        }
+        const d = selectedItem.dataset;
+        /* Strict: only show P2 when explicitly true — missing/empty attr must NOT show P2 */
+        const showP2 = String(d.showP2 || '').toLowerCase() === 'true';
+
+        function placeGuide(el, p) {
+          const top = d[`p${p}Top`] || (p === '1' ? 28 : 55);
+          const left = d[`p${p}Left`] || (p === '1' ? 30 : 25);
+          const width = d[`p${p}Width`] || (p === '1' ? 35 : 20);
+          const height = parseFloat(d[`p${p}Height`] || 0);
+          el.style.top = top + '%';
+          el.style.left = left + '%';
+          el.style.width = width + '%';
+          el.style.height = height > 0 ? height + '%' : '0%';
+          el.hidden = false;
+        }
+
+        placeGuide(guideP1, '1');
+        if (showP2) {
+          placeGuide(guideP2, '2');
+        } else {
+          clearGuideBox(guideP2);
+        }
+      }
+
+      /* ── Logo overlay positioning ────────────────────────── */
+      function positionLogo() {
+        const inEditor = !!window.Shopify?.designMode;
+        /* Theme editor can replace product <li> nodes — always use the live row
+           for the current product value so data-show-p2 / coords stay in sync. */
+        const pv = load(STORE.PRODUCT);
+        if (pv) {
+          const fresh = Array.from(root.querySelectorAll('.coe-dropdown__item')).find(
+            (li) => li.dataset.productValue === pv
+          );
+          if (fresh) selectedItem = fresh;
+        }
+
+        if (!selectedItem) {
+          if (logoOverlay) {
+            logoOverlay.hidden = true;
+            logoOverlay.removeAttribute('src');
+            logoOverlay.classList.remove('coe-preview__logo--placeholder');
+          }
+          layoutPlacementGuides();
+          return;
+        }
+
+        if (!preview || preview.hidden) {
+          if (logoOverlay) logoOverlay.hidden = true;
+          layoutPlacementGuides();
+          return;
+        }
+
+        if (inEditor && preview) preview.hidden = false;
+
+        /* No file yet: dashed frames for placement 1 (+ 2 if enabled), storefront + customizer */
+        if (!logoDataURL) {
+          if (activeCustomLogo === 'Yes') {
+            layoutPlacementGuides();
+            if (logoOverlay) {
+              logoOverlay.removeAttribute('src');
+              logoOverlay.classList.remove('coe-preview__logo--placeholder');
+              logoOverlay.hidden = true;
+            }
+            return;
+          }
+          layoutPlacementGuides();
+          if (logoOverlay) logoOverlay.hidden = true;
+          return;
+        }
+
+        /* Uploaded logo: dashed guides stay for both placements; logo sits
+           on the active placement only, contained inside that same % box. */
+        layoutPlacementGuides();
+
+        if (!logoOverlay) return;
+
+        const d = selectedItem.dataset;
+        const p2Val = placementP2Radio?.value;
+        const p = p2Val && activePlacement === p2Val ? '2' : '1';
+        const top = d[`p${p}Top`] || (p === '1' ? 28 : 55);
+        const left = d[`p${p}Left`] || (p === '1' ? 30 : 25);
+        const width = d[`p${p}Width`] || (p === '1' ? 35 : 20);
+        const height = parseFloat(d[`p${p}Height`] || 0);
+        logoOverlay.style.top = top + '%';
+        logoOverlay.style.left = left + '%';
+        logoOverlay.style.width = width + '%';
+        logoOverlay.style.height = height > 0 ? height + '%' : '0%';
+        logoOverlay.style.objectFit = 'contain';
+
+        logoOverlay.src = logoDataURL;
+        logoOverlay.classList.remove('coe-preview__logo--placeholder');
+        logoOverlay.hidden = false;
+      }
+
+      /* ── Restore all UI from sessionStorage ──────────────── */
+      function restoreState() {
+        /* Full Name */
+        const savedFullName = load(STORE.FULL_NAME);
+        if (savedFullName && fullNameInput) fullNameInput.value = savedFullName;
+
+        /* Company */
+        const savedCompany = load(STORE.COMPANY);
+        if (savedCompany && companyInput) companyInput.value = savedCompany;
+
+        /* Email */
+        const savedEmail = load(STORE.EMAIL);
+        if (savedEmail && emailInput) emailInput.value = savedEmail;
+
+        /* Quantity */
+        const savedQuantity = load(STORE.QUANTITY);
+        if (savedQuantity && quantityInput) quantityInput.value = savedQuantity;
+
+        /* Custom logo toggle — default Yes */
+        const savedCustomLogo = load(STORE.CUSTOM_LOGO) || 'Yes';
+        activeCustomLogo = savedCustomLogo;
+        customLogoRadios.forEach((r) => {
+          r.checked = r.value === savedCustomLogo;
+        });
+        updateLogoSections(savedCustomLogo === 'Yes');
+
+        /* Notes */
+        const savedNotes = load(STORE.NOTES);
+        if (savedNotes && notesInput) notesInput.value = savedNotes;
+
+        /* Product — find saved item or fall back to first */
+        const savedProduct = load(STORE.PRODUCT);
+        const targetItem = savedProduct ? dropItems.find((i) => i.dataset.productValue === savedProduct) : null;
+        pickProduct(targetItem || dropItems[0] || null);
+
+        /* Placement */
+        const savedPlacement = load(STORE.PLACEMENT);
+        if (savedPlacement) {
+          placementRadios.forEach((r) => {
+            if (r.value === savedPlacement) {
+              r.checked = true;
+              activePlacement = r.value;
+            }
+          });
+          positionLogo();
+        }
+
+        /* Logo preview — only restored inside the theme editor.
+         On the storefront the Shopify form can't restore the file
+         either, so we keep both in sync: blank after a real refresh,
+         but persistent during customizer section reloads so placement
+         coordinates can be tuned against the actual logo. */
+        if (window.Shopify?.designMode) {
+          const savedData = load(STORE.LOGO_DATA);
+          const savedName = load(STORE.LOGO_NAME);
+          if (savedData && savedName) {
+            logoDataURL = savedData;
+            filenameEl.textContent = savedName;
+            dzIdle.hidden = true;
+            dzFilled.hidden = false;
+            if (selectedItem) {
+              logoOverlay.src = savedData;
+              positionLogo();
+            }
+          } else if (selectedItem) {
+            /* No logo uploaded yet — show placeholder so coordinates are
+             visible while tuning sliders in the customizer */
+            positionLogo();
+          }
+        }
+      }
+
+      /* ── File upload ─────────────────────────────────────── */
+      function applyFile(file) {
+        if (!file) return;
+        currentFile = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          logoDataURL = e.target.result;
+          save(STORE.LOGO_DATA, logoDataURL);
+          save(STORE.LOGO_NAME, file.name);
+
+          filenameEl.textContent = file.name;
+          dzIdle.hidden = true;
+          dzFilled.hidden = false;
+
+          clearFieldError(dropzone?.closest('.coe-field'));
+          if (selectedItem) {
+            logoOverlay.src = logoDataURL;
+            positionLogo();
+          }
+          syncFile(file);
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function clearFile() {
+        currentFile = logoDataURL = null;
+        del(STORE.LOGO_DATA);
+        del(STORE.LOGO_NAME);
+        filenameEl.textContent = '';
+        fileInput.value = '';
+        dzIdle.hidden = false;
+        dzFilled.hidden = true;
+        logoOverlay.src = '';
+        logoOverlay.hidden = true;
+        syncFile(null);
+        positionLogo();
+      }
+
+      /* ── Dropzone ────────────────────────────────────────── */
+      if (dropzone) {
+        dropzone.addEventListener(
+          'click',
+          (e) => {
+            if (removeBtn?.contains(e.target)) return;
+            fileInput?.click();
+          },
+          sig
+        );
+        dropzone.addEventListener(
+          'keydown',
+          (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              fileInput?.click();
+            }
+          },
+          sig
+        );
+        ['dragenter', 'dragover'].forEach((ev) =>
+          dropzone.addEventListener(
+            ev,
+            (e) => {
+              e.preventDefault();
+              dropzone.classList.add('is-dragover');
+            },
+            sig
+          )
+        );
+        ['dragleave', 'dragend', 'drop'].forEach((ev) =>
+          dropzone.addEventListener(ev, () => dropzone.classList.remove('is-dragover'), sig)
+        );
+        dropzone.addEventListener(
+          'drop',
+          (e) => {
+            e.preventDefault();
+            if (e.dataTransfer?.files?.[0]) applyFile(e.dataTransfer.files[0]);
+          },
+          sig
+        );
+      }
+      fileInput?.addEventListener(
+        'change',
+        () => {
+          if (fileInput.files[0]) applyFile(fileInput.files[0]);
+        },
+        sig
+      );
+      removeBtn?.addEventListener(
+        'click',
+        (e) => {
+          e.stopPropagation();
+          clearFile();
+        },
+        sig
+      );
+
+      /* ── Product dropdown ────────────────────────────────── */
+      const openDrop = () => dropdown?.setAttribute('aria-expanded', 'true');
+      const closeDrop = () => dropdown?.setAttribute('aria-expanded', 'false');
+
+      dropdown?.addEventListener(
+        'click',
+        () => {
+          dropdown.getAttribute('aria-expanded') === 'true' ? closeDrop() : openDrop();
+        },
+        sig
+      );
+      dropdown?.addEventListener(
+        'keydown',
+        (e) => {
+          if (e.key === 'Escape') closeDrop();
+        },
+        sig
+      );
+      document.addEventListener(
+        'click',
+        (e) => {
+          if (dropdown && !dropdown.contains(e.target)) closeDrop();
+        },
+        sig
+      );
+
+      dropItems.forEach((item) => {
+        item.addEventListener('click', () => pickProduct(item), sig);
+        item.addEventListener(
+          'keydown',
+          (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              pickProduct(item);
+            }
+          },
+          sig
+        );
+      });
+
+      function pickProduct(item) {
+        if (!item) return;
+        dropItems.forEach((i) => i.setAttribute('aria-selected', 'false'));
+        item.setAttribute('aria-selected', 'true');
+        if (dropValue) {
+          dropValue.textContent = item.textContent.trim();
+          dropValue.classList.add('selected');
+        }
+        closeDrop();
+        selectedItem = item;
+        save(STORE.PRODUCT, item.dataset.productValue || '');
+        clearFieldError(dropdown?.closest('.coe-field'));
+
+        const imgSrc = item.dataset.image || '';
+        if (imgSrc && preview && mockupImg) {
+          mockupImg.src = imgSrc;
+          preview.hidden = false;
+          if (logoDataURL) {
+            logoOverlay.src = logoDataURL;
+          }
+        } else if (preview) {
+          preview.hidden = true;
+          logoOverlay.hidden = true;
+        }
+
+        if (placementField && activeCustomLogo === 'Yes') placementField.hidden = false;
+
+        /* Show/hide Placement 2 based on this product's setting (strict: attr must be "true") */
+        const showP2 = String(item.dataset.showP2 || '').toLowerCase() === 'true';
+        if (placementP2Option) placementP2Option.hidden = !showP2;
+        /* If P2 was active but is now hidden, fall back to P1 */
+        if (!showP2 && placementP2Radio && activePlacement === placementP2Radio.value) {
+          if (placementP1Radio) {
+            placementP1Radio.checked = true;
+            activePlacement = placementP1Radio.value;
+            save(STORE.PLACEMENT, activePlacement);
+            syncPlacement(activePlacement);
+          }
+        }
+        positionLogo();
+
+        syncProduct(item.dataset.productValue || '');
+      }
+
+      /* ── Placement radios ────────────────────────────────── */
+      placementRadios.forEach((r) => {
+        r.addEventListener(
+          'change',
+          () => {
+            if (!r.checked) return;
+            activePlacement = r.value;
+            save(STORE.PLACEMENT, r.value);
+            positionLogo();
+            syncPlacement(r.value);
+          },
+          sig
+        );
+      });
+
+      /* ── Design-mode: auto-pick product when its block is selected ── */
+      /* When the user clicks a product_option block in the editor sidebar,
+       auto-select that product in the dropdown so slider changes always
+       update the correct product's preview. */
+      if (window.Shopify?.designMode) {
+        document.addEventListener(
+          'shopify:block:select',
+          (e) => {
+            if (e.detail.sectionId !== '{{ section.id }}') return;
+            const blockId = e.detail.blockId;
+            const matched = dropItems.find((el) => {
+              try {
+                const attr = el.getAttribute('data-shopify-editor-block');
+                return attr && JSON.parse(attr).id === blockId;
+              } catch {
+                return false;
+              }
+            });
+            if (matched) pickProduct(matched);
+            else if (preview) {
+              preview.hidden = false;
+              positionLogo();
+            }
+          },
+          sig
+        );
+      }
+
+      /* ── Full Name / Company / Quantity / Notes ─────────── */
+      fullNameInput?.addEventListener(
+        'input',
+        () => {
+          save(STORE.FULL_NAME, fullNameInput.value);
+          syncFullName(fullNameInput.value);
+        },
+        sig
+      );
+      companyInput?.addEventListener(
+        'input',
+        () => {
+          save(STORE.COMPANY, companyInput.value);
+          syncCompany(companyInput.value);
+        },
+        sig
+      );
+      quantityInput?.addEventListener(
+        'input',
+        () => {
+          const minQty = parseInt(quantityInput.dataset.minQty || '1', 10);
+          const val = parseInt(quantityInput.value, 10);
+          const qField = quantityInput.closest('.coe-field');
+          if (quantityInput.value !== '' && !isNaN(val) && val < minQty) {
+            showFieldError(qField, `Minimum quantity is ${minQty}.`);
+          } else {
+            clearFieldError(qField);
+          }
+          save(STORE.QUANTITY, quantityInput.value);
+          syncQuantity(quantityInput.value);
+        },
+        sig
+      );
+      notesInput?.addEventListener(
+        'input',
+        () => {
+          save(STORE.NOTES, notesInput.value);
+          syncNotes(notesInput.value);
+        },
+        sig
+      );
+
+      /* ── Custom logo toggle ──────────────────────────────── */
+      customLogoRadios.forEach((r) => {
+        r.addEventListener(
+          'change',
+          () => {
+            if (!r.checked) return;
+            activeCustomLogo = r.value;
+            save(STORE.CUSTOM_LOGO, r.value);
+            updateLogoSections(r.value === 'Yes');
+            syncCustomLogo(r.value);
+          },
+          sig
+        );
+      });
+
+      /* ── Email ───────────────────────────────────────────── */
+      function isValidEmail(v) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+      }
+      emailInput?.addEventListener(
+        'input',
+        () => {
+          const eField = emailInput.closest('.coe-field');
+          if (emailInput.value && !isValidEmail(emailInput.value)) {
+            showFieldError(eField, 'Please enter a valid email address.');
+          } else {
+            clearFieldError(eField);
+          }
+          save(STORE.EMAIL, emailInput.value);
+          syncEmail(emailInput.value);
+        },
+        sig
+      );
+      emailInput?.addEventListener(
+        'blur',
+        () => {
+          const eField = emailInput.closest('.coe-field');
+          if (emailInput.value && !isValidEmail(emailInput.value)) {
+            showFieldError(eField, 'Please enter a valid email address.');
+          } else {
+            clearFieldError(eField);
+          }
+        },
+        sig
+      );
+
+      /* ── Reset all fields to blank / default state ──────── */
+      /* NOTE: deliberately does NOT sync to shadow DOM — the Shopify
+       Forms embed is already in success state and we must not
+       fire events that could reset it back to an empty form.    */
+      function clearAllFields() {
+        if (fullNameInput) fullNameInput.value = '';
+        if (companyInput) companyInput.value = '';
+        if (emailInput) emailInput.value = '';
+        if (quantityInput) quantityInput.value = '';
+        if (notesInput) notesInput.value = '';
+
+        /* Clear file UI directly — no shadow DOM sync */
+        currentFile = logoDataURL = null;
+        del(STORE.LOGO_DATA);
+        del(STORE.LOGO_NAME);
+        if (filenameEl) filenameEl.textContent = '';
+        if (fileInput) fileInput.value = '';
+        if (dzIdle) dzIdle.hidden = false;
+        if (dzFilled) dzFilled.hidden = true;
+        if (logoOverlay) {
+          logoOverlay.src = '';
+          logoOverlay.hidden = true;
+        }
+
+        /* Reset product dropdown to placeholder */
+        selectedItem = null;
+        dropItems.forEach((i) => i.setAttribute('aria-selected', 'false'));
+        if (dropValue) {
+          dropValue.textContent = dropPlaceholder;
+          dropValue.classList.remove('selected');
+        }
+        if (preview) preview.hidden = true;
+
+        /* Reset custom logo toggle to Yes (default) */
+        activeCustomLogo = 'Yes';
+        customLogoRadios.forEach((r) => {
+          r.checked = r.value === 'Yes';
+        });
+        updateLogoSections(true);
+
+        /* Reset placement to Placement 1 */
+        if (placementP1Radio) placementP1Radio.checked = true;
+        activePlacement = placementP1Radio?.value || 'Placement 1';
+        if (placementField) placementField.hidden = true;
+
+        /* Clear all session storage */
+        Object.values(STORE).forEach((k) => del(k));
+      }
+
+      /* ── Submit loading state ───────────────────────────── */
+      function setSubmitLoading(on) {
+        if (!submitBtn) return;
+        submitBtn.disabled = on;
+        submitBtn.classList.toggle('coe-submit--loading', on);
+      }
+
+      /* ── Watch shadow DOM for form success, then reload ─── */
+      function watchForCOESuccess() {
+        const shadow = sr();
+        if (!shadow) return;
+        let handled = false;
+
+        function onSuccess() {
+          if (handled) return;
+          handled = true;
+          obs.disconnect();
+          clearInterval(poll);
+
+          /* Hide the custom form */
+          root.hidden = true;
+
+          /* Clear sessionStorage */
+          Object.values(STORE).forEach((k) => del(k));
+
+          /* Reveal the Shopify Forms embed — it is already in its success
+           state showing the "Thank you" message, we just un-hide it */
+          if (contactMatchId) {
+            const embedWrapper = document.querySelector(
+              `.contact_forms [data-forms-id="forms-root-${contactMatchId}"]`
+            );
+            if (embedWrapper) {
+              embedWrapper.style.setProperty('display', 'block', 'important');
+            }
+          }
+        }
+
+        function check() {
+          const form = shadow.querySelector('form');
+          const text = shadow.textContent.toLowerCase();
+          const successEl = shadow.querySelector("[class*='success'], [class*='thank'], [data-success]");
+          if ((!form && successEl) || (form && form.hidden) || /thank you|success|submitted/.test(text)) {
+            onSuccess();
+          }
+        }
+
+        const obs = new MutationObserver(check);
+        obs.observe(shadow, { childList: true, subtree: true, characterData: true });
+
+        const poll = setInterval(check, 500);
+        setTimeout(() => {
+          clearInterval(poll);
+          obs.disconnect();
+          /* No success detected — restore submit button so user can retry */
+          if (!handled) setSubmitLoading(false);
+        }, 15000);
+      }
+
+      /* ── Submit ──────────────────────────────────────────── */
+      submitBtn?.addEventListener(
+        'click',
+        () => {
+          let valid = true;
+
+          /* Quantity minimum validation (always enforced) */
+          if (quantityInput) {
+            const minQty = parseInt(quantityInput.dataset.minQty || '1', 10);
+            const qty = parseInt(quantityInput.value || '', 10);
+            const qField = quantityInput.closest('.coe-field');
+            if (isNaN(qty) || qty < minQty) {
+              showFieldError(qField, `Minimum quantity is ${minQty}.`);
+              valid = false;
+            } else {
+              clearFieldError(qField);
+            }
+          }
+
+          /* Email validation */
+          if (emailInput) {
+            const eField = emailInput.closest('.coe-field');
+            if (!emailInput.value || !isValidEmail(emailInput.value)) {
+              showFieldError(eField, 'Please enter a valid email address.');
+              valid = false;
+            } else {
+              clearFieldError(eField);
+            }
+          }
+
+          /* Logo-required fields — only when custom logo is "Yes" */
+          if (activeCustomLogo === 'Yes') {
+            const uploadField = dropzone?.closest('.coe-field');
+            const productField = dropdown?.closest('.coe-field');
+            if (!currentFile) {
+              showFieldError(uploadField, 'Please upload a logo file.');
+              valid = false;
+            } else {
+              clearFieldError(uploadField);
+            }
+            if (!selectedItem) {
+              showFieldError(productField, 'Please select a product.');
+              valid = false;
+            } else {
+              clearFieldError(productField);
+            }
+          }
+
+          if (!valid) return;
+
+          if (fullNameInput?.value) syncFullName(fullNameInput.value);
+          if (companyInput?.value) syncCompany(companyInput.value);
+          if (emailInput?.value) syncEmail(emailInput.value);
+          if (quantityInput?.value) syncQuantity(quantityInput.value);
+          syncCustomLogo(activeCustomLogo);
+          if (currentFile) syncFile(currentFile);
+          if (selectedItem) syncProduct(selectedItem.dataset.productValue || '');
+          syncPlacement(activePlacement);
+          if (notesInput?.value) syncNotes(notesInput.value);
+
+          const shadow = sr();
+          if (!shadow) {
+            console.warn('[COE] shadowRoot unavailable');
+            return;
+          }
+          const btn = shadow.querySelector('[data-testid="btn-form-submit"]');
+          if (btn) {
+            setSubmitLoading(true);
+            btn.click();
+            watchForCOESuccess();
+          } else {
+            console.warn('[COE] Shopify Forms submit button not found');
+          }
+        },
+        sig
+      );
+
+      /* ── Resize ──────────────────────────────────────────── */
+      let resizeTimer;
+      window.addEventListener(
+        'resize',
+        () => {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(positionLogo, 120);
+        },
+        sig
+      );
+
+      /* ── Clear logo storage on storefront unload ────────── */
+      /* Keeps storage clean for real visitors; editor is unaffected
+       because designMode pages don't trigger beforeunload on reload. */
+      if (!window.Shopify?.designMode) {
+        window.addEventListener(
+          'beforeunload',
+          () => {
+            del(STORE.LOGO_DATA);
+            del(STORE.LOGO_NAME);
+          },
+          sig
+        );
+      }
+
+      /* ── Contact page integration ────────────────────────── */
+      /* When placed on the contact page alongside the Contact Section,
+       the corporate order form should:
+         1. Live inside .contact_forms (after #contact-form-success-video)
+         2. Show only when the matching topic is selected              */
+      {
+        const matchId = '{{ section.settings.contact_form_id | escape }}';
+        contactMatchId = matchId;
+
+        /* Move section into .contact_forms right after the success video.
+         Skip in design mode: moving the element causes a duplicate-ID
+         problem after section reloads (Shopify creates a fresh element
+         in the original position while the old moved one stays in the
+         DOM — getElementById then returns the stale node with outdated
+         data-attributes, breaking live slider preview). */
+        const anchor = document.getElementById('contact-form-success-video');
+        if (matchId && anchor?.parentNode && !window.Shopify?.designMode) {
+          anchor.parentNode.insertBefore(root, anchor.nextSibling);
+          root.hidden = true; /* shown only when matching topic is selected */
+
+          function activateContactForm(formId) {
+            const isOurs = String(formId || '').trim() === String(matchId || '').trim();
+            root.hidden = !isOurs;
+            if (isOurs) {
+              /* Hide the Shopify Forms embed wrapper for the same form
+               so it doesn't render under our custom section.
+               The embed element stays in the DOM for shadow-DOM sync. */
+              setTimeout(() => {
+                const embedWrapper = document.querySelector(`.contact_forms [data-forms-id="forms-root-${matchId}"]`);
+                if (embedWrapper) embedWrapper.style.display = 'none';
+              }, 0);
+            }
+          }
+
+          /* Listen for topic button clicks */
+          document.querySelectorAll('.form_topic').forEach((btn) => {
+            btn.addEventListener(
+              'click',
+              () => {
+                /* Defer one tick so the contact section's own listener
+               runs first (it shows/hides the Shopify embeds) */
+                setTimeout(() => activateContactForm(btn.getAttribute('data-form') || ''), 0);
+              },
+              sig
+            );
+          });
+
+          /* The contact section auto-clicks the first topic ~500 ms
+           after the embeds load. Poll until the chosen topic text
+           appears so we can sync our visibility to match. */
+          contactPoll = setInterval(() => {
+            const chosen = document.querySelector('.form_default_text .choosen_topic');
+            if (chosen) {
+              clearInterval(contactPoll);
+              const activeTopic = chosen.textContent.trim();
+              const activeBtn = Array.from(document.querySelectorAll('.form_topic')).find(
+                (b) => b.getAttribute('data-topic') === activeTopic
+              );
+              if (activeBtn) activateContactForm(activeBtn.getAttribute('data-form') || '');
+            }
+          }, 100);
+          /* Safety: stop polling after 10 s regardless */
+          setTimeout(() => clearInterval(contactPoll), 10000);
+        } else {
+          /* Not on the contact page (e.g. theme editor preview) — show normally */
+          root.hidden = false;
+        }
+      }
+
+      /* ── Warehouse Stock Check for Options ────────────────── */
+      function checkWarehouseStockForOptions() {
+        const rootUrl = window.Shopify?.routes?.root || '/';
+        dropItems.forEach((item) => {
+          const variantId = item.dataset.variantId;
+          if (!variantId || variantId.trim() === '') return;
+
+          const url = `${rootUrl}variants/${variantId}/?section_id=pickup-availability`;
+          fetch(url)
+            .then((res) => res.text())
+            .then((html) => {
+              const parser = new DOMParser();
+              const doc = parser.parseFromString(html, 'text/html');
+              const scriptEl = doc.getElementById(`VariantAvailabilities-${variantId}`);
+              if (!scriptEl) {
+                console.warn(`[COE] No availability script found for variant ${variantId}`);
+                return;
+              }
+
+              try {
+                const data = JSON.parse(scriptEl.textContent);
+                console.log(`[COE] Data for variant ${variantId}:`, data);
+
+                let isOutOfStock = false;
+                const warehouseInventory = data.warehouse_inventory;
+                if (warehouseInventory !== null && warehouseInventory !== undefined) {
+                  const qty = parseInt(warehouseInventory, 10);
+                  if (qty <= 0) {
+                    isOutOfStock = true;
+                  }
+                }
+
+                const warehouseLoc = data.availabilities
+                  ? data.availabilities.find((loc) => loc.name && loc.name.toLowerCase().includes('warehouse'))
+                  : null;
+
+                // Also hide if Warehouse location explicitly exists and is unavailable
+                if (warehouseLoc && warehouseLoc.available === false) {
+                  isOutOfStock = true;
+                }
+
+                if (isOutOfStock) {
+                  console.log(
+                    `[COE] Hiding option ${item.textContent.trim()} because warehouse stock is out of stock (${warehouseInventory} units).`
+                  );
+                  item.hidden = true;
+                  item.style.display = 'none';
+
+                  if (selectedItem === item) {
+                    const nextVisible = dropItems.find((i) => !i.hidden);
+                    if (nextVisible) {
+                      pickProduct(nextVisible);
+                    } else {
+                      selectedItem = null;
+                      if (dropValue) {
+                        dropValue.textContent = dropPlaceholder;
+                        dropValue.classList.remove('selected');
+                      }
+                      if (preview) preview.hidden = true;
+                      save(STORE.PRODUCT, '');
+                      syncProduct('');
+                    }
+                  }
+                } else {
+                  console.log(
+                    `[COE] Keeping option ${item.textContent.trim()} visible. Warehouse inventory: ${
+                      warehouseInventory !== null ? warehouseInventory + ' units' : 'unconfigured (metafield blank)'
+                    }`
+                  );
+                }
+              } catch (e) {
+                console.error('[COE] Error parsing variant availability JSON', e);
+              }
+            })
+            .catch((err) => {
+              console.error('[COE] Error fetching variant availability', err);
+            });
+        });
+      }
+
+      /* ── Init sequence ───────────────────────────────────── */
+      /* 1. Restore all UI fields from sessionStorage */
+      restoreState();
+
+      /* 2. Run warehouse inventory checks */
+      checkWarehouseStockForOptions();
+
+      /* 3. In design mode, re-run positionLogo after a short delay so
+          any async rendering (e.g. images loading) doesn't leave the
+          overlay misplaced after a section reload triggered by sliders */
+      if (window.Shopify?.designMode) {
+        setTimeout(positionLogo, 150);
+      }
+
+      /* 4. As soon as the Shopify Forms shadowRoot is ready, push
+          all saved values into the hidden form fields */
+      waitForShadow(syncAllToShadow);
+    }
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Corporate Order Form",
+  "tag": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Corporate Order"
+    },
+    {
+      "type": "textarea",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Upload your logo and customise your product below."
+    },
+    {
+      "type": "text",
+      "id": "submit_label",
+      "label": "Submit button label",
+      "default": "Submit Order"
+    },
+    {
+      "type": "text",
+      "id": "form_embed_selector",
+      "label": "Shopify Forms embed selector",
+      "default": "shopify-forms-embed",
+      "info": "CSS selector for the Shopify Forms embed element. On pages with multiple forms, the section auto-detects the corporate form by looking for company-name field. Change only if auto-detection fails."
+    },
+    {
+      "type": "text",
+      "id": "contact_form_id",
+      "label": "Contact Topic Form ID",
+      "default": "649339",
+      "info": "Must match the Form ID on the matching Topic block in the Contact Section. The corporate order form shows when that topic is selected and hides for all others. Leave blank to always show."
+    },
+    {
+      "type": "richtext",
+      "id": "closing_text",
+      "label": "Closing text (shown above submit button)",
+      "default": "<p>Once we receive your submission, we'll confirm the sizing of the logo and get back to you with the next steps.</p>"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "full_name",
+      "name": "Full Name Field",
+      "limit": 1,
+      "settings": [
+        { "type": "text", "id": "label", "label": "Field label", "default": "Full Name" },
+        { "type": "text", "id": "placeholder", "label": "Placeholder", "default": "Full Name" },
+        { "type": "checkbox", "id": "required", "label": "Required field", "default": false },
+        {
+          "type": "text",
+          "id": "shadow_field_id",
+          "label": "Shopify Forms field ID",
+          "default": "first_name",
+          "info": "Must match the id= attribute of the hidden form input"
+        }
+      ]
+    },
+    {
+      "type": "company_name",
+      "name": "Company Name Field",
+      "limit": 1,
+      "settings": [
+        { "type": "text", "id": "label", "label": "Field label", "default": "Company Name" },
+        { "type": "text", "id": "placeholder", "label": "Placeholder", "default": "Company Name" },
+        { "type": "checkbox", "id": "required", "label": "Required field", "default": false },
+        {
+          "type": "text",
+          "id": "shadow_field_id",
+          "label": "Shopify Forms field ID",
+          "default": "custom#company_name",
+          "info": "Must match the id= attribute of the hidden form input"
+        }
+      ]
+    },
+    {
+      "type": "quantity",
+      "name": "Quantity Field",
+      "limit": 1,
+      "settings": [
+        { "type": "text", "id": "label", "label": "Field label", "default": "Quantity" },
+        { "type": "text", "id": "placeholder", "label": "Placeholder", "default": "Quantity (minimum 20 units)" },
+        { "type": "number", "id": "min_qty", "label": "Minimum quantity", "default": 1 },
+        {
+          "type": "richtext",
+          "id": "pricing_tiers",
+          "label": "Pricing tiers text (shown below input)",
+          "default": "<p>25 – 49 units: 15% off RRP / 50 – 149 units: 20% off RRP / 150+ units: 25% off RRP</p>"
+        },
+        { "type": "checkbox", "id": "required", "label": "Required field", "default": false },
+        {
+          "type": "text",
+          "id": "shadow_field_id",
+          "label": "Shopify Forms field ID",
+          "default": "custom#number_of_bags",
+          "info": "Must match the id= attribute of the hidden form input"
+        }
+      ]
+    },
+    {
+      "type": "custom_logo_toggle",
+      "name": "Custom Logo Toggle",
+      "limit": 1,
+      "settings": [
+        { "type": "text", "id": "label", "label": "Field label", "default": "Do You Want Custom Logo?" },
+        { "type": "text", "id": "yes_label", "label": "Yes option label", "default": "Yes" },
+        { "type": "text", "id": "yes_value", "label": "Yes option value", "default": "Yes" },
+        { "type": "text", "id": "no_label", "label": "No option label", "default": "No" },
+        { "type": "text", "id": "no_value", "label": "No option value", "default": "No" },
+        {
+          "type": "richtext",
+          "id": "fee_info",
+          "label": "Logo fee info (shown in red below toggle)",
+          "default": "<p>$100 setup fee + $5 – $10 per unit depending on the size and complexity of the graphic.</p>"
+        },
+        {
+          "type": "text",
+          "id": "shadow_field_name",
+          "label": "Shopify Forms field name",
+          "default": "custom#do_you_want_custom_logo",
+          "info": "Must match the name= attribute of the hidden form radio group"
+        }
+      ]
+    },
+    {
+      "type": "notes_field",
+      "name": "Notes / Comments Field",
+      "limit": 1,
+      "settings": [
+        { "type": "text", "id": "label", "label": "Field label", "default": "Any extra notes and comments?" },
+        { "type": "text", "id": "placeholder", "label": "Placeholder", "default": "Any extra notes and comments?" },
+        { "type": "range", "id": "rows", "label": "Rows", "min": 2, "max": 10, "step": 1, "default": 4 },
+        { "type": "checkbox", "id": "required", "label": "Required field", "default": false },
+        {
+          "type": "text",
+          "id": "shadow_field_name",
+          "label": "Shopify Forms field name",
+          "default": "custom#any_extra_notes_and_comments",
+          "info": "Must match the name= attribute of the hidden form textarea"
+        }
+      ]
+    },
+    {
+      "type": "email_field",
+      "name": "Email Field",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Field label",
+          "default": "Email"
+        },
+        {
+          "type": "text",
+          "id": "placeholder",
+          "label": "Placeholder",
+          "default": "you@example.com"
+        },
+        { "type": "checkbox", "id": "required", "label": "Required field", "default": false },
+        {
+          "type": "text",
+          "id": "shadow_field_id",
+          "label": "Shopify Forms field ID",
+          "default": "email",
+          "info": "Must match the id= attribute of the hidden form input"
+        }
+      ]
+    },
+    {
+      "type": "file_upload",
+      "name": "File Upload",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Field label",
+          "default": "Logo File"
+        },
+        {
+          "type": "text",
+          "id": "upload_hint",
+          "label": "Hint text (shown in red)",
+          "default": "Please upload a file with a high resolution (minimum 300dpi) in any of the following formats: jpg, svg, eps, pdf."
+        },
+        {
+          "type": "text",
+          "id": "cta_text",
+          "label": "Upload button text",
+          "default": "Add File +"
+        },
+        {
+          "type": "text",
+          "id": "accepted_formats",
+          "label": "Accepted formats note",
+          "default": "PNG, JPG, SVG, EPS, PDF · 300 dpi minimum"
+        },
+        {
+          "type": "textarea",
+          "id": "description",
+          "label": "Description (shown below hint in black)",
+          "default": "Keep in mind there's a 2 to 3 weeks production time for embroidery. (Excluding shipping)"
+        }
+      ]
+    },
+    {
+      "type": "product_select",
+      "name": "Product Selector",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Field label",
+          "default": "Select Your Product"
+        },
+        {
+          "type": "text",
+          "id": "placeholder",
+          "label": "Placeholder text",
+          "default": "Choose a product…"
+        },
+        {
+          "type": "text",
+          "id": "shadow_field_name",
+          "label": "Shopify Forms field name",
+          "default": "custom#select_your_product",
+          "info": "Must match the name= attribute of the hidden form radio group"
+        }
+      ]
+    },
+    {
+      "type": "product_option",
+      "name": "Product Option",
+      "settings": [
+        {
+          "type": "header",
+          "content": "Product"
+        },
+        {
+          "type": "text",
+          "id": "product_title",
+          "label": "Option label (shown in dropdown)",
+          "default": "My Product"
+        },
+        {
+          "type": "text",
+          "id": "product_value",
+          "label": "Option value (must exactly match Shopify Forms radio value)",
+          "default": "My Product"
+        },
+        {
+          "type": "text",
+          "id": "variant_id",
+          "label": "Variant ID",
+          "info": "Variant ID to fetch Warehouse inventory and hide this option if out of stock"
+        },
+        {
+          "type": "image_picker",
+          "id": "product_image",
+          "label": "Product mockup image"
+        },
+        {
+          "type": "checkbox",
+          "id": "show_placement_2",
+          "label": "Enable Placement 2 option",
+          "default": true
+        },
+        {
+          "type": "header",
+          "content": "Logo position — Placement 1"
+        },
+        {
+          "type": "range",
+          "id": "p1_top",
+          "label": "Top (%)",
+          "min": 0,
+          "max": 90,
+          "step": 1,
+          "default": 28
+        },
+        {
+          "type": "range",
+          "id": "p1_left",
+          "label": "Left (%)",
+          "min": 0,
+          "max": 90,
+          "step": 1,
+          "default": 30
+        },
+        {
+          "type": "range",
+          "id": "p1_width",
+          "label": "Logo width (%)",
+          "min": 0,
+          "max": 90,
+          "step": 1,
+          "default": 25
+        },
+        {
+          "type": "range",
+          "id": "p1_height",
+          "label": "Logo height (%)",
+          "min": 0,
+          "max": 90,
+          "step": 1,
+          "default": 5
+        },
+        {
+          "type": "header",
+          "content": "Logo position — Placement 2",
+          "visible_if": "{{block.settings.show_placement_2}}"
+        },
+        {
+          "type": "range",
+          "id": "p2_top",
+          "label": "Top (%)",
+          "min": 0,
+          "max": 90,
+          "step": 1,
+          "default": 55,
+          "visible_if": "{{block.settings.show_placement_2}}"
+        },
+        {
+          "type": "range",
+          "id": "p2_left",
+          "label": "Left (%)",
+          "min": 0,
+          "max": 90,
+          "step": 1,
+          "default": 25,
+          "visible_if": "{{block.settings.show_placement_2}}"
+        },
+        {
+          "type": "range",
+          "id": "p2_width",
+          "label": "Logo width (%)",
+          "min": 0,
+          "max": 90,
+          "step": 1,
+          "default": 20,
+          "visible_if": "{{block.settings.show_placement_2}}"
+        },
+        {
+          "type": "range",
+          "id": "p2_height",
+          "label": "Logo height (%)",
+          "min": 0,
+          "max": 90,
+          "step": 1,
+          "default": 5,
+          "visible_if": "{{block.settings.show_placement_2}}"
+        }
+      ]
+    },
+    {
+      "type": "placement_select",
+      "name": "Placement Selector",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Field label",
+          "default": "Where do you want the logo to be placed?"
+        },
+        {
+          "type": "header",
+          "content": "Placement 1"
+        },
+        {
+          "type": "text",
+          "id": "p1_label",
+          "label": "Label",
+          "default": "Placement 1"
+        },
+        {
+          "type": "text",
+          "id": "p1_value",
+          "label": "Value (must match Shopify Forms radio value)",
+          "default": "Placement 1"
+        },
+        {
+          "type": "header",
+          "content": "Placement 2"
+        },
+        {
+          "type": "text",
+          "id": "p2_label",
+          "label": "Label",
+          "default": "Placement 2"
+        },
+        {
+          "type": "text",
+          "id": "p2_value",
+          "label": "Value (must match Shopify Forms radio value)",
+          "default": "Placement 2"
+        },
+        {
+          "type": "text",
+          "id": "shadow_field_name",
+          "label": "Shopify Forms field name",
+          "default": "custom#where_do_you_want_the_logo_to_be_placed",
+          "info": "Must match the name= attribute of the hidden form radio group"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Corporate Order Form",
+      "blocks": [
+        { "type": "full_name", "settings": { "label": "Full Name", "placeholder": "Full Name" } },
+        { "type": "company_name", "settings": { "label": "Company Name", "placeholder": "Company Name" } },
+        { "type": "email_field", "settings": { "label": "Email", "placeholder": "Email" } },
+        {
+          "type": "quantity",
+          "settings": { "label": "Quantity", "placeholder": "Quantity (minimum 20 units)", "min_qty": 1 }
+        },
+        {
+          "type": "custom_logo_toggle",
+          "settings": {
+            "label": "Do You Want Custom Logo?",
+            "yes_label": "Yes",
+            "yes_value": "Yes",
+            "no_label": "No",
+            "no_value": "No"
+          }
+        },
+        {
+          "type": "file_upload",
+          "settings": {
+            "label": "Logo File",
+            "upload_hint": "Please upload a file with a high resolution (minimum 300dpi) in any of the following formats: jpg, svg, eps, pdf.",
+            "cta_text": "Add File +",
+            "accepted_formats": "PNG, JPG, SVG, EPS, PDF · 300 dpi minimum",
+            "description": "Keep in mind there's a 2 to 3 weeks production time for embroidery. (Excluding shipping)"
+          }
+        },
+        {
+          "type": "product_select",
+          "settings": { "label": "Select Your Product", "placeholder": "Choose a product…" }
+        },
+        {
+          "type": "product_option",
+          "settings": { "product_title": "Brace (black)", "product_value": "Brace (black)" }
+        },
+        {
+          "type": "product_option",
+          "settings": { "product_title": "Squid (black)", "product_value": "Squid (black)" }
+        },
+        {
+          "type": "product_option",
+          "settings": { "product_title": "Month on Month (black)", "product_value": "Month on Month (black)" }
+        },
+        {
+          "type": "product_option",
+          "settings": { "product_title": "Communal Dwelling (black)", "product_value": "Communal Dwelling (black)" }
+        },
+        { "type": "product_option", "settings": { "product_title": "Fog (black)", "product_value": "Fog (black)" } },
+        {
+          "type": "placement_select",
+          "settings": {
+            "label": "Where do you want the logo to be placed?",
+            "p1_label": "Placement 1",
+            "p1_value": "Placement 1",
+            "p2_label": "Placement 2",
+            "p2_value": "Placement 2"
+          }
+        },
+        {
+          "type": "notes_field",
+          "settings": { "label": "Any extra notes and comments?", "placeholder": "Any extra notes and comments?" }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

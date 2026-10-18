@@ -1,0 +1,149 @@
+{% doc %}
+  Outputs BreadcrumbList JSON-LD matching the theme breadcrumb hierarchy.
+  @example
+  {% render 'schema-breadcrumbs' %}
+{% enddoc %}
+
+{%- unless template.name == 'index' -%}
+  {%- liquid
+    assign home_label = 'general.breadcrumbs.home' | t
+    assign home_url = request.origin | append: routes.root_url
+    assign breadcrumb_list_id = canonical_url | default: request.origin | append: '#breadcrumb'
+    if template.name == 'page' and page != blank
+      assign breadcrumb_list_id = request.origin | append: page.url | append: '#breadcrumb'
+    elsif template.name == 'product' and product != blank
+      assign breadcrumb_list_id = request.origin | append: product.url | append: '#breadcrumb'
+    elsif template.name == 'collection' and collection != blank
+      assign breadcrumb_list_id = request.origin | append: collection.url | append: '#breadcrumb'
+    endif
+  -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "@id": {{ breadcrumb_list_id | json }},
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": {{ home_label | json }},
+      "item": {{ home_url | json }}
+    }
+    {%- if template.name == 'product' -%}
+      {%- liquid
+        assign breadcrumb_collection = collection
+        if breadcrumb_collection == blank and product.collections.size > 0
+          assign breadcrumb_collection = product.collections.first
+        endif
+        assign bc_shape = product.metafields.custom.shape | default: blank
+        assign position = 1
+      -%}
+      {%- if bc_shape != blank -%}
+        {%- assign bc_shape_text = bc_shape | strip -%}
+        {%- assign bc_shape_anchor = bc_shape_text | handleize -%}
+        {%- assign position = position | plus: 1 -%}
+    ,{
+      "@type": "ListItem",
+      "position": {{ position }},
+      "name": {{ bc_shape_text | json }},
+      "item": {{ request.origin | append: '/collections/shape#' | append: bc_shape_anchor | json }}
+    }
+      {%- elsif breadcrumb_collection != blank and breadcrumb_collection.handle != blank -%}
+        {%- assign position = position | plus: 1 -%}
+    ,{
+      "@type": "ListItem",
+      "position": {{ position }},
+      "name": {{ breadcrumb_collection.title | json }},
+      "item": {{ request.origin | append: breadcrumb_collection.url | json }}
+    }
+      {%- endif -%}
+      {%- assign position = position | plus: 1 -%}
+    ,{
+      "@type": "ListItem",
+      "position": {{ position }},
+      "name": {{ product.title | json }},
+      "item": {{ request.origin | append: product.url | json }}
+    }
+    {%- elsif template.name == 'collection' and collection.handle -%}
+    ,{
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ collection.title | json }},
+      "item": {{ request.origin | append: collection.url | json }}
+    }
+      {%- if current_tags != blank -%}
+    ,{
+      "@type": "ListItem",
+      "position": 3,
+      "name": {{ current_tags | join: ' + ' | json }},
+      "item": {{ canonical_url | json }}
+    }
+      {%- endif -%}
+    {%- elsif template.name == 'list-collections' -%}
+    ,{
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ page_title | json }},
+      "item": {{ request.origin | append: routes.collections_url | json }}
+    }
+    {%- elsif template.name == 'blog' -%}
+    ,{
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ blog.title | json }},
+      "item": {{ request.origin | append: blog.url | json }}
+    }
+      {%- if current_tags != blank -%}
+    ,{
+      "@type": "ListItem",
+      "position": 3,
+      "name": {{ current_tags | join: ' + ' | json }},
+      "item": {{ canonical_url | json }}
+    }
+      {%- endif -%}
+    {%- elsif template.name == 'article' -%}
+    ,{
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ blog.title | json }},
+      "item": {{ request.origin | append: blog.url | json }}
+    }
+    ,{
+      "@type": "ListItem",
+      "position": 3,
+      "name": {{ article.title | json }},
+      "item": {{ request.origin | append: article.url | json }}
+    }
+    {%- elsif template.name == 'page' -%}
+    ,{
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ page.title | json }},
+      "item": {{ request.origin | append: page.url | json }}
+    }
+    {%- elsif template.name == 'search' -%}
+    ,{
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ page_title | replace: '*', '' | json }},
+      "item": {{ canonical_url | json }}
+    }
+    {%- elsif template.name == 'cart' -%}
+    ,{
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ page_title | json }},
+      "item": {{ request.origin | append: routes.cart_url | json }}
+    }
+    {%- elsif template.name == '404' -%}
+    ,{
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ page_title | json }},
+      "item": {{ canonical_url | json }}
+    }
+    {%- endif -%}
+  ]
+}
+</script>
+{%- endunless -%}

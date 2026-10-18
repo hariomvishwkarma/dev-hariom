@@ -1,0 +1,91 @@
+{% doc %}
+Renders a B2B style MOQ shortfall notice under a cart line item.
+Shown on every line of a style (product) that is short of its MOQ,
+so the notice is visible whichever colour/size row the customer looks at.
+@param {object} item - Cart line item
+@example
+{% render 'b2b-moq-line-notice', item: item %}
+{% enddoc %}
+
+{%- liquid
+  assign b2b_moq_show = false
+  assign b2b_mov_tag = settings.b2b_mov_customer_tag | default: 'B2B Customer' | strip
+  assign b2b_moq_default = settings.b2b_moq_default | default: 6 | plus: 0
+  if b2b_moq_default < 1
+    assign b2b_moq_default = 6
+  endif
+  assign b2b_moq_metafield_path = settings.b2b_moq_metafield | default: 'custom.moq' | strip
+  assign b2b_moq_metafield_parts = b2b_moq_metafield_path | split: '.'
+  assign b2b_moq_namespace = b2b_moq_metafield_parts | first | default: 'custom'
+  assign b2b_moq_key = b2b_moq_metafield_parts | last | default: 'moq'
+  assign b2b_moq_message_template = settings.b2b_moq_message | default: 'Add [qty] more of this style to reach the [minimum] style minimum.'
+  assign b2b_moq_applies = false
+  assign b2b_moq_has_company = false
+
+  if settings.b2b_moq_enable and customer != blank
+    if customer.tags contains b2b_mov_tag
+      if customer.b2b?
+        assign b2b_moq_has_company = true
+      endif
+      if customer.current_company != blank
+        assign b2b_moq_has_company = true
+      endif
+      if customer.company_available_locations_count > 0
+        assign b2b_moq_has_company = true
+      endif
+      if b2b_moq_has_company
+        assign b2b_moq_applies = true
+      endif
+    endif
+  endif
+
+  assign b2b_moq_skip = false
+  assign b2b_moq_item_vendor = item.vendor | downcase
+  if b2b_moq_item_vendor == 'redo' or b2b_moq_item_vendor == 'returngo' or b2b_moq_item_vendor == 'return go'
+    assign b2b_moq_skip = true
+  endif
+  if settings.custom_cart_enable_checkout_protection and settings.custom_cart_protection_product != blank
+    if item.variant_id == settings.custom_cart_protection_product.selected_or_first_available_variant.id
+      assign b2b_moq_skip = true
+    endif
+  endif
+
+  if b2b_moq_applies and b2b_moq_skip == false
+    assign b2b_moq_style_qty = 0
+    for b2b_moq_sibling in cart.items
+      if b2b_moq_sibling.product_id == item.product_id
+        assign b2b_moq_style_qty = b2b_moq_style_qty | plus: b2b_moq_sibling.quantity
+      endif
+    endfor
+
+    assign b2b_moq_required = b2b_moq_default
+    assign b2b_moq_mf = item.product.metafields[b2b_moq_namespace][b2b_moq_key]
+    if b2b_moq_mf != blank
+      assign b2b_moq_mf_value = b2b_moq_mf.value | default: b2b_moq_mf | plus: 0
+      if b2b_moq_mf_value > 0
+        assign b2b_moq_required = b2b_moq_mf_value
+      endif
+    endif
+
+    if b2b_moq_style_qty < b2b_moq_required
+      assign b2b_moq_show = true
+      assign b2b_moq_remaining = b2b_moq_required | minus: b2b_moq_style_qty
+      assign b2b_moq_message = b2b_moq_message_template | replace: '[qty]', b2b_moq_remaining | replace: '[minimum]', b2b_moq_required
+    endif
+  endif
+-%}
+
+{%- if b2b_moq_show -%}
+  <p
+    class="b2b-moq-line-notice is-visible"
+    data-b2b-moq-line-notice
+    data-product-id="{{ item.product_id }}"
+    data-moq-required="{{ b2b_moq_required }}"
+    data-moq-qty="{{ b2b_moq_style_qty }}"
+    data-moq-remaining="{{ b2b_moq_remaining }}"
+    data-b2b-moq-template="{{ b2b_moq_message_template | escape }}"
+    role="status"
+  >
+    {{ b2b_moq_message | escape }}
+  </p>
+{%- endif -%}

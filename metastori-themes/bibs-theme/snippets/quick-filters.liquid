@@ -1,0 +1,143 @@
+{%- comment -%}
+  Renders quick filter (used as part of the filter bar on desktop)
+
+  Accepts:
+    - results {Object}: Collection or Search object
+    - enable_filtering {Boolean}: Show filtering when true
+
+  Usage:
+    {% render 'quick-filters', results: collection %}
+{%- endcomment -%}
+
+<div class="quick-filters hidden flex-1 xl:flex flex-row flex-wrap gap-2.5">
+  {% for filter in results.filters %}
+    {% assign valid_filter_options = 0 %}
+    {%- for filter_value in filter.values -%}
+      {% unless filter_value.count == 0 and filter_value.active == false -%}
+        {% assign valid_filter_options = valid_filter_options | plus: 1 %}
+      {%- endunless %}
+    {% endfor %}
+    {% unless filter.type == 'price_range' %}
+      <quick-filter
+        class="relative"
+      >
+        <details tabindex="0">
+          <summary class="quick-filter--btn flex flex-row items-center gap-2.5 border rounded-full border-borders pb-[2px] pt-[3px] px-[13px]">
+            {% for element in shop.metaobjects.quick_filter_icon.values %}
+              {% assign replace_filter_param = filter.param_name | replace: ' ', '_' %}
+              {% if replace_filter_param contains element.filter_param_name %}
+                {% render 'c-image', image: element.icon, classes: 'h-[15px] w-4', image_fit: 'contain' %}
+              {% endif %}
+            {% endfor %}
+            {{ filter.label }}
+            {% render 'c-icon', icon: 'flat-arrow-down', classes: 'arrow w-[7px] h-[5px]' %}
+          </summary>
+          <div class="absolute top-[37px] w-full min-w-max quick-filter--content bg-background border border-borders rounded-2xl pt-[11px] px-[13px] z-10">
+            {%- case filter.type -%}
+              {%- when 'boolean', 'list' -%}
+                <ul class="facets__list grid gap-x-2.5 {% if valid_filter_options > 30 %} grid-cols-3 {% elsif valid_filter_options > 10 %} grid-cols-2 {% endif %}">
+                  {%- for filter_value in filter.values -%}
+                    <li
+                      class="facet"
+                      id="Quick-Filter-{{ filter.param_name }}-{{ forloop.index }}-{{ section.id }}"
+                    >
+                      <label
+                        class="text-sm justify-between items-center w-full cursor-pointer flex"
+                      >
+                        <div
+                          id="checkbox-{{ forloop.index }}-{{ filter.param_name }}-{{ section.id }}"
+                          class="text-xs flex items-center custom-checkbox-flex gap-2.5"
+                        >
+                          <input
+                            type="checkbox"
+                            class="hidden w-4 h-4"
+                            data-option-id="option-{{ filter_value.param_name }}-{{ filter_value.value }}"
+                            name="{{ filter_value.param_name }}"
+                            value="{{ filter_value.value }}"
+                            {% if filter_value.active -%}
+                              checked
+                            {%- endif %}
+                          >
+                          <div class="custom-checkbox relative h-5 w-5 border border-borders rounded-[2px]"></div>
+                          <div class="flex flex-row gap-2.5 items-center">
+                            {% liquid
+                              assign filter_value_value = filter_value.label | replace: ' ', '-' | replace: '/', '-' | replace: '´', '-' | replace: '&#39;', '-' | replace: 'é', 'e' | downcase
+                            %}
+                            {% if filter.param_name contains 'color' or filter.param_name contains 'print_name' %}
+                              <div
+                                class="filter-color-sample h-5 w-5 rounded-full"
+                                style="background: var(--color_{{- filter_value_value -}}); border: 1px solid var(--border_{{- filter_value_value -}})"
+                              ></div>
+                            {% endif %}
+                            {%- if filter.param_name contains 'nipple type' -%}
+                              {% for nipple in metaobjects.nipple_type_icons.values %}
+                                {% assign lowercase_nipple_name = nipple.name | downcase %}
+                                {% assign lowercase_nipple_filter_value = filter_value.value | downcase %}
+                                {% if lowercase_nipple_name == lowercase_nipple_filter_value %}
+                                  {% assign nipple_icon = nipple.icon %}
+                                  {% break %}
+                                {% endif %}
+                              {% endfor %}
+                              <span class="text-sm font-medium">
+                                {{ nipple_icon | default: filter_value.label }}
+                              </span>
+                            {% endif %}
+                            {% if filter.param_name contains 'flow type' %}
+                              {% assign flow_icon = nil %}
+                              {% for flow in metaobjects.filter_flow_type_icons.values %}
+                                {% assign lowercase_flow_name = flow.name | downcase %}
+                                {% assign lowercase_flow_filter_value = filter_value.value | downcase %}
+                                {% if lowercase_flow_name == lowercase_flow_filter_value %}
+                                  {% assign flow_icon = flow.icon %}
+                                  {% break %}
+                                {% endif %}
+                              {% endfor %}
+                              {% if flow_icon %}
+                                <span class="text-sm font-medium">
+                                  {{ flow_icon | default: filter_value.label }}
+                                </span>
+                              {% endif %}
+                            {% endif %}
+                            {%- if filter.param_name contains 'color' -%}
+                              {%- for color in shop.metaobjects.filter_color.values -%}
+                                {%- if color.name == filter_value.value -%}
+                                  {%- assign color_label = color.label -%}
+                                {%- endif -%}
+                              {%- endfor -%}
+                              <span class="text-sm font-medium">
+                                {{ color_label | default: filter_value.label }}
+                              </span>
+                            {%- else -%}
+                              <span class="text-sm font-medium">
+                                {{ filter_value.label }}
+                              </span>
+                            {%- endif -%}
+
+                            {%- if filter.param_name contains 'size' -%}
+                              {%- assign subtitle_string = 'products.product.size_options.'
+                                | append: filter_value.label
+                                | append: '.subtitle'
+                              -%}
+                              {% capture subtitle %}
+                                {{ subtitle_string | t }}
+                              {% endcapture %}
+                              {% unless subtitle contains 'Translation missing' %}
+                                <span class="text-xs text-shade-3">{{ subtitle }}</span>
+                              {% endunless %}
+                            {%- endif -%}
+                          </div>
+                        </div>
+                      </label>
+                    </li>
+                  {%- endfor -%}
+                </ul>
+                <div class="js-hidden px-4 py-2 border-t">
+                  <input type="submit" value="{{ 'products.facets.apply' | t }}" class="button--primary">
+                </div>
+            {%- endcase -%}
+          </div>
+        </details>
+      </quick-filter>
+    {% endunless %}
+  {% endfor %}
+</div>

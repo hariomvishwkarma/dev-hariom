@@ -1,0 +1,42 @@
+{% doc %}
+  FAQPage JSON-LD from FAQ section question blocks (Avara-style).
+  @param {object} section - The FAQ section with question blocks
+  @example
+  {% render 'schema-faq', section: section %}
+{% enddoc %}
+
+{%- liquid
+  assign question_blocks = section.blocks | where: 'type', 'question'
+  assign faq_has_items = false
+  for block in question_blocks
+    if block.settings.title != blank and block.settings.text != blank
+      assign faq_has_items = true
+      break
+    endif
+  endfor
+-%}
+{%- if faq_has_items -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {%- assign faq_first = true -%}
+    {%- for block in question_blocks -%}
+      {%- if block.settings.title != blank and block.settings.text != blank -%}
+        {%- unless faq_first -%},{%- endunless -%}
+        {%- assign faq_first = false -%}
+        {
+          "@type": "Question",
+          "name": {{ block.settings.title | strip_html | json }},
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": {{ block.settings.text | strip_html | strip | json }}
+          }
+        }
+      {%- endif -%}
+    {%- endfor -%}
+  ]
+}
+</script>
+{%- endif -%}

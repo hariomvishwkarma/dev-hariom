@@ -1,0 +1,85 @@
+{% comment %}
+  Renders connected-product
+
+  Accepts:
+    - connected_product {Object}: Product object to render
+    - classes {String}: Additional classes to add to the color swatches container
+    - is_quick_view {Boolean}: If the connected product is rendered in a quick view
+
+  Usage:
+    {% render 'connected-product', connected_product: product %}
+{% endcomment %}
+
+{% liquid
+  assign colors_as_swatches = settings.colors_as_swatches
+
+  assign color_swatch = connected_product.metafields.custom.color_swatch.value
+  assign color_swatch_size = color_swatch.colors.value.size | plus: 0
+  assign image_swatches = color_swatch.image.value
+  assign color_scheme_settings = section.settings.color_scheme | default: settings.color_schemes['background-1']
+%}
+
+{%- capture color_vars -%}
+  {%- if colors_as_swatches -%}
+    {%- if color_swatch_size == 1 -%}
+      --swatch-color-before: {{ color_swatch.colors.value }};
+      --swatch-color-after: {{ color_swatch.colors.value }};
+    {%- elsif color_swatch_size > 1 -%}
+      --swatch-color-before: {{ color_swatch.colors.value[0] }};
+      --swatch-color-after: {{ color_swatch.colors.value[1] }};
+    {%- endif -%}
+  {%- endif -%}
+{%- endcapture -%}
+
+{%- if colors_as_swatches -%}
+  {%- if color_swatch_size < 1 or image_swatches != blank -%}
+    {%- assign border_classes = 'border-2 border-borders' -%}
+  {%- else -%}
+    {%- assign color_contrast_1 = color_scheme_settings.settings.background
+      | color_contrast: color_swatch.colors.value[0]
+    -%}
+    {%- assign color_contrast_2 = color_scheme_settings.settings.background
+      | color_contrast: color_swatch.colors.value[1]
+    -%}
+    {%- if color_contrast_1 < 1.2 or color_contrast_2 < 1.2 -%}
+      {%- assign border_classes = 'border-2 border-borders' -%}
+      {% assign icon_color = 'text-borders' %}
+    {%- else -%}
+      {%- assign border_classes = '' -%}
+      {% assign icon_color = 'text-white' %}
+    {%- endif -%}
+  {%- endif -%}
+{%- endif -%}
+
+{%- capture single_slide -%}
+  <a
+    class="swiper-slide slider-item {% if is_quick_view %} product-quickview-button {% endif %} {{ classes }} {% unless connected_product.available %} disabled{% endunless %} {{ border_classes }} {{ icon_color }}"
+    href="{{ connected_product.url }}"
+    data-color="{{ color_swatch.name }}"
+    {% if is_quick_view %}
+      data-product-handle="{{ connected_product.handle }}"
+    {% endif %}
+    data-connected-product-handle="{{ connected_product.handle }}"
+    data-connected-product-id="{{ connected_product.id }}"
+    style="{{ color_vars }}"
+  >
+    {%- if colors_as_swatches -%}
+      {%- if image_swatches != blank -%}
+        {%- for image_swatch in image_swatches limit: 2 -%}
+          {% render 'c-image', image: image_swatch %}
+        {%- endfor -%}
+      {%- elsif color_swatch_size < 1 -%}
+        {% render 'c-image', image: connected_product.featured_image %}
+      {%- endif -%}
+    {%- else -%}
+      {% render 'c-image', image: connected_product.featured_image %}
+    {%- endif -%}
+    {% render 'c-icon', icon: 'close', classes: 'absolute inset-0 text-background w-auto h-auto text-inherit' %}
+  </a>
+{%- endcapture -%}
+
+{%- if is_quick_view -%}
+  <quick-view>{{ single_slide }}</quick-view>
+{%- else -%}
+  {{ single_slide }}
+{%- endif -%}

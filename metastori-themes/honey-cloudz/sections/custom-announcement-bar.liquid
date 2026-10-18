@@ -1,0 +1,579 @@
+{%- liquid
+  assign has_specific_match = false
+  for block in section.blocks
+    unless block.settings.show_on == 'all' or block.settings.show_on == blank
+      assign block_matches = false
+      case block.settings.show_on
+        when 'homepage'
+          if request.page_type == 'index'
+            assign block_matches = true
+          endif
+        when 'collection'
+          if request.page_type == 'collection' and block.settings.collection_handle != blank and collection.handle == block.settings.collection_handle
+            assign block_matches = true
+          endif
+        when 'template'
+          if block.settings.template_suffix != blank and template.suffix == block.settings.template_suffix
+            assign block_matches = true
+          endif
+        when 'page'
+          if request.page_type == 'page' and block.settings.page_handle != blank and page.handle == block.settings.page_handle
+            assign block_matches = true
+          endif
+      endcase
+      if block_matches
+        assign has_specific_match = true
+      endif
+    endunless
+  endfor
+
+  assign active_block = null
+  for block in section.blocks
+    assign show_this_block = false
+    if block.settings.show_on == 'all' or block.settings.show_on == blank
+      unless has_specific_match
+        assign show_this_block = true
+      endunless
+    else
+      case block.settings.show_on
+        when 'homepage'
+          if request.page_type == 'index'
+            assign show_this_block = true
+          endif
+        when 'collection'
+          if request.page_type == 'collection' and block.settings.collection_handle != blank and collection.handle == block.settings.collection_handle
+            assign show_this_block = true
+          endif
+        when 'template'
+          if block.settings.template_suffix != blank and template.suffix == block.settings.template_suffix
+            assign show_this_block = true
+          endif
+        when 'page'
+          if request.page_type == 'page' and block.settings.page_handle != blank and page.handle == block.settings.page_handle
+            assign show_this_block = true
+          endif
+      endcase
+    endif
+    if show_this_block and active_block == null
+      assign active_block = block
+    endif
+  endfor
+
+  assign show_logo = section.settings.show_logo
+  assign header_logo = section.settings.logo
+  if header_logo == blank
+    assign header_logo = settings.checkout_logo_image
+  endif
+  if header_logo == blank
+    assign header_logo = settings.logo
+  endif
+  if show_logo and header_logo == blank
+    assign show_logo = false
+  endif
+
+  assign logo_link = section.settings.logo_link | default: routes.root_url
+  assign logo_alt = section.settings.logo_alt | default: shop.name
+  assign logo_align = section.settings.logo_alignment | default: 'left'
+  assign logo_align_mobile = section.settings.logo_alignment_mobile | default: 'left'
+-%}
+
+{%- if active_block != null -%}
+  {%- style -%}
+    #shopify-section-{{ section.id }} .custom-announcement {
+      --cab-text: {{ section.settings.text_color }};
+      --cab-link: {{ section.settings.link_color }};
+      --cab-font-size: {{ section.settings.font_size }}px;
+      --cab-font-size-mobile: {{ section.settings.font_size_mobile }}px;
+      --cab-min-height: {{ section.settings.bar_height }}px;
+      --cab-logo-max-w: {{ section.settings.logo_width_mobile }}px;
+      --cab-logo-max-h: {{ section.settings.logo_height_mobile }}px;
+      padding-top: {{ section.settings.padding_top }}px;
+      padding-bottom: {{ section.settings.padding_bottom }}px;
+      {% if section.settings.use_gradient %}
+        background: linear-gradient({{ section.settings.gradient_angle }}deg, {{ section.settings.gradient_start }} 0%, {{ section.settings.gradient_end }} 100%);
+      {% else %}
+        background-color: {{ section.settings.background_color }};
+      {% endif %}
+    }
+
+    #shopify-section-{{ section.id }} .custom-announcement__inner {
+      min-height: var(--cab-min-height);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.35rem 0.75rem;
+      gap: 0.5rem;
+      position: relative;
+    }
+
+    /* Logo only takes its own size; announcement fills the rest */
+    #shopify-section-{{ section.id }} .custom-announcement__inner--with-logo {
+      justify-content: flex-start;
+    }
+
+    #shopify-section-{{ section.id }} .custom-announcement__logo {
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+      line-height: 0;
+      text-decoration: none;
+    }
+
+    #shopify-section-{{ section.id }} .custom-announcement__logo img {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: var(--cab-logo-max-w);
+      max-height: var(--cab-logo-max-h);
+      object-fit: contain;
+    }
+
+    #shopify-section-{{ section.id }} .custom-announcement__content {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1 1 auto;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.45rem;
+      min-width: 0;
+      max-width: 100%;
+      padding-right: 0;
+      text-align: center;
+      color: var(--cab-text);
+      font-size: var(--cab-font-size-mobile);
+      line-height: 1.25;
+      font-weight: {{ section.settings.font_weight }};
+    }
+
+    #shopify-section-{{ section.id }} .custom-announcement__inner--with-logo[data-logo-align-mobile="right"] {
+      flex-direction: row-reverse;
+    }
+
+    #shopify-section-{{ section.id }} .custom-announcement__inner--with-logo[data-logo-align-mobile="right"] .custom-announcement__content {
+      padding-right: 0;
+      padding-left: 0;
+    }
+
+    #shopify-section-{{ section.id }} .custom-announcement__inner--with-logo[data-logo-align-mobile="center"] {
+      justify-content: center;
+    }
+
+    #shopify-section-{{ section.id }} .custom-announcement__inner--with-logo[data-logo-align-mobile="center"] .custom-announcement__logo {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    #shopify-section-{{ section.id }} .custom-announcement__text {
+      color: inherit;
+    }
+
+    #shopify-section-{{ section.id }} .custom-announcement__link {
+      color: var(--cab-link);
+      font-weight: {{ section.settings.link_font_weight }};
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    #shopify-section-{{ section.id }} .custom-announcement__link:hover {
+      opacity: 0.85;
+    }
+
+    @media screen and (min-width: 750px) {
+      #shopify-section-{{ section.id }} .custom-announcement {
+        --cab-logo-max-w: {{ section.settings.logo_width }}px;
+        --cab-logo-max-h: {{ section.settings.logo_height }}px;
+      }
+
+      #shopify-section-{{ section.id }} .custom-announcement__inner {
+        padding: 0.4rem 1.5rem;
+        gap: 0.75rem;
+      }
+
+      #shopify-section-{{ section.id }} .custom-announcement__content {
+        font-size: var(--cab-font-size);
+        gap: 0.5rem 0.6rem;
+        flex-wrap: nowrap;
+      }
+
+      #shopify-section-{{ section.id }} .custom-announcement__inner--with-logo[data-logo-align="right"] {
+        flex-direction: row-reverse;
+      }
+
+      #shopify-section-{{ section.id }} .custom-announcement__inner--with-logo[data-logo-align="left"] {
+        flex-direction: row;
+      }
+
+      #shopify-section-{{ section.id }} .custom-announcement__inner--with-logo[data-logo-align="center"] {
+        justify-content: center;
+      }
+
+      #shopify-section-{{ section.id }} .custom-announcement__inner--with-logo[data-logo-align="center"] .custom-announcement__logo {
+        position: absolute;
+        left: 1.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+    }
+  {%- endstyle -%}
+
+  <div class="custom-announcement" {{ active_block.shopify_attributes }}>
+    <div
+      class="custom-announcement__inner page-width{% if show_logo %} custom-announcement__inner--with-logo{% endif %}"
+      {% if show_logo %}
+        data-logo-align="{{ logo_align }}"
+        data-logo-align-mobile="{{ logo_align_mobile }}"
+      {% endif %}
+    >
+      {%- if show_logo -%}
+        <a class="custom-announcement__logo" href="{{ logo_link }}" aria-label="{{ logo_alt | escape }}">
+          {{
+            header_logo
+            | image_url: width: 800
+            | image_tag:
+              class: 'custom-announcement__logo-img',
+              alt: logo_alt,
+              widths: '120, 160, 200, 240, 320, 400, 480, 560, 640, 800',
+              loading: 'eager',
+              fetchpriority: 'high'
+          }}
+        </a>
+      {%- endif -%}
+
+      <div class="custom-announcement__content">
+        {%- if active_block.settings.text_on_mobile != blank -%}
+          <span class="custom-announcement__text small-hide medium-hide">
+            {{- active_block.settings.text | escape -}}
+          </span>
+          <span class="custom-announcement__text large-up-hide">
+            {{- active_block.settings.text_on_mobile | escape -}}
+          </span>
+        {%- else -%}
+          <span class="custom-announcement__text">{{ active_block.settings.text | escape }}</span>
+        {%- endif -%}
+
+        {%- if active_block.settings.link_label != blank and active_block.settings.link != blank -%}
+          <a class="custom-announcement__link" href="{{ active_block.settings.link }}">
+            {{ active_block.settings.link_label | escape }}
+          </a>
+        {%- endif -%}
+      </div>
+    </div>
+  </div>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Custom announcement bar",
+  "tag": "section",
+  "class": "section custom-announcement-section",
+  "max_blocks": 12,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Logo (Everyday / Post-Op)"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_logo",
+      "label": "Show logo in announcement bar",
+      "default": false,
+      "info": "Logo takes only its own width; announcement text fills the remaining space."
+    },
+    {
+      "type": "image_picker",
+      "id": "logo",
+      "label": "Logo image",
+      "info": "Leave blank to use checkout logo, then theme logo."
+    },
+    {
+      "type": "text",
+      "id": "logo_alt",
+      "label": "Logo alt text",
+      "default": "Honey Cloudz"
+    },
+    {
+      "type": "url",
+      "id": "logo_link",
+      "label": "Logo link",
+      "info": "Defaults to homepage when empty."
+    },
+    {
+      "type": "select",
+      "id": "logo_alignment",
+      "label": "Logo alignment (desktop)",
+      "default": "left",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "logo_alignment_mobile",
+      "label": "Logo alignment (mobile)",
+      "default": "left",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "logo_width",
+      "min": 60,
+      "max": 320,
+      "step": 4,
+      "unit": "px",
+      "label": "Logo max width (desktop)",
+      "default": 108
+    },
+    {
+      "type": "range",
+      "id": "logo_height",
+      "min": 20,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "label": "Logo max height (desktop)",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "logo_width_mobile",
+      "min": 40,
+      "max": 200,
+      "step": 4,
+      "unit": "px",
+      "label": "Logo max width (mobile)",
+      "default": 80
+    },
+    {
+      "type": "range",
+      "id": "logo_height_mobile",
+      "min": 16,
+      "max": 80,
+      "step": 4,
+      "unit": "px",
+      "label": "Logo max height (mobile)",
+      "default": 28
+    },
+    {
+      "type": "header",
+      "content": "Bar style"
+    },
+    {
+      "type": "checkbox",
+      "id": "use_gradient",
+      "label": "Use gradient background",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "gradient_start",
+      "label": "Gradient start color",
+      "default": "#59D8E2"
+    },
+    {
+      "type": "color",
+      "id": "gradient_end",
+      "label": "Gradient end color",
+      "default": "#C6448C"
+    },
+    {
+      "type": "range",
+      "id": "gradient_angle",
+      "min": 0,
+      "max": 360,
+      "step": 15,
+      "unit": "deg",
+      "label": "Gradient angle",
+      "default": 90
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Solid background",
+      "default": "#59D8E2",
+      "info": "Used when gradient is off."
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "color",
+      "id": "link_color",
+      "label": "Shop Now link color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "range",
+      "id": "bar_height",
+      "min": 36,
+      "max": 80,
+      "step": 2,
+      "unit": "px",
+      "label": "Bar min height",
+      "default": 48
+    },
+    {
+      "type": "range",
+      "id": "font_size",
+      "min": 12,
+      "max": 22,
+      "step": 1,
+      "unit": "px",
+      "label": "Font size",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "font_size_mobile",
+      "min": 11,
+      "max": 18,
+      "step": 1,
+      "unit": "px",
+      "label": "Font size (mobile)",
+      "default": 14
+    },
+    {
+      "type": "select",
+      "id": "font_weight",
+      "label": "Text font weight",
+      "options": [
+        { "value": "400", "label": "Regular" },
+        { "value": "500", "label": "Medium" }
+      ],
+      "default": "400"
+    },
+    {
+      "type": "select",
+      "id": "link_font_weight",
+      "label": "Shop Now font weight",
+      "options": [
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semibold" },
+        { "value": "700", "label": "Bold" }
+      ],
+      "default": "700"
+    },
+    {
+      "type": "header",
+      "content": "Padding"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 24,
+      "step": 2,
+      "unit": "px",
+      "label": "Padding top",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 24,
+      "step": 2,
+      "unit": "px",
+      "label": "Padding bottom",
+      "default": 0
+    }
+  ],
+  "blocks": [
+    {
+      "type": "message",
+      "name": "Message",
+      "settings": [
+        {
+          "type": "select",
+          "id": "show_on",
+          "label": "Show on",
+          "options": [
+            { "value": "all", "label": "All pages (default)" },
+            { "value": "homepage", "label": "Homepage only" },
+            { "value": "collection", "label": "Specific collection" },
+            { "value": "template", "label": "Specific template suffix" },
+            { "value": "page", "label": "Specific page" }
+          ],
+          "default": "all",
+          "info": "Page-specific message overrides the default on matching pages."
+        },
+        {
+          "type": "text",
+          "id": "collection_handle",
+          "label": "Collection handle",
+          "info": "Example: everyday"
+        },
+        {
+          "type": "text",
+          "id": "template_suffix",
+          "label": "Template suffix",
+          "info": "Example: everyday for collection.everyday"
+        },
+        {
+          "type": "text",
+          "id": "page_handle",
+          "label": "Page handle"
+        },
+        {
+          "type": "text",
+          "id": "text",
+          "label": "Announcement text",
+          "default": "Free Shipping On USA Orders $75+"
+        },
+        {
+          "type": "text",
+          "id": "text_on_mobile",
+          "label": "Announcement text (mobile)",
+          "info": "Optional shorter text for mobile."
+        },
+        {
+          "type": "text",
+          "id": "link_label",
+          "label": "Shop Now text",
+          "default": "Shop Now"
+        },
+        {
+          "type": "url",
+          "id": "link",
+          "label": "Shop Now link"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Custom announcement bar",
+      "blocks": [
+        {
+          "type": "message",
+          "settings": {
+            "text": "Free Shipping On USA Orders $75+",
+            "link_label": "Shop Now"
+          }
+        },
+        {
+          "type": "message",
+          "settings": {
+            "show_on": "template",
+            "template_suffix": "everyday",
+            "text": "Free Shipping On USA Orders $75+",
+            "link_label": "Shop Now"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

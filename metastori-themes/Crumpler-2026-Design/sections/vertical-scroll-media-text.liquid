@@ -1,0 +1,262 @@
+{{ 'vertical-scroll-media-text.css' | asset_url | stylesheet_tag }}
+
+<style>
+.vsmt--main-section{
+    position: relative;
+}
+.vsmt-media-item{
+    display:flex;
+    justify-content: center;
+    position: relative;
+} 
+.{{ section.id }} .vsmt-content{
+    margin:0;
+    color:#000;
+    font-weight: 500;
+    width:100%;
+}
+
+@media (min-width:768px){
+    .{{ section.id }} .vsmt-content{
+        font-size:{{ section.settings.content_size }};
+    }
+}
+@media (max-width:767px){
+    .{{ section.id }} .vsmt-content{
+        font-size:{{ section.settings.content_size_m }};
+    }
+}
+</style>
+
+<div class="vsmt--main {{ section.id }}">
+    <div class="vsmt-wrapper">
+        <div class="vsmt-info">
+            {% if section.settings.content != blank %}
+                <div class="vsmt-content">{{ section.settings.content }}</div>
+            {% endif %}
+            {% if section.settings.image != blank or section.settings.video != blank or product.metafields.custom.vertical_section_video.value != blank %}
+                <div class="vsmt-single-media">
+                    {% if section.settings.video != blank or product.metafields.custom.vertical_section_video.value != blank %}
+                        {% if product.metafields.custom.vertical_section_video.value != blank %}
+                            {{ product.metafields.custom.vertical_section_video.value | video_tag:controls:false, autoplay:true, loop:true, muted:true, playsinline:true, preload: 'none', class: 'scroll-video' }}
+                        {% else %}
+                            {{ section.settings.video | video_tag:controls:false, autoplay:true, loop:true, muted:true, playsinline:true, preload: 'none', class: 'scroll-video' }}
+                        {% endif %}
+                    {% elsif section.settings.image != blank %}
+                        <img src="{{ section.settings.image | image_url }}" alt="image" width="auto" height="auto">
+                    {% else %}
+                        {{ 'detailed-apparel-1' | placeholder_svg_tag: 'placeholder-svg' }}
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+        <div class="vsmt-scroller">
+            {% assign meta_media_list = product.metafields.custom.vertical_scroll_image.value %}
+            {% assign media_index = 0 %}
+            {% for block in section.blocks %}
+                {% comment %}
+                  Agar metafield me media (image/video) hai:
+                  - Har block ke liye ek media item use karein (order wise)
+                  - Jis block ke liye media na mile, us block ko skip karein
+                {% endcomment %}
+                {% if meta_media_list != blank %}
+                    {% assign meta_media = nil %}
+                    {% for m in meta_media_list limit: 1 offset: media_index %}
+                        {% assign meta_media = m %}
+                    {% endfor %}
+                    {% if meta_media == nil %}
+                        {% continue %}
+                    {% endif %}
+                    {% assign media_index = media_index | plus: 1 %}
+                {% endif %}
+
+                <div class="vsmt-media-item vsmt-media-item-{{ block.id }}">
+                    {% if block.settings.link != blank %}
+                        <a href="{{ block.settings.link }}" class="overlay-link"></a>
+                    {% endif %}
+                    {% if meta_media_list != blank %}
+                        {% comment %} Metafield se aaya media: agar video hai to video, warna image {% endcomment %}
+                        {% if meta_media.media_type == 'video' %}
+                            {{ meta_media | video_tag:autoplay:true, loop:true, muted:true, playsinline:true, controls: false, preload: 'none', class: 'scroll-video' }}
+                        {% else %}
+                            {% render 'responsive-image', 
+                                image: meta_media,
+                                class: 'image-background'
+                            %}
+                        {% endif %}
+                    {% else %}
+                        {% comment %} Metafield nahi hai: pehle video, phir image, phir placeholder {% endcomment %}
+                        {% if block.settings.video != blank %}
+                            {{ block.settings.video | video_tag:autoplay:true, loop:true, muted:true, playsinline:true, controls: false, preload: 'none', class: 'scroll-video' }}
+                        {% elsif block.settings.image != blank %}
+                            <img
+                                srcset="
+                                {%- if block.settings.image.width >= 165 -%}{{ block.settings.image | image_url: width: 165 }} 165w,{%- endif -%}
+                                {%- if block.settings.image.width >= 360 -%}{{ block.settings.image | image_url: width: 360 }} 360w,{%- endif -%}
+                                {%- if block.settings.image.width >= 533 -%}{{ block.settings.image | image_url: width: 1200 }} 533w,{%- endif -%}
+                                {%- if block.settings.image.width >= 720 -%}{{ block.settings.image | image_url: width: 1200 }} 720w,{%- endif -%}
+                                {%- if block.settings.image.width >= 940 -%}{{ block.settings.image | image_url: width: 1500 }} 940w,{%- endif -%}
+                                {%- if block.settings.image.width >= 1066 -%}{{ block.settings.image | image_url: width: 2000 }} 1066w,{%- endif -%}
+                                {%- if block.settings.image.width >= 1550 -%}{{ block.settings.image | image_url: width: 1550 }} 1550w,{%- endif -%}
+                                {%- if block.settings.image.width >= 2000 -%}{{ block.settings.image | image_url: width: 2000 }} 2000w,{%- endif -%}
+                                {%- if block.settings.image.width >= 2500 -%}{{ block.settings.image | image_url: width: 2500 }} 2500w,{%- endif -%}
+                                {{ block.settings.image | image_url }} {{ block.settings.image.width }}w
+                                "
+                                src="{{ block.settings.image | image_url: width: 533 }}"
+                                class="motion-reduce"
+                                sizes="(min-width: 990px) calc((100vw - 130px) / 4), (min-width: 750px) calc((100vw - 120px) / 3), calc((100vw - 35px) / 2)"
+                                alt="{{ block.settings.image.alt | escape }}"
+                                loading="lazy"
+                                width="{{ block.settings.image.width }}"
+                                height="{{ block.settings.image.height }}"
+                                >
+                        {% else %}
+                            {{ 'detailed-apparel-1' | placeholder_svg_tag: 'placeholder-svg' }}
+                        {% endif %}
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% schema %}
+{
+  "name": "Vertical Scroll Media",
+  "tag": "section",
+  "class": "section vsmt--main-section",
+  "settings": [
+    {
+        "type": "header",
+        "content": "Content"
+    },
+    {
+        "type": "header",
+        "content": "How media works"
+    },
+    {
+        "type": "paragraph",
+        "content": "If the product metafield 'Vertical Scroll Image' has any media, the scroller shows only those media items (image or video). Each block uses one metafield item in order; blocks without a metafield item are hidden. If the metafield is empty, each block shows (in this order): block video, then block image, then a placeholder."
+    },
+    {
+        "type": "video",
+        "id":"video",
+        "label": "Video"
+    },
+    {
+        "type": "image_picker",
+        "id":"image",
+        "label": "Image"
+    },
+    {
+        "type": "text",
+        "id": "content",
+        "label": "Content",
+        "default":"Ontion of Yyur informatio please be aware that no security measures are perfect or impenetrable, and we cannot guarantee “perfect sec. Ontion of Yyur informatio please be aware that no security measures are perfect."
+    },
+    {
+        "type": "select",
+        "id": "content_size",
+        "label": "Font Size",
+        "options": [
+            {
+                "label": "S",
+                "value": "13px"
+            },
+            {
+                "label": "M",
+                "value": "26px"
+            },
+            {
+                "label": "L",
+                "value": "36px"
+            },
+            {
+                "label": "XL",
+                "value": "50px"
+            },
+            {
+                "label": "XXL",
+                "value": "134px"
+            }
+        ],
+        "default":"26px"
+    },
+    {
+        "type": "select",
+        "id": "content_size_m",
+        "label": "Font Size (Mobile)",
+        "options": [
+            {
+                "label": "S",
+                "value": "13px"
+            },
+            {
+                "label": "M",
+                "value": "26px"
+            },
+            {
+                "label": "L",
+                "value": "36px"
+            },
+            {
+                "label": "XL",
+                "value": "50px"
+            },
+            {
+                "label": "XXL",
+                "value": "134px"
+            }
+        ],
+        "default":"26px"
+    }
+  ], 
+  "blocks": [
+  {
+      "type": "image",
+      "name":"Scroll Image/Video",
+      "settings": [
+          {
+              "type": "header",
+              "content": "Block media behaviour"
+          },
+          {
+              "type": "paragraph",
+              "content": "When the metafield has media, this block will only show the corresponding metafield item and ignore these image/video settings. When the metafield is empty, it shows video first (if set), otherwise the image, otherwise a placeholder."
+          },
+          {
+              "type": "video",
+              "id":"video",
+              "label": "Video"
+          },
+          {
+              "type": "image_picker",
+              "id":"image",
+              "label": "Image"
+          },
+          {
+              "type": "url",
+              "id": "link",
+              "label": "Media link"
+          }
+      ]
+  }
+  ],
+  "presets": [
+    {
+      "name": "Vertical Scroll Media",
+      "blocks": [
+        {
+            "type": "image"
+        },
+        {
+            "type": "image"
+        },
+        {
+            "type": "image"
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

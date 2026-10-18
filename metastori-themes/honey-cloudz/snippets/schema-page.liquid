@@ -1,0 +1,105 @@
+{% doc %}
+  Page-level JSON-LD for content pages (About, Contact, FAQ, etc.).
+  Matches Avara pattern: AboutPage / ContactPage / WebPage shell.
+  FAQ Q&A is emitted separately from sections/faq.liquid as FAQPage.
+  @example
+  {% render 'schema-page' %}
+{% enddoc %}
+
+{%- unless page == blank -%}
+{%- liquid
+  assign page_schema_type = 'WebPage'
+  assign include_founder_person = false
+  assign handle_down = page.handle | downcase
+  assign title_down = page.title | downcase
+  assign suffix_down = template.suffix | downcase
+
+  if suffix_down == 'about' or handle_down contains 'about' or title_down contains 'about us' or title_down == 'about' or title_down contains 'our story' or title_down contains 'who we are'
+    assign page_schema_type = 'AboutPage'
+    assign include_founder_person = true
+  elsif suffix_down == 'contact' or handle_down contains 'contact' or title_down contains 'contact' or title_down contains 'get in touch'
+    assign page_schema_type = 'ContactPage'
+  endif
+
+  assign page_desc = page_description
+  if page_desc == blank and page.content != blank
+    assign page_desc = page.content | strip_html | strip | truncate: 300
+  endif
+
+  assign organization_id = request.origin | append: '/#organization'
+  assign page_url = request.origin | append: page.url
+
+  assign founder_profile_url = settings.schema_founder_url | default: '/pages/about'
+  if founder_profile_url contains '://'
+    assign founder_profile_absolute_url = founder_profile_url
+  else
+    assign founder_profile_absolute_url = request.origin | append: founder_profile_url
+  endif
+
+  assign contact_email = settings.schema_contact_email | default: shop.email
+  assign contact_phone = settings.schema_contact_phone | default: shop.phone
+-%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": {{ page_schema_type | json }},
+  "@id": {{ page_url | append: '#webpage' | json }},
+  "name": {{ page.title | json }},
+  "url": {{ page_url | json }}
+  {%- if page_desc != blank -%}
+  ,"description": {{ page_desc | json }}
+  {%- endif -%}
+  ,"isPartOf": {
+    "@type": "WebSite",
+    "name": {{ shop.name | json }},
+    "url": {{ request.origin | json }}
+  },
+  "publisher": {
+    "@id": {{ organization_id | json }}
+  }
+  {%- if page_schema_type == 'AboutPage' and settings.schema_founder_name != blank -%}
+  ,"about": {
+    "@type": "Person",
+    "@id": {{ founder_profile_absolute_url | append: '#founder' | json }},
+    "name": {{ settings.schema_founder_name | json }},
+    "url": {{ founder_profile_absolute_url | json }},
+    "jobTitle": "Founder",
+    "worksFor": {
+      "@id": {{ organization_id | json }}
+    }
+  }
+  {%- endif -%}
+  {%- if page_schema_type == 'ContactPage' -%}
+    {%- if contact_email != blank or contact_phone != blank -%}
+  ,"contactPoint": {
+    "@type": "ContactPoint",
+    "contactType": "customer service"
+    {%- if contact_email != blank -%}
+    ,"email": {{ contact_email | json }}
+    {%- endif -%}
+    {%- if contact_phone != blank -%}
+    ,"telephone": {{ contact_phone | json }}
+    {%- endif -%}
+  }
+    {%- endif -%}
+  {%- endif -%}
+}
+</script>
+{%- if include_founder_person and settings.schema_founder_name != blank -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "@id": {{ founder_profile_absolute_url | append: '#founder' | json }},
+  "name": {{ settings.schema_founder_name | json }},
+  "url": {{ founder_profile_absolute_url | json }},
+  "jobTitle": "Founder",
+  "worksFor": {
+    "@type": "Organization",
+    "@id": {{ organization_id | json }},
+    "name": {{ shop.name | json }}
+  }
+}
+</script>
+{%- endif -%}
+{%- endunless -%}

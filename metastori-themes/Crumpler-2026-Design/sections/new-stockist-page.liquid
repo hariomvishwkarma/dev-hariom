@@ -1,0 +1,322 @@
+<script defer src="{{ 'crumpler-accordion.js' | asset_url }}"></script>
+<script defer src="{{ 'store-page-map.js' | asset_url }}"></script>
+
+{{ 'crumpler-new-store-page.css' | asset_url | stylesheet_tag }}
+<style>
+  .stockist_block_content {
+      padding-bottom: 20px;
+      padding-top: 4px;
+  }
+  .tab_store_para__page{
+    display:none;
+  }
+  /* .tab_store_para__page.initial_hide{
+    height:0;
+    overflow:hidden;
+  } */
+  .store__page_heading_main{
+    position:relative;
+  }
+  .store__page_heading_h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position:relative;
+  }
+  .toggle_icon {
+    display: block;
+    width: 16px;
+    height: 16px;
+    position: relative;
+    min-width: 16px;
+    min-height: 16px;
+  }
+  span.toggle_icon svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 16px;
+    height: 16px;
+    transition: all .3s;
+  }
+  .toggle_icon_after{
+    opacity:0;
+  }
+  .tab_active .toggle_icon_before {
+    transform: rotate(90deg);
+    opacity: 0;
+  }
+  .tab_active .toggle_icon_after {
+    opacity: 1;
+    transform: rotate(180deg);
+  }
+  .store__page_heading_h2:hover .toggle_icon svg line{
+    stroke:#00f;
+  }
+  .tab_store_para__page .store-page__store{
+    margin-top:4px;
+  }
+  @media (max-width:767px){
+    .tab_store_para__page .store-page__store {
+      margin-top: 0px;
+    }
+    .store-page__store-details__media-label{
+      display:none;
+    }
+  }
+</style>
+
+<div
+  class="store-page__container"
+  style="
+    --detail-duration: {{ section.settings.detail_duration }}ms;
+    --store-list-max-width: {{ section.settings.stores_max_width }}%;
+  "
+>
+  <div class="store-page__store-list">
+    <div>
+      {% content_for 'blocks' %}
+      {% comment %}
+      {% assign country_stores = '' %}
+      {% assign last_country_block = blank %}
+      {% assign is_storing = false %}
+      {% for block in section.blocks %}
+        {% case block.type %}
+          {% when '_country-block' %}
+            {% content_for 'block', type: '_country-block', id: 'country-block' %}
+          {% when '_stockist-block' %}
+            {% content_for 'block', type: '_stockist-block', id: 'stockist-block' %}
+          {% when '_store-block' %}
+            {% content_for 'block', type: '_store-block', id: 'store-block' %}
+        {% endcase %}
+      {% endfor %}
+      {% endcomment %}
+    </div>
+    <div class="store-page__footer c-uppercase c-small-desktop c-small-mobile">
+      {{ section.settings.text }}
+    </div>
+  </div>
+  <div class="store-page__map-container">
+    <div class="store-page__map-content">
+      <store-page-map
+        class="store-page__map"
+        transition-type="{{ section.settings.transition_type }}"
+        detail-duration="{{ section.settings.detail_duration }}"
+        transition-duration="{{ section.settings.transition_duration }}"
+      >
+        <div slot="start-animation" class="store-page__map__start-animation">
+          {{
+            section.settings.start_animation
+            | video_tag: image_size: '1100x', loop: false, controls: false, muted: true, autoplay: true
+          }}
+        </div>
+        <div slot="loop-animation" class="store-page__map__loop-animation">
+          {{
+            section.settings.loop_animation
+            | video_tag: image_size: '1100x', loop: true, controls: false, muted: true, autoplay: true, preload: 'auto'
+          }}
+        </div>
+        <div slot="transition-animation" class="store-page__map__transition-animation">
+          {{
+            section.settings.transition_animation
+            | video_tag: image_size: '1100x', loop: false, controls: false, muted: true
+            | replace: 'preload="metadata"', 'preload="auto"'
+          }}
+        </div>
+      </store-page-map>
+    </div>
+  </div>
+</div>
+
+<script>
+  (() => {
+          const iframeDataElements = document.querySelectorAll(".iframe_data");
+          const targetElement = document.querySelector("store-page-map.store-page__map");
+          if (targetElement) {
+              iframeDataElements.forEach(element => {
+                  targetElement.innerHTML += element.innerHTML;
+              });
+          }
+    const storePageMap = document.querySelector('store-page-map');
+    const stores = document.querySelectorAll('.store-page__store');
+    const countries = document.querySelectorAll('.store-page__country');
+    for (const store of stores) {
+      store.addEventListener('hc:open', (event) => {
+        storePageMap.transitionToStore(store.dataset.blockId);
+        stores.forEach((s) => {
+          if (s !== store) {
+            s.opened = false;
+          }
+        });
+      });
+      setTimeout(() => {
+        store.addEventListener('hc:close', (e) => {
+          // If nothing else is opened, close the map
+          setTimeout(() => {
+            if (![...stores].some((s) => s.opened)) {
+              storePageMap.forceTransitionToLoopAnimation();
+            }
+          });
+        });
+      }, 1000);
+    }
+    for (const country of countries) {
+      country.addEventListener('hc:open', (event) => {
+        countries.forEach((c) => {
+          if (c !== country) {
+            c.opened = false;
+          }
+        });
+      });
+    }
+    const storeDetailsMediaButtons = document.querySelectorAll('.store-page__store-details__media-button');
+    for (const button of storeDetailsMediaButtons) {
+      // On desktop
+      button.addEventListener('mouseenter', (event) => {
+        const isDesktop = window.matchMedia('(min-width: 990px)').matches;
+        if (!isDesktop) return;
+        storePageMap.viewDetails('details-' + button.closest('.store-page__store').dataset.blockId);
+      });
+      button.addEventListener('mouseleave', (event) => {
+        const isDesktop = window.matchMedia('(min-width: 990px)').matches;
+        if (!isDesktop) return;
+        storePageMap.hideDetails('details-' + button.closest('.store-page__store').dataset.blockId);
+      });
+
+      button.addEventListener('click', (event) => {
+        const isDesktop = window.matchMedia('(min-width: 990px)').matches;
+        if (isDesktop) return;
+        if (button.isOpened) return;
+        button.isOpened = true;
+        storePageMap.viewDetails('details-' + button.closest('.store-page__store').dataset.blockId);
+        storePageMap.getDetails(
+          'details-' + button.closest('.store-page__store').dataset.blockId,
+        ).parentElement.style.zIndex = 999;
+        const closeEventListener = (e) => {
+          if (e.target.closest('.store-page__map__details__media')) return;
+          storePageMap
+            .getDetails('details-' + button.closest('.store-page__store').dataset.blockId)
+            .parentElement.style.removeProperty('z-index');
+          storePageMap.hideDetails('details-' + button.closest('.store-page__store').dataset.blockId);
+          button.isOpened = false;
+          document.body.removeEventListener('click', closeEventListener);
+        };
+        setTimeout(() => {
+          document.body.addEventListener('click', closeEventListener);
+        });
+      });
+    }
+    window.addEventListener('resize', () => {
+      const isDesktop = window.matchMedia('(min-width: 990px)').matches;
+    });
+  })();
+  $(document).ready(function(){
+        $(".store__page_heading_h2").on("click", function(e) {
+            var $this = $(this);
+    		$this.toggleClass("tab_active");
+    		$this.next().slideToggle();
+            $(this).closest('.store__page_heading_main').find('.hc--opened .store__page_heading').click();
+        });
+      if(window.innerWidth < 767){
+        $('.tab_store_para__page hc-accordion').css('min-height','23px');
+      }else{
+         $('.tab_store_para__page hc-accordion').css('min-height','29px'); 
+      }
+      //   $(".store__page_heading_main:after").on("click", function(e) {
+    		// $(this).closest('.store__page_heading_main').find("tab_store_para__page").removeClass('initial_hide');
+    		// // $this.next().slideToggle();
+      //   });
+        // $(".store__page_heading_h2.initial_hide").on("click", function(e) {
+        //   $(this).removeClass('initial_hide');
+        //   $(this).addClass('toggle_btn_now');
+        //   $(this).next('.tab_store_para__page').removeClass('initial_hide');
+        // });
+        // $('.tab_store_para__page').addClass('initial_hide');
+        // $('.tab_store_para__page .shopify-block').each(function(){
+        //     var $accordion = $(this).find('hc-accordion');
+        //     var headingHeight = $accordion.find('h2.store__page_heading')[0].getBoundingClientRect();
+        //     $accordion.css('height', headingHeight.height);
+        // });
+  });
+</script>
+
+{% schema %}
+  {
+    "name": "New Stockist Page",
+    "settings": [
+    {
+      "id": "start_animation",
+      "type": "video",
+      "label": "Start Animation"
+    },
+    {
+      "id": "loop_animation",
+      "type": "video",
+      "label": "Loop Animation"
+    },
+    {
+      "id": "transition_animation",
+      "type": "video",
+      "label": "Transition Animation"
+    },
+    {
+      "id": "text",
+      "type": "text",
+      "label": "Section Text"
+    },
+    {
+      "id": "transition_type",
+      "type": "select",
+      "label": "Transition Type",
+      "options": [
+        {
+          "value": "sequential",
+          "label": "Animation wait for the previous one to finish"
+        },
+        {
+          "value": "immidiate",
+          "label": "Animation start immidiately"
+        }
+      ]
+    },
+    {
+      "id": "detail_duration",
+      "type": "range",
+      "label": "Detail Fade In/Out Duration",
+      "default": 2000,
+      "min": 100,
+      "max": 3000,
+      "step": 50
+    },
+    {
+      "id": "transition_duration",
+      "type": "range",
+      "label": "Transition Duration",
+      "default": 2000,
+      "min": 100,
+      "max": 3000,
+      "step": 50
+    },
+    {
+      "id": "stores_max_width",
+      "type": "range",
+      "label": "Stores Max Width",
+      "default": 40,
+      "min": 10,
+      "max": 80,
+      "step": 1,
+      "unit": "%"
+    }
+  ],
+    "blocks": [
+      {
+        "type": "_country-block"
+      }
+    ],
+    "presets": [
+      {
+        "name": "New Stockist Page"
+      }
+    ]
+  }
+{% endschema %}

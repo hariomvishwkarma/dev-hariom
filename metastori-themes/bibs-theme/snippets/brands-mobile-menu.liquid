@@ -1,0 +1,120 @@
+{%- comment -%}
+  Renders the brands mobile menu
+
+  Accepts:
+    - block: the brands menu block
+
+  Usage:
+    {% render 'brands-mobile-menu' %}
+{%- endcomment -%}
+
+{% liquid
+  assign vendors = shop.vendors
+  assign brands_size = vendors.size
+  assign menu_type = block.settings.menu_type
+  assign brands_page = block.settings.brands_page
+  assign brands_page_url = brands_page.url | default: '#'
+  assign brands_page_title = brands_page.title | default: 'Brands'
+
+  assign display_top_brands = block.settings.display_top_brands
+  assign limit_top_brands = block.settings.limit_top_brands
+
+  case menu_type
+    when 'secondary'
+      assign menu_type_class = 'h6-regular py-2'
+      assign menu_display_class = 'lg:flex lg:items-center'
+    else
+      assign menu_type_class = 'h6-bold py-2'
+      assign menu_display_class = 'lg:flex lg:items-center'
+  endcase
+
+  assign header_wrapper_classes = 'flex justify-between items-center p-4 bg-foreground text-background'
+%}
+
+{% if brands_size > 0 %}
+  {% liquid
+    capture collapse_toggle_content
+      echo brands_page_title
+      render 'c-icon', icon: 'arrow-right', classes: 'w-6 h-6'
+    endcapture
+    capture collapse_toggle
+      render 'c-text', content: collapse_toggle_content, type: menu_type_class, classes: 'flex items-center justify-between'
+    endcapture
+  %}
+  <ul class="{{ menu_display_class }} font-medium space-x-4 lg:mr-10">
+    <li>
+      {%- capture collapse_content -%}
+        <div class="{{ header_wrapper_classes }}">
+          {% liquid
+            # Back button with title
+            capture button_content1
+              render 'c-icon', icon: 'flat-arrow-left', classes: 'w-6 h-6'
+              echo brands_page_title
+            endcapture
+            render 'c-button', content: button_content1, classes: 'menu-drawer__close-button h8-bold flex items-center gap-2', design: 'link--hover'
+            # close button
+            capture button_content2
+              render 'c-icon', icon: 'close', classes: 'w-6 h-6'
+            endcapture
+            render 'c-button', design: 'link--bg', content: button_content2, custom_attributes: 'data-drawer-close', classes: 'inline-flex items-center'
+          %}
+        </div>
+        <div class="overflow-auto px-4 py-6 space-y-4">
+          {%- assign view_all = 'sections.header.brands.view_all' | t -%}
+          {% render 'c-link', href: brands_page_url, type: 'link--hover text-3', content: view_all, classes: 'py-3 block' %}
+          <ul class="{% if display_top_brands %}grid grid-cols-2 gap-y-4{% else %}columns-5 space-y-3{% endif %} gap-x-[2]">
+            {%- assign top_brands_count = 0 -%}
+            {% if display_top_brands %}
+              {%- assign top_brands = shop.metaobjects.top_brands['top-brands'].brand.value -%}
+
+              {%- for top_brand in top_brands -%}
+                {% for vendor in vendors %}
+                  {% liquid
+                    assign brand_handleize = vendor | handleize
+                    assign top_brand_handleize = top_brand.brand_name | handleize
+                  %}
+                  {% if brand_handleize == top_brand_handleize %}
+                    {% if limit_top_brands > top_brands_count %}
+                      {%- assign top_brands_count = top_brands_count | plus: 1 -%}
+                      <li class="text-2-medium">
+                        <div class="brands-icon w-full flex items-center justify-center aspect-video bg-shade-3 mb-1">
+                          {% liquid
+                            assign brand_obj = shop.metaobjects.brand_icons[brand_handleize]
+                            assign brand_icon = brand_obj.brand_icon
+                            assign brand_url = brand_obj.brands_collection.value.url | default: '#'
+                            echo brand_icon
+                          %}
+                        </div>
+                        {% render 'c-link', href: brand_url, type: 'link--hover', content: vendor %}
+                      </li>
+                    {% endif %}
+                  {% endif %}
+                {%- endfor -%}
+              {% endfor %}
+            {% else %}
+              {% for vendor in vendors %}
+                <li class="text-2-medium">
+                  {% render 'c-link', href: '#', type: 'link--hover', content: vendor %}
+                </li>
+              {% endfor %}
+            {% endif %}
+            {% if display_top_brands and top_brands_count < 1 %}
+              <li class="text-2-medium">
+                {{ 'sections.header.brands.no_top_brands' | t }}
+              </li>
+            {% endif %}
+          </ul>
+        </div>
+      {%- endcapture -%}
+
+      <details>
+        <summary>
+          {{ collapse_toggle }}
+        </summary>
+        <div class="flex flex-col absolute inset-0 z-5 bg-background">
+          {{ collapse_content }}
+        </div>
+      </details>
+    </li>
+  </ul>
+{% endif %}

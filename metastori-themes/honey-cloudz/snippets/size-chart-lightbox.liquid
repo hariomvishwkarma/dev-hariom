@@ -1,0 +1,338 @@
+{%- comment -%}
+  Mobile lightbox for the chart images inside the Size Guide and Insert
+  Dimensions popups.
+
+  Under 768px those charts render at popup width, which is far too small to
+  read the numbers on a phone. Tapping one lifts it into a full-screen viewer
+  with tap-to-zoom and panning.
+
+  Scoped to .product-popup-modal, the theme's `popup` blocks on the PDP.
+  #SizeSelectionModal is skipped because it carries no chart.
+
+  Rendered once per page from layout/theme.liquid.
+{%- endcomment -%}
+
+{%- style -%}
+  .sc-zoom-hint {
+    display: none;
+  }
+
+  @media screen and (max-width: 767px) {
+    .product-popup-modal__content-info img[data-sc-zoom='1'] {
+      cursor: zoom-in;
+    }
+
+    .sc-zoom-hint {
+      display: block;
+      margin: 8px 0 18px;
+      color: rgba(var(--color-foreground), 0.62);
+      font-size: 12px;
+      line-height: 1.3;
+      letter-spacing: 0.02em;
+      text-align: center;
+    }
+  }
+
+  .sc-lightbox[hidden] {
+    display: none !important;
+  }
+
+  .sc-lightbox {
+    /* Zoom factor lives here so it can be tuned without touching the JS,
+       which re-measures the image after the class flips. */
+    --sc-lightbox-zoom: 2.6;
+    position: fixed;
+    inset: 0;
+    /* Sits inside .product-popup-modal[open], above its close button. */
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    background: rgba(12, 12, 12, 0.94);
+    /* The popup paints a zoom-out cursor across its whole backdrop. */
+    cursor: auto;
+    opacity: 0;
+    transition: opacity 180ms ease;
+  }
+
+  .sc-lightbox.is-open {
+    opacity: 1;
+  }
+
+  .sc-lightbox__bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    color: #fff;
+  }
+
+  .sc-lightbox__title {
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sc-lightbox__x {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .sc-lightbox__stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 12px;
+  }
+
+  /* flex:0 0 auto stops the scroller from shrinking the zoomed chart back to
+     fit, and margin:auto centres it - justify-content would clip the leading
+     edge out of reach once the image overflows. */
+  .sc-lightbox__img {
+    flex: 0 0 auto;
+    margin: auto;
+    display: block;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .sc-lightbox.is-zoomed .sc-lightbox__img {
+    width: calc(100% * var(--sc-lightbox-zoom));
+    border-radius: 0;
+    cursor: zoom-out;
+  }
+
+  .sc-lightbox__hint {
+    flex: 0 0 auto;
+    padding: 10px 12px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  /* Phone-only affordance - desktop already shows the chart at a readable size. */
+  @media screen and (min-width: 768px) {
+    .sc-lightbox {
+      display: none !important;
+    }
+  }
+{%- endstyle -%}
+
+<script>
+  (function () {
+    if (window.__scChartLightbox) return;
+    window.__scChartLightbox = true;
+
+    var MQ = '(max-width: 767px)';
+    // Below this rendered width an image is an inline icon, not a chart.
+    var MIN_CHART_W = 160;
+    var HINT = 'Tap to enlarge';
+
+    function enabled() {
+      return window.matchMedia(MQ).matches;
+    }
+
+    function isChartModal(modal) {
+      return !!modal && modal.id !== 'SizeSelectionModal';
+    }
+
+    function lightbox() {
+      return document.querySelector('.sc-lightbox');
+    }
+
+    function isOpen() {
+      var box = lightbox();
+      return !!(box && !box.hidden);
+    }
+
+    /* One lightbox, moved into whichever popup is in play. Living inside
+       [role="dialog"] keeps it within the popup's focus trap, and its fixed
+       position still covers the viewport. */
+    function ensureBox(container) {
+      var box = lightbox();
+      if (!box) {
+        box = document.createElement('div');
+        box.className = 'sc-lightbox';
+        box.hidden = true;
+        box.innerHTML =
+          '<div class="sc-lightbox__bar">' +
+            '<span class="sc-lightbox__title"></span>' +
+            '<button type="button" class="sc-lightbox__x" data-sc-close aria-label="Close">&times;</button>' +
+          '</div>' +
+          '<div class="sc-lightbox__stage" data-sc-stage>' +
+            '<img class="sc-lightbox__img" alt="" />' +
+          '</div>' +
+          '<div class="sc-lightbox__hint">Tap the chart to zoom, drag to pan</div>';
+
+        box.addEventListener('click', function (e) {
+          // Never let a tap in here reach the popup, which closes on backdrop taps.
+          e.stopPropagation();
+          if (e.target.closest('[data-sc-close]')) {
+            close();
+            return;
+          }
+          if (e.target.closest('.sc-lightbox__img')) {
+            toggleZoom(box, e);
+            return;
+          }
+          close();
+        });
+      }
+      if (box.parentNode !== container) container.appendChild(box);
+      return box;
+    }
+
+    function toggleZoom(box, e) {
+      var stage = box.querySelector('[data-sc-stage]');
+      var img = box.querySelector('.sc-lightbox__img');
+      if (!stage || !img) return;
+
+      if (box.classList.contains('is-zoomed')) {
+        box.classList.remove('is-zoomed');
+        stage.scrollLeft = 0;
+        stage.scrollTop = 0;
+        return;
+      }
+
+      // Measure the tapped point before the image grows, so the spot the finger
+      // landed on is still roughly under it afterwards.
+      var rect = img.getBoundingClientRect();
+      var fx = rect.width ? (e.clientX - rect.left) / rect.width : 0.5;
+      var fy = rect.height ? (e.clientY - rect.top) / rect.height : 0.5;
+      box.classList.add('is-zoomed');
+      // Reading offsetWidth flushes layout, so these are the zoomed dimensions.
+      stage.scrollLeft = Math.max(0, fx * img.offsetWidth - stage.clientWidth / 2);
+      stage.scrollTop = Math.max(0, fy * img.offsetHeight - stage.clientHeight / 2);
+    }
+
+    function open(container, src, alt, title) {
+      if (!src || !enabled()) return;
+      var box = ensureBox(container);
+      var img = box.querySelector('.sc-lightbox__img');
+      var titleEl = box.querySelector('.sc-lightbox__title');
+      var stage = box.querySelector('[data-sc-stage]');
+      if (img) {
+        img.src = src;
+        img.alt = alt || '';
+      }
+      if (titleEl) titleEl.textContent = title || alt || '';
+      box.classList.remove('is-zoomed');
+      if (stage) {
+        stage.scrollLeft = 0;
+        stage.scrollTop = 0;
+      }
+      box.hidden = false;
+      // Two frames so the fade starts from the hidden state instead of being
+      // collapsed into the same style recalc.
+      window.requestAnimationFrame(function () {
+        window.requestAnimationFrame(function () {
+          box.classList.add('is-open');
+        });
+      });
+    }
+
+    function close() {
+      var box = lightbox();
+      if (!box || box.hidden) return;
+      box.classList.remove('is-open', 'is-zoomed');
+      box.hidden = true;
+      // Body scroll stays locked by the popup underneath, which is still open.
+    }
+
+    /* Charts only announce themselves once they have loaded - the popups sit
+       hidden at page load, so a lazy image has no measurable width yet. */
+    function considerImg(img) {
+      if (img.getAttribute('data-sc-zoom') === '1') return;
+      if (!img.complete || !img.naturalWidth) {
+        img.addEventListener('load', function () {
+          considerImg(img);
+        }, { once: true });
+        return;
+      }
+      var width = img.getBoundingClientRect().width || img.naturalWidth;
+      if (width < MIN_CHART_W) return;
+      img.setAttribute('data-sc-zoom', '1');
+      if (!img.parentNode) return;
+      var next = img.nextSibling;
+      if (next && next.classList && next.classList.contains('sc-zoom-hint')) return;
+      var hint = document.createElement('span');
+      hint.className = 'sc-zoom-hint';
+      hint.setAttribute('aria-hidden', 'true');
+      hint.textContent = HINT;
+      img.parentNode.insertBefore(hint, next);
+    }
+
+    function decorate(modal) {
+      if (!enabled() || !isChartModal(modal)) return;
+      var info = modal.querySelector('.product-popup-modal__content-info');
+      if (!info) return;
+      Array.prototype.forEach.call(info.querySelectorAll('img'), considerImg);
+    }
+
+    document.addEventListener('click', function (e) {
+      if (!enabled()) return;
+      var img = e.target.closest('.product-popup-modal__content-info img');
+      if (!img || img.getAttribute('data-sc-zoom') !== '1') return;
+      var modal = img.closest('.product-popup-modal');
+      if (!isChartModal(modal)) return;
+      var container = modal.querySelector('[role="dialog"]') || modal;
+      e.preventDefault();
+      e.stopPropagation();
+      var heading = modal.querySelector('.product-popup-modal__content-info > .h2');
+      open(container, img.currentSrc || img.src, img.alt, heading ? heading.textContent.trim() : '');
+    });
+
+    /* ModalDialog closes itself on keyup Escape. Swallow the key while the
+       lightbox is up so Escape peels off one layer at a time. */
+    document.addEventListener('keyup', function (e) {
+      var code = e.code ? e.code.toUpperCase() : String(e.key || '').toUpperCase();
+      if (code !== 'ESCAPE' || !isOpen()) return;
+      e.stopPropagation();
+      close();
+    }, true);
+
+    function watch() {
+      var modals = document.querySelectorAll('.product-popup-modal');
+      if (!modals.length) return;
+      var observer = new MutationObserver(function (records) {
+        records.forEach(function (record) {
+          var modal = record.target;
+          if (modal.hasAttribute('open')) decorate(modal);
+          else if (isOpen() && modal.contains(lightbox())) close();
+        });
+      });
+      Array.prototype.forEach.call(modals, function (modal) {
+        if (!isChartModal(modal)) return;
+        observer.observe(modal, { attributes: true, attributeFilter: ['open'] });
+        decorate(modal);
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', watch);
+    } else {
+      watch();
+    }
+  })();
+</script>

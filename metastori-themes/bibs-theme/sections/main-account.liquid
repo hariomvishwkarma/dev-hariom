@@ -1,0 +1,340 @@
+{% liquid
+  for tag in customer.tags
+    if tag contains 'birthday'
+      assign birth_date = tag | split: ':' | last | date: '%d/%m/%Y'
+    endif
+  endfor
+
+  assign last_order = customer.orders | first
+  assign last_order_items = last_order.line_items
+  assign last_order_date = last_order.created_at | date: '%d/%m/%Y'
+  assign last_order_delivery = ''
+
+  assign order_padding = ''
+  if last_order == blank
+    assign order_padding = 'text-center pt-4 pb-4'
+  else
+    assign order_padding = 'md:flex'
+  endif
+
+  if last_order.fulfillment_status == 'unfulfilled'
+    assign order_status = 'New Order'
+  else
+    assign order_status = 'Completed One'
+  endif
+
+  if last_order.pickup_in_store
+    assign last_order_delivery = 'Pickup in store'
+  else
+    assign last_order_delivery = 'Home delivery'
+  endif
+%}
+
+{% capture last_order_status %}
+  {% if last_order.fulfillment_status == 'unfulfilled' %}
+    <div class="flex basis-full items-center gap-2 pb-6">
+      {% render 'c-icon', icon: 'clock' %}
+      {% render 'c-text', content: order_status, type: 'paragraph-2', classes: 'inline-block' %}
+    </div>
+  {% else %}
+    <div class="flex basis-full items-center gap-2 pb-6">
+      {% render 'c-icon', icon: 'checkmark', classes: 'w-5 h-5' %}
+      {% render 'c-text', content: order_status, type: 'paragraph-2', classes: 'inline-block' %}
+    </div>
+  {% endif %}
+{% endcapture %}
+
+<div class="container-fluid color-{{ section.settings.color_scheme }}">
+  <div class="my-6">
+    <div class="mb-4 md:flex flex-wrap">
+      {% render 'account-navigation' %}
+
+      <div class="flex flex-wrap flex-col mt-10 flex-1 gap-y-12">
+        <div class="md:grow">
+          {%- render 'c-title', custom_tag: 'h2', type: 'h3', translatable_content: 'customer.account.title' -%}
+        </div>
+
+        <div>
+          <div class="mb-6 flex items-baseline justify-between">
+            <h2 class="h7-bold inline-block text-base">{{ 'customer.account.details' | t }}</h2>
+
+            {% capture edit_content %}
+              <span class="[&>svg]:inline-block flex gap-1 font-medium">{{ 'customer.account.edit' | t }}{% render 'c-icon', icon: 'pen' %}</span>
+            {% endcapture %}
+            {%- assign details_link = routes.routes.account_url | append: '?view=details' -%}
+            {% render 'c-link', content: edit_content, href: details_link, classes: 'link decoration-grey-400' %}
+          </div>
+
+          <div class="bg-grey-200 p-4 md:p-6 flex flex-col flex-wrap gap-4 md:flex-row md:gap-10">
+            {% if customer.name %}
+              <div class="flex gap-1 md:gap-2 flex-col">
+                {% render 'c-text',
+                  translatable_content: 'customer.account.full_name',
+                  type: 'text-2-regular',
+                  classes: 'text-grey-700'
+                %}
+                {% render 'c-text', content: customer.name, type: 'text-1-regular' %}
+              </div>
+            {% endif %}
+
+            {% if customer.email %}
+              <div class="flex gap-1 md:gap-2 flex-col">
+                {% render 'c-text',
+                  translatable_content: 'customer.account.delivery_address',
+                  type: 'text-2-regular',
+                  classes: 'text-grey-700'
+                %}
+                {% render 'c-text', content: customer.email, type: 'text-1-regular' %}
+              </div>
+            {% endif %}
+
+            {% if birth_date %}
+              <div class="flex gap-1 md:gap-2 flex-col">
+                {% render 'c-text',
+                  translatable_content: 'customer.account.birth_date',
+                  type: 'text-2-regular',
+                  classes: 'text-grey-700'
+                %}
+                {% render 'c-text', content: birth_date, type: 'text-1-regular' %}
+              </div>
+            {% endif %}
+
+            {% if customer.phone %}
+              <div class="flex gap-1 md:gap-2 flex-col">
+                {% render 'c-text',
+                  translatable_content: 'customer.account.customer_number',
+                  type: 'text-2-regular',
+                  classes: 'text-grey-700'
+                %}
+                {% render 'c-text', content: customer.phone, type: 'text-1-regular' %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div>
+          <div class="mb-6 flex items-baseline justify-between">
+            <h2 class="h7-bold inline-block text-base">{{ 'customer.account.orders.last_order' | t }}</h2>
+
+            {% capture edit_content %}
+              <span class="[&>svg]:inline-block flex gap-1 font-medium">{{ 'customer.account.view_all' | t }}</span>
+            {% endcapture %}
+            {%- assign orders_link = routes.routes.account_url | append: '?view=orders' -%}
+            {% render 'c-link', content: edit_content, href: orders_link, classes: 'link decoration-grey-400' %}
+          </div>
+
+          <div class="bg-grey-200 p-4 pt-6 pb-6">
+            <div class="flex-wrap justify-between {{  order_padding }}">
+              {% if last_order %}
+                {{ last_order_status }}
+
+                <div class="flex gap-4 flex-wrap md:w-96">
+                  <div class="flex gap-2 flex-col basis-[45%] md:basis-28 md:order-2">
+                    {% render 'c-text',
+                      translatable_content: 'customer.orders.order_no',
+                      type: 'text-2-regular',
+                      classes: 'text-grey-700'
+                    %}
+                    {% render 'c-text', content: last_order.id, type: 'text-1-regular' %}
+                  </div>
+                  <div class="flex gap-2 flex-col basis-[45%] md:basis-28 md:order-1">
+                    {% render 'c-text',
+                      translatable_content: 'customer.orders.status',
+                      type: 'text-2-regular',
+                      classes: 'text-grey-700'
+                    %}
+                    {% render 'c-text', content: order_status, type: 'text-1-regular' %}
+                  </div>
+                  <div class="flex gap-2 flex-col basis-[45%] md:basis-28 md:order-4">
+                    {% render 'c-text',
+                      translatable_content: 'customer.orders.date',
+                      type: 'text-2-regular',
+                      classes: 'text-grey-700'
+                    %}
+                    {% render 'c-text', content: last_order_date, type: 'text-1-regular' %}
+                  </div>
+                  <div class="flex gap-2 flex-col basis-[45%] md:basis-28 md:order-6">
+                    {% render 'c-text',
+                      translatable_content: 'customer.orders.items_num',
+                      type: 'text-2-regular',
+                      classes: 'text-grey-700'
+                    %}
+                    {% render 'c-text', content: last_order.item_count, type: 'text-1-regular' %}
+                  </div>
+                  <div class="flex gap-2 flex-col basis-[45%] md:basis-28 md:order-5">
+                    {% render 'c-text',
+                      translatable_content: 'customer.orders.delivery',
+                      type: 'text-2-regular',
+                      classes: 'text-grey-700'
+                    %}
+                    {% render 'c-text', content: last_order_delivery, type: 'text-1-regular' %}
+                  </div>
+                  {% assign price = last_order.total_price | money %}
+                  <div class="flex gap-2 flex-col basis-[45%] md:basis-28 md:order-3">
+                    {% render 'c-text',
+                      translatable_content: 'customer.orders.amount',
+                      type: 'text-2-regular',
+                      classes: 'text-grey-700'
+                    %}
+                    {% render 'c-text', content: price, type: 'text-1-regular' %}
+                  </div>
+                </div>
+
+                <div class="flex gap-2 mt-8 min-[972px]:mt-0">
+                  {% for product in last_order_items limit: 3 %}
+                    {% assign img_classes = 'w-14 min-[1100px]:w-20 border-[1px] border-grey-300 self-start' %}
+                    {% if forloop.index == 3 %}
+                      {% assign img_classes = img_classes | append: ' hidden md:block' %}
+                    {% endif %}
+                    {% render 'c-image',
+                      image: product.image,
+                      aspect_ratio: 'square',
+                      image_width: '82px',
+                      classes: img_classes
+                    %}
+                  {% endfor %}
+                  {% if last_order.item_count > 3 %}
+                    <div class="w-14 h-14 min-[1100px]:w-20 min-[1100px]:h-20 bg-background hidden md:flex justify-center items-center text-base">
+                      {% assign length = last_order.item_count | minus: 3 %}
+                      {{ length }}+
+                    </div>
+                  {% endif %}
+                </div>
+
+                {% capture view_details %}
+                  {% render 'c-icon', icon: 'visible_eye', classes: 'text-foreground w-[15px] h-[17px]' %} {{ 'customer.orders.view_details' | t }}
+                {% endcapture %}
+
+                {% capture track_order %}
+                  {% render 'c-icon', icon: 'location-pin', classes: 'text-foreground w-[15px] h-[17px]' %} {{ 'customer.orders.track_order' | t }}
+                {% endcapture %}
+
+                <div class="flex gap-4 mt-8 basis-full">
+                  {% render 'c-link',
+                    content: view_details,
+                    href: last_order.customer_url,
+                    classes: 'flex items-center gap-2 text-base decoration-grey-400',
+                    type: 'link'
+                  %}
+
+                  {% render 'c-link',
+                    content: track_order,
+                    href: last_order.order_status_url,
+                    classes: 'flex items-center gap-2 text-base decoration-grey-400',
+                    type: 'link'
+                  %}
+                </div>
+
+              {% else %}
+                {% render 'c-text',
+                  translatable_content: 'customer.account.orders.no_orders',
+                  type: 'paragraph-2',
+                  classes: 'pb-2'
+                %}
+                {% render 'c-link',
+                  translatable_content: 'customer.account.shop_button',
+                  type: 'link',
+                  classes: 'h8-bold',
+                  href: '#'
+                %}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="mb-6 flex items-baseline justify-between">
+            <h2 class="h7-bold inline-block text-base">{{ 'customer.account.delivery_address' | t }}</h2>
+
+            {% capture edit_content %}
+              <span class="[&>svg]:inline-block flex gap-1 font-medium">{{ 'customer.account.edit' | t }}{% render 'c-icon', icon: 'pen' %}</span>
+            {% endcapture %}
+            {% render 'c-link',
+              content: edit_content,
+              href: routes.account_addresses_url,
+              classes: 'link decoration-grey-400'
+            %}
+          </div>
+
+          {% assign zip_city = customer.default_address.zip | append: ' ' | append: customer.default_address.city %}
+          <div class="bg-grey-200 p-4 flex flex-col gap-4">
+            <div class="flex gap-1 flex-col md:flex-row md:p-6">
+              {% render 'c-text',
+                translatable_content: 'customer.account.address',
+                type: 'text-2-regular',
+                classes: 'text-grey-700 md:hidden'
+              %}
+              {% render 'c-text', content: customer.default_address.company, type: 'text-1-regular' %}
+              {% render 'c-text', content: customer.default_address.address1, type: 'text-1-regular' %}
+              {% render 'c-text', content: zip_city, type: 'text-1-regular' %}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="mb-6 flex items-baseline justify-between">
+            <h2 class="h7-bold inline-block text-base">{{ 'customer.account.favorites' | t }}</h2>
+
+            {%- if settings.wishlist_page != blank -%}
+              {% capture edit_content %}
+                <span class="[&>svg]:inline-block flex gap-1 font-medium">{{ 'customer.account.view_all' | t }}</span>
+              {% endcapture %}
+              {% render 'c-link',
+                content: edit_content,
+                href: settings.wishlist_page.url,
+                classes: 'link decoration-grey-400'
+              %}
+            {%- endif -%}
+          </div>
+          <div class="bg-grey-200 p-4 md:p-6 flex justify-center">
+            <div class="text-center w-52 md:w-full">
+              <div grid-wishlist>
+                <div class="wishlist__empty hidden">
+                  {% render 'c-text',
+                    translatable_content: 'customer.account.no_favorites',
+                    type: 'text-1-regular',
+                    classes: 'pb-2'
+                  %}
+                  {% render 'c-link',
+                    translatable_content: 'customer.account.explore_more',
+                    type: 'link',
+                    classes: 'h8-bold decoration-grey-400',
+                    href: '#'
+                  %}
+                </div>
+                <div class="wishlist__grid flex flex-row gap-2">
+                  {% comment %} Sample loading element {% endcomment %}
+                  <p class="wishlist__loader w-full text-center">{{ 'sections.wishlist.loading' | t }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "t:sections.main-account.name",
+  "class": "customer account",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.main-account.membership_label"
+    },
+    {
+      "type": "image_picker",
+      "id": "logo",
+      "label": "t:sections.main-account.membership_logo"
+    }
+  ]
+}
+{% endschema %}

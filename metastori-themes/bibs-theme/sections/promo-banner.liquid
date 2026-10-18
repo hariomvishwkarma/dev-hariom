@@ -1,0 +1,250 @@
+{% liquid
+  assign color_scheme = section.settings.color_scheme
+  assign product_list = section.settings.product_list
+  assign media_aspect_ratio = section.settings.media_aspect_ratio
+  assign show_secondary_media = section.settings.show_secondary_media
+  assign show_vendor = section.settings.show_vendor
+%}
+
+<div class="container-fluid">
+  <div class="flex gap-4 flex-col md:flex-row {% if product_list != blank %}bg-grey-100 sm:bg-background pb-4 sm:pb-0 {% endif %}">
+    <div class="promo-banner flex-1 grid md:grid-cols-[174px_minmax(0,_1fr)] lg:grid-cols-[224px_minmax(0,_1fr)] xl:grid-cols-[264px_minmax(0,_1fr)] color-{{ color_scheme }}">
+      {%- for block in section.blocks -%}
+        {%- if block.type == 'image' -%}
+          {% render 'c-image', image: block.settings.image, classes: 'md:order-1' %}
+          {% break %}
+        {%- endif -%}
+      {%- endfor -%}
+      <div class="flex flex-col gap-2 justify-center px-4 py-4 lg:px-6 lg:py-6">
+        {%- liquid
+          for block in section.blocks
+            case block.type
+              when 'vendor'
+                assign brand_handleize = block.settings.text | handleize
+                assign brand_obj = shop.metaobjects.brand_icons[brand_handleize]
+                assign brand_icon = brand_obj.brand_icon
+                if brand_icon != blank
+                  echo '<div class="w-12 h-12 flex items-center justify-center mb-4">'
+                  echo brand_icon
+                  echo '</div>'
+                else
+                  render 'c-text', content: block.settings.text, type: 'h6-bold', classes: 'mb-4'
+                endif
+              when 'subheading'
+                render 'c-text', content: block.settings.text, type: 'h5'
+              when 'heading'
+                render 'c-text', content: block.settings.text, type: 'h3-bold'
+              when 'button'
+                render 'c-link', content: block.settings.text, type: 'button--primary rounded-full mt-4 w-fit mb-4 lg:mb-0', href: block.settings.url
+            endcase
+          endfor
+        -%}
+      </div>
+    </div>
+    {%- if product_list != blank -%}
+      <div class="flex-1 grid gap-4 sm:px-5 grid-cols-2 {% if product_list != blank %}sm:px-0 px-4{% endif %}">
+        {%- for product in product_list -%}
+          {% render 'card-product',
+            card_product: product,
+            media_aspect_ratio: media_aspect_ratio,
+            show_secondary_media: show_secondary_media,
+            show_vendor: show_vendor
+          %}
+        {%- endfor -%}
+      </div>
+    {%- endif -%}
+  </div>
+</div>
+{% render 'divider',
+  height: section.settings.margin_bottom,
+  custom: section.settings.margin_bottom_custom,
+  color_scheme: section.settings.color_scheme
+%}
+
+{% schema %}
+{
+  "name": "t:sections.promo-banner.name",
+  "class": "section-promo-banner",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "accent-1"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.promo-banner.settings.header__1.content"
+    },
+    {
+      "type": "product_list",
+      "id": "product_list",
+      "limit": 2,
+      "label": "t:sections.promo-banner.settings.product_list.label"
+    },
+    {
+      "type": "select",
+      "id": "media_aspect_ratio",
+      "label": "t:sections.promo-banner.settings.media_aspect_ratio.label",
+      "options": [
+        {
+          "value": "square",
+          "label": "t:sections.promo-banner.settings.media_aspect_ratio.options.square.label"
+        },
+        {
+          "value": "portrait",
+          "label": "t:sections.promo-banner.settings.media_aspect_ratio.options.portrait.label"
+        }
+      ],
+      "default": "square"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_secondary_media",
+      "label": "t:sections.promo-banner.settings.show_secondary_media.label",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_vendor",
+      "label": "t:sections.promo-banner.settings.show_vendor.label",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "t:sections.all.margin.heading"
+    },
+    {
+      "type": "select",
+      "id": "margin_bottom",
+      "label": "t:sections.all.margin.margin_bottom.label",
+      "options": [
+        {
+          "label": "t:sections.all.margin.margin_bottom.none",
+          "value": "none"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.small",
+          "value": "small"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.normal",
+          "value": "normal"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.large",
+          "value": "large"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.custom.label",
+          "value": "custom"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "default": 16,
+      "step": 1,
+      "label": "t:sections.all.margin.margin_bottom.custom.value",
+      "visible_if": "{{ section.settings.margin_bottom == 'custom' }}",
+      "unit": "px",
+      "id": "margin_bottom_custom"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "image",
+      "name": "t:sections.promo-banner.blocks.image.name",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "t:sections.promo-banner.blocks.image.settings.image.label"
+        }
+      ]
+    },
+    {
+      "type": "vendor",
+      "name": "t:sections.promo-banner.blocks.vendor.name",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "text",
+          "id": "text",
+          "label": "t:sections.promo-banner.blocks.vendor.settings.text.label",
+          "default": "Nike"
+        }
+      ]
+    },
+    {
+      "type": "subheading",
+      "name": "t:sections.promo-banner.blocks.subheading.name",
+      "settings": [
+        {
+          "type": "text",
+          "id": "text",
+          "label": "t:sections.promo-banner.blocks.subheading.settings.text.label",
+          "default": "New-in"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "name": "t:sections.promo-banner.blocks.heading.name",
+      "settings": [
+        {
+          "type": "text",
+          "id": "text",
+          "label": "t:sections.promo-banner.blocks.heading.settings.text.label",
+          "default": "New Arrivals for men"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "name": "t:sections.promo-banner.blocks.button.name",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "text",
+          "id": "text",
+          "label": "t:sections.promo-banner.blocks.button.settings.text.label",
+          "default": "Shop now"
+        },
+        {
+          "type": "url",
+          "id": "url",
+          "label": "t:sections.promo-banner.blocks.button.settings.url.label",
+          "default": "/"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.promo-banner.presets.name",
+      "blocks": [
+        {
+          "type": "vendor"
+        },
+        {
+          "type": "image"
+        },
+        {
+          "type": "subheading"
+        },
+        {
+          "type": "heading"
+        },
+        {
+          "type": "button"
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

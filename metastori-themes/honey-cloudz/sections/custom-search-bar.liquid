@@ -1,0 +1,139 @@
+<style>
+  .search-wrapper {
+    position: relative;
+    width: 100%;
+    max-width:580px;
+    margin: 0 auto;
+  }
+
+.search-input {
+    width: 100%;
+    border: 1px solid black;
+    font-family: 'Satoshi';
+    padding: 10px 15px 10px 45px;
+    border-radius: 999px;
+    font-size: 14px;
+    color: #333333;
+    line-height: 24px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+  .search-input:focus {
+    border-color: #aaa;
+    background-color: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  }
+   .search-input:hover {
+    background-color: #fff;
+  }
+ 
+  .search-icon {
+    position: absolute;
+    top: 50%;
+    left: 15px;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+   
+  }
+
+  @media (max-width: 750px){
+    .search-wrapper {
+    max-width: 100%;
+    padding:20px;
+  }
+  .search-icon {
+    position: absolute;
+    top: 50%;
+    left: 35px;
+}
+}
+
+</style>
+
+<div class="search-wrapper">
+ 
+  <svg class="search-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M9.16667 15.8333C12.8486 15.8333 15.8333 12.8486 15.8333 9.16667C15.8333 5.48477 12.8486 2.5 9.16667 2.5C5.48477 2.5 2.5 5.48477 2.5 9.16667C2.5 12.8486 5.48477 15.8333 9.16667 15.8333Z" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.5 17.4999L13.875 13.8749" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+  <input id="searchInput_custom_1" type="text" placeholder="Search Products" class="search-input">
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const productGridElements = document.querySelectorAll('#ResultsList .product-grid li.product-grid__item');
+    const bannerElements = document.querySelectorAll('#ResultsList .product-grid .custom-collection-insert');
+
+    function debounce(func, delay) {
+      let timeout;
+      return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), delay);
+      };
+    }
+
+    async function getPredictiveSearchResults(searchTerm) {
+      if (!searchTerm.trim()) {
+        console.log('⚠ Empty search term, skipping');
+        return { data: {}, productIds: [] };
+      }
+
+      const url = `/search/suggest.json?q=${encodeURIComponent(
+        searchTerm
+      )}&resources[type]=product&resources[limit]=50`;
+      console.log('🔍 Fetching:', url);
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        const data = await response.json();
+        console.log('✅ Predictive search data:', data);
+        let productIds = data.resources.results.products.map((p) => p.id);
+        console.log('🛍 Product Ids found:', productIds);
+        return { data, productIds };
+      } catch (err) {
+        console.error('❌ Error fetching predictive search results:', err);
+      }
+    }
+
+    let searchInput_custom_1 = document.getElementById('searchInput_custom_1');
+
+    const debouncedSearch = debounce(async (value) => {
+      const searchData = await getPredictiveSearchResults(value);
+      ShowSearchProducts(searchData);
+    }, 400);
+
+    document.addEventListener('input', (e) => {
+      if (e.target.getAttribute('id') == searchInput_custom_1.getAttribute('id')) {
+        debouncedSearch(e.target.value);
+      }
+    });
+
+    function ShowSearchProducts(searchData) {
+      console.log('search data::', searchData.productIds);
+      console.log('productGridElements::', productGridElements);
+
+      if (!searchData.productIds || searchData.productIds.length === 0) {
+        productGridElements.forEach((el) => (el.style.display = 'block'));
+        bannerElements.forEach((el) => (el.style.display = 'block'));
+        return;
+      }
+
+      const searchIds = searchData.productIds.map(String);
+
+      productGridElements.forEach((el) => {
+        const elId = el.getAttribute('data-product-id');
+        if (!searchIds.includes(String(elId))) {
+          el.style.display = 'none';
+        } else {
+          el.style.display = 'block';
+        }
+        bannerElements.forEach((el) => (el.style.display = 'none'));
+      });
+    }
+  });
+</script>

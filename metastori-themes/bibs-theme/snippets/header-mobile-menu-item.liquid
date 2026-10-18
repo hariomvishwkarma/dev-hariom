@@ -1,0 +1,310 @@
+{%- comment -%}
+  Renders the header mobile menu item
+
+  Accepts:
+    - block: the header menu block
+    - sticky: Boolean (if the menu is part of a sticky menu)
+
+  Usage:
+    {% render 'header-mobile-menu-item' %}
+{%- endcomment -%}
+
+{% liquid
+  if block.settings.menu
+    if block.settings.menu.links == blank
+      assign main_menu_linklist = linklists[block.settings.menu].links
+    else
+      assign main_menu_linklist = block.settings.menu.links
+    endif
+  endif
+
+  assign menu_type = block.settings.menu_type
+  case menu_type
+    when 'secondary'
+      assign menu_type_class = 'text-3 py-3 flex items-center justify-between text-[rgb(var(--color-secondary-menu))]"'
+    when 'tertiary'
+      assign menu_type_class = 'text-3 py-3 flex items-center justify-between text-[rgb(var(--color-tertiary-menu))]"'
+    when 'black-friday'
+      assign menu_type_class = 'text-3 py-3 flex items-center justify-between text-[rgb(var(--color-black-friday-menu))]"'
+    when 'sale'
+      assign menu_type_class = 'h6-bold sale py-3'
+    else
+      assign menu_type_class = 'text-3 py-3'
+  endcase
+
+  assign content_classes = 'px-4 py-2'
+  assign content_wrapper_classes = 'absolute inset-0 z-5 bg-background flex flex-col top-[1px]'
+  assign header_wrapper_classes = 'flex justify-between items-center gap-4 py-5 mx-4 bg-background text-foreground border-b border-borders '
+
+  assign navigation_styling_icons = shop.metaobjects.navigation_styling['navigation-styling'].icons
+  assign navigation_styling_colors = shop.metaobjects.navigation_styling['navigation-styling'].colors
+  assign promo_blocks = shop.metaobjects.menu_promo_block.values
+%}
+
+{% if main_menu_linklist != blank %}
+  <!-- Link List -->
+  <ul
+    role="list"
+    class="{% if sticky %} !mt-0{% endif %} {% if secondary %} mx-4 py-2 border-t border-b border-borders {% endif %}"
+  >
+    {% for link in main_menu_linklist %}
+      {% assign linked_menu_linklist_id = link.handle | append: '-menu-items' %}
+      {% assign linked_menu_linklist = linklists[linked_menu_linklist_id] %}
+      {% if sticky == null or sticky and linked_menu_linklist.links != blank %}
+        <li>
+          {% if linked_menu_linklist.links != blank %}
+            <!-- If link has childlinks -->
+            <details id="Details-menu-drawer-menu-item-{{ forloop.index }}">
+              {% if sticky == null %}
+                <summary class="{{ menu_type_class }} flex items-center gap-2">
+                  {{ link.title | escape }}
+                  {% render 'c-icon', icon: 'arrow-down', classes: 'w-2 h-2' %}
+                </summary>
+              {% else %}
+                <summary id="sticky-{{ link.handle }}"></summary>
+              {% endif %}
+
+              <div id="link-{{ link.handle | escape }}" class="{{ content_wrapper_classes }}" tabindex="-1">
+                <div class="{{ header_wrapper_classes }}">
+                  {% liquid
+                    # Back button with title
+                    capture button_content_1
+                      render 'c-icon', icon: 'flat-arrow-left', classes: 'w-4 h-4'
+                      render 'c-text', content: link.title, classes: 'text-normal font-normal leading-none'
+                    endcapture
+                    render 'c-button', content: button_content_1, classes: 'menu-drawer__close-button h8-bold flex items-center gap-1', design: 'link--hover', custom_attributes: 'aria-expanded="true"'
+                  %}
+                </div>
+
+                <div class="overflow-auto no-scrollbar">
+                  <!-- Child-link List -->
+                  <ul role="list" tabindex="-1" class="{{ content_classes }}">
+                    <div>
+                      {% for childlink in linked_menu_linklist.links %}
+                        {%- if childlink.links == blank -%}
+                          {% assign link_color_style = '' %}
+                          {% for color in navigation_styling_colors.value %}
+                            {% if color.navigation_item_name == childlink.title %}
+                              {% assign link_color_style = 'color: ' | append: color.color %}
+                            {% endif %}
+                          {% endfor %}
+
+                          <!-- If childlink has no grandchildlinks -->
+                          {%- capture childlink_id -%}
+                        HeaderDrawer-{{ link.handle }}-{{ childlink.handle }}
+                        {%- endcapture -%}
+                          {% render 'c-link',
+                            content: childlink.title,
+                            href: childlink.url,
+                            id: childlink_id,
+                            classes: 'text-3 py-4 block',
+                            style: link_color_style
+                          %}
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                    <div class="mt-4">
+                      {%- for childlink in linked_menu_linklist.links -%}
+                        {%- if childlink.links != blank -%}
+                          <li>
+                            <!-- If childlink has grandchildlinks -->
+                            <details id="Details-menu-drawer-{{ link.handle }}-{{ childlink.handle }}">
+                              <summary
+                                id="HeaderDrawer-{{ link.handle }}-{{ childlink.handle }}"
+                                class="text-3 flex items-center justify-between py-4 border-t border-borders"
+                              >
+                                {% if childlink.links[0].title contains '[' or childlink.links[0].title contains ']' %}
+                                  <a class="w-full" href="{{ childlink.url }}">
+                                {% endif %}
+
+                                <div class="flex items-center gap-4" style="color: {{ link_color }}">
+                                  {% assign link_name = childlink.title %}
+                                  {% assign menu_icon = blank %}
+                                  {% for icon_entry in shop.metaobjects.navigation_icon.values %}
+                                    {% if icon_entry.navigation_item_name == link_name %}
+                                      {% assign menu_icon = icon_entry.icon %}
+                                      {% break %}
+                                    {% endif %}
+                                  {% endfor %}
+                                  <div menu-icon="{{ menu_icon }}" link-title="{{ link_title }}"></div>
+                                  {% render 'c-menu-icon', icon: menu_icon, classes: 'ml-2 h-5 w-5' %}
+                                  <span class="block leading-normal">
+                                    {{- childlink.title | replace: '[full]', '' | escape -}}
+                                  </span>
+                                </div>
+
+                                {% unless childlink.links[0].title contains '['
+                                  or childlink.links[0].title contains ']'
+                                %}
+                                  {% render 'c-icon', icon: 'arrow-down', classes: 'w-2 h-2' %}
+                                {% endunless %}
+
+                                {% if childlink.links[0].title contains '[' or childlink.links[0].title contains ']' %}
+                                  </a>
+                                {% endif %}
+                              </summary>
+                              {% unless childlink.links[0].title contains '['
+                                or childlink.links[0].title contains ']'
+                              %}
+                                <div
+                                  id="childlink-{{ childlink.handle | escape }}"
+                                >
+                                  <ul
+                                    class="pl-[44px] pt-0 flex flex-col"
+                                    role="list"
+                                    tabindex="-1"
+                                  >
+                                    {%- for grandchildlink in childlink.links -%}
+                                      {% assign link_icon = '' %}
+                                      {% for icon in navigation_styling_icons.value %}
+                                        {% if icon.navigation_item_name == grandchildlink.title %}
+                                          {% assign link_icon = icon.icon %}
+                                          {% break %}
+                                        {% endif %}
+                                      {% endfor %}
+
+                                      <!-- If grandchildlink has grandgrandchildlinks -->
+                                      {% if grandchildlink.links != blank %}
+                                        <li class="!my-0">
+                                          {% capture grandgrandchild_list %}
+                                      {% for grandgrandchildlink in grandchildlink.links %}
+                                        <li class="px-4">
+                                          {%- capture grandgrandchildlink_id -%}
+                                          HeaderDrawer-{{ link.handle }}-{{ grandchildlink.handle }}-{{ grandgrandchildlink.handle }}
+                                          {%- endcapture -%}
+                                          {% render 'c-link',
+                                            content: grandgrandchildlink.title,
+                                            href: grandgrandchildlink.url,
+                                            id: grandgrandchildlink_id,
+                                            classes: 'text-base py-4 block'
+                                          %}
+                                        </li>
+                                      {% endfor %}
+                                    {% endcapture %}
+                                          {% if forloop.last %}
+                                            {% assign hide_border_bottom = true %}
+                                          {% endif %}
+                                          {% render 'c-accordion',
+                                            accordion_label: grandchildlink.title,
+                                            accordion_content: grandgrandchild_list,
+                                            accordion_label_class: 'text-3 py-5 block',
+                                            accordion_borders: true,
+                                            accordion_hide_border_top: true,
+                                            accordion_hide_border_bottom: hide_border_bottom,
+                                            accordion_label_padding: ' ',
+                                            accordion_content_class: 'paragraph-3 pl-4',
+                                            accordion_icon: link_icon,
+                                            accordion_icon_classes: 'ml-auto !w-2 !h-2',
+                                            accordion_menu_icon: true
+                                          %}
+                                        </li>
+                                      {% else %}
+                                        <!-- If grandchildlink has no grandgrandchildlinks -->
+                                        {%- capture grandchildlink_id -%}
+                                      HeaderDrawer-{{ link.handle }}-{{ childlink.handle }}-{{ grandchildlink.handle }}
+                                    {%- endcapture -%}
+                                        {% render 'c-link',
+                                          content: grandchildlink.title,
+                                          href: grandchildlink.url,
+                                          id: grandchildlink_id,
+                                          classes: 'py-2'
+                                        %}
+                                      {% endif %}
+                                    {%- endfor -%}
+
+                                    <!-- Promo blocks -->
+                                    <div role="list" tabindex="-1" class="mt-auto mx-[-1rem] pt-4">
+                                      <div class="">
+                                        {% for promo_block in promo_blocks %}
+                                          {% assign menu_item_name = link.title
+                                            | append: '/'
+                                            | append: childlink.title
+                                          %}
+                                          {% if promo_block.menu_item_name == menu_item_name %}
+                                            {% render 'menu-promo-block',
+                                              image: promo_block.image,
+                                              text: promo_block.text,
+                                              url: promo_block.url,
+                                              aspect_ratio: promo_block.aspect_ratio,
+                                              stretch: true,
+                                              alignment: promo_block.content_alignement,
+                                              text_color: promo_block.text_color,
+                                              font_size: promo_block.font_size,
+                                              cta_text: promo_block.cta_text,
+                                              cta_type: promo_block.cta_type,
+                                              classes: 'mb-2'
+                                            %}
+                                          {% endif %}
+                                        {% endfor %}
+                                      </div>
+                                    </div>
+                                    <!-- End Promo blocks -->
+                                  </ul>
+                                </div>
+                              {% endunless %}
+                            </details>
+                          </li>
+                        {%- endif -%}
+                      {%- endfor -%}
+
+                      <!-- Promo blocks !!! -->
+                      <div role="list" tabindex="-1" class="border-t border-borders pt-4">
+                        <div class="">
+                          {% for promo_block in promo_blocks %}
+                            {% if promo_block.menu_item_name == link.title %}
+                              {% render 'menu-promo-block',
+                                image: promo_block.image,
+                                text: promo_block.text,
+                                url: promo_block.url,
+                                aspect_ratio: promo_block.aspect_ratio,
+                                stretch: true,
+                                alignment: promo_block.content_alignement,
+                                text_color: promo_block.text_color,
+                                font_size: promo_block.font_size,
+                                cta_text: promo_block.cta_text,
+                                cta_type: promo_block.cta_type,
+                                classes: 'mb-2'
+                              %}
+                            {% endif %}
+                          {% endfor %}
+                        </div>
+                      </div>
+                      <!-- End Promo blocks -->
+                    </div>
+                  </ul>
+                </div>
+              </div>
+            </details>
+          {% else %}
+            <!-- If link has no childlinks -->
+            {% liquid
+              assign link_id = 'HeaderDrawer-' | append: link.handle
+
+              unless secondary or sticky
+                assign menu_type_class = menu_type_class | append: ' text-3 block py-4 '
+                unless forloop.last
+                  assign menu_type_class = menu_type_class | append: ' border-b border-borders '
+                endunless
+              else
+                assign menu_type_class = menu_type_class | append: ' text-semibold block !py-2 !text-base'
+              endunless
+
+              capture link_content
+                echo link.title | escape
+              endcapture
+
+              assign link_color_style = ''
+              for color in navigation_styling_colors.value
+                if color.navigation_item_name == link.title
+                  assign link_color_style = 'color: ' | append: color.color
+                endif
+              endfor
+
+              render 'c-link', content: link_content, href: link.url, id: link_id, classes: menu_type_class, style: link_color_style
+            %}
+          {% endif %}
+        </li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+{% endif %}

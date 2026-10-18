@@ -1,0 +1,88 @@
+{%- comment -%}
+  Renders a search bar with a search button and a search input field.
+
+  Accepts:
+    - is_search_page (boolean): Whether the search bar is being rendered on the search page.
+    - classes
+
+  Usage:
+    {% render 'search-bar' %}
+{%- endcomment -%}
+
+{% liquid
+  assign display_search_as_icon = block.settings.display_search_as_icon
+  assign color_scheme = block.settings.color_scheme
+  assign color_scheme_class = 'color-' | append: color_scheme
+
+  capture search_icon
+    render 'c-icon', icon: 'search', classes: 'w-6 h-6'
+  endcapture
+%}
+
+{% style %}
+  :root {
+    --logo-width: {{ block.settings.logo_width | default: '154' -}}px;
+  }
+{% endstyle %}
+
+{%- capture search_form -%}
+  <predictive-search class="w-full{% if display_search_as_icon %} w-full max-w-[670] mx-auto{% endif %}">
+    <form action="{{ routes.search_url }}" method="get" class="flex-1">
+      <div class="relative px-7.5 search-wrap">
+        {% liquid
+          if display_search_as_icon
+            assign input_placeholder = 'general.search.search_drawer.bar_placeholder' | t
+            assign input_classes = 'clear_input pr-9 border-b'
+            assign btn_classes = 'absolute inset-y-0.5 right-0 flex aspect-square items-center justify-center mr-4 md:mr-[30px]'
+          else 
+            assign input_placeholder = 'general.search.search_bar.placeholder' | t
+            assign input_classes = 'clear_input pl-9'
+            assign btn_classes = 'absolute inset-y-0.5 left-0.5 flex aspect-square items-center justify-center'
+          endif
+          render 'c-input', input_type: 'search', input_name: 'q', input_value: search.terms, input_placeholder: input_placeholder, input_classes: input_classes, custom_attributes: 'role="combobox" aria-expanded="false" aria-controls="predictive-search-results" aria-activedescendant=""'
+          render 'c-button', type: 'submit', design: 'link--bg_no-padding', content: search_icon, classes: btn_classes, custom_attributes: 'aria-label="Search"'
+        %}
+      </div>
+      <div class="predictive-search predictive-search--header mt-[30px] text-left" tabindex="-1" data-predictive-search></div>
+    </form>
+
+  </predictive-search>
+{%- endcapture -%}
+
+{%- assign classes = 'flex-1 text-right' -%}
+
+{% unless display_search_as_icon %}
+  <div class="flex-1{% unless is_search_page %} hidden xl:block max-w-[208px] ml-auto mr-10{% else %} relative{% endunless %}">
+    {{ search_form }}
+  </div>
+  {%- assign classes = classes | append: ' flex xl:hidden' -%}
+{% endunless %}
+
+{%- capture search_drawer_header -%}
+  {% render 'c-title', translatable_content: 'general.search.search_drawer.header', custom_tag: 'h3', classes: 'text-left' %}
+{%- endcapture -%}
+
+{% capture search_drawer_content %}
+  <div id="search-drawer" class="h-full flex overflow-hidden flex-col">
+    <div class="overflow-auto h-full">
+      {{search_form}}
+    </div>
+  </div>
+{% endcapture %}
+
+{%- assign drawer_classes = color_scheme_class | append: ' bg-background' -%}
+
+{% unless is_search_page %}
+  {% render 'c-drawer',
+    drawer_id: 'Header-search-drawer',
+    toggle_label: search_icon,
+    toggle_type: 'p-2',
+    toggle_aria_label: 'Search',
+    drawer_placement: 'right',
+    drawer_width: 'lg',
+    drawer_content: search_drawer_content,
+    drawer_header: search_drawer_header,
+    drawer_classes: drawer_classes,
+    classes: classes
+  %}
+{% endunless %}

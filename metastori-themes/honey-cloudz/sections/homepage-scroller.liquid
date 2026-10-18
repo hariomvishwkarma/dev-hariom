@@ -1,0 +1,292 @@
+{%- liquid
+  assign item_count = section.blocks.size
+  assign should_animate = false
+  if item_count > 0
+    assign should_animate = true
+  endif
+-%}
+
+{%- style -%}
+  #shopify-section-{{ section.id }} {
+    --section-padding-top: {{ section.settings.padding_top }}px;
+    --section-padding-bottom: {{ section.settings.padding_bottom }}px;
+    --hc-scroller-bg: {{ section.settings.background_color }};
+    --hc-scroller-text: {{ section.settings.text_color }};
+    --hc-scroller-speed: {{ section.settings.speed }}s;
+    --hc-scroller-gap: {{ section.settings.gap }}px;
+  }
+
+  .hc-scroller {
+    padding-top: calc(var(--section-padding-top) * 0.75);
+    padding-bottom: calc(var(--section-padding-bottom) * 0.75);
+    background: var(--hc-scroller-bg);
+    color: var(--hc-scroller-text);
+    overflow: hidden;
+  }
+
+  @media screen and (min-width: 750px) {
+    .hc-scroller {
+      padding-top: var(--section-padding-top);
+      padding-bottom: var(--section-padding-bottom);
+    }
+  }
+
+  .hc-scroller__viewport {
+    display: flex;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .hc-scroller__track {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--hc-scroller-gap);
+    width: max-content;
+    will-change: transform;
+  }
+
+  .hc-scroller__track--animated {
+    animation: hc-scroller-left var(--hc-scroller-speed) linear infinite;
+  }
+
+  .hc-scroller--right .hc-scroller__track--animated {
+    animation-name: hc-scroller-right;
+  }
+
+  @media screen and (hover: hover) {
+    .hc-scroller:hover .hc-scroller__track--animated {
+      animation-play-state: paused;
+    }
+  }
+
+  .hc-scroller__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 1.2rem;
+    white-space: nowrap;
+    font-weight: 600;
+    letter-spacing: 0;
+    font-size: 1.5rem;
+  }
+
+  @media screen and (min-width: 750px) {
+    .hc-scroller__item {
+      font-size: 1.6rem;
+    }
+  }
+
+  .hc-scroller__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hc-scroller__icon img {
+    display: block;
+    width: auto;
+    height: var(--hc-scroller-icon-size, 22px);
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  @keyframes hc-scroller-left {
+    0% {
+      transform: translate3d(0, 0, 0);
+    }
+    100% {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  @keyframes hc-scroller-right {
+    0% {
+      transform: translate3d(-50%, 0, 0);
+    }
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hc-scroller__track--animated {
+      animation: none;
+    }
+  }
+{%- endstyle -%}
+
+<section class="hc-scroller{% if section.settings.direction == 'right' %} hc-scroller--right{% endif %}">
+  <div class="hc-scroller__viewport" aria-label="{{ section.settings.aria_label | escape }}">
+    <div class="hc-scroller__track{% if should_animate %} hc-scroller__track--animated{% endif %}" role="list">
+      {%- comment -%}
+        Duplicate the content once so the animation can translate by 50% for a seamless loop.
+      {%- endcomment -%}
+      {%- for pass in (1..2) -%}
+        {%- for block in section.blocks -%}
+          {%- liquid
+            assign block_icon_size = block.settings.icon_size
+            if block_icon_size == 0
+              assign block_icon_size = section.settings.icon_size
+            endif
+          -%}
+          <div
+            class="hc-scroller__item"
+            role="listitem"
+            style="--hc-scroller-icon-size: {{ block_icon_size }}px;"
+            {{ block.shopify_attributes }}
+          >
+            {%- if block.settings.icon_image != blank -%}
+              <span class="hc-scroller__icon" aria-hidden="true">
+                {{
+                  block.settings.icon_image
+                  | image_url: height: block_icon_size
+                  | image_tag: loading: 'lazy', widths: '32, 44, 64, 88, 128', alt: block.settings.icon_image_alt
+                }}
+              </span>
+            {%- endif -%}
+            <span>{{ block.settings.text | escape }}</span>
+          </div>
+        {%- endfor -%}
+      {%- endfor -%}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Homepage scroller",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "aria_label",
+      "label": "Accessibility label",
+      "default": "Scrolling highlights"
+    },
+    {
+      "type": "select",
+      "id": "direction",
+      "label": "Direction",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "range",
+      "id": "speed",
+      "label": "Speed",
+      "min": 8,
+      "max": 60,
+      "step": 2,
+      "unit": "s",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "gap",
+      "label": "Space between items",
+      "min": 16,
+      "max": 80,
+      "step": 4,
+      "unit": "px",
+      "default": 44
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#e46aa3"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "label": "Default icon size",
+      "info": "Used when an item's icon size is set to 0 (use default).",
+      "min": 14,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 22
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 80,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding top",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 80,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding bottom",
+      "default": 12
+    }
+  ],
+  "blocks": [
+    {
+      "type": "item",
+      "name": "Item",
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "icon_image",
+          "label": "Icon image"
+        },
+        {
+          "type": "text",
+          "id": "icon_image_alt",
+          "label": "Icon image alt text",
+          "default": "Icon"
+        },
+        {
+          "type": "range",
+          "id": "icon_size",
+          "label": "Icon size",
+          "info": "Set to 0 to use the section default icon size.",
+          "min": 0,
+          "max": 40,
+          "step": 2,
+          "unit": "px",
+          "default": 0
+        },
+        {
+          "type": "text",
+          "id": "text",
+          "label": "Text",
+          "default": "Lightweight, non-slip design"
+        }
+      ]
+    }
+  ],
+  "max_blocks": 20,
+  "presets": [
+    {
+      "name": "Homepage scroller",
+      "category": "Homepage",
+      "blocks": [
+        { "type": "item" },
+        { "type": "item" },
+        { "type": "item" },
+        { "type": "item" }
+      ]
+    }
+  ]
+}
+{% endschema %}
+

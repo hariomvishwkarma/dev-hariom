@@ -1,0 +1,575 @@
+{% if section.settings.layout == 'slider' %}
+  {% assign desktop_slides = section.settings.slider_product_visible_desktop | minus: 0.3 %}
+  {% assign large_slides = section.settings.slider_product_visible_large | minus: 0.3 %}
+  {%- capture swiper_options -%}
+    {
+      "slidesPerView": 1.5,
+      "spaceBetween": 20,
+      "loop": false,
+      "navigation": {
+        "nextEl": ".swiper-button-next",
+        "prevEl": ".swiper-button-prev"
+      },
+      "breakpoints": {
+        "768": {
+          "slidesPerView": {{desktop_slides}}
+        },
+        "1636": {
+          "slidesPerView": {{large_slides}}
+        }
+      },
+      "scrollbar": {
+        "el": ".swiper-scrollbar",
+        "draggable": true
+      }
+    }
+  {%- endcapture -%}
+  {%- capture swiper_attribute -%}
+    data-swiper='{{- swiper_options -}}'
+  {%- endcapture -%}
+{% endif %}
+{% liquid
+  assign button_alignment = section.settings.button_alignment
+  case button_alignment
+    when 'left'
+      assign button_alignment_class = 'text-left'
+    when 'center'
+      assign button_alignment_class = 'text-center'
+    when 'right'
+      assign button_alignment_class = 'text-right'
+  endcase
+
+  assign heading_title = section.settings.title
+  assign heading_tag = section.settings.heading_tag
+  assign font_size = section.settings.font_size
+  assign font_weight = section.settings.font_weight
+  assign heading_type = font_size | append: ' ' | append: font_weight
+
+  assign all_blocks_empty = true
+  for block in section.blocks
+    if block.settings.collection != blank
+      assign all_blocks_empty = false
+    endif
+  endfor
+%}
+
+{%- unless all_blocks_empty -%}
+  <div class="color-{{ section.settings.color_scheme }} mb-[2px]">
+    <div class="section-featured-collection--header flex gap-4 items-center container-fluid mb-5">
+      {%- if heading_title != blank -%}
+        {% render 'c-title', custom_tag: heading_tag, type: heading_type, content: heading_title %}
+        {% if section.settings.show_shop_all_btn %}
+          <div class="flex-1 {{ button_alignment_class }}">
+            {% render 'c-link',
+              translatable_content: 'sections.featured-collection.shop_all',
+              classes: 'featured_collection_btn whitespace-nowrap button_outline--primary w-fit h-fit',
+              href: section.blocks[0].settings.collection.url
+            %}
+          </div>
+        {% endif %}
+      {%- endif -%}
+    </div>
+
+    <div class="flex items-center pr-4 overflow-x-auto no-scrollbar container-fluid">
+      {% for block in section.blocks %}
+        {% if block.settings.collection != blank %}
+          {% unless section.blocks.size <= 1 and section.settings.hide_label %}
+            <span class="flex flex-row items-center mt-4">
+              <a
+                href="#"
+                class="h5 link--menu whitespace-nowrap{% if forloop.index == 1 %} active{% endif %}"
+                id="Collection-tab-button-{{ block.id }}"
+                data-collection-url="{{ block.settings.collection.url }}"
+              >
+                {{ block.settings.collection.title }}
+              </a>
+              {% if forloop.index > 0 and forloop.index < section.blocks.size %}
+                <div class="mx-2">/</div>
+              {% endif %}
+            </span>
+          {% endunless %}
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    {% if section.settings.layout == 'slider' %}
+      <div class="mt-[2px]">
+        {% for block in section.blocks %}
+          {% if block.settings.collection != blank %}
+            {% liquid
+              assign products_to_display = 0
+              assign products_to_display = products_to_display | plus: block.settings.collection.all_products_count
+              assign number_of_products_to_show = section.settings.number_of_products_to_show
+
+              if products_to_display > number_of_products_to_show
+                assign products_to_display = number_of_products_to_show
+              endif
+            %}
+
+            <div
+              id="Collection-tab-content-{{ block.id }}"
+              class="{% unless forloop.index == 1 %} !hidden{% endunless %}"
+            >
+              {% if products_to_display > 0 %}
+                <div
+                  class="swiper swiper-card !pb-[2px]"
+                  {{ swiper_attribute }}
+                >
+                  <div class="swiper-wrapper secondary-wrapper">
+                    {%- for product in block.settings.collection.products limit: number_of_products_to_show -%}
+                      {% assign hide_product = product.metafields.custom.hide_product.value %}
+                      {% unless hide_product %}
+                        <div class="swiper-slide">
+                          {% render 'card-product',
+                            card_product: product,
+                            show_secondary_media: true,
+                            media_aspect_ratio: 'bibs',
+                            prioritize_image: false
+                          %}
+                        </div>
+                      {%- endunless -%}
+                    {%- endfor -%}
+                  </div>
+                  <div class="swiper-highlighter-cat">
+                    <div class="swiper-button-prev !left-9 after:pr-[2px] swiper-button-disabled"></div>
+                    <div class="swiper-button-next !right-9 after:pl-[2px] swiper-button-disabled"></div>
+                  </div>
+                  <div class="swiper-scrollbar !left-0 hidden"></div>
+                </div>
+              {% else %}
+                <p class="my-12">{{ 'sections.featured-collection.empty' | t }}</p>
+              {% endif %}
+            </div>
+          {% endif %}
+        {%- endfor -%}
+      </div>
+    {% elsif section.settings.layout == 'grid' %}
+      {% liquid
+        assign number_of_products_desktop = section.settings.number_of_products_desktop | plus: 0
+        assign number_of_products_mobile = section.settings.number_of_products_mobile
+        assign number_of_columns_large = section.settings.number_of_columns_large
+        assign number_of_columns_desktop = section.settings.number_of_columns_desktop | plus: 0
+        assign number_of_columns_mobile = section.settings.number_of_columns_mobile
+
+        case number_of_columns_desktop
+          when 1
+            assign number_of_columns_desktop_classes = 'lg:grid-cols-1'
+            assign number_of_columns_laptop_classes = 'md:grid-cols-1'
+          when 2
+            assign number_of_columns_desktop_classes = 'lg:grid-cols-2'
+            assign number_of_columns_laptop_classes = 'md:grid-cols-1'
+          when 3
+            assign number_of_columns_desktop_classes = 'lg:grid-cols-3'
+            assign number_of_columns_laptop_classes = 'md:grid-cols-2'
+          when 4
+            assign number_of_columns_desktop_classes = 'lg:grid-cols-4'
+            assign number_of_columns_laptop_classes = 'md:grid-cols-3'
+          when 5
+            assign number_of_columns_desktop_classes = 'lg:grid-cols-5'
+            assign number_of_columns_laptop_classes = 'md:grid-cols-4'
+          when 6
+            assign number_of_columns_desktop_classes = 'lg:grid-cols-6'
+            assign number_of_columns_laptop_classes = 'md:grid-cols-5'
+          when 7
+            assign number_of_columns_desktop_classes = 'lg:grid-cols-7'
+            assign number_of_columns_laptop_classes = 'md:grid-cols-6'
+          when 8
+            assign number_of_columns_desktop_classes = 'lg:grid-cols-8'
+            assign number_of_columns_laptop_classes = 'md:grid-cols-7'
+          when 9
+            assign number_of_columns_desktop_classes = 'lg:grid-cols-9'
+            assign number_of_columns_laptop_classes = 'md:grid-cols-8'
+          when 10
+            assign number_of_columns_desktop_classes = 'lg:grid-cols-10'
+            assign number_of_columns_laptop_classes = 'md:grid-cols-9'
+          when 11
+            assign number_of_columns_desktop_classes = 'lg:grid-cols-11'
+            assign number_of_columns_laptop_classes = 'md:grid-cols-10'
+          when 12
+            assign number_of_columns_desktop_classes = 'lg:grid-cols-12'
+            assign number_of_columns_laptop_classes = 'md:grid-cols-11'
+        endcase
+
+        case number_of_columns_large
+          when 4
+            assign number_of_columns_large_classes = '2xl:grid-cols-4'
+          when 5
+            assign number_of_columns_large_classes = '2xl:grid-cols-5'
+          when 6
+            assign number_of_columns_large_classes = '2xl:grid-cols-6'
+          when 7
+            assign number_of_columns_large_classes = '2xl:grid-cols-7'
+          when 8
+            assign number_of_columns_large_classes = '2xl:grid-cols-8'
+          when 9
+            assign number_of_columns_large_classes = '2xl:grid-cols-9'
+          when 10
+            assign number_of_columns_large_classes = '2xl:grid-cols-10'
+          when 11
+            assign number_of_columns_large_classes = '2xl:grid-cols-11'
+          when 12
+            assign number_of_columns_large_classes = '2xl:grid-cols-12'
+          when 13
+            assign number_of_columns_large_classes = '2xl:grid-cols-13'
+          when 14
+            assign number_of_columns_large_classes = '2xl:grid-cols-14'
+          when 15
+            assign number_of_columns_large_classes = '2xl:grid-cols-15'
+        endcase
+
+        assign number_of_columns_mobile = number_of_columns_mobile | times: 1
+
+        case number_of_columns_mobile
+          when 1
+            assign number_of_columns_mobile_classes = 'grid-cols-1'
+          when 2
+            assign number_of_columns_mobile_classes = 'grid-cols-2'
+        endcase
+      %}
+
+      <div class="mt-[2px] container-fluid">
+        {% for block in section.blocks %}
+          {% if block.settings.collection != blank %}
+            <div
+              id="Collection-tab-content-{{ block.id }}"
+              class="{% unless forloop.index == 1 %} !hidden{% endunless %}"
+            >
+              <div class="grid gap-[2px] {{ number_of_columns_mobile_classes }} {{ number_of_columns_laptop_classes }} {{ number_of_columns_desktop_classes }} {{ number_of_columns_large_classes }}">
+                {% for product in block.settings.collection.products limit: number_of_products_desktop %}
+                  {% liquid
+                    assign hide_product = product.metafields.custom.hide_product.value
+                    assign classes = ''
+                    if forloop.index > number_of_products_mobile
+                      assign classes = 'md:block hidden'
+                    endif
+                  %}
+
+                  {% unless hide_product %}
+                    {%
+                      render 'card-product',
+                      card_product: product,
+                      classes: classes,
+                      show_secondary_media: true,
+                      media_aspect_ratio: 'bibs',
+                      prioritize_image: false
+                    %}
+                  {% endunless %}
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+  {% render 'divider',
+    height: section.settings.margin_bottom,
+    custom: section.settings.margin_bottom_custom,
+    color_scheme: section.settings.color_scheme
+  %}
+{%- endunless -%}
+
+{% schema %}
+{
+  "name": "t:sections.featured_collection.name",
+  "class": "section-featured-collection",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "default": "Featured Collection",
+      "label": "t:sections.featured_collection.settings.title.label"
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.heading_tag.label",
+      "id": "heading_tag",
+      "default": "h3",
+      "options": [
+        {
+          "value": "h1",
+          "label": "t:sections.all.heading_tag.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.heading_tag.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.heading_tag.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.heading_tag.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.heading_tag.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.heading_tag.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_size.label",
+      "id": "font_size",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_size.options.default"
+        },
+        {
+          "value": "paragraph-1",
+          "label": "t:sections.all.font_size.options.paragraph"
+        },
+        {
+          "value": "h1",
+          "label": "t:sections.all.font_size.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.font_size.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.font_size.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.font_size.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.font_size.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.font_size.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_weight.label",
+      "id": "font_weight",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_weight.options.default"
+        },
+        {
+          "value": "!font-thin",
+          "label": "t:sections.all.font_weight.options.thin"
+        },
+        {
+          "value": "!font-light",
+          "label": "t:sections.all.font_weight.options.light"
+        },
+        {
+          "value": "!font-normal",
+          "label": "t:sections.all.font_weight.options.normal"
+        },
+        {
+          "value": "!font-medium",
+          "label": "t:sections.all.font_weight.options.medium"
+        },
+        {
+          "value": "!font-semibold",
+          "label": "t:sections.all.font_weight.options.semibold"
+        },
+        {
+          "value": "!font-bold",
+          "label": "t:sections.all.font_weight.options.bold"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "show_shop_all_btn",
+      "default": true,
+      "label": "t:sections.featured_collection.settings.show_shop_all_btn.label",
+      "info": "t:sections.featured_collection.settings.show_shop_all_btn.info"
+    },
+    {
+      "type": "text_alignment",
+      "id": "button_alignment",
+      "label": "t:sections.featured_collection.settings.button_alignment.label",
+      "default": "right"
+    },
+    {
+      "type": "checkbox",
+      "id": "hide_label",
+      "default": true,
+      "label": "t:sections.featured_collection.settings.hide_label.label"
+    },
+    {
+      "type": "select",
+      "id": "layout",
+      "label": "t:sections.featured_collection.settings.layout.label",
+      "options": [
+        {
+          "label": "grid",
+          "value": "grid"
+        },
+        {
+          "label": "slider",
+          "value": "slider"
+        }
+      ]
+    },
+    {
+      "type": "header",
+      "content": "t:sections.featured_collection.settings.grid_header.content"
+    },
+    {
+      "type": "number",
+      "id": "number_of_products_desktop",
+      "label": "t:sections.featured_collection.settings.number_of_products_desktop.label",
+      "default": 10
+    },
+    {
+      "type": "number",
+      "id": "number_of_products_mobile",
+      "label": "t:sections.featured_collection.settings.number_of_products_mobile.label",
+      "default": 6
+    },
+    {
+      "type": "range",
+      "id": "number_of_columns_large",
+      "label": "t:sections.featured_collection.settings.number_of_columns_large.label",
+      "min": 4,
+      "max": 15,
+      "step": 1,
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "number_of_columns_desktop",
+      "label": "t:sections.featured_collection.settings.number_of_columns_desktop.label",
+      "min": 1,
+      "max": 6,
+      "step": 1,
+      "default": 5
+    },
+    {
+      "type": "select",
+      "id": "number_of_columns_mobile",
+      "label": "t:sections.featured_collection.settings.number_of_columns_mobile.label",
+      "options": [
+        {
+          "value": "1",
+          "label": "t:sections.featured_collection.settings.number_of_columns_mobile.options.1_col.label"
+        },
+        {
+          "value": "2",
+          "label": "t:sections.featured_collection.settings.number_of_columns_mobile.options.2_col.label"
+        }
+      ],
+      "default": "1"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.featured_collection.settings.slider_header.content"
+    },
+    {
+      "type": "range",
+      "id": "number_of_products_to_show",
+      "min": 4,
+      "max": 12,
+      "step": 1,
+      "default": 4,
+      "label": "t:sections.featured_collection.settings.number_of_products_to_show.label"
+    },
+    {
+      "type": "range",
+      "id": "slider_product_visible_desktop",
+      "min": 4,
+      "max": 12,
+      "step": 1,
+      "default": 4,
+      "label": "t:sections.featured_collection.settings.slider_product_visible_desktop.label"
+    },
+    {
+      "type": "range",
+      "id": "slider_product_visible_large",
+      "min": 4,
+      "max": 12,
+      "step": 1,
+      "default": 4,
+      "label": "t:sections.featured_collection.settings.slider_product_visible_large.label"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.all.margin.heading"
+    },
+    {
+      "type": "select",
+      "id": "margin_bottom",
+      "label": "t:sections.all.margin.margin_bottom.label",
+      "options": [
+        {
+          "label": "t:sections.all.margin.margin_bottom.none",
+          "value": "none"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.small",
+          "value": "small"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.normal",
+          "value": "normal"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.large",
+          "value": "large"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.custom.label",
+          "value": "custom"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "default": 16,
+      "step": 1,
+      "label": "t:sections.all.margin.margin_bottom.custom.value",
+      "visible_if": "{{ section.settings.margin_bottom == 'custom' }}",
+      "unit": "px",
+      "id": "margin_bottom_custom"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "collection",
+      "name": "t:sections.featured_collection.blocks.collection.name",
+      "settings": [
+        {
+          "type": "collection",
+          "id": "collection",
+          "label": "t:sections.featured_collection.blocks.collection.label"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.featured_collection.name"
+    }
+  ]
+}
+{% endschema %}

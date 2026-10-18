@@ -1,0 +1,294 @@
+{% liquid
+  assign bg_image = section.settings.bg_image
+  assign bg_image_mobile = section.settings.bg_image_mobile | default: bg_image
+  assign add_to_cart_position = section.settings.add_to_cart_position
+  assign hide_add_to_cart_label = section.settings.hide_add_to_cart_label
+
+  case add_to_cart_position
+    when 'top-left'
+      assign add_to_cart_position_class = 'top-4 left-4'
+    when 'top-right'
+      assign add_to_cart_position_class = 'top-4 right-4'
+    when 'bottom-left'
+      assign add_to_cart_position_class = 'bottom-4 left-4'
+    else
+      assign add_to_cart_position_class = 'bottom-4 right-4'
+  endcase
+%}
+
+<div class="container-fluid">
+  <div class="color-{{ section.settings.color_scheme }}">
+    <div class="relative">
+      <picture>
+        <source
+          media="(min-width: 768px)"
+          srcset="{{ bg_image | image_url: width: 1946 }}"
+        >
+        {{
+          bg_image_mobile
+          | image_url: width: 1946
+          | image_tag
+          | replace: '/us.bibsworld.com', '/cdn.squishbit.com/uYtaZ85aZF4mYQ/us.bibsworld.com'
+          | replace: '/bibsworld.com', '/cdn.squishbit.com/pihC-yfL0Uz2yg/bibsworld.com'
+        }}
+      </picture>
+      {% unless hide_add_to_cart_label %}
+        {% capture button %}
+        <div class="absolute {{ add_to_cart_position_class }}">
+          {%- capture button_id -%}drawer-{{ section.id }}{%- endcapture -%}
+          {%- capture button_text -%}{{ 'sections.shop_the_look.title'| t }}{%- endcapture -%}
+          {%- capture button_icon -%}{% render 'c-icon', icon: 'cart', classes: 'w-6 h-6 inline' %}{%- endcapture -%}
+
+          {%- render 'c-expandable-button', id: button_id, button_text: button_text, icon: button_icon -%}
+        </div>
+        {% endcapture %}
+        {% capture drawer_id %}drawer-{{ section.id }}{% endcapture %}
+        {% capture drawer_header %} 
+          {% capture title %}{{ 'sections.shop_the_look.title'| t }}{% endcapture %}
+          {% render 'c-text', custom_tag: 'h4', content: title %}
+        {% endcapture %}
+        {% capture drawer_content %} 
+          <div class="px-4 flex flex-col">
+            {% if section.blocks.size > 1 %}
+              {% for i in (0..section.blocks.size) %}
+                {% if section.blocks[i].settings.product.title %}
+                  {% if i > 0 %}
+                    {% render 'c-divider', type: 'primary-thin', classes: 'my-4' %}
+                  {% endif %}
+                  {%- render 'product-card-w-atc-button', product: section.blocks[i].settings.product, section_id: section.id  -%}
+                {% endif %} 
+              {% endfor %}
+            {% else %}
+              {%- render 'product-card-w-atc-button', product: section.blocks[0].settings.product, section_id: section.id  -%}
+            {% endif %}
+          </div>
+        {% endcapture %}
+        {% render 'c-drawer',
+          drawer_id: drawer_id,
+          drawer_header: drawer_header,
+          drawer_content: drawer_content,
+          toggle_button: button,
+          drawer_backdrop: true,
+          drawer_width: 'md'
+        %}
+      {% endunless %}
+      {%- for block in section.blocks -%}
+        {% liquid
+          assign block_product = block.settings.product
+          assign x_position = block.settings.x_position
+          assign y_position = block.settings.y_position
+          assign x_position_mobile = block.settings.x_position_mobile
+          assign y_position_mobile = block.settings.y_position_mobile
+        %}
+        <div>
+          <style>
+              #Hotspot-{{ section.id }}-{{ block.id }} {
+              left: {{ x_position_mobile }}%;
+              top: {{ y_position_mobile }}%;
+            }
+            @media (min-width: 768px) {
+              #Hotspot-{{ section.id }}-{{ block.id }} {
+                left: {{ x_position }}%;
+                top: {{ y_position }}%;
+              }
+            }
+          </style>
+          <div
+            id="Hotspot-{{ section.id }}-{{ block.id }}"
+            class="hotspot"
+            data-popover-target="popover-{{ section.id }}-{{ block.id }}"
+          ></div>
+          {%- if block_product != blank -%}
+            {%- capture popover_content -%}
+              <div class="w-[167px]">
+                {% render 'card-product', card_product: block_product, media_aspect_ratio: 'bibs' %}
+              </div>
+            {%- endcapture -%}
+            {%- assign popover_id = 'popover-' | append: section.id | append: '-' | append: block.id -%}
+            {% render 'c-popover', popover_content: popover_content, popover_id: popover_id %}
+          {%- endif -%}
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+</div>
+{% render 'divider',
+  height: section.settings.margin_bottom,
+  custom: section.settings.margin_bottom_custom,
+  color_scheme: section.settings.color_scheme
+%}
+
+{% schema %}
+{
+  "name": "t:sections.shop-the-look.name",
+  "tag": "section",
+  "class": "section-shop-the-look",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    },
+    {
+      "type": "image_picker",
+      "id": "bg_image",
+      "label": "t:sections.shop-the-look.settings.bg_image.label"
+    },
+    {
+      "type": "image_picker",
+      "id": "bg_image_mobile",
+      "label": "t:sections.shop-the-look.settings.bg_image_mobile.label",
+      "info": "t:sections.shop-the-look.settings.bg_image_mobile.info"
+    },
+    {
+      "type": "select",
+      "id": "add_to_cart_position",
+      "label": "t:sections.shop-the-look.settings.add_to_cart_position.label",
+      "options": [
+        {
+          "value": "top-left",
+          "label": "t:sections.shop-the-look.settings.add_to_cart_position.options.top-left.label"
+        },
+        {
+          "value": "top-right",
+          "label": "t:sections.shop-the-look.settings.add_to_cart_position.options.top-right.label"
+        },
+        {
+          "value": "bottom-left",
+          "label": "t:sections.shop-the-look.settings.add_to_cart_position.options.bottom-left.label"
+        },
+        {
+          "value": "bottom-right",
+          "label": "t:sections.shop-the-look.settings.add_to_cart_position.options.bottom-right.label"
+        }
+      ],
+      "default": "bottom-left"
+    },
+    {
+      "type": "checkbox",
+      "id": "hide_add_to_cart_label",
+      "label": "t:sections.shop-the-look.settings.hide_add_to_cart_label.label",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "t:sections.all.margin.heading"
+    },
+    {
+      "type": "select",
+      "id": "margin_bottom",
+      "label": "t:sections.all.margin.margin_bottom.label",
+      "options": [
+        {
+          "label": "t:sections.all.margin.margin_bottom.none",
+          "value": "none"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.small",
+          "value": "small"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.normal",
+          "value": "normal"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.large",
+          "value": "large"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.custom.label",
+          "value": "custom"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "default": 16,
+      "step": 1,
+      "label": "t:sections.all.margin.margin_bottom.custom.value",
+      "visible_if": "{{ section.settings.margin_bottom == 'custom' }}",
+      "unit": "px",
+      "id": "margin_bottom_custom"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "product",
+      "name": "t:sections.shop-the-look.blocks.product.name",
+      "settings": [
+        {
+          "type": "product",
+          "id": "product",
+          "label": "t:sections.shop-the-look.blocks.product.settings.product.label"
+        },
+        {
+          "type": "header",
+          "content": "t:sections.shop-the-look.blocks.product.settings.header_1.content"
+        },
+        {
+          "type": "range",
+          "id": "x_position",
+          "min": 0,
+          "max": 100,
+          "step": 1,
+          "unit": "%",
+          "label": "t:sections.shop-the-look.blocks.product.settings.x_position.label",
+          "default": 20,
+          "info": "t:sections.shop-the-look.blocks.product.settings.x_position.info"
+        },
+        {
+          "type": "range",
+          "id": "y_position",
+          "min": 0,
+          "max": 100,
+          "step": 1,
+          "unit": "%",
+          "label": "t:sections.shop-the-look.blocks.product.settings.y_position.label",
+          "default": 20,
+          "info": "t:sections.shop-the-look.blocks.product.settings.y_position.info"
+        },
+        {
+          "type": "header",
+          "content": "t:sections.shop-the-look.blocks.product.settings.header_2.content"
+        },
+        {
+          "type": "range",
+          "id": "x_position_mobile",
+          "min": 0,
+          "max": 100,
+          "step": 1,
+          "unit": "%",
+          "label": "t:sections.shop-the-look.blocks.product.settings.x_position_mobile.label",
+          "default": 20,
+          "info": "t:sections.shop-the-look.blocks.product.settings.x_position_mobile.info"
+        },
+        {
+          "type": "range",
+          "id": "y_position_mobile",
+          "min": 0,
+          "max": 100,
+          "step": 1,
+          "unit": "%",
+          "label": "t:sections.shop-the-look.blocks.product.settings.y_position_mobile.label",
+          "default": 20,
+          "info": "t:sections.shop-the-look.blocks.product.settings.y_position_mobile.info"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.shop-the-look.presets.name",
+      "blocks": [
+        {
+          "type": "product"
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

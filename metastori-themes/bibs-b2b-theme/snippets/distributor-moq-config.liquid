@@ -1,0 +1,58 @@
+{% comment %}
+  Exposes MOQ config for distributor-moq.js (customer tag: Distributor).
+  Shop metafields: custom.moq_threshold_eur_cents, custom.moq_threshold_dkk_cents (major currency units).
+  Customer metafield: custom.distributor_moq_bypass_until (date_time, shop timezone).
+{% endcomment %}
+{% liquid
+  assign moq_is_distributor = false
+  assign moq_bypass_active = false
+  assign moq_bypass_until_formatted = ''
+  assign tags_joined = customer.tags | join: ',' | downcase
+
+  if customer and tags_joined contains 'distributor'
+    assign moq_is_distributor = true
+  endif
+
+  if moq_is_distributor
+    assign moq_bypass_until = customer.metafields.custom.distributor_moq_bypass_until.value
+    if moq_bypass_until != blank
+      assign moq_now_epoch = 'now' | date: '%s' | plus: 0
+      assign moq_until_epoch = moq_bypass_until | date: '%s' | plus: 0
+      if moq_until_epoch > moq_now_epoch
+        assign moq_bypass_active = true
+        assign moq_bypass_until_formatted = moq_bypass_until | date: format: 'date_at_time'
+      endif
+    endif
+  endif
+
+  assign moq_eur = shop.metafields.custom.moq_threshold_eur_cents.value | default: 5000
+  assign moq_dkk = shop.metafields.custom.moq_threshold_dkk_cents.value | default: 38103.477
+
+  if cart.currency.iso_code != blank
+    assign moq_cart_currency = cart.currency.iso_code
+  else
+    assign moq_cart_currency = localization.country.currency.iso_code
+  endif
+%}
+<script type="application/json" id="distributor-moq-config">
+  {
+    "isDistributor": {{ moq_is_distributor | json }},
+    "bypassActive": {{ moq_bypass_active | json }},
+    "bypassUntilFormatted": {{ moq_bypass_until_formatted | json }},
+    "cartCurrency": {{ moq_cart_currency | json }},
+    "cartTotalCents": {{ cart.total_price | json }},
+    "thresholds": {
+      "EUR": {{ moq_eur | json }},
+      "DKK": {{ moq_dkk | json }}
+    },
+    "defaultThresholdCurrency": "EUR",
+    "messages": {
+      "belowMinimum": {{ 'sections.cart.distributor_moq_below_minimum' | t | json }},
+      "bypassActive": {{ 'sections.cart.distributor_moq_bypass_active' | t | json }}
+    }
+  }
+</script>
+<script>
+  window.b2bDistributorMoqBypass = {{ moq_bypass_active | json }};
+  window.b2bDistributorMoqIsDistributor = {{ moq_is_distributor | json }};
+</script>

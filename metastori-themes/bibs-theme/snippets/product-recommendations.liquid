@@ -1,0 +1,184 @@
+{%- comment -%}
+  Renders the product recommendations.
+
+  Accepts:
+  - section_id {String}: The section ID.
+  - product_id {String}: The product ID.
+  - products_to_show {String}: The number of products to show.
+  - swiper_attribute {String}: The swiper attribute.
+  - media_aspect_ratio {String}: The media aspect ratio.
+  - show_secondary_media {Boolean}: Whether to show the secondary media.
+  - show_vendor {Boolean}: Whether to show the vendor.
+  - title {String}: The title.
+  - wrapper_classes {String}: The container classes.
+  - section_width {String}: full_right or normal (default)
+  - is_grid_layout {Boolean}: Whether to use grid layout.
+  - products_on_row_mobile {String}: The number of products on row for mobile.
+  - products_on_row_desktop {String}: The number of products on row for desktop.
+  - bottom_margin {String}: The section bottom margin.
+  - title_tag {String}: defaults to h2
+  - stack_desktop {Boolean}: Whether to stack on desktop.
+  - remove_scrollbar_mobile {Boolean}: Whether to remove scrollbar on mobile.
+  Usage:
+  {% render 'product-recommendations' %}
+{%- endcomment -%}
+
+{%- assign product_id = product_id | default: collection.products[0].id | default: collections.all.products[0].id -%}
+{% liquid
+  assign eager_grid_card_count = products_on_row_desktop | default: 4 | plus: 0
+
+  case products_on_row_mobile
+    when 1
+      assign grid_cols_template_mobile = 'grid-cols-1'
+    when 2
+      assign grid_cols_template_mobile = 'grid-cols-2'
+    when 3
+      assign grid_cols_template_mobile = 'grid-cols-3'
+    else
+      assign grid_cols_template_mobile = 'grid-cols-2'
+  endcase
+
+  case products_on_row_desktop
+    when 1
+      assign grid_cols_template_desktop = 'lg:grid-cols-1'
+    when 2
+      assign grid_cols_template_desktop = 'lg:grid-cols-2'
+    when 3
+      assign grid_cols_template_desktop = 'lg:grid-cols-3'
+    when 4
+      assign grid_cols_template_desktop = 'lg:grid-cols-4'
+    when 5
+      assign grid_cols_template_desktop = 'lg:grid-cols-5'
+    when 6
+      assign grid_cols_template_desktop = 'lg:grid-cols-6'
+    when 7
+      assign grid_cols_template_desktop = 'lg:grid-cols-7'
+    when 8
+      assign grid_cols_template_desktop = 'lg:grid-cols-8'
+    when 9
+      assign grid_cols_template_desktop = 'lg:grid-cols-9'
+    when 10
+      assign grid_cols_template_desktop = 'lg:grid-cols-10'
+  endcase
+
+  case products_on_row_large
+    when 4
+      assign grid_cols_template_large = '2xl:grid-cols-4'
+    when 5
+      assign grid_cols_template_large = '2xl:grid-cols-5'
+    when 6
+      assign grid_cols_template_large = '2xl:grid-cols-6'
+    when 7
+      assign grid_cols_template_large = '2xl:grid-cols-7'
+    when 8
+      assign grid_cols_template_large = '2xl:grid-cols-8'
+    when 9
+      assign grid_cols_template_large = '2xl:grid-cols-9'
+    when 10
+      assign grid_cols_template_large = '2xl:grid-cols-10'
+    when 11
+      assign grid_cols_template_large = '2xl:grid-cols-11'
+    when 12
+      assign grid_cols_template_large = '2xl:grid-cols-12'
+    when 13
+      assign grid_cols_template_large = '2xl:grid-cols-13'
+    when 14
+      assign grid_cols_template_large = '2xl:grid-cols-14'
+    when 15
+      assign grid_cols_template_large = '2xl:grid-cols-15'
+  endcase
+
+  case bottom_margin
+    when 'none'
+      assign section_bottom_margin = 'mb-0'
+    when 'normal'
+      assign section_bottom_margin = 'mb-14'
+    when 'large'
+      assign section_bottom_margin = 'mb-24'
+    else
+      assign section_bottom_margin = 'mb-0'
+  endcase
+
+  unless title_tag
+    assign title_tag = 'h2'
+  endunless
+%}
+
+<product-recommendations data-url="{{ routes.product_recommendations_url }}?section_id={{ section_id }}&product_id={{ product_id }}&limit={{ products_to_show_large }}{% if intent %}&intent={{ intent }}{% endif %}">
+  {%- if recommendations.performed and recommendations.products_count > 0 -%}
+    <div class="{% if section_width == "full_right" %}container-fluid--l{% elsif section_width == "full_mobile" %}container-fluid--desktop{% else %}container-fluid{% endif %} {{ wrapper_classes }}">
+      {% if title %}
+        <{{ title_tag }} class="mb-6"> {{ title | t }}</{{ title_tag }}>
+      {% endif %}
+
+      {% if is_grid_layout %}
+        <div class="{{ section_bottom_margin }}">
+          <div class="grid gap-[2px] {{ grid_cols_template_mobile }} {{ grid_cols_template_desktop }} {{ grid_cols_template_large }} pb-5">
+            {%- for recommendation in recommendations.products limit: products_to_show_large -%}
+              {% liquid
+                assign hide_product = recommendation.metafields.custom.hide_product.value
+                assign classes = ''
+                if forloop.index > products_to_show
+                  assign classes = ' md:!hidden 2xl:!block '
+                else
+                  assign classes = ' md:!block'
+                endif
+                if forloop.index > products_to_show_mobile
+                  assign classes = classes | append: ' !hidden '
+                endif
+              %}
+              {% unless hide_product %}
+                {% liquid
+                  assign prioritize_card_image = false
+                  if forloop.index <= eager_grid_card_count
+                    assign prioritize_card_image = true
+                  endif
+                %}
+                <div class="">
+                  {%- render 'card-product',
+                    card_product: recommendation,
+                    classes: classes,
+                    media_aspect_ratio: media_aspect_ratio,
+                    show_secondary_media: show_secondary_media,
+                    show_vendor: show_vendor,
+                    prioritize_image: prioritize_card_image
+                  -%}
+                </div>
+              {% endunless %}
+            {%- endfor -%}
+          </div>
+        </div>
+      {% else %}
+        <div class="swiper swiper-card" {{ swiper_attribute }}>
+          <div class="swiper-wrapper pb-6 {% if stack_desktop %}md:!grid gap-1{% endif %}">
+            {%- for recommendation in recommendations.products -%}
+              {% assign hide_product = recommendation.metafields.custom.hide_product.value %}
+              {% unless hide_product %}
+                {% liquid
+                  assign prioritize_card_image = false
+                  if forloop.index <= 2
+                    assign prioritize_card_image = true
+                  endif
+                %}
+                <div class="swiper-slide {% if stack_desktop %}md:!w-full{% endif %}">
+                  {%- render 'card-product',
+                    card_product: recommendation,
+                    media_aspect_ratio: media_aspect_ratio,
+                    show_secondary_media: show_secondary_media,
+                    show_vendor: show_vendor,
+                    prioritize_image: prioritize_card_image
+                  -%}
+                </div>
+              {% endunless %}
+            {%- endfor -%}
+          </div>
+          <div class="swiper-highlighter-cat">
+            <div class="swiper-button-next !hidden sm:!flex swiper-button-disabled"></div>
+            <div class="swiper-button-prev !hidden sm:!flex swiper-button-disabled"></div>
+          </div>
+          <div class="swiper-scrollbar !left-0 {% if remove_scrollbar %}hidden{% endif %}"></div>
+        </div>
+      {% endif %}
+    </div>
+  {%- endif -%}
+</product-recommendations>

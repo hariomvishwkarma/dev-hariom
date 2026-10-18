@@ -1,0 +1,331 @@
+{% liquid
+  assign number_of_products_per_page = section.settings.number_of_products_per_page
+  assign number_of_columns_desktop = section.settings.number_of_columns_desktop | plus: 0
+  assign number_of_columns_mobile = section.settings.number_of_columns_mobile
+
+  case number_of_columns_desktop
+    when 1
+      assign number_of_columns_desktop_classes = 'lg:grid-cols-1'
+      assign number_of_columns_laptop_classes = 'md:grid-cols-1'
+    when 2
+      assign number_of_columns_desktop_classes = 'lg:grid-cols-2'
+      assign number_of_columns_laptop_classes = 'md:grid-cols-1'
+    when 3
+      assign number_of_columns_desktop_classes = 'lg:grid-cols-3'
+      assign number_of_columns_laptop_classes = 'md:grid-cols-2'
+    when 4
+      assign number_of_columns_desktop_classes = 'lg:grid-cols-4'
+      assign number_of_columns_laptop_classes = 'md:grid-cols-3'
+    when 5
+      assign number_of_columns_desktop_classes = 'lg:grid-cols-5'
+      assign number_of_columns_laptop_classes = 'md:grid-cols-4'
+    when 6
+      assign number_of_columns_desktop_classes = 'lg:grid-cols-6'
+      assign number_of_columns_laptop_classes = 'md:grid-cols-5'
+    when 7
+      assign number_of_columns_desktop_classes = 'lg:grid-cols-7'
+      assign number_of_columns_laptop_classes = 'md:grid-cols-6'
+    when 8
+      assign number_of_columns_desktop_classes = 'lg:grid-cols-8'
+      assign number_of_columns_laptop_classes = 'md:grid-cols-7'
+    when 9
+      assign number_of_columns_desktop_classes = 'lg:grid-cols-9'
+      assign number_of_columns_laptop_classes = 'md:grid-cols-8'
+    when 10
+      assign number_of_columns_desktop_classes = 'lg:grid-cols-10'
+      assign number_of_columns_laptop_classes = 'md:grid-cols-9'
+    when 11
+      assign number_of_columns_desktop_classes = 'lg:grid-cols-11'
+      assign number_of_columns_laptop_classes = 'md:grid-cols-10'
+    when 12
+      assign number_of_columns_desktop_classes = 'lg:grid-cols-12'
+      assign number_of_columns_laptop_classes = 'md:grid-cols-11'
+  endcase
+
+  assign number_of_columns_mobile = number_of_columns_mobile | times: 1
+
+  case number_of_columns_mobile
+    when 1
+      assign number_of_columns_mobile_classes = 'grid-cols-1'
+    when 2
+      assign number_of_columns_mobile_classes = 'grid-cols-2'
+  endcase
+
+  assign heading_tag = section.settings.heading_tag
+  assign font_size = section.settings.font_size
+  assign font_weight = section.settings.font_weight
+  assign heading_type = font_size | append: ' ' | append: font_weight
+  assign italic_header_text = section.settings.italic_header_text
+  if italic_header_text
+    assign heading_type = heading_type | append: ' !italic'
+  endif
+%}
+
+<div class="py-6 md:py-8 color-{{ section.settings.color_scheme }} main-search-section">
+  {% if search.performed %}
+    {% if search.results.size > 0 %}
+      {% paginate search.results by number_of_products_per_page %}
+        <div class="container-fluid mt-2 mb-10">
+          <div class="flex flex-row items-baseline gap-4 ">
+            {% render 'c-title',
+              translatable_content: 'sections.search-collection.title',
+              custom_tag: heading_tag,
+              type: heading_type
+            %}
+
+            {% capture result_count %}<span class="results-count-products"></span><span class="results-count-articles-and-pages hidden"></span>{% endcapture %}
+            {% render 'c-text', content: result_count, classes: 'text-xl md:text-[30px] flex' %}
+          </div>
+          <div class="max-w-[510px] pt-[30px] md:pt-10">
+            {% render 'search-bar', is_search_page: true %}
+          </div>
+        </div>
+        {% render 'filter-bar', results: search, enable_filtering: true %}
+        <div class="md:container-fluid flex gap-10 mt-10">
+          <div
+            id="ProductGridContainer"
+            class="relative w-full load-more-wrapper"
+            data-id="{{ section.id }}"
+          >
+            {%- if search.results.size > 0 -%}
+              <div
+                class="load-more-grid overflow-x-hidden grid results--products {{ number_of_columns_mobile_classes }} {{ number_of_columns_laptop_classes }} {{ number_of_columns_desktop_classes }} auto-rows-fr gap-0.5"
+              >
+                {% liquid
+                  for item in search.results
+                    assign hide_product = item.metafields.custom.hide_product.value
+                    unless hide_product
+                      if item.object_type == 'product'
+                        assign prioritize_image = false
+                        if forloop.index <= number_of_columns_desktop
+                          assign prioritize_image = true
+                        endif
+                        render 'card-product', card_product: item, show_secondary_media: section.settings.show_secondary_media, media_aspect_ratio: 'bibs', prioritize_image: prioritize_image
+                      elsif item.object_type == 'page' or item.object_type == 'article'
+                        unless item.object_type == 'page' and item.handle contains 'sitemap'
+                          render 'card-article', article: item, classes: 'listing-item overflow-hidden', aspect_ratio: 'aspect-auto'
+                        endunless
+                      endif
+                    endunless
+                  endfor
+                %}
+              </div>
+
+              <div
+                id="search-page-information"
+                class="hidden"
+                data-search-pagination-length="{{paginate.pages}}"
+              ></div>
+
+              {% comment %} {% render 'pagination', pagination: paginate %} {% endcomment %}
+              {% if paginate.current_page < paginate.pages %}
+                {% render 'load-more-pagination', pagination: paginate %}
+              {% endif %}
+            {%- else -%}
+              <div class="mt-5 mb-10 paragraph-1">
+                {% liquid
+                  echo 'sections.search-collection.empty' | t
+                  capture results_terms
+                    echo 'sections.search-collection.results_terms' | t: terms: search.terms
+                  endcapture
+                  render 'c-title', content: results_terms, custom_tag: 'h2', count: search.results.size
+                %}
+              </div>
+            {%- endif -%}
+            <div data-loading class="hidden">
+              <div class="absolute inset-0 flex items-center justify-center bg-background/50">
+                {%- render 'c-spinner', size: 'w-16 h-16' -%}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endpaginate %}
+    {% else %}
+      <div class="container-fluid mt-2 mb-10">
+        <div class="flex flex-row items-baseline gap-4 ">
+          {% render 'c-title', translatable_content: 'sections.search-collection.title', custom_tag: 'h1' %}
+          {% capture result_count %}({{search.results_count}}){% endcapture %}
+          {% render 'c-text', content: result_count, classes: 'text-xl md:text-[30px]' %}
+        </div>
+        <div class="max-w-[510px] pt-[30px] md:pt-10">
+          {% render 'search-bar', is_search_page: true %}
+        </div>
+      </div>
+      {% render 'filter-bar', results: search, enable_filtering: true %}
+    {% endif %}
+  {% endif %}
+</div>
+
+{% schema %}
+{
+  "name": "t:sections.search-collection.name",
+  "class": "section-main-search",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.search-collection.settings.header"
+    },
+    {
+      "type": "number",
+      "id": "number_of_products_per_page",
+      "label": "t:sections.search-collection.settings.number_of_products_per_page.label",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "number_of_columns_desktop",
+      "label": "t:sections.search-collection.settings.number_of_columns_desktop.label",
+      "min": 1,
+      "max": 12,
+      "step": 1,
+      "default": 5
+    },
+    {
+      "type": "select",
+      "id": "number_of_columns_mobile",
+      "label": "t:sections.search-collection.settings.number_of_columns_mobile.label",
+      "options": [
+        {
+          "value": "1",
+          "label": "1 column"
+        },
+        {
+          "value": "2",
+          "label": "2 columns"
+        }
+      ],
+      "default": "1"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.search-collection.settings.header__2"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_secondary_media",
+      "label": "t:sections.search-collection.settings.show_secondary_media.label",
+      "default": true
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.heading_tag.label",
+      "id": "heading_tag",
+      "default": "h1",
+      "options": [
+        {
+          "value": "h1",
+          "label": "t:sections.all.heading_tag.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.heading_tag.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.heading_tag.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.heading_tag.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.heading_tag.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.heading_tag.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_size.label",
+      "id": "font_size",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_size.options.default"
+        },
+        {
+          "value": "paragraph-1",
+          "label": "t:sections.all.font_size.options.paragraph"
+        },
+        {
+          "value": "h1",
+          "label": "t:sections.all.font_size.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.font_size.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.font_size.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.font_size.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.font_size.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.font_size.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_weight.label",
+      "id": "font_weight",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_weight.options.default"
+        },
+        {
+          "value": "!font-thin",
+          "label": "t:sections.all.font_weight.options.thin"
+        },
+        {
+          "value": "!font-light",
+          "label": "t:sections.all.font_weight.options.light"
+        },
+        {
+          "value": "!font-normal",
+          "label": "t:sections.all.font_weight.options.normal"
+        },
+        {
+          "value": "!font-medium",
+          "label": "t:sections.all.font_weight.options.medium"
+        },
+        {
+          "value": "!font-semibold",
+          "label": "t:sections.all.font_weight.options.semibold"
+        },
+        {
+          "value": "!font-bold",
+          "label": "t:sections.all.font_weight.options.bold"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "italic_header_text",
+      "label": "t:sections.all.italic_header_text.label",
+      "default": false
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,81 @@
+{% doc %}
+  Renders the Judge.me star rating and review count for the PDP title area.
+
+  Judge.me exposes the same score two ways, and which one is populated depends
+  on the app's settings, so this tries both:
+
+    1. product.metafields.judgeme.badge - Judge.me's own preview badge markup.
+       Preferred when present: it is clickable and matches the review widget.
+    2. product.metafields.reviews.* - the standard Shopify rating metafield
+       Judge.me syncs to. Demonstrably populated on this store, which is where
+       custom-cart-cross-sell.liquid reads its review counts from.
+
+  Falling back matters because an empty .jdgm-preview-badge renders nothing at
+  all when Judge.me's script has auto-install turned off.
+
+  @param {object} product - Product Liquid object
+  @param {string} [position] - 'above' or 'below', for spacing only
+
+  @example
+  {%- render 'product-rating-stars', product: product, position: 'below' -%}
+{% enddoc %}
+
+{%- liquid
+  assign position_class = 'product__rating-stars--below'
+  if position == 'above'
+    assign position_class = 'product__rating-stars--above'
+  endif
+
+  assign jdgm_badge = product.metafields.judgeme.badge
+  assign rating = product.metafields.reviews.rating.value
+  assign rating_count = product.metafields.reviews.rating_count
+-%}
+
+{%- if jdgm_badge != blank or rating != blank -%}
+  <div class="product__rating-stars {{ position_class }}">
+    {%- if jdgm_badge != blank -%}
+      {%- comment -%}
+        No data-template attribute on purpose. Judge.me injects
+        `.jdgm-preview-badge[data-template="product"] { display: none !important }`
+        at runtime, so setting it here hides the badge outright. The theme's
+        other Judge.me badge omits it too.
+      {%- endcomment -%}
+      <div
+        class="jdgm-widget jdgm-preview-badge"
+        data-id="{{ product.id }}"
+        data-product-id="{{ product.id }}"
+      >
+        {{- jdgm_badge -}}
+      </div>
+    {%- else -%}
+      {%- liquid
+        # Same half-star rounding the section's own rating block uses, so the
+        # stars here never disagree with the ones further down the page.
+        assign rating_decimal = 0
+        assign decimal = rating.rating | modulo: 1
+        if decimal >= 0.3 and decimal <= 0.7
+          assign rating_decimal = 0.5
+        elsif decimal > 0.7
+          assign rating_decimal = 1
+        endif
+      -%}
+      <div
+        class="rating"
+        role="img"
+        aria-label="{{ 'accessibility.star_reviews_info' | t: rating_value: rating, rating_max: rating.scale_max }}"
+      >
+        <span
+          aria-hidden="true"
+          class="rating-star"
+          style="--rating: {{ rating.rating | floor }}; --rating-max: {{ rating.scale_max }}; --rating-decimal: {{ rating_decimal }};"
+        ></span>
+      </div>
+      <p class="rating-count caption">
+        <span aria-hidden="true">({{ rating_count }})</span>
+        <span class="visually-hidden">
+          {{- rating_count }} {{ 'accessibility.total_reviews' | t -}}
+        </span>
+      </p>
+    {%- endif -%}
+  </div>
+{%- endif -%}

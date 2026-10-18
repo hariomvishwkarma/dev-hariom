@@ -1,0 +1,132 @@
+{% comment %}
+  Renders product variant options
+
+  Accepts:
+  - product {Object}: product object.
+  - option {Object}: current product_option object.
+  - block {Object}: block object.
+  - options_index {Integer}: index of the current product_option object in the product.options array.
+  - product_form_id {String}: Id of the product form to which the variant picker is associated.
+
+
+  Usage:
+  {% render 'product-variant-options',
+    product: product,
+    option: option,
+    block: block
+  %}
+{% endcomment %}
+{%- liquid
+  assign variants_available_arr = product.variants | map: 'available'
+  assign variants_option_1arr = product.variants | map: 'option1'
+  assign variants_option_2arr = product.variants | map: 'option2'
+  assign variants_option_3arr = product.variants | map: 'option3'
+-%}
+
+{%- for value in option.values -%}
+  {%- liquid
+    assign option_disabled = true
+
+    for option1_name in variants_option_1arr
+      case option.position
+        when 1
+          if variants_option_1arr[forloop.index0] == value and variants_available_arr[forloop.index0]
+            assign option_disabled = false
+            break
+          endif
+        when 2
+          if option1_name == product.selected_or_first_available_variant.option1 and variants_option_2arr[forloop.index0] == value
+            assign option_disabled = false
+            break
+          endif
+        when 3
+          if option1_name == product.selected_or_first_available_variant.option1 and variants_option_2arr[forloop.index0] == product.selected_or_first_available_variant.option2 and variants_option_3arr[forloop.index0] == value
+            assign option_disabled = false
+            break
+          endif
+      endcase
+    endfor
+  -%}
+
+  {%- assign select_option = false -%}
+  {%- if product.selected_variant.options contains value or product.variants.size <= 1 -%}
+    {%- assign select_option = true -%}
+  {%- endif -%}
+
+  {%- if option.name == 'Nipple type' -%}
+    {%- assign is_nipple_type = true -%}
+  {%- else -%}
+    {%- assign is_nipple_type = false -%}
+  {%- endif -%}
+  {% if option.name == 'Flow type' %}
+    {% assign is_flow_type = true %}
+  {% else %}
+    {% assign is_flow_type = false %}
+  {% endif %}
+  {%- if option.name == 'Size' -%}
+    {%- assign is_size = true -%}
+  {%- else -%}
+    {%- assign is_size = false -%}
+  {%- endif -%}
+
+  <input
+    type="radio"
+    id="{{ section.id }}-{{ option.position }}-{{ forloop.index0 }}"
+    name="{{ option.name }}"
+    value="{{ value | escape }}"
+    form="{{ product_form_id }}"
+    {% if select_option %}
+      checked
+      data-was-checked="true"
+    {% endif %}
+    required
+    class="hidden{% if option_disabled %} disabled{% endif %}"
+  >
+
+  <label
+    for="{{ section.id }}-{{ option.position }}-{{ forloop.index0 }}"
+    class="text-1-medium text-center {% unless is_nipple_type or is_flow_type %}border-[0.6px] border-grey-300 rounded py-2.5 px-[18px] flex flex-row gap-1.5 items-center justify-center {% else %} flex flex-col gap-2{% endunless %}"
+    data-original-size="{{- value -}}"
+  >
+    {%- if is_nipple_type -%}
+      {%- assign option_value = value | downcase -%}
+      {% for nipple_type_icon in shop.metaobjects.nipple_type_icons.values %}
+        {% assign option_name = nipple_type_icon.name | downcase %}
+        {% if option_name == option_value %}
+          {%- assign option_icon = nipple_type_icon.icon -%}
+          {% break %}
+        {% endif %}
+      {% endfor %}
+      {%- if option_icon != blank -%}
+        {{ option_icon }}
+      {%- endif -%}
+    {%- endif -%}
+
+    {% if is_flow_type %}
+      {% assign option_value = value | downcase %}
+      {% for flow_type_icon in shop.metaobjects.flow_type_icon.values %}
+        {% assign option_name = flow_type_icon.name | downcase %}
+        {% if flow_type_icon.name contains 'Slow + Medium + Fast flow' %}
+          {% assign is_flow_type = false %}
+        {% elsif option_name == option_value %}
+          {% assign option_icon = flow_type_icon.icon %}
+          {% break %}
+        {% endif %}
+      {% endfor %}
+      {%- if option_icon != blank -%}
+        {{ option_icon }}
+      {%- endif -%}
+    {% endif %}
+
+    <span class="option-value font-medium {% if option.name == 'Flow type' and is_flow_type == false %} text-center  border-[0.6px] border-grey-300 rounded py-2.5 px-[18px] flex flex-row gap-1.5 items-center justify-center{% endif %}">
+      {{- value -}}
+    </span>
+    {%- if is_size -%}
+      {%- assign subtitle = 'products.product.size_options.' | append: value | append: '.subtitle' -%}
+      {%- assign subtitle_string = subtitle | t -%}
+      {%- unless subtitle_string contains 'Translation missing' -%}
+        <span class="sub-text">{{ subtitle_string }}</span>
+      {%- endunless -%}
+    {%- endif -%}
+  </label>
+{%- endfor -%}

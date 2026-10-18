@@ -1,0 +1,70 @@
+{%- comment -%}
+  Renders a product card
+
+  Accepts:
+    - product {Object}: The product object to render
+    - classes {String}: Sets container classes
+
+  Usage:
+    {% render 'card-order-product', product: product %}
+{%- endcomment -%}
+
+{% liquid
+  assign image_width = image_width | default: '100 %'
+  capture red_dot
+    render 'c-icon', icon: 'dot', classes: 'w-1 h-1 md:w-1.5 md:h-1.5 inline align-baseline text-accent ml-1'
+  endcapture
+
+  if product.title contains ' · '
+    assign product_title_content = product.title | replace: ' · ', '<span class="text-accent"> · </span>'
+  elsif product.title contains ' - '
+    assign product_title_content = product.title | replace: ' - ', '<span class="text-accent"> - </span>'
+  else
+    assign product_title_content = product.title
+  endif
+
+  capture product_title
+    render 'c-title', custom_tag: 'h5', type: 'h9-bold', content: product_title_content
+  endcapture
+
+  assign color = product.options_with_values | where: 'name', 'Color' | first
+  assign size = product.options_with_values | where: 'name', 'Size' | first
+
+  assign price = product.price | money
+  assign original_price = product.variant.compare_at_price | money
+%}
+
+<div class="{{ classes }}">
+  <div>
+    {% render 'c-image', aspect_ratio: 'square', image: product.image, classes: 'h-full' %}
+  </div>
+  <div class="flex flex-col justify-between xl:flex-wrap xl:flex-row xl:basis-full">
+    <div class="flex flex-col gap-2">
+      {% render 'c-link', content: product_title, href: product.url %}
+      <div class="flex gap-2">
+        {% if size %}
+          <span class="flex gap-1">
+            {% render 'c-text', translatable_content: 'customer.order.size', type: 'h9-regular' %}
+            {% render 'c-text', content: size.value, type: 'h9-bold' %}
+          </span>
+        {% endif %}
+        {% if color %}
+          <span class="flex gap-1">
+            {% render 'c-text', translatable_content: 'customer.order.color', type: 'h9-regular' %}
+            {% render 'c-text', content: color.value, type: 'h9-bold' %}
+          </span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex flex-col gap-2 xl:flex-row xl:gap-12 justify-end md:justify-start">
+      <div class="flex gap-1">
+        {% render 'c-text', translatable_content: 'customer.order.quantity', type: 'h9-regular' %}
+        {% render 'c-text', content: product.quantity, type: 'h9-bold' %}
+      </div>
+      <div class="flex gap-2 xl:flex-col">
+        {% render 'c-text', content: price, type: 'h9-bold', classes: 'text-accent' %}
+        {% render 'c-text', content: original_price, type: 'h9-bold', classes: 'line-through' %}
+      </div>
+    </div>
+  </div>
+</div>

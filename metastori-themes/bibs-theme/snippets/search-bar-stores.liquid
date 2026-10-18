@@ -1,0 +1,56 @@
+{%- comment -%}
+  Renders a search bar with a search button and a search input field.
+
+  Accepts:
+    - is_search_page (boolean): Whether the search bar is being rendered on the search page.
+    - placeholder (string)
+
+  Usage:
+    {% render 'search-bar-stores' %}
+{%- endcomment -%}
+
+{% liquid
+  assign display_search_as_icon = block.settings.display_search_as_icon
+  if template.name == 'search'
+    assign is_search_template = true
+  endif
+
+  capture search_icon
+    render 'c-icon', icon: 'search', classes: 'w-6 h-6'
+  endcapture
+%}
+
+{%- capture search_form -%}
+  {% liquid
+    assign input_placeholder = placeholder
+    render 'c-input', input_type: 'search', input_name: 'q', input_value: search.terms, input_placeholder: input_placeholder, input_classes: 'clear_input pl-9'
+    render 'c-button', type: 'submit', design: 'link--bg_no-padding', content: search_icon, classes: 'absolute inset-y-0.5 left-0.5 flex aspect-square items-center justify-center'
+  %}
+{%- endcapture -%}
+
+{%- assign drawer_classes = 'flex-1 max-w-[24px] ml-auto mr-4 md:mr-6' -%}
+
+{% unless display_search_as_icon %}
+  <div class="flex-1{% unless is_search_page %} hidden lg:block max-w-[208px] ml-auto{% endunless %}">
+    {{ search_form }}
+  </div>
+  {%- assign drawer_classes = drawer_classes | append: ' flex lg:hidden' -%}
+{% endunless %}
+
+{% liquid
+  unless is_search_page
+    if is_search_template
+      assign drawer_classes = drawer_classes | append: ' hidden md:flex'
+    else
+      assign drawer_classes = drawer_classes | append: ' flex'
+    endif
+    capture search_drawer_content
+      echo '<div class="overflow-auto">'
+      render 'logo', block: block, classes: 'hidden xs:flex md:flex-none'
+      echo search_form
+      echo '</div>'
+    endcapture
+
+    render 'c-drawer', drawer_id: 'Header-search-drawer', toggle_label: search_icon, toggle_type: 'link--bg', drawer_placement: 'top', drawer_content: search_drawer_content, drawer_body_classes: 'flex items-center gap-4 container-fluid !pr-[48px]', drawer_classes: 'py-2.5 md:pt-5 md:pb-2 bg-background', close_button_in_body: true, classes: drawer_classes, drawer_width: 'md'
+  endunless
+%}

@@ -1,0 +1,304 @@
+{% doc %}
+Renders B2B minimum order config and notices when checkout is blocked.
+Supports order MOV and per-style MOQ for B2B customers.
+@param {boolean} [show_notice] - Pass false to emit only the JSON config.
+@param {boolean} [notice_only] - Pass true to emit only the notice, no JSON config.
+@example
+{% render 'b2b-min-order' %}
+{% render 'b2b-min-order', show_notice: false %}
+{% render 'b2b-min-order', notice_only: true %}
+{% enddoc %}
+
+{%- liquid
+  assign b2b_mov_applies = false
+  assign b2b_mov_met = true
+  assign b2b_mov_is_reorder = false
+  assign b2b_mov_threshold_cents = 0
+  assign b2b_mov_remaining_cents = 0
+  assign b2b_mov_cart_total = cart.total_price
+  assign b2b_mov_tag = settings.b2b_mov_customer_tag | default: 'B2B Customer' | strip
+  assign b2b_mov_orders_count = 0
+  assign b2b_mov_has_company_context = false
+  assign b2b_mov_currency = cart.currency.iso_code | upcase
+
+  assign b2b_moq_enabled = settings.b2b_moq_enable
+  assign b2b_moq_default = settings.b2b_moq_default | default: 6 | plus: 0
+  if b2b_moq_default < 1
+    assign b2b_moq_default = 6
+  endif
+  assign b2b_moq_metafield_path = settings.b2b_moq_metafield | default: 'custom.moq' | strip
+  assign b2b_moq_metafield_parts = b2b_moq_metafield_path | split: '.'
+  assign b2b_moq_namespace = b2b_moq_metafield_parts | first | default: 'custom'
+  assign b2b_moq_key = b2b_moq_metafield_parts | last | default: 'moq'
+  assign b2b_moq_message_template = settings.b2b_moq_message | default: 'Add [qty] more of this style to reach the [minimum] style minimum.'
+  assign b2b_moq_met = true
+  assign b2b_moq_shortfalls_json = ''
+
+  assign b2b_mov_first_dollars = 300
+  assign b2b_mov_first_matched = false
+  assign b2b_mov_first_fallback = blank
+  assign b2b_mov_first_entries = settings.b2b_mov_first_order | append: '' | default: 'USD:300' | strip | remove: ' ' | split: ','
+  for b2b_mov_entry in b2b_mov_first_entries
+    assign b2b_mov_entry_parts = b2b_mov_entry | split: ':'
+    if b2b_mov_entry_parts.size > 1
+      assign b2b_mov_entry_code = b2b_mov_entry_parts | first | upcase
+      if b2b_mov_entry_code == b2b_mov_currency
+        assign b2b_mov_first_dollars = b2b_mov_entry_parts | last | plus: 0
+        assign b2b_mov_first_matched = true
+        break
+      endif
+    else
+      assign b2b_mov_first_fallback = b2b_mov_entry_parts | first
+    endif
+  endfor
+  unless b2b_mov_first_matched
+    if b2b_mov_first_fallback != blank
+      assign b2b_mov_first_dollars = b2b_mov_first_fallback | plus: 0
+    endif
+  endunless
+
+  assign b2b_mov_reorder_dollars = 250
+  assign b2b_mov_reorder_matched = false
+  assign b2b_mov_reorder_fallback = blank
+  assign b2b_mov_reorder_entries = settings.b2b_mov_reorder | append: '' | default: 'USD:250' | strip | remove: ' ' | split: ','
+  for b2b_mov_entry in b2b_mov_reorder_entries
+    assign b2b_mov_entry_parts = b2b_mov_entry | split: ':'
+    if b2b_mov_entry_parts.size > 1
+      assign b2b_mov_entry_code = b2b_mov_entry_parts | first | upcase
+      if b2b_mov_entry_code == b2b_mov_currency
+        assign b2b_mov_reorder_dollars = b2b_mov_entry_parts | last | plus: 0
+        assign b2b_mov_reorder_matched = true
+        break
+      endif
+    else
+      assign b2b_mov_reorder_fallback = b2b_mov_entry_parts | first
+    endif
+  endfor
+  unless b2b_mov_reorder_matched
+    if b2b_mov_reorder_fallback != blank
+      assign b2b_mov_reorder_dollars = b2b_mov_reorder_fallback | plus: 0
+    endif
+  endunless
+
+  if settings.custom_cart_enable_checkout_protection
+    if settings.custom_cart_protection_product != blank
+      assign b2b_mov_protection_variant_id = settings.custom_cart_protection_product.selected_or_first_available_variant.id
+      for item in cart.items
+        if item.variant_id == b2b_mov_protection_variant_id
+          assign b2b_mov_cart_total = b2b_mov_cart_total | minus: item.final_line_price
+        endif
+      endfor
+    endif
+
+    for item in cart.items
+      assign b2b_mov_item_vendor = item.vendor | downcase
+      if b2b_mov_item_vendor == 'redo' or b2b_mov_item_vendor == 'returngo' or b2b_mov_item_vendor == 'return go'
+        assign b2b_mov_cart_total = b2b_mov_cart_total | minus: item.final_line_price
+      endif
+    endfor
+  endif
+
+  if b2b_mov_cart_total < 0
+    assign b2b_mov_cart_total = 0
+  endif
+
+  if settings.b2b_mov_enable or b2b_moq_enabled
+    if customer != blank
+      if customer.tags contains b2b_mov_tag
+        if customer.b2b?
+          assign b2b_mov_has_company_context = true
+        endif
+        if customer.current_company != blank
+          assign b2b_mov_has_company_context = true
+        endif
+        if customer.company_available_locations_count > 0
+          assign b2b_mov_has_company_context = true
+        endif
+        if b2b_mov_has_company_context
+          assign b2b_mov_applies = true
+        endif
+      endif
+    endif
+  endif
+
+  if b2b_mov_applies and settings.b2b_mov_enable
+    assign b2b_mov_orders_count = customer.orders_count | default: 0
+    if b2b_mov_orders_count > 0
+      assign b2b_mov_is_reorder = true
+    elsif customer.last_order != blank
+      assign b2b_mov_is_reorder = true
+      assign b2b_mov_orders_count = 1
+    endif
+
+    if b2b_mov_is_reorder
+      assign b2b_mov_threshold_cents = b2b_mov_reorder_dollars | times: 100 | round
+    else
+      assign b2b_mov_threshold_cents = b2b_mov_first_dollars | times: 100 | round
+    endif
+
+    assign b2b_mov_remaining_cents = b2b_mov_threshold_cents | minus: b2b_mov_cart_total
+    if b2b_mov_remaining_cents <= 0
+      assign b2b_mov_met = true
+      assign b2b_mov_remaining_cents = 0
+    else
+      assign b2b_mov_met = false
+    endif
+  endif
+
+  if b2b_mov_applies and b2b_moq_enabled
+    assign b2b_moq_processed_ids = '|'
+    for b2b_moq_item in cart.items
+      assign b2b_moq_skip = false
+      assign b2b_moq_item_vendor = b2b_moq_item.vendor | downcase
+      if b2b_moq_item_vendor == 'redo' or b2b_moq_item_vendor == 'returngo' or b2b_moq_item_vendor == 'return go'
+        assign b2b_moq_skip = true
+      endif
+      if settings.custom_cart_enable_checkout_protection and settings.custom_cart_protection_product != blank
+        if b2b_moq_item.variant_id == settings.custom_cart_protection_product.selected_or_first_available_variant.id
+          assign b2b_moq_skip = true
+        endif
+      endif
+
+      assign b2b_moq_product_token = '|' | append: b2b_moq_item.product_id | append: '|'
+      unless b2b_moq_skip
+        unless b2b_moq_processed_ids contains b2b_moq_product_token
+          assign b2b_moq_processed_ids = b2b_moq_processed_ids | append: b2b_moq_item.product_id | append: '|'
+          assign b2b_moq_style_qty = 0
+          for b2b_moq_sibling in cart.items
+            if b2b_moq_sibling.product_id == b2b_moq_item.product_id
+              assign b2b_moq_style_qty = b2b_moq_style_qty | plus: b2b_moq_sibling.quantity
+            endif
+          endfor
+
+          assign b2b_moq_required = b2b_moq_default
+          assign b2b_moq_mf = b2b_moq_item.product.metafields[b2b_moq_namespace][b2b_moq_key]
+          if b2b_moq_mf != blank
+            assign b2b_moq_mf_value = b2b_moq_mf.value | default: b2b_moq_mf | plus: 0
+            if b2b_moq_mf_value > 0
+              assign b2b_moq_required = b2b_moq_mf_value
+            endif
+          endif
+
+          if b2b_moq_style_qty < b2b_moq_required
+            assign b2b_moq_met = false
+            assign b2b_moq_remaining = b2b_moq_required | minus: b2b_moq_style_qty
+            assign b2b_moq_title_json = b2b_moq_item.product.title | json
+            assign b2b_moq_entry = '{"productId":'
+            assign b2b_moq_entry = b2b_moq_entry | append: b2b_moq_item.product_id
+            assign b2b_moq_entry = b2b_moq_entry | append: ',"qty":' | append: b2b_moq_style_qty
+            assign b2b_moq_entry = b2b_moq_entry | append: ',"required":' | append: b2b_moq_required
+            assign b2b_moq_entry = b2b_moq_entry | append: ',"remaining":' | append: b2b_moq_remaining
+            assign b2b_moq_entry = b2b_moq_entry | append: ',"title":' | append: b2b_moq_title_json | append: '}'
+            if b2b_moq_shortfalls_json == blank
+              assign b2b_moq_shortfalls_json = b2b_moq_entry
+            else
+              assign b2b_moq_shortfalls_json = b2b_moq_shortfalls_json | append: ',' | append: b2b_moq_entry
+            endif
+          endif
+        endunless
+      endunless
+    endfor
+  endif
+
+  assign b2b_checkout_blocked = false
+  if b2b_mov_applies
+    if settings.b2b_mov_enable and b2b_mov_met == false
+      assign b2b_checkout_blocked = true
+    endif
+    if b2b_moq_enabled and b2b_moq_met == false
+      assign b2b_checkout_blocked = true
+    endif
+  endif
+
+  assign b2b_mov_remaining_money = b2b_mov_remaining_cents | money
+  assign b2b_mov_threshold_money = b2b_mov_threshold_cents | money
+
+  if b2b_mov_is_reorder
+    assign b2b_mov_message_template = settings.b2b_mov_reorder_message | default: 'Add [amount] more to reach the [minimum] reorder minimum.'
+  else
+    assign b2b_mov_message_template = settings.b2b_mov_first_order_message | default: 'Add [amount] more to reach the [minimum] first-order minimum.'
+  endif
+
+  assign b2b_mov_message = b2b_mov_message_template | replace: '[amount]', b2b_mov_remaining_money | replace: '[minimum]', b2b_mov_threshold_money
+-%}
+
+{%- unless notice_only -%}
+  <script
+    type="application/json"
+    data-b2b-min-order-config
+    data-blocked="{% if b2b_checkout_blocked %}true{% else %}false{% endif %}"
+    data-customer-id="{{ customer.id | default: '' }}"
+    data-orders-count="{{ b2b_mov_orders_count }}"
+    data-currency="{{ b2b_mov_currency }}"
+  >
+    {
+      "applies": {{ b2b_mov_applies | json }},
+      "met": {{ b2b_mov_met | json }},
+      "isReorder": {{ b2b_mov_is_reorder | json }},
+      "currency": {{ b2b_mov_currency | json }},
+      "thresholdCents": {{ b2b_mov_threshold_cents | json }},
+      "firstOrderThresholdCents": {{ b2b_mov_first_dollars | times: 100 | round | json }},
+      "reorderThresholdCents": {{ b2b_mov_reorder_dollars | times: 100 | round | json }},
+      "remainingCents": {{ b2b_mov_remaining_cents | json }},
+      "cartTotalCents": {{ b2b_mov_cart_total | json }},
+      "ordersCount": {{ b2b_mov_orders_count | json }},
+      "customerId": {% if customer %}{{ customer.id | json }}{% else %}null{% endif %},
+      "movEnabled": {{ settings.b2b_mov_enable | json }},
+      "firstOrderMessageTemplate": {{ settings.b2b_mov_first_order_message | default: 'Add [amount] more to reach the [minimum] first-order minimum.' | json }},
+      "reorderMessageTemplate": {{ settings.b2b_mov_reorder_message | default: 'Add [amount] more to reach the [minimum] reorder minimum.' | json }},
+      "messageTemplate": {{ b2b_mov_message_template | json }},
+      "moq": {
+        "enabled": {{ b2b_moq_enabled | json }},
+        "defaultQty": {{ b2b_moq_default | json }},
+        "metafield": {{ b2b_moq_metafield_path | json }},
+        "messageTemplate": {{ b2b_moq_message_template | json }},
+        "orderMessage": {{ settings.b2b_moq_order_message | default: 'Please add the minimum required limit for each product to proceed to checkout' | json }},
+        "met": {{ b2b_moq_met | json }},
+        "shortfalls": [{% if b2b_moq_shortfalls_json != blank %}{{ b2b_moq_shortfalls_json }}{% endif %}]
+      }
+    }
+  </script>
+{%- endunless -%}
+
+{%- if b2b_mov_applies -%}
+  {%- if show_notice != false -%}
+    {%- if settings.b2b_mov_enable -%}
+      <p
+        class="b2b-min-order-notice{% unless b2b_mov_met %} is-visible{% endunless %}"
+        data-b2b-min-order-notice
+        data-b2b-template="{{ b2b_mov_message_template | escape }}"
+        role="status"
+        {% if b2b_mov_met %}hidden{% endif %}
+      >
+        {{ b2b_mov_message_template
+          | replace: '[amount]', b2b_mov_remaining_money
+          | replace: '[minimum]', b2b_mov_threshold_money
+          | escape }}
+      </p>
+    {%- endif -%}
+
+    {%- comment -%}
+      Once the order value minimum is met the notice above goes away, but a style
+      can still be short of its MOQ. This keeps a reason for the blocked checkout
+      in the same slot.
+    {%- endcomment -%}
+    {%- if b2b_moq_enabled -%}
+      {%- liquid
+        assign b2b_moq_order_visible = false
+        if b2b_moq_met == false and b2b_mov_met
+          assign b2b_moq_order_visible = true
+        endif
+      -%}
+      <p
+        class="b2b-min-order-notice b2b-min-order-notice--moq{% if b2b_moq_order_visible %} is-visible{% endif %}"
+        data-b2b-moq-order-notice
+        role="status"
+        {% unless b2b_moq_order_visible %}hidden{% endunless %}
+      >
+        {{ settings.b2b_moq_order_message
+          | default: 'Please add the minimum required limit for each product to proceed to checkout'
+          | escape }}
+      </p>
+    {%- endif -%}
+  {%- endif -%}
+{%- endif -%}

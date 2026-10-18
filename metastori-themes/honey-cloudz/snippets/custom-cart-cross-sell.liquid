@@ -1,0 +1,234 @@
+{%- comment -%}
+  Custom Cart — cross-sell recommendation card.
+  @param product {product}
+{%- endcomment -%}
+
+{%- liquid
+  assign current_variant = product.selected_or_first_available_variant
+  assign review_count = product.metafields.reviews.rating_count | default: '520'
+  assign base_product = product
+  assign base_variant = current_variant
+
+  if shop.metafields.sawholesale.base_price == blank
+    assign base_price = 'compare_at_price'
+  else
+    assign base_price = shop.metafields.sawholesale.base_price
+  endif
+
+  assign saw_discount = 0
+  assign saw_has_discount = false
+  assign price_key = blank
+
+  if customer.tags != blank
+    for mf in base_product.metafields.sawholesale
+      capture hide_resource
+        render 'wc_product_visibility', resource: mf
+      endcapture
+      if hide_resource == 'true'
+        continue
+      endif
+
+      capture product_customer_tag
+        echo mf | first | replace: 'discount_', ''
+      endcapture
+      if customer.tags contains product_customer_tag
+        assign saw_has_discount = true
+        assign discount_key = product_customer_tag | prepend: 'discount_'
+        assign price_key = product_customer_tag | prepend: 'price_'
+        assign saw_discount = base_product.metafields.sawholesale[discount_key] | divided_by: 100.0
+      endif
+    endfor
+  endif
+
+  assign saw_discount = 1 | minus: saw_discount
+
+  if base_price == 'price' or base_variant.compare_at_price == blank or base_variant.compare_at_price == 0 or base_variant.compare_at_price < base_variant.price
+    assign saw_variant_compare_at_price = base_variant.price
+  else
+    assign saw_variant_compare_at_price = base_variant.compare_at_price
+  endif
+
+  assign cpe = shop.metafields.sawholesale.cpe | default: 'true'
+  if base_variant.metafields.sawholesale[price_key] != blank and cpe == 'true'
+    assign saw_variant_price = base_variant.metafields.sawholesale[price_key]
+  else
+    assign saw_variant_price = saw_variant_compare_at_price | times: saw_discount
+  endif
+
+  if saw_has_discount == false or saw_variant_price >= saw_variant_compare_at_price
+    assign current_display_price = base_variant.price
+    assign current_display_compare = base_variant.compare_at_price | default: 0
+  else
+    assign current_display_price = saw_variant_price
+    assign current_display_compare = saw_variant_compare_at_price
+  endif
+-%}
+
+<div
+  class="custom-cart__recommendation"
+  data-custom-cross-sell-card
+  data-product-id="{{ product.id }}"
+  data-product-handle="{{ product.handle }}"
+  data-product-vendor="{{ product.vendor | escape }}"
+>
+  <div class="custom-cart__recommendation-layout">
+    <a href="{{ product.url }}" class="custom-cart__recommendation-media" tabindex="-1" aria-hidden="true">
+      {%- if current_variant.featured_media -%}
+        <img
+          src="{{ current_variant.featured_media | image_url: width: 160 }}"
+          alt="{{ current_variant.featured_media.alt | escape }}"
+          width="80"
+          height="80"
+          loading="lazy"
+          data-custom-cross-sell-image
+        >
+      {%- elsif product.featured_media -%}
+        <img
+          src="{{ product.featured_media | image_url: width: 160 }}"
+          alt="{{ product.featured_media.alt | escape }}"
+          width="80"
+          height="80"
+          loading="lazy"
+          data-custom-cross-sell-image
+        >
+      {%- endif -%}
+    </a>
+
+    <div class="custom-cart__recommendation-content">
+      <a href="{{ product.url }}" class="custom-cart__recommendation-title">{{ product.title | escape }}</a>
+
+      <div class="custom-cart__recommendation-reviews" aria-label="{{ review_count }} reviews">
+        {%- for i in (1..5) -%}
+          {% render 'custom-cart-icons', icon: 'star' %}
+        {%- endfor -%}
+        <span class="custom-cart__recommendation-review-count">({{ review_count }} reviews)</span>
+      </div>
+
+      <div class="custom-cart__recommendation-price-wrap" data-custom-cross-sell-price-wrap>
+        {% render 'custom-cart-recommendation-price', product: product, variant: current_variant %}
+      </div>
+
+      <div class="custom-cart__recommendation-actions{% if product.has_only_default_variant %} custom-cart__recommendation-actions--solo{% endif %}">
+        {%- if product.has_only_default_variant -%}
+          <input
+            type="hidden"
+            data-custom-cross-sell-variant
+            value="{{ current_variant.id }}"
+            data-price="{{ current_display_price }}"
+            data-compare-price="{{ current_display_compare }}"
+          >
+        {%- else -%}
+          <div class="custom-cart__recommendation-variant" data-custom-cross-sell-variants>
+            <select
+              class="custom-cart__variant-select"
+              data-custom-cross-sell-select
+              aria-label="{{ 'products.product.variant' | t | default: 'Variant' }}"
+            >
+              {%- for variant in product.variants -%}
+                {%- liquid
+                  assign base_product = product
+                  assign base_variant = variant
+
+                  if shop.metafields.sawholesale.base_price == blank
+                    assign base_price = 'compare_at_price'
+                  else
+                    assign base_price = shop.metafields.sawholesale.base_price
+                  endif
+
+                  assign saw_discount = 0
+                  assign saw_has_discount = false
+                  assign price_key = blank
+
+                  if customer.tags != blank
+                    for mf in base_product.metafields.sawholesale
+                      capture hide_resource
+                        render 'wc_product_visibility', resource: mf
+                      endcapture
+                      if hide_resource == 'true'
+                        continue
+                      endif
+
+                      capture product_customer_tag
+                        echo mf | first | replace: 'discount_', ''
+                      endcapture
+                      if customer.tags contains product_customer_tag
+                        assign saw_has_discount = true
+                        assign discount_key = product_customer_tag | prepend: 'discount_'
+                        assign price_key = product_customer_tag | prepend: 'price_'
+                        assign saw_discount = base_product.metafields.sawholesale[discount_key] | divided_by: 100.0
+                      endif
+                    endfor
+                  endif
+
+                  assign saw_discount = 1 | minus: saw_discount
+
+                  if base_price == 'price' or base_variant.compare_at_price == blank or base_variant.compare_at_price == 0 or base_variant.compare_at_price < base_variant.price
+                    assign saw_variant_compare_at_price = base_variant.price
+                  else
+                    assign saw_variant_compare_at_price = base_variant.compare_at_price
+                  endif
+
+                  assign cpe = shop.metafields.sawholesale.cpe | default: 'true'
+                  if base_variant.metafields.sawholesale[price_key] != blank and cpe == 'true'
+                    assign saw_variant_price = base_variant.metafields.sawholesale[price_key]
+                  else
+                    assign saw_variant_price = saw_variant_compare_at_price | times: saw_discount
+                  endif
+
+                  if saw_has_discount == false or saw_variant_price >= saw_variant_compare_at_price
+                    assign option_price = base_variant.price
+                    assign option_compare = base_variant.compare_at_price | default: 0
+                  else
+                    assign option_price = saw_variant_price
+                    assign option_compare = saw_variant_compare_at_price
+                  endif
+                -%}
+                <option
+                  value="{{ variant.id }}"
+                  {% if variant == current_variant %}
+                    selected
+                  {% endif %}
+                  {% unless variant.available %}
+                    disabled
+                  {% endunless %}
+                  data-price="{{ option_price }}"
+                  data-compare-price="{{ option_compare }}"
+                  data-available="{{ variant.available }}"
+                  {%- if variant.featured_media -%}
+                    data-image="{{ variant.featured_media | image_url: width: 160 }}"
+                  {%- endif -%}
+                >
+                  {%- if product.options.size > 1 -%}
+                    {%- for option_value in variant.options -%}
+                      {{- option_value | escape -}}{%- unless forloop.last %} / {% endunless -%}
+                    {%- endfor -%}
+                  {%- else -%}
+                    {{- variant.title | escape -}}
+                  {%- endif -%}
+                  {%- unless variant.available %} — {{ 'products.product.sold_out' | t }}{% endunless %}
+                </option>
+              {%- endfor -%}
+            </select>
+            {% render 'custom-cart-icons', icon: 'chevron' %}
+          </div>
+        {%- endif -%}
+
+        <button
+          type="button"
+          class="custom-cart__recommendation-add"
+          data-custom-cross-sell-add
+          data-variant-id="{{ current_variant.id }}"
+          data-price="{{ current_display_price }}"
+          {% unless current_variant.available %}
+            disabled
+          {% endunless %}
+        >
+          <span class="custom-cart__recommendation-add-label">Add</span>
+          <span class="custom-cart__recommendation-add-spinner" aria-hidden="true">
+            {% render 'custom-cart-icons', icon: 'spinner' %}
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

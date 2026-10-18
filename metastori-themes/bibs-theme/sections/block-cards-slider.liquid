@@ -1,0 +1,472 @@
+<style>
+  .section-bcs-header {
+    flex-direction: column;
+    text-align: {{ section.settings.text_alignment }};
+    align-items: {{ section.settings.text_alignment }};
+  }
+  .bcs-card {
+      padding: 10px;
+  }
+  .section-{{ section.id }} .swiper-card .swiper-slide{
+    padding:10px;
+  }
+  .bcs-text {
+    padding: 1.25rem 0 10px;
+    font-size: 16px;
+    text-align: {{ section.settings.text_alignment }};
+    font-weight: bold;
+    line-height: 1.4;
+  }
+  .section-{{ section.id }} .swiper-pagination-bullet {
+      width: 9px;
+      height: 9px;
+      background: #b1b1b1;
+      margin: 5px !important;
+  }
+</style>
+
+{% assign desktop_slides = section.settings.number_of_cards_to_show %}
+{% assign mobile_slides = section.settings.number_of_cards_to_show_mobile %}
+{%- capture swiper_options -%}
+  {
+    "slidesPerView": {{ mobile_slides }},
+    "spaceBetween": 0,
+    "loop": false,
+    "pagination": {
+      "el": ".bcs-pagination",
+      "clickable": true
+    },
+    "navigation": {
+      "nextEl": ".bcs-next",
+      "prevEl": ".bcs-prev"
+    },
+    "breakpoints": {
+      "768": {
+        "slidesPerView": {{ desktop_slides }}
+      }
+    },
+    "scrollbar": {
+      "el": ".swiper-scrollbar",
+      "draggable": true
+    }
+  }
+  {%- endcapture -%}
+
+{%- capture swiper_attribute -%}
+    data-swiper='{{- swiper_options -}}'
+  {%- endcapture -%}
+
+{% liquid
+  assign heading_title = section.settings.title
+  assign description = section.settings.description
+  assign heading_tag = section.settings.heading_tag
+  assign font_size = section.settings.font_size
+  assign font_weight = section.settings.font_weight
+  assign heading_type = font_size | append: ' ' | append: font_weight
+  assign media_aspect_ratio = section.settings.media_aspect_ratio
+
+  assign all_blocks_empty = true
+  for block in section.blocks
+    if block.settings.collection != blank
+      assign all_blocks_empty = false
+    endif
+  endfor
+%}
+
+{%- unless all_blocks_empty -%}
+  {% render 'divider',
+    height: section.settings.margin_top,
+    custom: section.settings.margin_top_custom,
+    color_scheme: section.settings.color_scheme
+  %}
+  <div class="bcs-main section-{{ section.id }}">
+    <div class="color-{{ section.settings.color_scheme }}">
+      <div class="section-bcs-header flex gap-4 items-center container-fluid mb-3">
+        {%- if heading_title != blank -%}
+          {% render 'c-title', custom_tag: heading_tag, type: heading_type, content: heading_title %}
+        {%- endif -%}
+        {%- if description != blank -%}
+          <div class="bcs-description">{{ description }}</div>
+        {%- endif -%}
+      </div>
+
+      <div class="mt-[2px] container-fluid">
+        <div id="bcs-content-{{ section.id }}" class="bcs-slider">
+          <div
+            class="swiper swiper-card !pb-[2px]"
+            {{ swiper_attribute }}
+          >
+            <div class="swiper-wrapper secondary-wrapper">
+              {% for block in section.blocks %}
+                {% assign link = blank %}
+                {% if block.settings.link != blank %}
+                  {% assign link = block.settings.link %}
+                {% elsif block.settings.collection != blank %}
+                  {% assign link = block.settings.collection.url %}
+                {% endif %}
+
+                <div class="swiper-slide">
+                  {% if link != blank -%}
+                    <a class="bcs-card" href="{{ link }}">
+                  {%- else %}
+                    <div class="bcs-card">
+                  {% endif %}
+                  <div class="bcs-card-image">
+                    {% if block.settings.image != blank %}
+                      {% render 'c-image',
+                        image: block.settings.image,
+                        classes: 'card-bcs-img h-full w-full',
+                        aspect_ratio: media_aspect_ratio,
+                        image_fit: 'object-cover'
+                      %}
+                    {% elsif block.settings.collection != blank %}
+                      {% render 'c-image',
+                        image: block.settings.collection.featured_image,
+                        classes: 'card-bcs-img h-full w-full',
+                        aspect_ratio: media_aspect_ratio,
+                        image_fit: 'object-cover'
+                      %}
+                    {% else %}
+                      {{ 'image' | placeholder_svg_tag: 'w-full h-full fill-grey-600 bg-gray-100 bcs-placeholder' }}
+                    {% endif %}
+                  </div>
+                  <div class="bcs-card-content">
+                    {% if block.settings.text != blank %}
+                      <h4 class="bcs-text">{{ block.settings.text }}</h4>
+                    {% elsif block.settings.collection != blank %}
+                      <h4 class="bcs-text">{{ block.settings.collection.title }}</h4>
+                    {% endif %}
+                  </div>
+                  {% if link != blank %}</a>{% else %}</div>{% endif %}
+                </div>
+              {%- endfor -%}
+            </div>
+            <div class="swiper-highlighter-cat">
+              <div class="swiper-button-prev bcs-prev !left-9 after:pr-[2px] swiper-button-disabled"></div>
+              <div class="swiper-button-next bcs-next !right-9 after:pl-[2px] swiper-button-disabled"></div>
+            </div>
+
+            <div class="swiper-pagination bcs-pagination"></div>
+
+            <div class="swiper-scrollbar !left-0 hidden"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% render 'divider',
+    height: section.settings.margin_bottom,
+    custom: section.settings.margin_bottom_custom,
+    color_scheme: section.settings.color_scheme
+  %}
+{%- endunless -%}
+
+{% schema %}
+{
+  "name": "Block Cards Slider",
+  "class": "section-featured-collection",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "default": "Heading Placeholder",
+      "label": "t:sections.featured_collection.settings.title.label"
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.heading_tag.label",
+      "id": "heading_tag",
+      "default": "h3",
+      "options": [
+        {
+          "value": "h1",
+          "label": "t:sections.all.heading_tag.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.heading_tag.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.heading_tag.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.heading_tag.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.heading_tag.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.heading_tag.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_size.label",
+      "id": "font_size",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_size.options.default"
+        },
+        {
+          "value": "paragraph-1",
+          "label": "t:sections.all.font_size.options.paragraph"
+        },
+        {
+          "value": "h1",
+          "label": "t:sections.all.font_size.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.font_size.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.font_size.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.font_size.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.font_size.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.font_size.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_weight.label",
+      "id": "font_weight",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_weight.options.default"
+        },
+        {
+          "value": "font-thin",
+          "label": "t:sections.all.font_weight.options.thin"
+        },
+        {
+          "value": "font-light",
+          "label": "t:sections.all.font_weight.options.light"
+        },
+        {
+          "value": "font-normal",
+          "label": "t:sections.all.font_weight.options.normal"
+        },
+        {
+          "value": "font-medium",
+          "label": "t:sections.all.font_weight.options.medium"
+        },
+        {
+          "value": "font-semibold",
+          "label": "t:sections.all.font_weight.options.semibold"
+        },
+        {
+          "value": "font-bold",
+          "label": "t:sections.all.font_weight.options.bold"
+        }
+      ]
+    },
+    {
+      "type": "richtext",
+      "id": "description",
+      "label": "Description "
+    },
+    {
+      "type": "text_alignment",
+      "id": "text_alignment",
+      "label": "Text Alignment",
+      "default": "center"
+    },
+    {
+      "type": "select",
+      "id": "media_aspect_ratio",
+      "label": "t:sections.categories_grid.settings.media_aspect_ratio.label",
+      "options": [
+        {
+          "value": "square",
+          "label": "Square"
+        },
+        {
+          "value": "portrait",
+          "label": "Portrait"
+        },
+        {
+          "value": "rectangle",
+          "label": "Rectange"
+        },
+        {
+          "value": "landscape",
+          "label": "Landscape"
+        },
+        {
+          "value": "bibs",
+          "label": "Bibs"
+        },
+        {
+          "value": "portrait-in-landscape",
+          "label": "portrait-in-landscape"
+        }
+      ],
+      "default": "portrait"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.featured_collection.settings.grid_header.content"
+    },
+    {
+      "type": "range",
+      "id": "number_of_cards_to_show",
+      "label": "Number of cards to show (Desktop)",
+      "default": 4.2,
+      "step": 0.2,
+      "min": 1,
+      "max": 6
+    },
+    {
+      "type": "range",
+      "id": "number_of_cards_to_show_mobile",
+      "label": "Number of cards to show (Mobile)",
+      "default": 1.4,
+      "step": 0.2,
+      "min": 1,
+      "max": 3
+    },
+    {
+      "type": "header",
+      "content": "t:sections.all.margin.heading"
+    },
+    {
+      "type": "select",
+      "id": "margin_top",
+      "label": "Margin Top",
+      "options": [
+        {
+          "label": "t:sections.all.margin.margin_bottom.none",
+          "value": "none"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.small",
+          "value": "small"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.normal",
+          "value": "normal"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.large",
+          "value": "large"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.custom.label",
+          "value": "custom"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "default": 16,
+      "step": 1,
+      "label": "t:sections.all.margin.margin_bottom.custom.value",
+      "visible_if": "{{ section.settings.margin_top == 'custom' }}",
+      "unit": "px",
+      "id": "margin_top_custom"
+    },
+    {
+      "type": "select",
+      "id": "margin_bottom",
+      "label": "t:sections.all.margin.margin_bottom.label",
+      "options": [
+        {
+          "label": "t:sections.all.margin.margin_bottom.none",
+          "value": "none"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.small",
+          "value": "small"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.normal",
+          "value": "normal"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.large",
+          "value": "large"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.custom.label",
+          "value": "custom"
+        }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "default": 16,
+      "step": 1,
+      "label": "t:sections.all.margin.margin_bottom.custom.value",
+      "visible_if": "{{ section.settings.margin_bottom == 'custom' }}",
+      "unit": "px",
+      "id": "margin_bottom_custom"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "block",
+      "name": "Block",
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Image"
+        },
+        {
+          "type": "text",
+          "id": "text",
+          "label": "Text",
+          "default": "Text Placeholder"
+        },
+        {
+          "type": "url",
+          "id": "link",
+          "label": "Link"
+        },
+        {
+          "type": "collection",
+          "id": "collection",
+          "label": "Collection"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Block Cards Slider"
+    }
+  ]
+}
+{% endschema %}

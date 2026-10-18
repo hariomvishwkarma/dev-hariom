@@ -1,0 +1,288 @@
+{% liquid
+  # Find the maximum number of slides per view
+  assign max_slides_per_view = section.settings.max_slides_per_view
+  assign blocks_size = 0
+  for block in section.blocks
+    if block.settings.text != blank
+      assign blocks_size = blocks_size | plus: 1
+    endif
+  endfor
+  if blocks_size < max_slides_per_view
+    assign max_slides_per_view = blocks_size
+  endif
+%}
+
+{%- if blocks_size > 0 -%}
+  {%- capture swiper_options -%}
+    {
+      "slidesPerView": 1,
+      {%- if section.settings.enable_autoplay_mobile -%}
+        "autoplay": {
+          "enabled": true,
+          "delay": {{ section.settings.change_slides_speed | times: 1000 }},
+          "disableOnInteraction": false
+        },
+      {%- endif -%}
+      "loop": true,
+      "breakpoints": {
+        "768": {
+          {% if section.settings.enable_autoplay_desktop -%}
+            "autoplay": {
+              "enabled": true,
+              "delay": {{ section.settings.change_slides_speed | times: 1000 }},
+              "disableOnInteraction": false
+            },
+          {%- else -%}
+            "autoplay": {
+              "enabled": false
+            },
+          {%- endif -%}
+          "slidesPerView": {{ max_slides_per_view }}
+        }
+      }
+    }
+  {%- endcapture -%}
+
+  {%- capture swiper_attribute -%}
+    data-swiper='{{- swiper_options -}}'
+  {%- endcapture -%}
+
+  <div class="color-{{ section.settings.color_scheme }}">
+    <div class="container-fluid relative">
+      <div class="flex justify-between gap-4">
+        <!-- Menu list -->
+        {%- assign menu_blocks = section.blocks | where: 'type', 'menu' -%}
+        {%- for block in menu_blocks -%}
+          {%- if block.settings.enable_menu -%}
+            {%- assign menu_links = block.settings.menu_list.links -%}
+            {%- if menu_links.size > 0 -%}
+              <ul class="hidden lg:flex flex-1 items-center gap-4">
+                {%- for link in menu_links -%}
+                  <li>
+                    {% render 'c-link',
+                      href: link.url,
+                      type: 'link--hover',
+                      classes: 'text-3-medium whitespace-nowrap',
+                      content: link.title
+                    %}
+                  </li>
+                {%- endfor -%}
+              </ul>
+            {%- endif -%}
+          {%- endif -%}
+          {% break %}
+        {%- endfor -%}
+        <!-- USPs -->
+        <div class="flex-[2] swiper" {{ swiper_attribute }}>
+          <div class="swiper-wrapper">
+            {%- assign usp_blocks = section.blocks | where: 'type', 'usp' -%}
+            {%- for block in usp_blocks -%}
+              {%- case block.type -%}
+                {%- when 'usp' -%}
+                  {% liquid
+                    assign block_icon = block.settings.icon
+                    assign block_text = block.settings.text
+                    assign block_link = block.settings.link
+                  %}
+                  {% if block_text != blank %}
+                    {%- capture block_content -%}
+                      {%- if block_icon != 'none' -%}
+                        {% render 'c-usp-icon', icon: block_icon, classes: 'w-4 h-4 inline-block pointer-events-none vertical-align-middle' %}
+                      {%- endif -%}
+                      {{ block_text | escape }}
+                    {%- endcapture -%}
+
+                    <div class="swiper-slide !flex items-center justify-center">
+                      {%- assign block_link_classes = 'flex justify-center items-end !leading-none text-center gap-2 p-1.5' -%}
+                      {%- if block_link -%}
+                        {% render 'c-link',
+                          href: block_link,
+                          type: 'link--hover',
+                          content: block_content,
+                          classes: block_link_classes
+                        %}
+                      {%- else -%}
+                        {% render 'c-text',
+                          custom_tag: 'span',
+                          type: 'text-3-medium',
+                          content: block_content,
+                          classes: block_link_classes
+                        %}
+                      {%- endif -%}
+                    </div>
+                  {% endif %}
+              {%- endcase -%}
+            {%- endfor -%}
+          </div>
+        </div>
+        <!-- Markets switcher -->
+        {%- assign markets_switcher_blocks = section.blocks | where: 'type', 'markets-switcher' -%}
+        {%- for block in markets_switcher_blocks -%}
+          {%- if block.settings.enable_market_switcher -%}
+            {% render 'markets-switcher' %}
+          {%- endif -%}
+          {% break %}
+        {%- endfor -%}
+        {%- for block in section.blocks -%}
+          {%- case block.type -%}
+            {%- when '@app' -%}
+              <div class="md:flex justify-end md:flex-1 ">
+                {% render block %}
+              </div>
+          {% endcase %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "t:sections.usp-bar.name",
+  "class": "section-usp-bar z-15 border-b border-borders relative",
+  "enabled_on": {
+    "groups": ["header"]
+  },
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "accent-2"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.usp-bar.settings.header.content",
+      "info": "t:sections.usp-bar.settings.header.info"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_autoplay_desktop",
+      "label": "t:sections.usp-bar.settings.enable_autoplay_desktop.label",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_autoplay_mobile",
+      "label": "t:sections.usp-bar.settings.enable_autoplay_mobile.label",
+      "default": true
+    },
+    {
+      "type": "number",
+      "id": "max_slides_per_view",
+      "default": 3,
+      "label": "t:sections.usp-bar.settings.max_slides_per_view.label",
+      "info": "t:sections.usp-bar.settings.max_slides_per_view.info"
+    },
+    {
+      "type": "range",
+      "id": "change_slides_speed",
+      "min": 2,
+      "max": 20,
+      "step": 1,
+      "unit": "s",
+      "label": "t:sections.usp-bar.settings.change_slides_speed.label",
+      "default": 5,
+      "info": "t:sections.usp-bar.settings.change_slides_speed.info"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "@app"
+    },
+    {
+      "type": "menu",
+      "name": "t:sections.usp-bar.blocks.menu.name",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "checkbox",
+          "id": "enable_menu",
+          "label": "t:sections.usp-bar.blocks.menu.settings.enable_menu.label",
+          "default": true
+        },
+        {
+          "type": "link_list",
+          "id": "menu_list",
+          "label": "t:sections.usp-bar.blocks.menu.settings.menu_list.label"
+        }
+      ]
+    },
+    {
+      "type": "usp",
+      "name": "t:sections.usp-bar.blocks.usp.name",
+      "settings": [
+        {
+          "type": "select",
+          "id": "icon",
+          "label": "t:sections.usp-bar.blocks.usp.settings.icon.label",
+          "options": [
+            {
+              "value": "none",
+              "label": "t:sections.usp-bar.blocks.usp.settings.icon.options.none.label"
+            },
+            {
+              "value": "truck",
+              "label": "t:sections.usp-bar.blocks.usp.settings.icon.options.truck.label"
+            },
+            {
+              "value": "arrow",
+              "label": "t:sections.usp-bar.blocks.usp.settings.icon.options.arrow.label"
+            },
+            {
+              "value": "clock",
+              "label": "t:sections.usp-bar.blocks.usp.settings.icon.options.clock.label"
+            },
+            {
+              "value": "store",
+              "label": "t:sections.usp-bar.blocks.usp.settings.icon.options.store.label"
+            },
+            {
+              "value": "pocket",
+              "label": "t:sections.usp-bar.blocks.usp.settings.icon.options.pocket.label"
+            }
+          ],
+          "default": "truck"
+        },
+        {
+          "type": "text",
+          "id": "text",
+          "label": "t:sections.usp-bar.blocks.usp.settings.text.label",
+          "default": "USP text"
+        },
+        {
+          "type": "url",
+          "id": "link",
+          "label": "t:sections.usp-bar.blocks.usp.settings.link.label"
+        }
+      ]
+    },
+    {
+      "type": "markets-switcher",
+      "name": "t:sections.usp-bar.blocks.markets-switcher.name",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "checkbox",
+          "id": "enable_market_switcher",
+          "label": "t:sections.usp-bar.blocks.markets-switcher.settings.enable_market_switcher.label",
+          "default": true
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.usp-bar.presets.name",
+      "blocks": [
+        {
+          "type": "usp"
+        },
+        {
+          "type": "markets-switcher"
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

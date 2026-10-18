@@ -1,0 +1,500 @@
+<!-- Dynamic Media Scroll Section -->
+<section id="{{ section.id }}" class="media-scroll-section">
+  <!-- Fixed text container (top-left) -->
+  <div class="media-fixed-text">
+    <h3>{{ section.settings.fixed_title }}</h3>
+    <p>{{ section.settings.fixed_description }}</p>
+  </div>
+
+  <!-- Horizontal Scroll Container -->
+  <div class="media-scroll-container">
+    <div class="swiper msc-slider">
+      <div class="swiper-wrapper">
+        {% assign meta_media_list = product.metafields.custom.horizontal_scroll_image.value %}
+        {% assign media_index = 0 %}
+
+        {% for block in section.blocks %}
+          {% comment %}
+            Agar metafield me media (image/video) hai to:
+            - Har block ke liye 1 media item use karo
+            - Jis block ke liye media na mile, us block ko skip karo
+          {% endcomment %}
+          {% if meta_media_list != blank %}
+            {% assign meta_media = nil %}
+            {% for m in meta_media_list limit: 1 offset: media_index %}
+              {% assign meta_media = m %}
+            {% endfor %}
+            {% if meta_media == nil %}
+              {% continue %}
+            {% endif %}
+            {% assign media_index = media_index | plus: 1 %}
+          {% endif %}
+
+            <div
+              class="media-scroll-item media-scroll-item-{{ block.id }} swiper-slide"
+              {{ block.shopify_attributes }}
+            >
+              <!-- Background Content -->
+              <div class="item-background">
+                {% if meta_media_list != blank %}
+                  {% comment %} Metafield se aaya media: agar video hai to video, warna image {% endcomment %}
+                  {% if meta_media.media_type == 'video' %}
+                    {{ meta_media | video_tag: autoplay: true, loop: true, muted: true, class: 'video-background', preload: 'metadata', playsinline: true }}
+                  {% else %}
+                    {% render 'responsive-image', 
+                      image: meta_media,
+                      class: 'image-background'
+                    %}
+                  {% endif %}
+                {% else %}
+                  {% comment %}
+                    Metafield nahi hai:
+                    Priority: pehle video, phir image, phir color background
+                  {% endcomment %}
+                  {% if block.settings.bg_video != blank %}
+                    {{ block.settings.bg_video | video_tag: autoplay: true, loop: true, muted: true, class: 'video-background', preload: 'metadata', playsinline: true }}
+                  {% elsif block.settings.bg_image != blank %}
+                    {% render 'responsive-image', 
+                      image: block.settings.bg_image,
+                      class: 'image-background'
+                    %}
+                  {% elsif block.settings.bg_color != blank %}
+                    <div class="color-background" style="background-color: {{ block.settings.bg_color }}; display:block;"></div>
+                  {% else %}
+                    <div class="placeholder-background">
+                      {{ 'image' | placeholder_svg_tag: 'placeholder-svg' }}
+                    </div>
+                  {% endif %}
+                {% endif %}
+              </div>
+
+              <!-- Optional Content Overlay -->
+              {% if block.settings.show_content %}
+                <div class="item-content">
+                  {% if block.settings.title != blank %}
+                    <h2 class="item-title">{{ block.settings.title }}</h2>
+                  {% endif %}
+                  {% if block.settings.description != blank %}
+                    <div class="item-description">{{ block.settings.description }}</div>
+                  {% endif %}
+                  {% if block.settings.button_text != blank and block.settings.button_link != blank %}
+                    <a href="{{ block.settings.button_link }}" class="item-button">
+                      {{ block.settings.button_text }}
+                    </a>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </div>
+            {% capture desktop_css %}{{ desktop_css }}
+              .media-scroll-item-{{ block.id }}{width:{{ block.settings.slide_width }};}
+            {% endcapture %}
+            {% capture mobile_css %}{{ mobile_css }}
+              .media-scroll-item-{{ block.id }}{width:{{ block.settings.slide_width_m }};}
+            {% endcapture %}
+        {% endfor %}
+      </div>
+    </div>  
+  </div>
+</section>
+
+<style>
+#{{ section.id }} {
+  position: relative;
+  width: 100%;
+  {% comment %} height: 100vh;
+  max-height: 100vh;
+  overflow: hidden; {% endcomment %}
+}
+
+#{{ section.id }} .media-fixed-text {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  z-index: 2;
+  max-width: 320px;
+  color: {{ section.settings.text_color }};
+  font-family: inherit;
+  text-transform: uppercase;
+  pointer-events: none;
+  mix-blend-mode: difference;
+}
+
+#{{ section.id }} .media-fixed-text h3 {
+  font-size: {{ section.settings.title_size }}px;
+  font-weight: {{ section.settings.title_weight }};
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+  color:white;
+}
+
+#{{ section.id }} .media-fixed-text p {
+  font-size: {{ section.settings.description_size }}px;
+  line-height: 1.4;
+  margin: 0;
+  color: #fff;
+}
+
+#{{ section.id }} .media-scroll-container, .msc-slider {
+  width: 100%;
+  height: 100%;
+  {% comment %} display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */ {% endcomment %}
+}
+
+{% comment %} #{{ section.id }} .media-scroll-container{
+  height:{{ section.settings.height }}px;
+} {% endcomment %}
+
+#{{ section.id }} .media-scroll-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+
+#{{ section.id }} .media-scroll-item {
+  position: relative;
+  height:-webkit-fill-available;
+  {% comment %} height: 100%; {% endcomment %}
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#{{ section.id }} .item-background {
+  width: 100%;
+  height: 100%;
+  {% comment %} position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1; {% endcomment %}
+}
+
+#{{ section.id }} .color-background {
+  width: 100%;
+  height: 100%;
+}
+
+#{{ section.id }} .image-background,
+#{{ section.id }} .placeholder-background {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  {% comment %} max-height: 100vh; {% endcomment %}
+}
+
+#{{ section.id }} .video-background {
+  width: 100%;
+  height: 100%;
+  {% comment %} position: absolute;
+  top: 0;
+  left: 0;
+  object-fit: cover;
+  z-index: 1;
+  max-height: 100vh; {% endcomment %}
+}
+
+#{{ section.id }} .item-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  color: white;
+  padding: 2rem;
+  max-width: 80%;
+}
+
+#{{ section.id }} .item-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+}
+
+#{{ section.id }} .item-description {
+  font-size: 1.125rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+#{{ section.id }} .item-button {
+  display: inline-block;
+  padding: 0.75rem 2rem;
+  background: white;
+  color: black;
+  text-decoration: none;
+  text-transform: uppercase;
+  font-weight: bold;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+#{{ section.id }} .item-button:hover {
+  background: #f5f5f5;
+  transform: translateY(-2px);
+}
+
+{{ desktop_css }}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  {% comment %} #{{ section.id }} {
+    height: 70vh;
+    max-height: 500px;
+  } {% endcomment %}
+
+  {{ mobile_css }}
+
+  {% comment %} #{{ section.id }} .media-scroll-container{
+    height:{{ section.settings.height_m }}px;
+  } {% endcomment %}
+  
+  #{{ section.id }} .media-fixed-text {
+    top: 1rem;
+    left: 1rem;
+    max-width: 200px;
+  }
+  
+  #{{ section.id }} .media-fixed-text h3 {
+    font-size: {{ section.settings.title_size | times: 0.7 }}px;
+  }
+  
+  #{{ section.id }} .media-fixed-text p {
+    font-size: {{ section.settings.description_size | times: 0.7 }}px;
+  }
+  
+  #{{ section.id }} .item-title {
+    font-size: 1.75rem;
+  }
+  
+  #{{ section.id }} .item-description {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  {% comment %} #{{ section.id }} {
+    height: 60vh;
+    max-height: 400px;
+  } {% endcomment %}
+  
+  #{{ section.id }} .media-fixed-text {
+    max-width: 150px;
+  }
+  
+  #{{ section.id }} .item-title {
+    font-size: 1.5rem;
+  }
+  
+  #{{ section.id }} .item-content {
+    max-width: 90%;
+  }
+}
+</style>
+
+<script>
+(function () {
+
+  function mscScrollSwiper(section) {
+    const slider = section.querySelector('.msc-slider');
+    if (!slider) return;
+
+    if (slider.swiper) {
+      slider.swiper.update();
+      return;
+    }
+
+    new Swiper(slider, {
+      slidesPerView: 'auto',
+      spaceBetween: 0,
+
+      freeMode: {
+        enabled: true,
+        momentum: true,
+        momentumRatio: 1,
+        momentumBounce: false,
+        sticky: false,
+      },
+
+      mousewheel: {
+        forceToAxis: true,
+        sensitivity: 1,
+      },
+
+      grabCursor: true,
+      observer: true,
+      observeParents: true,
+      resizeObserver: true,
+      updateOnWindowResize: true,
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.shopify-section').forEach(section => {
+      mscScrollSwiper(section);
+    });
+  });
+
+  document.addEventListener('shopify:section:load', function (e) {
+    mscScrollSwiper(e.target);
+  });
+
+  document.addEventListener('shopify:section:unload', function (e) {
+    const slider = e.target.querySelector('.msc-slider');
+    if (slider && slider.swiper) {
+      slider.swiper.destroy(true, true);
+    }
+  });
+
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Dynamic Media Scroll",
+  "settings": [
+    {
+      "type":"number",
+      "id":"height",
+      "label":"Section Height?",
+      "info":"unit is pixel.",
+      "default":200
+    },
+    {
+      "type":"number",
+      "id":"height_m",
+      "label":"Section Height? (Mobile)",
+      "info":"unit is pixel.",
+      "default":200
+    },
+    {
+      "type": "header",
+      "content": "Fixed Text Settings"
+    },
+    {
+      "type": "text",
+      "id": "fixed_title",
+      "label": "Fixed Title",
+      "default": "LOREM IPSUM LOREM"
+    },
+    {
+      "type": "text",
+      "id": "fixed_description",
+      "label": "Fixed Description",
+      "default": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc eget elit sapien."
+    },
+    {
+      "type": "range",
+      "id": "title_size",
+      "label": "Title Font Size",
+      "min": 12,
+      "max": 36,
+      "step": 1,
+      "default": 16,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "description_size",
+      "label": "Description Font Size",
+      "min": 10,
+      "max": 24,
+      "step": 1,
+      "default": 14,
+      "unit": "px"
+    },
+    {
+      "type": "select",
+      "id": "title_weight",
+      "label": "Title Font Weight",
+      "options": [
+        { "value": "400", "label": "Normal" },
+        { "value": "600", "label": "Semibold" },
+        { "value": "700", "label": "Bold" },
+        { "value": "800", "label": "Extra Bold" }
+      ],
+      "default": "700"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text Color",
+      "default": "#FFFFFF"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "media_block",
+      "name": "Media Block",
+      "settings": [
+        {
+          "type": "header",
+          "content": "Block media behaviour"
+        },
+        {
+          "type": "paragraph",
+          "content": "When the metafield has media, this block will only show the corresponding metafield item and ignore these block settings. When the metafield is empty, the block shows (in this order): video, then image, then color/placeholder."
+        },
+        {
+          "type": "video",
+          "id": "bg_video",
+          "label": "Background Video (Top Priority)"
+        },
+        {
+          "type": "image_picker",
+          "id": "bg_image",
+          "label": "Background Image (Middle Priority)"
+        },
+        {
+          "type": "color",
+          "id": "bg_color",
+          "label": "Background Color (Last Priority)",
+          "default": "#000000"
+        },
+        {
+          "type": "text",
+          "id": "slide_width",
+          "label": "Item Width",
+          "default": "50%",
+          "info": "Use percentage (50%) or pixel values (800px)"
+        },
+        {
+          "type": "text",
+          "id": "slide_width_m",
+          "label": "Item Width (Mobile)",
+          "default": "50%",
+          "info": "Use percentage value 50% or pixel value 800px"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Dynamic Media Scroll",
+      "category": "Custom Sections",
+      "blocks": [
+        {
+          "type": "media_block",
+          "settings": {
+            "slide_width": "50%"
+          }
+        },
+        {
+          "type": "media_block",
+          "settings": {
+            "slide_width": "40%"
+          }
+        },
+        {
+          "type": "media_block",
+          "settings": {
+            "slide_width": "60%"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,520 @@
+<style>
+  .header-soundcloudplayer {
+    padding: 0 8px;
+}
+.header-soundcloudplayer soundcloud-player {
+    padding-bottom: 0 !important;
+}
+</style>
+<div class="header-soundcloudplayer {{ class }}"
+    {%- unless class == 'mobile_player' -%}
+      style="width:{{ block.settings.width }}%;"
+    {%- endunless -%}
+  >
+    <soundcloud-player track-url="{{ block.settings.track_url }}" {% if class == 'mobile_player' %}data-mobile-nav="true"{% endif %}></soundcloud-player>
+  
+    {%- unless class == 'mobile_player' -%}
+    <script>
+      const soundcloudplayer_image = `{%- if block.settings.play_image != blank -%}
+        <div class="soundcloudplayer_popup">
+          <img src="{{ block.settings.play_image | image_url }}" />
+        </div>
+      {%- endif -%}`;
+  
+      class SoundCloudPlayer extends HTMLElement {
+        constructor() {
+          super();
+          this.attachShadow({ mode: 'open' });
+
+          this.widget = null;
+          this.isReady = false;
+          this.isPlaying = false;
+          this.isToggling = false;
+          this.hasUserUnlocked = false;
+          this.isMobileNav = false;
+          this.totalDuration = 0;
+          this.timeUpdateInterval = null;
+          this.isSeeking = false;
+          this.lastPosition = 0;
+        }
+  
+        connectedCallback() {
+          this.render();
+        }
+  
+        render() {
+          const trackUrl =
+            this.getAttribute('track-url') ||
+            'https://api.soundcloud.com/tracks/2360249069';
+
+          this.isMobileNav = this.getAttribute('data-mobile-nav') === 'true';
+          const mobileNavExtras = this.isMobileNav ? `
+              .time-display {
+                border: 1px solid #000;
+                text-align: start;
+                font-size: 13px;
+                padding: 3px 5px;
+                color: #000000a1;
+                background: #D9D9D9;
+                font-weight: 400;
+                border-bottom: none;
+                padding-top: 7px;
+                padding-bottom: 5px;    
+              }
+              .audio_range_wrapper {
+                background: #D9D9D9;
+                border: 1px solid #000;
+                padding: 10px 0;
+                display: flex;
+                margin-bottom: 2px;
+                border-top: none;
+              }
+              .time-range {
+                width: 90%;
+                margin: 0 auto;
+                -webkit-appearance: none;
+                height: 6px;
+                background: #7a7a7a;
+                border-radius: 3px;
+                outline: none;
+                cursor: pointer;
+              }
+              .time-range::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                width: 14px;
+                height: 14px;
+                border-radius: 50%;
+                border: 1px solid #7a7a7a;
+                background: #f5f5f5;
+                cursor: pointer;
+              }
+              .time-range::-moz-range-thumb {
+                width: 14px;
+                height: 14px;
+                border-radius: 50%;
+                border: 1px solid #7a7a7a;
+                background: #f5f5f5;
+                cursor: pointer;
+              }
+          ` : '';
+
+          this.shadowRoot.innerHTML = `
+            <style>
+              :host { display:block; width:100%; max-width:1200px; margin:0 auto; padding-bottom: 2rem;}
+              ${mobileNavExtras}
+
+              .banner {
+                height:15px;
+                border:1px solid #000;
+                display:grid;
+                grid-template-columns:18px 1fr;
+                position:relative;
+                overflow:hidden;
+                    display: flex;
+                border: 1px solid black;
+                align-items: center;
+                white-space: nowrap;
+                margin: 0 0 2px 0;
+                max-height: 30px;
+                background: #D9D9D9;
+              }
+  
+              .banner[data-playing="true"] { overflow:visible; }
+              .banner[data-playing="true"] .soundcloudplayer_popup { top:115%; }
+  
+              .soundcloudplayer_popup {
+                position:absolute;
+                top:-300px;
+                left:0;
+                border:1px solid #000;
+                transition:all .3s;
+              }
+  
+              .soundcloudplayer_popup img {
+                width:100%;
+                object-fit:contain;
+              }
+  
+              .control {
+                border:0;
+                background:none;
+                border-right:1px solid #000;
+                cursor:pointer;
+                display:grid;
+                place-items:center;
+                padding:0;
+              }
+              .icon {
+                  width: 20px;
+                  height: 13px;
+                  position: relative;
+              }
+              .icon-play::before {
+                  content: "";
+                  position: absolute;
+                  border-left: 9px solid #000;
+                  border-top: 5px solid transparent;
+                  border-bottom: 5px solid transparent;
+                  top: 50%;
+                  left: 50%;
+                  transform: translate(-40%, -50%);
+              }
+              .icon-pause::before,
+              .icon-pause::after {
+                content:"";
+                position:absolute;
+                width: 2px;
+                height: 8px;
+                background:#000;
+                top:50%;
+                transform:translateY(-50%);
+              }
+  
+              .icon-pause::before { left:6px; }
+              .icon-pause::after { right:6px; }
+  
+              .control[data-state="paused"] .icon-pause { display:none; }
+              .control[data-state="playing"] .icon-play { display:none; }
+  
+              .title {
+                display:flex;
+                align-items:center;
+                padding:0.5px 6px 0;
+                font-size:10px;
+                font-weight:700;
+                white-space:nowrap;
+                overflow:hidden;
+              }
+  
+              .title span {
+                animation:scroll-text 40s linear infinite;
+                font-family:'Sixtyfour';
+                -webkit-text-stroke: 1px black;
+              }
+  
+              @keyframes scroll-text {
+                from { transform:translateX(0); }
+                to { transform:translateX(-50%); }
+              }
+  
+              iframe {
+                position:absolute;
+                width:1px;
+                height:1px;
+                opacity:0;
+                left:-9999px;
+              }
+  
+              @media (max-width:767px) {
+                .track-title {
+                    font-size: 20px;
+                }
+                .banner { height:40px; grid-template-columns:36px 1fr; }
+                .soundcloudplayer_popup { display:none; }
+                .icon { width:31px; height:31px; }
+                .menu-drawer__utility-links .header-soundcloudplayer.mobile_player .title {
+                  font-size: 18px;
+                }
+                .title {
+                  font-size:18px;
+                }
+                .icon-play::before {
+                  border-left: 20px solid #000;
+                  border-top: 11px solid transparent;
+                  border-bottom: 11px solid transparent;
+                }
+                .icon-pause::before,
+                .icon-pause::after {
+                  width:4px;
+                  height:15px;
+                }
+    
+                .icon-pause::before { left:9px; }
+                .icon-pause::after { right:9px; }
+              }
+
+              @media (min-width:768px) and (max-width:1024px) {
+                .banner{
+                  height: 32px;
+                  max-height: 36px;
+                }
+                .title{
+                  font-size: 26px;
+                }
+                .icon-play::before {
+                    border-left: 16px solid #000;
+                    border-top: 10px solid transparent;
+                    border-bottom: 10px solid transparent;
+                }
+                .icon {
+                    width: 32px;
+                    height: 26px;
+                }
+                .icon-pause::before, .icon-pause::after {
+                    width: 4px;
+                    height: 16px;
+                  }
+                .icon-pause::before {
+                    left: 9px;
+                }
+                .icon-pause::after {
+                    right: 8px;
+                }
+                .soundcloudplayer_popup{display:none;}
+              }
+            </style>
+  
+            <div class="banner" id="banner" data-playing="false">
+              <button id="toggle" class="control" data-state="paused">
+                <span class="icon icon-play"></span>
+                <span class="icon icon-pause"></span>
+              </button>
+              <div class="title">
+                <span id="track-title">Loading…</span>
+              </div>
+              ${soundcloudplayer_image}
+            </div>
+            ${this.isMobileNav ? `<div class="time-display" id="sc-time-display">0:00 / 0:00</div><div class="audio_range_wrapper"><input id="sc-time-range" class="time-range" type="range" min="0" value="0" step="1" aria-label="Playback position"></div>` : ''}
+          `;
+
+          this.toggleBtn = this.shadowRoot.getElementById('toggle');
+          this.titleEl = this.shadowRoot.getElementById('track-title');
+          this.banner = this.shadowRoot.getElementById('banner');
+          this.iframe = null;
+
+          if (this.isMobileNav) {
+            this.timeDisplayEl = this.shadowRoot.getElementById('sc-time-display');
+            this.timeRangeEl = this.shadowRoot.getElementById('sc-time-range');
+            if (this.timeRangeEl) this.setupMobileNavRange();
+          }
+
+          this.toggleBtn.addEventListener('click', () => this.handleUserClick());
+          this.fetchTitle();
+        }
+
+        formatTime(ms) {
+          const totalSeconds = Math.floor((ms || 0) / 1000);
+          const minutes = Math.floor(totalSeconds / 60);
+          const seconds = totalSeconds % 60;
+          return `${minutes}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        updateMobileTimeDisplay(currentMs, totalMs) {
+          if (!this.timeDisplayEl) return;
+          this.timeDisplayEl.textContent = `${this.formatTime(currentMs)} / ${this.formatTime(totalMs)}`;
+        }
+
+        setupMobileNavRange() {
+          if (!this.timeRangeEl) return;
+          const seekComplete = () => {
+            if (!this.isReady || !this.isSeeking || !this.widget) return;
+            this.isSeeking = false;
+            const seconds = parseInt(this.timeRangeEl.value, 10) || 0;
+            this.widget.seekTo(seconds * 1000);
+            this.startMobileTimeUpdate();
+            if (this.isPlaying) setTimeout(() => this.widget.play(), 100);
+          };
+          this.timeRangeEl.addEventListener('input', (e) => {
+            if (!this.isReady) return;
+            const seconds = parseInt(e.target.value, 10) || 0;
+            this.lastPosition = seconds * 1000;
+            this.updateMobileTimeDisplay(this.lastPosition, this.totalDuration);
+          });
+          this.timeRangeEl.addEventListener('mousedown', () => { this.isSeeking = true; this.stopMobileTimeUpdate(); });
+          this.timeRangeEl.addEventListener('touchstart', () => { this.isSeeking = true; this.stopMobileTimeUpdate(); });
+          this.timeRangeEl.addEventListener('mouseup', seekComplete);
+          this.timeRangeEl.addEventListener('touchend', seekComplete);
+          this.timeRangeEl.addEventListener('change', seekComplete);
+        }
+
+        startMobileTimeUpdate() {
+          this.stopMobileTimeUpdate();
+          this.timeUpdateInterval = setInterval(() => {
+            if (this.widget && this.isPlaying && !this.isSeeking && this.isReady && this.lastPosition !== undefined) {
+              const currentSeconds = Math.floor(this.lastPosition / 1000);
+              if (this.timeRangeEl) this.timeRangeEl.value = currentSeconds;
+              this.updateMobileTimeDisplay(this.lastPosition, this.totalDuration);
+            }
+          }, 200);
+        }
+
+        stopMobileTimeUpdate() {
+          if (this.timeUpdateInterval) {
+            clearInterval(this.timeUpdateInterval);
+            this.timeUpdateInterval = null;
+          }
+        }
+
+        // ✅ Naya method add karo — initWidget() ke upar
+        fetchTitle() {
+          const trackUrl = this.getAttribute('track-url') ||
+            'https://api.soundcloud.com/tracks/1668658005';
+
+          fetch(`https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(trackUrl)}`)
+            .then(r => r.json())
+            .then(data => {
+              if (data?.title) {
+                const t = ' • ' + data.title.toUpperCase();
+                this.titleEl.textContent = t + t + t;
+              }
+            })
+            .catch(() => {
+              // fetch fail ho toh "Loading..." hi rehne do
+            });
+        }
+  
+        initWidget() {
+          if (!window.SC || !window.SC.Widget) return;
+
+          this.widget = window.SC.Widget(this.iframe);
+    
+          this.widget.bind(SC.Widget.Events.READY, () => {
+            this.isReady = true;
+
+            this.widget.getCurrentSound(sound => {
+              if (sound?.title) {
+                const t = ' • ' + sound.title.toUpperCase();
+                this.titleEl.textContent = t + t + t;
+              }
+            });
+
+            this.widget.isPaused(p => this.updateUI(!p));
+
+            if (this.isMobileNav && this.timeRangeEl) {
+              this.widget.getDuration((duration) => {
+                this.totalDuration = duration || 0;
+                const seconds = Math.floor((this.totalDuration || 0) / 1000);
+                this.timeRangeEl.max = seconds;
+                this.updateMobileTimeDisplay(0, this.totalDuration);
+              });
+              this.widget.bind(SC.Widget.Events.PLAY_PROGRESS, (data) => {
+                if (!this.isSeeking && data && data.currentPosition !== undefined) {
+                  this.lastPosition = data.currentPosition;
+                  this.updateMobileTimeDisplay(data.currentPosition, this.totalDuration);
+                  if (this.timeRangeEl && Math.abs(parseInt(this.timeRangeEl.value, 10) - Math.floor(data.currentPosition / 1000)) > 0.5) {
+                    this.timeRangeEl.value = Math.floor(data.currentPosition / 1000);
+                  }
+                }
+              });
+            }
+          });
+
+          this.widget.bind(SC.Widget.Events.PLAY, () => {
+            if (!this.isToggling) {
+              this.updateUI(true);
+              if (this.isMobileNav) this.startMobileTimeUpdate();
+            }
+          });
+
+          this.widget.bind(SC.Widget.Events.PAUSE, () => {
+            if (!this.isToggling) {
+              this.updateUI(false);
+              if (this.isMobileNav) this.stopMobileTimeUpdate();
+            }
+          });
+
+          this.widget.bind(SC.Widget.Events.FINISH, () => {
+            this.updateUI(false);
+            if (this.isMobileNav) {
+              this.stopMobileTimeUpdate();
+              if (this.totalDuration) {
+                this.updateMobileTimeDisplay(0, this.totalDuration);
+                if (this.timeRangeEl) this.timeRangeEl.value = 0;
+              }
+            }
+          });
+        }
+  
+        // handleUserClick mein pehli baar iframe banao
+        handleUserClick() {
+          // ✅ Pehli click pe iframe inject karo
+          if (!this.iframe) {
+            this.injectIframe();
+            return; // widget load hone do, dobara click karein
+          }
+
+          if (!this.isReady || this.isToggling) return;
+
+          if (!this.hasUserUnlocked) {
+            this.unlockAudioAndPlay();
+            return;
+          }
+
+          this.togglePlayback();
+        }
+
+        injectIframe() {
+          const trackUrl = this.getAttribute('track-url') ||
+            'https://api.soundcloud.com/tracks/1668658005';
+
+          this.iframe = document.createElement('iframe');
+          this.iframe.id = 'sc-widget';
+          this.iframe.allow = 'autoplay';
+          this.iframe.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;left:-9999px;';
+          this.iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(trackUrl)}&auto_play=false&enable_api=1&visual=false`;
+
+          this.shadowRoot.appendChild(this.iframe);
+
+          this.iframe.addEventListener('load', () => {
+            this.initWidget();
+            this.titleEl.textContent = 'Loading…';
+
+            // ✅ Widget ready hone ke baad automatically play karo
+            this.widget.bind(SC.Widget.Events.READY, () => {
+              this.isReady = true;
+
+              this.widget.getCurrentSound(sound => {
+                if (sound?.title) {
+                  const t = ' • ' + sound.title.toUpperCase();
+                  this.titleEl.textContent = t + t + t;
+                }
+              });
+
+              // ✅ Ready hote hi unlock karke play karo
+              this.unlockAudioAndPlay();
+            });
+          });
+        }
+  
+        unlockAudioAndPlay() {
+          this.isToggling = true;
+  
+          this.widget.play();
+          setTimeout(() => {
+            this.widget.pause();
+            this.hasUserUnlocked = true;
+  
+            this.togglePlayback();
+          }, 120);
+        }
+  
+        togglePlayback() {
+          this.isToggling = true;
+  
+          this.widget.isPaused(paused => {
+            this.updateUI(paused);
+            paused ? this.widget.play() : this.widget.pause();
+  
+            setTimeout(() => {
+              this.widget.isPaused(p => {
+                this.updateUI(!p);
+                this.isToggling = false;
+              });
+            }, 400);
+          });
+        }
+        updateUI(playing) {
+          this.isPlaying = playing;
+          this.toggleBtn.dataset.state = playing ? 'playing' : 'paused';
+          this.banner.dataset.playing = playing;
+        }
+      }
+  
+      // Bilkul end mein — existing line replace karo
+        if (!customElements.get('soundcloud-player')) {
+          customElements.define('soundcloud-player', SoundCloudPlayer);
+        }
+    </script>
+    {%- endunless -%}
+  </div>
+  

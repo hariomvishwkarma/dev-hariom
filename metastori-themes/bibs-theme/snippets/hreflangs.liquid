@@ -1,0 +1,140 @@
+{%- assign current_path = request.path -%}
+{%- assign canonical = canonical_url -%}
+{%- assign current_locale = localization.language.iso_code | downcase -%}
+{%- assign current_country = localization.country.iso_code | downcase -%}
+{%- assign current_lang_tag = current_locale | append: '-' | append: current_country -%}
+{%- assign current_lang_tag_cased = current_locale | append: '-' | append: localization.country.iso_code | upcase -%}
+
+{%- comment -%}
+  IMPORTANT:
+  Do NOT emit hreflang on paginated pages.
+  Shopify pagination should be detected via paginate.current_page,
+  not request.query_string.
+{%- endcomment -%}
+{%- assign skip_hreflang = false -%}
+{%- if paginate and paginate.current_page > 1 -%}
+  {%- assign skip_hreflang = true -%}
+{%- endif -%}
+
+{%- unless skip_hreflang -%}
+
+  {%- comment -%} Build clean current URL (no query) {%- endcomment -%}
+  {%- assign current_full = request.origin | append: request.path -%}
+  {%- assign current_full_clean = current_full | split:'#' | first -%}
+  {%- if current_full_clean != request.origin and current_full_clean ends_with '/' -%}
+    {%- assign _len = current_full_clean | size | minus: 1 -%}
+    {%- assign current_full_clean = current_full_clean | slice: 0, _len -%}
+  {%- endif -%}
+
+  {%- assign canonical_clean = canonical | split:'#' | first -%}
+  {%- if canonical_clean != request.origin and canonical_clean ends_with '/' -%}
+    {%- assign _len = canonical_clean | size | minus: 1 -%}
+    {%- assign canonical_clean = canonical_clean | slice: 0, _len -%}
+  {%- endif -%}
+
+  {%- assign page_is_canonical = false -%}
+
+  {%- comment -%}
+    Host-agnostic canonical path
+  {%- endcomment -%}
+  {%- assign canonical_path = canonical_clean | split:'?' | first -%}
+  {%- assign canonical_path = canonical_path | remove_first: 'https://bibsworld.com' -%}
+  {%- assign canonical_path = canonical_path | remove_first: 'https://us.bibsworld.com' -%}
+
+  {%- assign current_path_clean = request.path -%}
+
+  {%- if canonical_path != '/' and canonical_path ends_with '/' -%}
+    {%- assign _len = canonical_path | size | minus: 1 -%}
+    {%- assign canonical_path = canonical_path | slice: 0, _len -%}
+  {%- endif -%}
+  {%- if current_path_clean != '/' and current_path_clean ends_with '/' -%}
+    {%- assign _len = current_path_clean | size | minus: 1 -%}
+    {%- assign current_path_clean = current_path_clean | slice: 0, _len -%}
+  {%- endif -%}
+
+  {%- if canonical_path == current_path_clean -%}
+    {%- assign page_is_canonical = true -%}
+  {%- endif -%}
+
+  {%- comment -%} Optional per-page mapping: seo.hreflang_map (JSON) {%- endcomment -%}
+  {%- assign map_json = '' -%}
+  {%- if template contains 'article'
+    and article and article.metafields and article.metafields.seo and article.metafields.seo.hreflang_map
+  -%}
+    {%- assign map_json = article.metafields.seo.hreflang_map -%}
+  {%- elsif template contains 'product'
+    and product and product.metafields and product.metafields.seo and product.metafields.seo.hreflang_map
+  -%}
+    {%- assign map_json = product.metafields.seo.hreflang_map -%}
+  {%- elsif template contains 'collection'
+    and collection and collection.metafields and collection.metafields.seo and collection.metafields.seo.hreflang_map
+  -%}
+    {%- assign map_json = collection.metafields.seo.hreflang_map -%}
+  {%- elsif template contains 'page'
+    and page and page.metafields and page.metafields.seo and page.metafields.seo.hreflang_map
+  -%}
+    {%- assign map_json = page.metafields.seo.hreflang_map -%}
+  {%- endif -%}
+
+  {%- assign hreflang_map = map_json | default: '{}' | parse_json -%}
+  {%- assign emitted_codes = ',' -%}
+
+  {%- if current_path == '/' and page_is_canonical == true -%}
+    <link rel="alternate" hreflang="x-default" href="https://bibsworld.com/">
+    <link rel="alternate" hreflang="en-US" href="https://us.bibsworld.com/">
+    <link rel="alternate" hreflang="en-GB" href="https://bibsworld.com/en-gb">
+    <link rel="alternate" hreflang="en-AU" href="https://bibsworld.com/en-au">
+    <link rel="alternate" hreflang="en-CA" href="https://bibsworld.com/en-ca">
+    <link rel="alternate" hreflang="da-DK" href="https://bibsworld.com/da-dk">
+    <link rel="alternate" hreflang="fr-FR" href="https://bibsworld.com/fr-fr">
+    <link rel="alternate" hreflang="de-DE" href="https://bibsworld.com/de-de">
+    <link rel="alternate" hreflang="nl-NL" href="https://bibsworld.com/nl-nl">
+    <link rel="alternate" hreflang="it-IT" href="https://bibsworld.com/it-it">
+    <link rel="alternate" hreflang="es-ES" href="https://bibsworld.com/es-es">
+    <link rel="alternate" hreflang="pl-PL" href="https://bibsworld.com/pl-pl">
+    <link rel="alternate" hreflang="hr-HR" href="https://bibsworld.com/hr-hr">
+    <link rel="alternate" hreflang="pt-PT" href="https://bibsworld.com/pt-pt">
+    <link rel="alternate" hreflang="fi-FI" href="https://bibsworld.com/fi-fi">
+    <link rel="alternate" hreflang="sv-SE" href="https://bibsworld.com/sv-se">
+    <link rel="alternate" hreflang="el-GR" href="https://bibsworld.com/el-gr">
+    <link rel="alternate" hreflang="sl-SI" href="https://bibsworld.com/sl-si">
+    <link rel="alternate" hreflang="ro-RO" href="https://bibsworld.com/ro-ro">
+    <link rel="alternate" hreflang="cs-CZ" href="https://bibsworld.com/cs-cz">
+    <link rel="alternate" hreflang="hu-HU" href="https://bibsworld.com/hu-hu">
+    <link rel="alternate" hreflang="de-AT" href="https://bibsworld.com/de-at">
+    <link rel="alternate" hreflang="nl-BE" href="https://bibsworld.com/nl-be">
+    <link rel="alternate" hreflang="lv-LV" href="https://bibsworld.com/lv-lv">
+    <link rel="alternate" hreflang="de-CH" href="https://bibsworld.com/de-ch">
+
+  {%- elsif page_is_canonical == true -%}
+
+    {%- if hreflang_map and hreflang_map != empty -%}
+      {%- for locale in localizations.available_locales -%}
+        {%- assign lang = locale.language.iso_code | downcase -%}
+        {%- assign country_lower = locale.country.iso_code | downcase -%}
+        {%- assign country_upper = locale.country.iso_code | upcase -%}
+        {%- assign code_lower = lang | append: '-' | append: country_lower -%}
+        {%- assign code_cased = lang | append: '-' | append: country_upper -%}
+        {%- assign mapped = hreflang_map[code_lower] -%}
+        {%- assign code_token = ',' | append: code_lower | append: ',' -%}
+
+        {%- if mapped and mapped contains 'http' -%}
+          {%- unless emitted_codes contains code_token -%}
+            {%- assign mapped_clean = mapped | split:'#' | first -%}
+            {%- assign mapped_clean = mapped_clean | split:'?' | first -%}
+            <link rel="alternate" hreflang="{{ code_cased }}" href="{{ mapped_clean }}">
+            {%- assign emitted_codes = emitted_codes | append: code_lower | append: ',' -%}
+          {%- endunless -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+
+    {%- assign current_code_token = ',' | append: current_lang_tag | append: ',' -%}
+    {%- unless emitted_codes contains current_code_token -%}
+      <link rel="alternate" hreflang="{{ current_lang_tag_cased }}" href="{{ current_full_clean }}">
+      {%- assign emitted_codes = emitted_codes | append: current_lang_tag | append: ',' -%}
+    {%- endunless -%}
+
+  {%- endif -%}
+
+{%- endunless -%}

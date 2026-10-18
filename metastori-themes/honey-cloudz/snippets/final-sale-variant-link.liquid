@@ -1,0 +1,103 @@
+{% doc %}
+  "X is available on Final Sale →" line for sold-out variants of a regular product.
+  Product metafield custom.final_sale_product points to the final sale listing; variants are
+  matched by identical option values, so the final sale product must keep the same options.
+  The JSON map lists every variant of the product (null when there is no link) so
+  final-sale-link.js only reacts to variant:change events for this product.
+
+  @param {object} product
+  @param {object} section
+  @param {object} current_variant
+  @param {boolean} [hide_initial] - Variant not chosen yet (size selection required)
+{% enddoc %}
+
+{%- liquid
+  assign fs_product = product.metafields.custom.final_sale_product.value
+  assign fs_text = settings.final_sale_link_text | strip
+  assign fs_tag = settings.final_sale_tag | strip
+
+  assign fs_ready = false
+  if settings.final_sale_enabled and fs_text != blank and fs_product != blank
+    if fs_product.id != product.id and fs_product.available
+      assign fs_ready = true
+    endif
+  endif
+  if fs_ready and fs_tag != blank and product.tags contains fs_tag
+    assign fs_ready = false
+  endif
+-%}
+
+{%- if fs_ready -%}
+  {%- liquid
+    # An option with one value on the final sale product (e.g. only Jet Black) names the link.
+    assign fs_label_index = -1
+    for fs_option in fs_product.options_with_values
+      if fs_option.values.size == 1
+        assign fs_label_index = forloop.index0
+        break
+      endif
+    endfor
+
+    assign fs_has_match = false
+    assign fs_initial_url = blank
+    assign fs_initial_text = blank
+  -%}
+
+  {%- capture fs_links_json -%}
+    {%- for variant in product.variants -%}
+      {%- liquid
+        assign fs_match = nil
+        unless variant.available
+          assign variant_key = variant.options | join: '||'
+          for fs_variant in fs_product.variants
+            if fs_variant.available
+              assign fs_variant_key = fs_variant.options | join: '||'
+              if fs_variant_key == variant_key
+                assign fs_match = fs_variant
+                break
+              endif
+            endif
+          endfor
+        endunless
+      -%}
+      "{{ variant.id }}":
+      {%- if fs_match -%}
+        {%- liquid
+          assign fs_has_match = true
+          if fs_label_index >= 0
+            assign fs_label = variant.options[fs_label_index]
+          else
+            assign fs_label = variant.title
+          endif
+          assign fs_line = fs_text | replace: '[value]', fs_label
+          if variant.id == current_variant.id
+            assign fs_initial_url = fs_match.url
+            assign fs_initial_text = fs_line
+          endif
+        -%}
+        {"url": {{ fs_match.url | json }}, "text": {{ fs_line | json }}}
+      {%- else -%}
+        null
+      {%- endif -%}
+      {%- unless forloop.last -%},{%- endunless -%}
+    {%- endfor -%}
+  {%- endcapture -%}
+
+  {%- if fs_has_match -%}
+    <div
+      class="final-sale-link"
+      data-final-sale-link
+      data-section-id="{{ section.id }}"
+      {% if hide_initial or fs_initial_url == blank %}
+        hidden
+      {% endif %}
+    >
+      <a href="{{ fs_initial_url | default: fs_product.url }}" class="final-sale-link__anchor" data-final-sale-link-anchor>
+        {{- fs_initial_text | escape -}}
+      </a>
+      <script type="application/json" data-final-sale-link-data>
+        { {{ fs_links_json }} }
+      </script>
+    </div>
+  {%- endif -%}
+{%- endif -%}

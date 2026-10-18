@@ -1,0 +1,493 @@
+{%- comment -%}
+  Two fixes for the Consentmo accessibility / cookie icons:
+
+    1. Under 768px they are raised 50px so they clear the PDP sticky bar.
+    2. They are hidden while any overlay is open - cart drawer, size chart,
+       shaping level, Select options, quick view, and anything else behaving
+       like a modal.
+
+  Those widgets are injected by app embeds at runtime AND live inside shadow
+  roots, so nothing in the theme can reach them: no markup to hook, and CSS
+  cannot cross a shadow boundary. Only JS walking into the open shadow roots
+  can touch them.
+
+  Raising the overlay instead does not work, for two separate reasons:
+
+    a) <cart-drawer> is nested inside .header-wrapper (position: relative,
+       z-index: 20) inside #shopify-section-header (position: sticky,
+       z-index: 100). Both are stacking contexts, so the drawer's own z-index
+       is capped at its ancestor's level.
+
+    b) Even with the ancestors lifted, browsers clamp z-index at 2147483647
+       and app widgets commonly sit exactly there, so the best case is a tie -
+       and ties go to whoever is later in the DOM, which the app wins by being
+       appended last.
+
+  So the widgets are hidden for as long as an overlay is open, and every
+  property is restored to its previous inline value on close. Hiding rather
+  than restacking because a widget with z-index: auto cannot be pushed behind
+  anything at all - it paints above purely by DOM order.
+
+  Overlays are found by behaviour, not by name. The theme has ~18 different
+  modal and drawer components plus one-off popups like #ShapingInfoPopup, each
+  with its own open mechanism, so a list of selectors would always be missing
+  one. Anything fixed, interactive and currently covering a good part of the
+  viewport counts. The named list below is only a supplement for overlays that
+  are mid-animation or too small to trip the coverage test.
+
+  Debugging: hcOverlayDebug() shows which overlays were detected, every fixed
+  element found (including inside shadow roots), and what was changed. If an
+  icon never appears there, its shadow root is closed and no script can reach
+  it - it would have to be moved in the Consentmo app settings.
+
+  Rendered once per page from layout/theme.liquid.
+{%- endcomment -%}
+
+<script>
+  (function () {
+    if (window.__hcWidgetFix) return;
+    window.__hcWidgetFix = true;
+
+    // Max 32-bit int - browsers clamp z-index to this.
+    var TOP_Z = 2147483647;
+    // Share of the viewport an unknown element must cover to read as a modal.
+    var OVERLAY_COVERAGE = 0.25;
+    // How far to raise the icons off the bottom edge, and where that applies.
+    var LIFT = 50;
+    var MOBILE_MQ = '(max-width: 767px)';
+    // Bigger than this is a bar, not a floating icon.
+    var MAX_W = 220;
+    var MAX_H = 220;
+    // How close to the bottom edge it must sit to count as bottom-anchored.
+    var BOTTOM_BAND = 90;
+
+    var THEME_OWNED = [
+      '.mobile-dock',
+      '.product-sticky-cart',
+      '.sticky-cart-wrapper',
+      '.transition-cover',
+      '.header-wrapper',
+      '#shopify-section-header',
+      'cart-notification'
+    ].join(',');
+
+    // Left alone on purpose - only the Consentmo icons were asked for.
+    var LEAVE_ALONE = '[id*="gorgias" i], [class*="gorgias" i]';
+
+    function safeMatch(el, sel) {
+      try {
+        return el.matches(sel) || !!el.closest(sel);
+      } catch (e) {
+        return false;
+      }
+    }
+
+    /* ---------------------------------------------------------------------
+       Shadow-aware traversal
+
+       querySelectorAll stops at a shadow boundary, so a plain document scan
+       never sees these widgets. Recurse through every open shadowRoot, and
+       observe each one so late-rendered content is picked up too.
+       --------------------------------------------------------------------- */
+
+    var observedRoots = [];
+
+    function observeRoot(root) {
+      if (observedRoots.indexOf(root) !== -1) return;
+      observedRoots.push(root);
+      try {
+        new MutationObserver(refresh).observe(root, {
+          attributes: true,
+          // Not 'style': this script writes inline styles and would retrigger.
+          attributeFilter: ['class', 'open', 'hidden', 'aria-hidden'],
+          subtree: true,
+          childList: true
+        });
+      } catch (e) {}
+    }
+
+    function walk(root, out) {
+      var nodes;
+      try {
+        nodes = root.querySelectorAll('*');
+      } catch (e) {
+        return out;
+      }
+      for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        out.push(el);
+        // Closed shadow roots report null and simply cannot be reached.
+        if (el.shadowRoot) {
+          observeRoot(el.shadowRoot);
+          walk(el.shadowRoot, out);
+        }
+      }
+      return out;
+    }
+
+    function inShadow(el) {
+      try {
+        return el.getRootNode() !== document;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    /* Only fixed elements matter on either side of this, so resolve styles
+       once and hand the same shortlist to both passes. */
+    function fixedElements() {
+      var all = walk(document, []);
+      var out = [];
+      for (var i = 0; i < all.length; i++) {
+        var s = window.getComputedStyle(all[i]);
+        if (s.position === 'fixed') out.push({ el: all[i], s: s });
+      }
+      return out;
+    }
+
+    /* ---------------------------------------------------------------------
+       Which overlays are open
+       --------------------------------------------------------------------- */
+
+    /* Measured against the visible intersection, so a drawer parked off-screen
+       with a transform scores zero rather than its full width. */
+    function coverage(rect) {
+      var w = Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0);
+      var h = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+      if (w <= 0 || h <= 0) return 0;
+      return (w / window.innerWidth) * (h / window.innerHeight);
+    }
+
+    function isVisible(s) {
+      if (s.display === 'none' || s.visibility === 'hidden') return false;
+      var o = parseFloat(s.opacity);
+      return !(!isNaN(o) && o <= 0.01);
+    }
+
+    /* A popup this snippet has never heard of still announces itself: fixed,
+       accepting clicks, and covering the page right now. pointer-events: none
+       rules out the pass-through wrappers apps like to leave lying around. */
+    function looksLikeOverlay(el, s) {
+      if (!isVisible(s)) return false;
+      if (s.pointerEvents === 'none') return false;
+      if (inShadow(el)) return false;
+      if (safeMatch(el, THEME_OWNED)) return false;
+      return coverage(el.getBoundingClientRect()) >= OVERLAY_COVERAGE;
+    }
+
+    /* Supplement for overlays that are mid-animation or too small to trip the
+       coverage test. Keyed off the state classes the theme sets on <body>. */
+    var NAMED = [
+      { on: ['mini-cart--open', 'mini-cart--opening', 'mini-cart--closing'],
+        sel: 'cart-drawer, .cart-drawer, .cart-drawer-container' },
+      { on: ['menu-drawer--open', 'menu-drawer--opening', 'menu-drawer--closing',
+             'menu-mobile--open', 'menu-mobile--opening', 'menu-mobile--closing'],
+        sel: '.menu-drawer, menu-drawer, .menu-drawer-container' },
+      { on: ['quick-view--open', 'quick-view--opening', 'quick-view--closing'],
+        sel: 'quick-view, .quick-view, .ecom-quickview__wrapper' },
+      { on: ['search-modal--open', 'search-modal--opening'],
+        sel: '.search-modal, details-modal .search-modal' }
+    ];
+
+    var OPEN_SEL = [
+      '.product-popup-modal[open]',
+      'modal-dialog[open]',
+      'product-modal[open]',
+      '.product-media-modal[open]',
+      '#ShapingInfoPopup:not([hidden])',
+      '.sc-lightbox:not([hidden])'
+    ].join(',');
+
+    function collectOpen(fixedList) {
+      var found = [];
+      function add(el) {
+        if (el && found.indexOf(el) === -1) found.push(el);
+      }
+
+      for (var i = 0; i < NAMED.length; i++) {
+        var entry = NAMED[i];
+        var on = false;
+        for (var j = 0; j < entry.on.length; j++) {
+          if (document.body.classList.contains(entry.on[j])) { on = true; break; }
+        }
+        if (!on) continue;
+        try { document.querySelectorAll(entry.sel).forEach(add); } catch (e) {}
+      }
+
+      try { document.querySelectorAll(OPEN_SEL).forEach(add); } catch (e) {}
+
+      for (var k = 0; k < fixedList.length; k++) {
+        if (looksLikeOverlay(fixedList[k].el, fixedList[k].s)) add(fixedList[k].el);
+      }
+
+      return outermostOnly(found);
+    }
+
+    /* A lightbox is often two fixed layers: the dialog and a full-page scrim
+       inside it. Raising both to the same max z-index paints the scrim over
+       the photo (Judge.me review image popup). Keep only the outermost layer
+       so the dialog's own stacking — content above its backdrop — stays intact. */
+    function outermostOnly(list) {
+      var out = [];
+      for (var i = 0; i < list.length; i++) {
+        var el = list[i];
+        var nested = false;
+        for (var j = 0; j < list.length; j++) {
+          if (list[j] !== el && list[j].contains(el)) {
+            nested = true;
+            break;
+          }
+        }
+        if (!nested) out.push(el);
+      }
+      return out;
+    }
+
+    /* ---------------------------------------------------------------------
+       Apply and restore
+       --------------------------------------------------------------------- */
+
+    /* An element only escapes an ancestor's stacking context if that ancestor
+       is not one itself. These are the properties that create one. */
+    function createsStackingContext(s) {
+      if (s.position === 'fixed' || s.position === 'sticky') return true;
+      if (s.position !== 'static' && s.zIndex !== 'auto') return true;
+      if (s.transform !== 'none') return true;
+      if (s.filter && s.filter !== 'none') return true;
+      if (s.perspective && s.perspective !== 'none') return true;
+      if (s.isolation === 'isolate') return true;
+      if (s.mixBlendMode && s.mixBlendMode !== 'normal') return true;
+      if (s.contain && /paint|layout|content|strict/.test(s.contain)) return true;
+      if (s.willChange && /transform|opacity|filter|perspective/.test(s.willChange)) return true;
+      var o = parseFloat(s.opacity);
+      if (!isNaN(o) && o < 1) return true;
+      return false;
+    }
+
+    var touched = [];
+
+    function force(el, prop, value) {
+      if (!el.__hcPrev) el.__hcPrev = {};
+      if (!(prop in el.__hcPrev)) {
+        el.__hcPrev[prop] = el.style.getPropertyValue(prop) || '';
+      }
+      el.style.setProperty(prop, String(value), 'important');
+      if (touched.indexOf(el) === -1) touched.push(el);
+    }
+
+    function restoreAll() {
+      for (var i = 0; i < touched.length; i++) {
+        var el = touched[i];
+        var prev = el.__hcPrev || {};
+        for (var prop in prev) {
+          if (!Object.prototype.hasOwnProperty.call(prev, prop)) continue;
+          if (prev[prop]) el.style.setProperty(prop, prev[prop]);
+          else el.style.removeProperty(prop);
+        }
+        delete el.__hcPrev;
+        el.removeAttribute('data-hc-raised');
+        el.removeAttribute('data-hc-muted');
+      }
+      touched.length = 0;
+    }
+
+    function raise(el) {
+      force(el, 'z-index', TOP_Z);
+      el.setAttribute('data-hc-raised', 'self');
+
+      var node = el.parentElement;
+      while (node && node !== document.body && node !== document.documentElement) {
+        var s = window.getComputedStyle(node);
+        if (createsStackingContext(s)) {
+          // z-index is inert on a static element, but never downgrade a
+          // sticky/fixed header to relative - that would break it.
+          if (s.position === 'static') force(node, 'position', 'relative');
+          force(node, 'z-index', TOP_Z);
+          node.setAttribute('data-hc-raised', 'ancestor');
+        }
+        node = node.parentElement;
+      }
+    }
+
+    /* Every fixed thing that is not an overlay and not the theme's own gets
+       hidden. No z-index test: a widget with z-index: auto is not competing on
+       z-index at all, it wins on DOM order, so lowering it changes nothing. */
+    function hideCompetitors(fixedList, openEls) {
+      for (var i = 0; i < fixedList.length; i++) {
+        var el = fixedList[i].el;
+        var s = fixedList[i].s;
+
+        // Already lifted as an overlay or one of its ancestors.
+        if (el.hasAttribute('data-hc-raised')) continue;
+        if (!isVisible(s)) continue;
+        if (safeMatch(el, THEME_OWNED)) continue;
+        if (safeMatch(el, LEAVE_ALONE)) continue;
+
+        var related = false;
+        for (var j = 0; j < openEls.length; j++) {
+          if (openEls[j] === el || openEls[j].contains(el) || el.contains(openEls[j])) {
+            related = true;
+            break;
+          }
+        }
+        if (related) continue;
+
+        force(el, 'visibility', 'hidden');
+        force(el, 'pointer-events', 'none');
+        el.setAttribute('data-hc-muted', '1');
+      }
+    }
+
+    /* ---------------------------------------------------------------------
+       Raise the icons clear of the sticky bar (mobile only)
+       --------------------------------------------------------------------- */
+
+    function isFloatingWidget(el, s) {
+      if (!isVisible(s)) return false;
+      // Once lifted it sits higher than BOTTOM_BAND, so keep claiming it.
+      if (el.hasAttribute('data-hc-lifted')) return true;
+      if (safeMatch(el, THEME_OWNED)) return false;
+      if (safeMatch(el, LEAVE_ALONE)) return false;
+
+      var r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return false;
+      if (r.width > Math.min(MAX_W, window.innerWidth * 0.6)) return false;
+      if (r.height > MAX_H) return false;
+      return window.innerHeight - r.bottom <= BOTTOM_BAND;
+    }
+
+    /* Moves the element by rewriting its own `bottom` rather than adding a
+       margin: margin is quietly ignored in some layouts, `bottom` is what the
+       app actually positions with. The base value is cached the first time so
+       repeated passes re-apply the same offset instead of drifting upward.
+
+       The move is verified afterwards. Anything `bottom` does not actually
+       shift is left exactly where the app put it - translating it instead only
+       displaced the accessibility icon rather than lifting it. */
+    function liftWidget(el, s) {
+      if (el.getAttribute('data-hc-lifted') === 'bottom' && el.style.bottom) return;
+      if (el.getAttribute('data-hc-lifted') === 'skipped') return;
+
+      if (el.__hcLiftBase === undefined) {
+        var b = parseFloat(s.bottom);
+        el.__hcLiftBase = isNaN(b) ? 0 : b;
+      }
+
+      var before = el.getBoundingClientRect().top;
+      el.style.setProperty('bottom', (el.__hcLiftBase + LIFT) + 'px', 'important');
+      var after = el.getBoundingClientRect().top;
+
+      if (Math.abs(before - after) >= LIFT - 4) {
+        el.setAttribute('data-hc-lifted', 'bottom');
+        return;
+      }
+
+      // Not bottom-anchored - hands off, and remember so it is not retried.
+      el.style.removeProperty('bottom');
+      el.setAttribute('data-hc-lifted', 'skipped');
+    }
+
+    function unliftWidget(el) {
+      var mode = el.getAttribute('data-hc-lifted');
+      if (!mode) return;
+      if (mode === 'bottom') el.style.removeProperty('bottom');
+      el.removeAttribute('data-hc-lifted');
+      delete el.__hcLiftBase;
+    }
+
+    function syncWidgets(fixedList) {
+      var mobile = window.matchMedia(MOBILE_MQ).matches;
+      for (var i = 0; i < fixedList.length; i++) {
+        var el = fixedList[i].el;
+        if (!isFloatingWidget(el, fixedList[i].s)) continue;
+        if (mobile) liftWidget(el, fixedList[i].s);
+        else unliftWidget(el);
+      }
+    }
+
+    function sync() {
+      var fixedList = fixedElements();
+      syncWidgets(fixedList);
+      var open = collectOpen(fixedList);
+      restoreAll();
+      if (!open.length) return;
+      for (var i = 0; i < open.length; i++) raise(open[i]);
+      hideCompetitors(fixedList, open);
+    }
+
+    /* ---------------------------------------------------------------------
+       Wiring
+       --------------------------------------------------------------------- */
+
+    var pending = null;
+    var applying = false;
+
+    function apply() {
+      if (applying) return;
+      applying = true;
+      try {
+        sync();
+      } finally {
+        applying = false;
+      }
+    }
+
+    function refresh() {
+      if (pending) return;
+      pending = window.setTimeout(function () {
+        pending = null;
+        apply();
+      }, 60);
+    }
+
+    window.hcOverlayDebug = function () {
+      var fixedList = fixedElements();
+      var open = collectOpen(fixedList).map(function (el) {
+        return {
+          tag: el.tagName,
+          id: el.id || '',
+          cls: String(el.className || '').slice(0, 45),
+          coverage: Math.round(coverage(el.getBoundingClientRect()) * 100) + '%'
+        };
+      });
+      var rows = fixedList.map(function (item) {
+        return {
+          tag: item.el.tagName,
+          id: item.el.id || '',
+          cls: String(item.el.className || '').slice(0, 45),
+          shadow: inShadow(item.el) ? 'yes' : 'no',
+          zIndex: item.s.zIndex,
+          visible: isVisible(item.s) ? 'yes' : 'no',
+          role: item.el.getAttribute('data-hc-raised') ||
+                (item.el.hasAttribute('data-hc-muted') ? 'muted' : ''),
+          lifted: item.el.getAttribute('data-hc-lifted') || 'no',
+          bottom: item.s.bottom,
+          isWidget: isFloatingWidget(item.el, item.s)
+        };
+      });
+      if (console.table) {
+        console.log('shadow roots reached:', observedRoots.length);
+        console.log('detected overlays:'); console.table(open);
+        console.log('fixed elements:'); console.table(rows);
+      }
+      return { open: open, fixed: rows, shadowRoots: observedRoots.length };
+    };
+
+    function start() {
+      apply();
+      observeRoot(document.documentElement);
+      // Crossing the mobile breakpoint adds or removes the lift.
+      window.addEventListener('resize', refresh);
+      window.addEventListener('orientationchange', refresh);
+      [500, 1200, 2500, 5000].forEach(function (ms) {
+        window.setTimeout(apply, ms);
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', start);
+    } else {
+      start();
+    }
+  })();
+</script>

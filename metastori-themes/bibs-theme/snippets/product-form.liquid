@@ -1,0 +1,271 @@
+{%- comment -%}
+  Renders the product form.
+
+  Accepts:
+    - product: The product object
+    - section: The section object
+    - form_classes: Additional classes to add to the form
+
+  Usage:
+    {% render 'product-form', product: product, section: section %}
+{%- endcomment -%}
+
+{% liquid
+  assign section_id = section.id
+  assign product_form_id = 'product-form-' | append: section_id
+  assign selected_variant = product.selected_or_first_available_variant
+  assign product_description = product.description
+%}
+
+<div class="product-blocks flex flex-col gap-[30px] color-{{ section.settings.color_scheme }}">
+  {%- for block in section.blocks -%}
+    {%- case block.type -%}
+      {%- when '@app' -%}
+        {% render block %}
+      {% when 'sticky_atc' %}
+        {% render 'sticky_atc', block: block %}
+      {%- when 'text' -%}
+        {% liquid
+          assign brand_handleize = block.settings.text | handleize
+          assign brand_obj = shop.metaobjects.brand_icons[brand_handleize]
+          assign brand_icon = brand_obj.brand_icon
+        %}
+        {%- if brand_icon -%}
+          <div class="product-brand-icon">
+            {{ brand_icon }}
+          </div>
+        {%- else -%}
+          <p>{{- block.settings.text -}}</p>
+        {%- endif -%}
+
+      {%- when 'title' -%}
+        <div class="product-title-block">
+          <div class="title-badges">
+            {% render 'c-badges-switch', badge_item: product, hide_custom_labels: 'night' %}
+          </div>
+          {%- assign product_title = product.title | replace: '·', '<span class="text-accent">·</span>' -%}
+          <div class="product-title-mobile">
+            {% render 'c-text',
+              content: product_title,
+              custom_tag: 'h1',
+              type: block.settings.title_size,
+              classes: 'md:row-start-1 leading-tight'
+            %}
+            <div id="price-{{ section_id }}-2" class="product-title-block--price-wrapper leading-none">
+              {% render 'price',
+                main_product: product,
+                current_variant: selected_variant,
+                show_badges: true,
+                type: block.settings.price_size
+              %}
+            </div>
+          </div>
+          <div class="product-title-block--right">
+            <div id="price-{{ section_id }}-1" class="product-title-block--price-wrapper leading-none">
+              {% render 'price',
+                main_product: product,
+                current_variant: selected_variant,
+                show_badges: true,
+                type: block.settings.price_size
+              %}
+            </div>
+            {%- render 'button-wishlist', product: product, classes: '', circle: true -%}
+          </div>
+        </div>
+
+      {%- when 'variant_selector' -%}
+        {% render 'product-variant-picker', product: product, block: block, product_form_id: product_form_id %}
+
+        {% if product.type == 'Gift Cards' %}
+          {% render 'gift-card-form' %}
+        {% endif %}
+
+      {%- when 'description' -%}
+        {%- if product_description != blank -%}
+          <div {{ block.shopify_attributes }} class="text-2-regular">
+            {{ product_description | strip_html | truncate: 240 }}
+          </div>
+          <ul class="space-y-1 list-disc list-inside text-2-regular">
+            {%- if product.metafields.custom.product_usp_1 -%}
+              <li>
+                {{- product.metafields.custom.product_usp_1 -}}
+              </li>
+            {%- endif -%}
+            {%- if product.metafields.custom.product_usp_2 -%}
+              <li>{{- product.metafields.custom.product_usp_2 -}}</li>
+            {%- endif -%}
+            {%- if product.metafields.custom.product_usp_3 -%}
+              <li>{{- product.metafields.custom.product_usp_3 -}}</li>
+            {%- endif -%}
+            {%- if product.metafields.custom.product_usp_4 -%}
+              <li>{{- product.metafields.custom.product_usp_4 -}}</li>
+            {%- endif -%}
+            {%- if product.metafields.custom.product_usp_5 -%}
+              <li>{{- product.metafields.custom.product_usp_5 -}}</li>
+            {%- endif -%}
+            {%- if product.metafields.custom.product_usp_6 -%}
+              <li>{{- product.metafields.custom.product_usp_6 -}}</li>
+            {%- endif -%}
+          </ul>
+        {%- endif -%}
+
+      {%- when 'connected_products' -%}
+        {% render 'connected-products',
+          main_product: product,
+          show_label: true,
+          classes: 'in-product-page',
+          wrapper_classes: 'mt-2 items-center flex-wrap',
+          render_swatches: true
+        %}
+
+      {%- when 'sku' -%}
+        {% if selected_variant.sku != blank %}
+          <p id="Sku-{{ section.id }}" class="h7-bold">
+            <span>{{ 'products.product.sku' | t }}</span>
+            <span>{{- selected_variant.sku -}}</span>
+          </p>
+        {% endif %}
+
+      {%- when 'selling_plan_selector' -%}
+        {% if product.selling_plan_groups.size > 0 %}
+          <selling-plan-selector>
+            {% render 'selling-plan-selector', product: product, section: section %}
+          </selling-plan-selector>
+        {% endif %}
+
+      {%- when 'buy_buttons' -%}
+        {%- if template.suffix == 'subscription-quick-view' -%}
+          <form id="{{ product_form_id }}" class="subscription-product-form">
+            <div
+              class="hidden text-accent border border-accent bg-accent/10 text-sm font-medium leading-4.5 px-3 py-4 rounded mb-4"
+              role="alert"
+              data-product-form-error-message
+            ></div>
+            <input type="hidden" name="id[]" required value="{{ selected_variant.id }}">
+            <input type="hidden" name="product-id" value="{{ product.id }}">
+            <input type="hidden" name="product-handle" value="{{ product.handle }}">
+            {% render 'subscription-buttons', product: product, section_id: section_id, block: block %}
+          </form>
+        {%- else -%}
+          <product-form>
+            {%- form 'product', product, id: product_form_id, class: 'product-form' -%}
+              <div
+                class="hidden text-accent border border-accent bg-accent/10 text-sm font-medium leading-4.5 px-3 py-4 rounded mb-4"
+                role="alert"
+                data-product-form-error-message
+              ></div>
+
+              <input type="hidden" name="id[]" required value="{{ selected_variant.id }}">
+              <div class="add-to-cart-content-wrapper" {{ block.shopify_attributes }}>
+                {% liquid
+                  render 'buy-buttons', product: product, section_id: section_id, product_form_id: product_form_id, block: block
+
+                  assign show_dynamic_checkout = false
+                  if block.settings.show_dynamic_checkout
+                    assign show_dynamic_checkout = true
+                  endif
+                  if show_dynamic_checkout
+                    echo form | payment_button
+                  endif
+                %}
+              </div>
+            {%- endform -%}
+          </product-form>
+        {%- endif -%}
+        {% render 'divider',
+          height: block.settings.margin_bottom,
+          classes: 'hidden md:block',
+          color_scheme: section.settings.color_scheme
+        %}
+
+      {%- when 'inventory_status' -%}
+        {% if selected_variant.inventory_management != blank %}
+          <p
+            id="Inventory-status-{{ section_id }}"
+            role="status"
+            class="text-base flex items-center gap-2"
+          >
+            {% if selected_variant.inventory_quantity > 50 and block.settings.show_inventory_quantity_simplification %}
+              {% assign product_inventory_quantity = '50+' %}
+            {% else %}
+              {% assign product_inventory_quantity = selected_variant.inventory_quantity %}
+            {% endif %}
+            {% liquid
+              if selected_variant.inventory_management == 'shopify'
+                assign icon_classes = 'w-5 h-5 inline'
+                if selected_variant.inventory_quantity > 0
+                  if selected_variant.inventory_quantity <= block.settings.inventory_threshold
+                    render 'c-icon', icon: 'low_stock', classes: icon_classes
+                    echo 'products.product.inventory_low_stock_show_count' | t: quantity: product_inventory_quantity
+                  else
+                    render 'c-icon', icon: 'in_stock', classes: icon_classes
+                    echo 'products.product.inventory_in_stock_show_count' | t: quantity: product_inventory_quantity
+                  endif
+                else
+                  if selected_variant.inventory_policy == 'continue'
+                    render 'c-icon', icon: 'in_stock', classes: icon_classes
+                    echo 'products.product.inventory_out_of_stock_continue_selling' | t
+                  else
+                    render 'c-icon', icon: 'out_of_stock', classes: icon_classes
+                    echo 'products.product.inventory_out_of_stock' | t
+                  endif
+                endif
+              endif
+            %}
+          </p>
+        {% endif %}
+
+      {%- when 'usps' -%}
+        <div>
+          {% render 'icon-with-text', block: block %}
+        </div>
+        {% render 'divider',
+          height: block.settings.margin_bottom,
+          classes: 'hidden md:block',
+          color_scheme: section.settings.color_scheme
+        %}
+
+      {%- when 'complementary_products' -%}
+        {% render 'complementary-products', block: block %}
+
+      {%- when 'line' -%}
+        {% render 'line',
+          margin_bottom: block.settings.margin_bottom,
+          color_scheme: block.settings.color_scheme,
+          no_container: true
+        %}
+      {% when 'reputon-review' %}
+        <amazon-reviews>
+          <script
+            type="text/javascript"
+            src="https://cdn.amzrw.reputon.com/assets/widget.js?shop=bibsworld-store.myshopify.com"
+            defer
+          ></script>
+          <div class="reputon_amazon_reviews_widget">
+            {% assign product_id = product.id | append: '' -%}
+            {%- assign product_reviews_metafield = product.metafields['ReputonAmazonReviews::ProductReviews'] -%}
+            {%- if product_id != '' and product_reviews_metafield != blank and product_reviews_metafield[product_id] %}
+              <script type="application/json">
+                {{- product_reviews_metafield[product_id] -}}
+              </script>
+              <template>
+                {% render 'c-icon', icon: 'star' %}
+                {% render 'c-icon', icon: 'half-star' %}
+                {% render 'c-icon', icon: 'empty-star' %}
+              </template>
+              <div class="reputon_reviews_wrapper">
+                <div class="reputon_stars_container text-shade-1"></div>
+                <div class="reputon_ratings_count"></div>
+              </div>
+            {% endif %}
+          </div>
+        </amazon-reviews>
+      {%- else -%}
+    {%- endcase -%}
+  {%- endfor -%}
+</div>
+
+<script data-amazon-try>
+  var amazonReviewsHeading = {{ 'products.product.amazon_reviews.heading' | t | json }};
+  let amazonReviewsColorScheme = "{{ settings.amazon_reviews_color_scheme }}";
+</script>

@@ -1,0 +1,227 @@
+{% assign is_available = product.available %}
+{% assign initial_price_variant = product.selected_or_first_available_variant %}
+
+<div
+    id="cst-grid"
+    class="cst-product-card"
+    data-product-id="{{ product.id }}"
+>
+    {% if product.metafields.custom.product_card_image_badges != blank %}
+    <div class="product_card_image_badges">
+        {% for img in product.metafields.custom.product_card_image_badges.value %}
+        <img src="{{ img | image_url }}" width="auto" height="auto" alt="image">
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="cst-main-slider">
+        <div class="cst-wrapper swiper-wrapper">
+          {% comment %} {% if is_available %} {% endcomment %}
+
+              {% assign color_option_names = 'color,colour' | split: ',' %}
+
+              {% for option in product.options_with_values %}
+                {% assign option_name_down = option.name | downcase %}
+
+
+                {% if color_option_names contains option_name_down %}
+                  {% assign option_index = option.position | minus: 1 %}
+
+                  {% for color in option.values %}  
+                    {% for variant in product.variants %}
+                      
+                      {% if variant.options[option_index] == color and variant.metafields.custom.hide_variant_from_collection_page == true %}
+                        {% continue %}
+                      {% endif %}
+
+                      {% if variant.options[option_index] == color %}
+                        {% assign variant_video = blank %}
+                        {% if variant.metafields.custom.collection_display_image != blank %}
+                          {% assign variant_video = variant.metafields.custom.collection_display_image | file_url %}
+                          {% assign variant_img = variant.metafields.custom.collection_display_image %}
+                        {% elsif variant.featured_image %}
+                          {% assign variant_img = variant.featured_image | image_url %}
+                        {% else %}
+                          {% assign variant_img = product.featured_image | image_url %}
+                        {% endif %}
+                        {% if variant_video contains 'videos' %}
+                            <div class="swiper-slide">
+                              <div class="cst-slide-inner">
+                                <a
+                                  href="{{ variant.url }}&collection={{ collection.handle }}"
+                                  class="cst-image-link {% unless variant.available %} cst-disabled {% endunless %}"
+                                >
+                                  {% unless variant.available %}<div class="cst-disabled-overlay" aria-hidden="true"></div>{% endunless %}
+                                  <div class="cst-product-image-wrapper">
+                                    <video class="cst-product-video" autoplay loop muted playsinline>
+                                      <source src="{{ variant_video }}" type="video/mp4">
+                                    </video>
+                                  </div>
+                                </a>
+                              </div>
+                            </div>
+                        {% else %}
+                          {% if variant_img %}
+                            <div class="swiper-slide">
+                              <div class="cst-slide-inner">
+                                {% comment %} <a
+                                  href="{{ variant.url }}"
+                                  class="cst-image-link {% unless variant.metafields.pickup.shipping_qty > 0 %} cst-disabled {% endunless %}"
+                                > {% endcomment %}
+                                <a
+                                  href="{{ variant.url }}&collection={{ collection.handle }}"
+                                  class="cst-image-link {% unless variant.available %} cst-disabled {% endunless %}"
+                                >
+                                  {% unless variant.available %}<div class="cst-disabled-overlay" aria-hidden="true"></div>{% endunless %}
+                                  <div class="cst-product-image-wrapper">
+                                    {% if template.suffix == 'old-made-in-melbourne' or template.suffix == 'lightweight' %}
+                                      <img
+                                        src="{{ variant_img | image_url }}"
+                                        alt="{{ product.title | escape }}"
+                                        class="motion-reduce cst-product-image skeleton"
+                                        loading="lazy"
+                                        width="{{ variant_img.width }}"
+                                        height="{{ variant_img.height }}"
+                                        onload="this.classList.remove('skeleton')"
+                                      >
+                                    {% else %}
+                                      <img
+                                        srcset="
+                                          {%- if variant_img.width >= 165 -%}{{ variant_img | image_url: width: 165 }} 165w,{%- endif -%}
+                                          {%- if variant_img.width >= 360 -%}{{ variant_img | image_url: width: 360 }} 360w,{%- endif -%}
+                                          {%- if variant_img.width >= 533 -%}{{ variant_img | image_url: width: 533 }} 533w,{%- endif -%}
+                                          {%- if variant_img.width >= 720 -%}{{ variant_img | image_url: width: 720 }} 720w,{%- endif -%}
+                                          {%- if variant_img.width >= 940 -%}{{ variant_img | image_url: width: 940 }} 940w,{%- endif -%}
+                                          {%- if variant_img.width >= 1066 -%}{{ variant_img | image_url: width: 1066 }} 1066w,{%- endif -%}
+                                          {%- if variant_img.width >= 1550 -%}{{ variant_img | image_url: width: 1550 }} 1550w,{%- endif -%}
+                                          {%- if variant_img.width >= 2000 -%}{{ variant_img | image_url: width: 2000 }} 2000w,{%- endif -%}
+                                          {%- if variant_img.width >= 2500 -%}{{ variant_img | image_url: width: 2500 }} 2500w,{%- endif -%}
+                                          {{ variant_img | image_url }} {{ variant_img.width }}w
+                                        "
+                                        src="{{ variant_img | image_url: width: 533 }}"
+                                        sizes="(min-width: {{ settings.page_width }}px) {{ settings.page_width | minus: 130 | divided_by: 4 }}px, (min-width: 990px) calc((100vw - 130px) / 4), (min-width: 750px) calc((100vw - 120px) / 3), calc((100vw - 35px) / 2)"
+                                        alt="{{ product.title | escape }}"
+                                        class="motion-reduce cst-product-image skeleton"
+                                        loading="lazy"
+                                        width="{{ variant_img.width }}"
+                                        height="{{ variant_img.height }}"
+                                        onload="this.classList.remove('skeleton')"
+                                      >
+                                    {% endif %}
+                                  </div>
+                                </a>
+                              </div>
+                            </div>
+                          {% endif %}
+                        {% endif %}
+
+                        {% break %}
+                      {% endif %}
+                    {% endfor %}
+                  {% endfor %}
+                {% endif %}
+          {% endfor %}
+        </div>
+    </div>
+
+    <a class="cst-product-title" href="{{ product.url }}">
+        {{- product.title }} 
+        <span class="cst-product-price">
+        {{ initial_price_variant.price | money_without_trailing_zeros -}}
+        </span>
+    </a>
+
+    
+
+    <div class="cst-swatches">
+        {% comment %} <div class="swiper-button-prev cst-swatch-prev"></div> {% endcomment %}
+
+        <div class="cst-swatch-slider">
+          <div class="cst-swatch-wrapper swiper-wrapper">
+
+            {% assign color_option_names = 'color,colour' | split: ',' %}
+
+            {% for option in product.options_with_values %}
+                {% assign option_name_down = option.name | downcase %}
+                {% assign option_index = option.position | minus: 1 %}
+
+                {% if color_option_names contains option_name_down %}
+
+                  {% for color in option.values %}
+
+                    {% for variant in product.variants %}
+                        {% if variant.options[option_index] == color and variant.metafields.custom.hide_variant_from_collection_page == true %}
+                          {% continue %}
+                        {% endif %}
+
+                        {% if variant.options[option_index] == color %}
+                            {%- comment -%}
+                              Priority:
+                              1. Variant swatch (image or color)
+                              2. Metafield swatch fallback
+                            {%- endcomment -%}
+
+                            {% comment %}
+                            {% assign swatches = product.metafields.alt.swatches.value %}
+                            {% assign this_swatch = blank %} 
+                            {% if color.swatch.image %}
+                              {% assign this_swatch = color.swatch %}
+                            {% elsif color.swatch.color %}
+                              {% assign this_swatch = color.swatch %}
+                            {% else %}
+                              {% for swatch in swatches %}
+                                {% assign swatch_color_down = swatch.colour | downcase %}
+                                {% assign color_down = color | downcase %}
+                                {% assign swatch_name_down = swatch.name | downcase %}
+
+                                {% if color_down contains swatch_name_down %}
+                                  {% if swatch.image or swatch.color %}
+                                    {% assign this_swatch = swatch %}
+                                  {% endif %}
+                                {% endif %}
+                              {% endfor %}
+                            {% endif %} {% endcomment %}
+
+                            {% assign swatch_colors = variant.metafields.custom.colour_filter.value | map:'colour' | join: ',' | downcase %}
+                            <div class="swiper-slide" price="{{ variant.price | money_without_trailing_zeros }}" compare_price="{% if variant.compare_at_price > variant.price %}{{ variant.compare_at_price | money_without_trailing_zeros }}{% endif %}" color="{{ color }}" meta_color="{{ swatch_colors }}">
+                              <div class="cst-slide-inner">
+                                <div class="cst-swatch-image-wrapper">
+                                  {% render 'swatch',
+                                    swatch: color.swatch,
+                                    option_value: color,
+                                    product: product,
+                                    alt_swatches: true,
+                                    swatch_size: 16,
+                                    shape: 'square',
+                                    variant_colors:swatch_colors
+                                  %}
+                                </div>
+                              </div>
+                            </div>
+                          {% break %}
+                        {% endif %}
+                    {% endfor %}
+                  {% endfor %}
+                {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+
+        {% comment %} <div class="swiper-button-next cst-swatch-next"></div> {% endcomment %}
+    </div>
+
+    {% unless is_available %}
+    {% if section.settings.tag_soldout_img != blank %}
+        <div class="cst-tags-box">
+        <div class="cst-img-box">
+            <img
+            src="{{ section.settings.tag_soldout_img | img_url: '400x' }}"
+            width="100%"
+            height="auto"
+            alt="soldout"
+            >
+        </div>
+        </div>
+    {% endif %}
+    {% endunless %}
+</div>

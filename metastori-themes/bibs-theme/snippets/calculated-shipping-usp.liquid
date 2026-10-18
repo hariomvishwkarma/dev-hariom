@@ -1,0 +1,60 @@
+{%- liquid
+  capture free_delivery_limit
+    render 'get-free-limit', limit: settings.free_delivery_limit, custom_limits: settings.free_delivery_limit_custom, custom_eu_limits: settings.eu_free_delivery_limit_custom
+  endcapture
+
+  assign free_delivery_limit = free_delivery_limit | abs
+  assign diff_to_free_delivery = cart.total_price | divided_by: 100.0 | times: 1.0 | minus: free_delivery_limit
+  assign diff_to_free_delivery_abs = diff_to_free_delivery | abs
+  assign diff_to_free_delivery_abs = diff_to_free_delivery_abs | times: 100 | money
+  assign free_delivery_limit_empty_cart = free_delivery_limit | divided_by: 100.0 | times: 10000 | money
+  assign free_gift_limit = false
+
+  if settings.free_gift != blank and settings.free_gift_limit > 0
+    capture free_gift_limit
+      render 'get-free-limit', limit: settings.free_gift_limit, custom_limits: settings.free_gift_limit_custom, custom_eu_limits: settings.eu_free_gift_limit_custom
+    endcapture
+
+    assign free_gift_limit = free_gift_limit | abs
+    assign diff_to_free_gift = cart.total_price | divided_by: 100.0 | times: 1.0 | minus: free_gift_limit
+    assign diff_to_free_gift_abs = diff_to_free_gift | abs
+    assign diff_to_free_gift_abs = diff_to_free_gift_abs | times: 100 | money
+  endif
+-%}
+
+<li class="free-delivery-usp">
+  <div
+    class="
+      flex items-center gap-2 free-delivery-cart-bar text-2-medium
+      {% if diff_to_free_delivery >= 0 %} success_delivery{% endif %}
+      {% if free_gift_limit %} gift_option{% endif %}
+      {% if diff_to_free_gift >= 0 and free_gift_limit %} success_gift{% endif %}
+      {% if cart.total_price == 0 %} empty{% endif %}
+    "
+  >
+    {% render 'c-icon', icon: 'truck', classes: 'w-[22px] h-[22px] shrink-0' %}
+
+    {% if free_gift_limit %}
+      {% comment %} With gifts turned on {% endcomment %}
+      <p class="free-delivery-cart-bar__text success_delivery">
+        {{ 'sections.cart.free_delivery_bar.text_delivery_and_gift_html' | t: limit: diff_to_free_gift_abs }}
+      </p>
+
+      <p class="free-delivery-cart-bar__text success_gift">
+        {{ 'sections.cart.free_delivery_bar.text_delivery_and_gift_cart_success' | t }}
+      </p>
+    {% else %}
+      {% comment %} With gift turned off {% endcomment %}
+      <p class="free-delivery-cart-bar__text success_delivery">
+        {{ 'sections.cart.free_delivery_bar.text_delivery_success' | t: limit: diff_to_free_delivery_abs }}
+      </p>
+    {% endif %}
+
+    <p class="free-delivery-cart-bar__text empty">
+      {{ 'sections.cart.free_delivery_bar.text_delivery_cart_empty_html' | t: limit: free_delivery_limit_empty_cart }}
+    </p>
+    <p class="free-delivery-cart-bar__text">
+      {{ 'sections.cart.free_delivery_bar.text_delivery_html' | t: limit: diff_to_free_delivery_abs }}
+    </p>
+  </div>
+</li>

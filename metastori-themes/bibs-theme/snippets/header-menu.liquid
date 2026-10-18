@@ -1,0 +1,397 @@
+{%- comment -%}
+  Renders the header menu
+
+  Accepts:
+    - block: the header menu block
+
+  Usage:
+    {% render 'header-menu' %}
+{%- endcomment -%}
+
+{% liquid
+  if block.settings.menu
+    if block.settings.menu.links == blank
+      assign main_menu_linklist = linklists[block.settings.menu].links
+    else
+      assign main_menu_linklist = block.settings.menu.links
+    endif
+  endif
+
+  assign enable_mega_menu = block.settings.enable_mega_menu
+  assign enable_menu_with_icons = block.settings.enable_menu_with_icons
+  assign menu_type = block.settings.menu_type
+  assign menu_links_list_width = block.settings.menu_links_list_width
+
+  case menu_type
+    when 'secondary'
+      assign menu_type_class = 'font-lg text-[rgb(var(--color-secondary-menu))]'
+    when 'tertiary'
+      assign menu_type_class = 'font-lg text-[rgb(var(--color-tertiary-menu))]'
+    when 'black-friday'
+      assign menu_type_class = 'font-lg text-[rgb(var(--color-black-friday-menu))]'
+    when 'sale'
+      assign menu_type_class = 'font-lg sale'
+    else
+      assign menu_type_class = 'font-lg'
+  endcase
+
+  assign menu_display_class = 'lg:flex self-stretch'
+
+  assign navigation_styling_colors = shop.metaobjects.navigation_styling['navigation-styling'].colors
+  assign navigation_styling_promo_layouts = shop.metaobjects.navigation_styling['navigation-styling'].promo_layouts
+  assign promo_blocks = shop.metaobjects.menu_promo_block.values
+%}
+
+{%- if main_menu_linklist.size > 0 -%}
+  <!-- Menu links list 1 -->
+  <ul class="hidden {{ menu_display_class }} font-medium">
+    {%- for link in main_menu_linklist -%}
+      {% assign linked_menu_linklist_id = link.handle | append: '-menu-items' %}
+      {% assign linked_menu_linklist = linklists[linked_menu_linklist_id] %}
+      {% assign is_shop_menu = false %}
+
+      {% if linked_menu_linklist_id contains 'shop' %}
+        {% assign linked_menu_linklist_id = link.handle | append: '-menu-items-desktop' %}
+        {% assign linked_menu_linklist = linklists[linked_menu_linklist_id] %}
+        {% assign is_shop_menu = false %}
+      {% endif %}
+
+      <li class="flex items-center">
+        {%- capture menu_link_1 -%}
+          {%- capture menu_link_1content -%}
+            <span class="py-5 lg:!px-5 flex items-center link--menu select-none">
+              {{ link.title }}
+              {%- if linked_menu_linklist.links != blank -%}
+                {% render 'c-icon', icon: 'arrow-down', classes: 'ml-2 arrow w-[7px] h-[5px]' %}
+              {% endif %}
+            </span>
+          {%- endcapture -%}
+
+            {% render 'c-link', href: link.url, type: 'link--menu block', content: menu_link_1content, classes: menu_type_class %}
+
+        {%- endcapture -%}
+        <!-- Menu links 1 has child links -->
+        {%- if linked_menu_linklist.links != blank -%}
+          {%- capture menu_links_list_2 -%}
+            {% liquid
+              if enable_mega_menu
+                case menu_links_list_width
+                  when 'full_width'
+                    assign menu_links_list_classes = 'grid'
+                  when 'half_width'
+                    assign menu_links_list_classes = 'grid grid-cols-2'
+                  when 'one_third_width'
+                    assign menu_links_list_classes = 'grid grid-cols-3'
+                  when 'one_fourth_width'
+                    assign menu_links_list_classes = 'grid grid-cols-4'
+                  when 'stacked'
+                    assign menu_links_list_classes = 'flex flex-wrap flex-col'
+                  else
+                    assign menu_links_list_classes = 'flex flex-wrap justify-between'
+                endcase
+                assign menu_links_list_classes = menu_links_list_classes | append: ' gap-[16px]'
+
+                assign menu_wrapper_classes = 'bg-background' 
+                if enable_menu_with_icons and enable_menu_with_icons
+                  assign menu_wrapper_classes = menu_wrapper_classes | append: ' px-8 py-6'
+                else
+                  assign menu_wrapper_classes = menu_wrapper_classes | append: ' px-8'
+                endif
+              else
+                assign menu_wrapper_classes = 'px-4 py-2'
+              endif
+            %}
+            <div class="flex min-h-[60vh] {{ menu_wrapper_classes }}">
+              <!-- Menu links list 2 -->
+              <div class="{% if enable_mega_menu %}flex w-full{% endif %}">
+                <ul data-menu-list class="min-w-[20vw] whitespace-nowrap pr-8 py-8">
+                  <div>
+                    {% for childlink in linked_menu_linklist.links %}
+                      {%- if childlink.links == blank -%}
+                        {% assign link_color_style = "" %}
+                        {% for color in navigation_styling_colors.value %}
+                          {% if color.navigation_item_name == childlink.title %}
+                            {% assign link_color_style = "color: " | append: color.color %}
+                          {% endif %}
+                        {% endfor %}
+
+                      <li class="py-3">
+                        {% render 'c-link', href: childlink.url, type: 'link--hover', content: childlink.title, custom_attributes: custom_attributes_2, classes: 'h6 block', style: link_color_style %}
+                      </li>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+
+                  {% if is_shop_menu %}
+                    <div data-expanded-children class="mt-10 border-b border-borders">                  
+                    {%- for childlink in linked_menu_linklist.links -%}
+                      {% assign link_color_style = "" %}
+                      {% for color in navigation_styling_colors.value %}
+                        {% if color.navigation_item_name == childlink.title %}
+                          {% assign link_color_style = "color: " | append: color.color %}
+                        {% endif %}
+                      {% endfor %}
+
+                      {%- capture menu_link_2 -%}
+                        {%- capture custom_attributes_2 -%}
+                          {%- if childlink.current -%}
+                            aria-current="page"
+                          {%- endif -%}
+                        {%- endcapture -%}
+                        {% if childlink.links != blank %}
+                          {% if childlink.links.size == 1 %} 
+                            {% render 'c-link', href: childlink.url, type: 'link--hover', content: childlink.title, custom_attributes: custom_attributes_2, classes: 'h6 block', style: link_color_style %}
+                          {% else %}
+                            {%  if chidlink.links[0].title != "[small]" %}
+                              {% render 'c-link', href: childlink.url, type: 'link--hover', content: childlink.title, custom_attributes: custom_attributes_2, classes: 'h6 block', style: link_color_style %}
+                              {% render 'c-icon', icon: 'arrow-right', classes: "ml-auto" %}
+                            {% endif %}
+                          {% endif %}
+                        {% else %}
+                          {% render 'c-link', href: childlink.url, type: 'link--hover', content: childlink.title, custom_attributes: custom_attributes_2, classes: 'h5 block', style: link_color_style %}
+                        {% endif %}
+                      {%- endcapture -%}
+
+                      {%- capture menu_links_list_3 -%}
+                        <!-- Menu links list 3 -->
+                        <div data-menu-link="{{ childlink.handle }}" class="h-full hidden">
+
+                          {% assign menu_item_name = link.title | append: '/' | append: childlink.title %}
+                          {% assign promo_layout = blank %}
+                          {% assign promo_padding = blank %}
+                          {% for layout_styling in navigation_styling_promo_layouts.value %}
+                            {% if layout_styling.navigation_item_name == menu_item_name %}
+                              {% assign promo_layout = layout_styling.layout %}
+                              {% assign promo_padding = layout_styling.padding %}
+                              {% assign promo_columns = layout_styling.columns | default:1 %}
+                              {% assign promo_rows = layout_styling.rows | default:1 %}
+                              {% break %}
+                            {% endif %}
+                          {% endfor %}
+
+                          <div class="h-full{% if promo_layout == "side right" %} flex gap-2{% endif %}">
+                            <ul class="shrink-0 mt-4 w-full grid gap-16 grid-rows-2 grid-cols grid-cols-[repeat(auto-fill,minmax(100px,200px))]
+                              {% if promo_layout == "side right" %} !w-1/4 {% endif %}">
+
+                              {% assign no_grandgrandchildlinks = blank %}
+                              {% for grandchildlink in childlink.links %}
+                                {% if grandchildlink.links == blank  %}
+                                  {% capture no_grandgrandchildlinks %}
+                                    {% echo no_grandgrandchildlinks %}
+                                    {% render 'c-link', href: grandchildlink.url, type: 'link--hover', content: grandchildlink.title, custom_attributes: custom_attributes_3, classes: 'block text-base mb-2' %}
+                                  {% endcapture %}
+                                {% endif %}
+                              {% endfor %}
+
+                              {% if no_grandgrandchildlinks != blank %}
+                                <li >
+                                  {{ no_grandgrandchildlinks }}
+                                </li>
+                              {% endif %}
+
+                              {%- for grandchildlink in childlink.links -%}
+                                  {%- capture custom_attributes_3 -%}
+                                    {%- if grandchildlink.current -%}
+                                      aria-current="page"
+                                    {%- endif -%}
+                                  {%- endcapture -%}
+                                  {% if grandchildlink.links != blank and childlink.links[0].title != "[small]" %}
+                                    <li > 
+                                      {% render 'c-link', href: grandchildlink.url, type: 'link--hover', content: grandchildlink.title, custom_attributes: custom_attributes_3, classes: 'text-base font-bold mb-2' %}
+                                      <div class="mt-2">
+                                        {% for grandgrandchildlink in grandchildlink.links %}
+                                          {% render 'c-link', href: grandgrandchildlink.url, type: 'block link--hover', content: grandgrandchildlink.title, classes: 'text-base mb-2' %}
+                                        {% endfor %}
+                                      </div>
+                                    </li>
+                                  {% endif %}
+                              {%- endfor -%}
+
+
+
+                            </ul>
+
+                            <!-- Promo blocks -->
+                            {% if promo_layout == 'bottom right corner' %}
+                              {% assign promo_classes = 'absolute right-0 bottom-0 w-3/4 grid grid-cols-2 gap-2 right-0 bottom-0 items-end' %}
+                            {% else %}
+                              {%  assign promo_classes = 'w-3/4 h-full grid grid-cols-[repeat(2,auto)] grid-rows-[repeat(auto-fill,minmax(300px,400px))] gap-2 overflow-hidden place-items-start max-h-[1000px]' %}
+                            {%  endif %}
+                            <div role="list" tabindex="-1"
+                              class="{{ promo_classes }}{% if promo_padding == false %} !-mr-8 !-mb-8 !-mt-8{% endif %}"
+                            >
+                                {% assign promo_position = 0 %}
+                                {% for promo_block in promo_blocks %}
+                                  {% assign menu_item_name = link.title | append: '/' | append: childlink.title %}
+
+                                  {% if promo_block.menu_item_name == menu_item_name %}
+                                    {% assign promo_position = promo_position | plus: 1 %}
+                                    {% assign promo_block_classes = "h-full" %}
+                                    {% if promo_layout == 'bottom right corner' %}
+                                      {% assign aspect_ratio = 'landscape' %}
+                                    {% else %}
+                                      {% if promo_position == 3 %}
+                                        {% assign promo_block_classes = "w-full h-full col-start-1 col-end-3" %}
+                                        {% assign aspect_ratio = 'auto' %}
+                                      {% else %}
+                                        {% assign promo_block_classes = "w-full h-full" %}
+                                        {% assign aspect_ratio = 'auto' %}
+                                      {% endif %}
+                                    {% endif %}
+                                    {% render 'menu-promo-block',
+                                      image: promo_block.image,
+                                      title: promo_block.title,
+                                      description: promo_block.description,
+                                      url: promo_block.url,
+                                      aspect_ratio: aspect_ratio,
+                                      classes: promo_block_classes,
+                                      stretch: true,
+                                      alignment: promo_block.content_alignement,
+                                      text_color: promo_block.text_color
+                                    %}
+                                  {% endif %}
+                                {% endfor %}
+                            </div>
+                            <!-- End Promo blocks -->
+                        </div>
+                      </div>
+
+                      {%- endcapture -%}
+
+                      {%- if childlink.links != blank -%}
+                          <li class="py-3 flex gap-2 border-t border-borders items-center cursor-pointer " data-menu-link="{{ childlink.handle }}">
+                            
+                            {% liquid
+                              if enable_mega_menu
+                                echo menu_link_2
+                                if childlink.links.size > 1 and childlink.links[0].title != "[bordered]"
+                                  echo menu_links_list_3
+                                endif
+                              else
+                                render 'c-dropdown', dropdown_content_class: 'shadow rounded', toggle_label: menu_link_2, dropdown_content: menu_links_list_3, trigger_type: 'hover', dropdown_icon: 'arrow-right', content_placement: 'right-start'
+                              endif
+                            %}
+                          </li>
+                        {%- endif -%}
+                    {%- endfor -%}
+                  </div>
+                  {%  else %}
+                    <div data-destination-content class="mt-10">    
+                      <!-- Menu links list 3 -->
+                        <div data-menu-link="{{ linked_menu_linklist.handle }}" class="h-full hidden">
+                          <div class="h-full flex{% if promo_layout == "side right" %} gap-2{% else %} gap-10{% endif %}">
+                            <ul class="shrink-0 max-w-[750px] grid grid-rows-2 grid-cols-auto" style="grid-template-rows: auto 1fr; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); ">
+
+                                {% assign no_grandchildlinks = blank %}
+                                {% for childlink in linked_menu_linklist.links %}
+                                  {% if childlink.links[0].title == "[small]" %}
+                                    {% capture no_grandchildlinks %}
+                                      {% echo no_grandchildlinks %}
+                                      {% render 'c-link', href: childlink.url, type: 'link--hover', content: childlink.title, custom_attributes: custom_attributes_3, classes: 'block text-base mb-2' %}
+                                    {% endcapture %}
+                                  {% endif %}
+                                {% endfor %}
+
+                                {% if no_grandchildlinks != blank %}
+                                  <li>
+                                    {{ no_grandchildlinks }}
+                                  </li>
+                                {% endif %}
+
+                                {%- for childlink in linked_menu_linklist.links -%}
+                                  {% if childlink.links != blank and childlink.links[0].title != '[small]' %}
+                                  <li class="min-w-[250px] px-8 pt-8 pb-5 border-r border-borders border-b {% if childlink.title contains 'full' %}row-span-2{% else %}row-span-1{% endif %}"> 
+                                    {%- capture custom_attributes_3 -%}
+                                      {%- if childlink.current -%}
+                                        aria-current="page"
+                                      {%- endif -%}
+                                    {%- endcapture -%}
+                                      {% assign title = childlink.title | replace: "[full]", ''  %}
+                                      <div class="flex items-center mb-2">
+                                        {% render 'c-link', href: childlink.url, type: 'link--hover', content: title, custom_attributes: custom_attributes_3, classes: 'text-md font-semibold ' %}
+                                        {% assign link_name = childlink.title %}
+                                          {% assign menu_icon = blank %}
+                                          {% for icon_entry in shop.metaobjects.navigation_icon.values %}
+                                            {% if icon_entry.navigation_item_name == link_name %}
+                                              {% assign menu_icon = icon_entry.icon %}
+                                              {% break %}
+                                            {% endif %}
+                                          {% endfor %}
+                                          <div menu-icon="{{ menu_icon }}" link-title="{{ link_title }}"></div>
+                                          {% render 'c-menu-icon', icon: menu_icon, classes: 'ml-2 h-5 w-5'%}
+                                      </div>
+                                      <div class="mt-2">
+                                        {% for grandchildlink in childlink.links %}
+                                          {% render 'c-link', href: grandchildlink.url, type: 'block link--hover', content: grandchildlink.title, classes: 'text-sm mb-2' %}
+                                        {% endfor %}
+                                      </div>
+                                    </li>
+                                  {% endif %}
+                                {%- endfor -%}
+
+                            </ul>
+
+                            {%- assign link_title = link.title | handleize -%}
+                            {% assign promo_block_layout = shop.metaobjects.navigation_promo_layout[link_title] %}
+                            {% assign promo_columns = promo_block_layout.columns | default: 1 %}
+                            {% assign promo_rows = promo_block_layout.rows | default: 1 %}
+                            {%- capture promo_classes -%}
+                              h-full max-h-[60vh] min-h-full py-8 grid grid-cols-{{promo_columns}} grid-rows-{{promo_rows}} gap-5
+                            {%- endcapture -%}
+
+                            <div role="list" tabindex="-1"
+                              class="{{ promo_classes }}{% if promo_padding == false %} !-mr-8 !-mb-8 !-mt-8{% endif %}"
+                            >
+                                {% assign promo_position = 0 %}
+                                {% for promo_block in promo_blocks %}
+                                  {% assign menu_item_name = link.title  %}
+
+                                  {% if promo_block.menu_item_name == menu_item_name %}
+                                    {% assign promo_position = promo_position | plus: 1 %}
+                                   {% render 'menu-promo-block',
+                                      image: promo_block.image,
+                                      text: promo_block.text,
+                                      url: promo_block.url,
+                                      aspect_ratio: promo_block.aspect_ratio,
+                                      classes: promo_block_classes,
+                                      stretch: true,
+                                      alignment: promo_block.content_alignement,
+                                      text_color: promo_block.text_color,
+                                      font_size: promo_block.font_size,
+                                      cta_text: promo_block.cta_text,
+                                      cta_type: promo_block.cta_type
+                                    %}
+                                  {% endif %}
+                                {% endfor %}
+                            </div>
+                            <!-- End Promo blocks -->
+                          </div>
+                        </div>
+                     </div>
+                  {% endif %}
+                </ul>
+
+                <div data-menu-link-destination class="relative border-l border-borders w-full !hidden">
+                  {% comment %} menu 3 comes here {% endcomment %}
+                  <div class="h-full" data-menu></div>
+                  {%  comment %} PROMOS come here {% endcomment %}
+                </div> 
+              </div>
+            </div>
+          {%- endcapture -%}
+
+          {% liquid
+            if enable_mega_menu
+              render 'c-collapse', menu_collapse: true, toggle_label: menu_link_1, collapse_content: menu_links_list_2, collapse_content_class: '-left-[30px] -right-[30px] absolute z-10 border-t border-borders', collapse_backdrop: true
+            else
+              render 'c-dropdown', toggle_label: menu_link_1, dropdown_content: menu_links_list_2, dropdown_content_class: 'rounded shadow', hide_dropdown_icon: true, dropdown_offset: '5'
+            endif
+          %}
+        {%- else -%}
+          <!-- Menu links 1 has no child links -->
+          {{ menu_link_1 }}
+        {%- endif -%}
+      </li>
+    {%- endfor -%}
+  </ul>
+{%- endif -%}

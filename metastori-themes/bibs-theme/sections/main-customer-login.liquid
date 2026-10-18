@@ -1,0 +1,323 @@
+{% liquid
+  assign input_classes = 'py-3'
+  assign form_title = 'customer.login_page.title' | t
+  assign email_label = 'customer.login_page.email' | t
+  assign password_label = 'customer.login_page.password' | t
+  assign forgot_password_label = 'customer.login_page.forgot_password' | t
+  assign create_account_label = 'customer.login_page.create_account' | t
+  assign back_to_login_label = 'customer.recover_password.return_button' | t
+  assign recover_pass_email_label = 'customer.recover_password.email_placeholder' | t
+
+  assign heading_tag = section.settings.heading_tag
+  assign font_size = section.settings.font_size
+  assign font_weight = section.settings.font_weight
+  assign heading_type = font_size | append: ' ' | append: font_weight
+  assign italic_header_text = section.settings.italic_header_text
+  if italic_header_text
+    assign heading_type = heading_type | append: ' !italic'
+  endif
+%}
+
+<div class="container-fluid color-{{ section.settings.color_scheme }}">
+  <div class="max-w-sm mx-auto my-6">
+    <!-- Login form -->
+    <div id="login-form" data-validation-required>
+      {% render 'c-title', content: form_title, custom_tag: heading_tag, type: heading_type, classes: 'mb-6 md:mb-9' %}
+
+      {% form 'customer_login' %}
+        <div data-auth-input class="mb-8 relative">
+          {% render 'c-input',
+            input_type: 'email',
+            input_name: 'customer[email]',
+            id: 'email',
+            input_autocomplete: 'email',
+            label_content: email_label,
+            input_classes: input_classes
+          %}
+        </div>
+
+        {% if form.password_needed %}
+          <div data-auth-input class="relative">
+            {% render 'c-input',
+              input_type: 'password',
+              input_name: 'customer[password]',
+              id: 'password',
+              input_autocomplete: 'current-password',
+              label_content: password_label,
+              input_classes: input_classes
+            %}
+            <span>
+              {% render 'c-icon',
+                icon: 'visible_eye',
+                classes: 'password-icon hidden md:block absolute top-4 right-3 cursor-pointer password-visibility-icon right-4 w-4 h-4'
+              %}
+            </span>
+          </div>
+        {% endif %}
+
+        <div>
+          {% render 'c-link',
+            href: 'javascript:void(0)',
+            classes: 'md:pl-3 mb-5 text-sm font-medium inline-block leading-4 mt-1 link',
+            content: forgot_password_label,
+            custom_attributes: 'onclick="toggleRecoverPasswordForm()" data-toggle-forgot-password'
+          %}
+        </div>
+
+        {% render 'form-errors', form_errors: form.errors, classes: 'py-1' %}
+
+        {%- assign submit_button_content = 'customer.login_page.log_in' | t | upcase -%}
+        {% render 'c-button',
+          type: 'submit',
+          id: 'submit-login',
+          content: submit_button_content,
+          design: 'accent',
+          classes: 'mb-[14.5px] mt-5 button--full-rounded disabled:bg-gray-400 text-center'
+        %}
+
+        <div class="text-sm text-center">
+          <span class="text-grey-600">{{ 'customer.login_page.dont_have_account' | t }}</span>
+          {% render 'c-link', href: routes.account_register_url, classes: 'link', content: create_account_label %}
+        </div>
+      {% endform %}
+    </div>
+
+    <!-- Recover password form -->
+    <div id="recover-password-form" class="hidden max-w-sm" data-validation-required>
+      {%- assign recover_link = routes.account_login_url | append: '#recover' -%}
+      {% form 'recover_customer_password', return_to: recover_link %}
+        {% unless form.posted_successfully? %}
+          {% liquid
+            assign forgot_password_title = 'customer.recover_password.title' | t
+            assign forgot_password_desc = 'customer.recover_password.description' | t
+          %}
+          {% render 'c-title', content: forgot_password_title, classes: 'mb-4 md:mb-8', custom_tag: 'h2' %}
+          {% render 'c-text', content: forgot_password_desc, classes: 'text-base leading-4 mb-1 mb-10' %}
+          <div data-auth-input class="mb-4 relative">
+            {%- assign forgot_password_error = 'customer.recover_password.input_error' | t -%}
+            {% render 'c-input',
+              input_classes: input_classes,
+              input_type: 'email',
+              input_name: 'email',
+              id: 'customer_email',
+              input_autocomplete: 'email',
+              label_content: recover_pass_email_label,
+              error_text: forgot_password_error
+            %}
+            <span>
+              {% render 'c-icon',
+                icon: 'checkmark',
+                classes: 'input-icon-success hidden absolute top-[.9rem] right-4 text-success w-5 h-5 inline'
+              %}
+            </span>
+            <span>
+              {% render 'c-icon',
+                icon: 'bolder_close',
+                classes: 'input-icon-invalid hidden absolute top-[.9rem] right-4 text-error w-5 h-5 inline'
+              %}
+            </span>
+
+            {% render 'form-errors', form_errors: form.errors %}
+          </div>
+
+          {%- assign submit_button_content = 'customer.recover_password.submit' | t | upcase -%}
+          {% render 'c-button',
+            type: 'submit',
+            content: submit_button_content,
+            design: 'accent',
+            classes: 'mt-4 mb-2 md:mb-4 button--full-rounded',
+            id: 'submit-forgot-password'
+          %}
+
+          <div class="text-center">
+            {% render 'c-link',
+              href: 'javascript:void(0)',
+              classes: 'link text-sm',
+              content: back_to_login_label,
+              custom_attributes: 'onclick="toggleRecoverPasswordForm()"'
+            %}
+          </div>
+        {% else %}
+          {% liquid
+            assign forgot_pass_received_title = 'customer.recover_password.received.title' | t
+            assign forgot_pass_received_desc = 'customer.recover_password.received.description' | t
+            assign forgot_pass_received_return_btn = 'customer.recover_password.return_button' | t
+          %}
+
+          <div data-form-submitted>
+            {% render 'c-title',
+              custom_tag: 'h2',
+              content: forgot_pass_received_title,
+              classes: 'max-w-64 sm:w-full mb-4 md:mb-8'
+            %}
+            {% render 'c-text',
+              custom_tag: 'p',
+              content: forgot_pass_received_desc,
+              classes: 'text-base max-w-xl leading-4 mb-8'
+            %}
+
+            {% render 'c-link',
+              classes: 'button--grey px-7 py-3 mt-6 mt-8 rounded-full font-bold bg-grey-200 text-foreground w-full block text-center tracking-[0.01rem]',
+              href: routes.account_login_url,
+              content: forgot_pass_received_return_btn
+            %}
+          </div>
+        {% endunless %}
+      {% endform %}
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleRecoverPasswordForm() {
+    const loginForm = document.getElementById('login-form');
+    const recoverForm = document.getElementById('recover-password-form');
+    recoverForm.classList.toggle('block');
+    recoverForm.classList.toggle('hidden');
+
+    loginForm.classList.toggle('block');
+    loginForm.classList.toggle('hidden');
+  }
+
+  window.addEventListener('load', function () {
+    if (window.location.hash === '#recover') {
+      const loginForm = document.getElementById('login-form');
+      const recoverForm = document.getElementById('recover-password-form');
+
+      loginForm.classList.remove('block');
+      loginForm.classList.add('hidden');
+
+      recoverForm.classList.remove('hidden');
+      recoverForm.classList.add('block');
+    }
+  });
+</script>
+
+{% schema %}
+{
+  "name": "t:sections.main-customer-login.name",
+  "class": "section-main-customer-login",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.heading_tag.label",
+      "id": "heading_tag",
+      "default": "h1",
+      "options": [
+        {
+          "value": "h1",
+          "label": "t:sections.all.heading_tag.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.heading_tag.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.heading_tag.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.heading_tag.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.heading_tag.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.heading_tag.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_size.label",
+      "id": "font_size",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_size.options.default"
+        },
+        {
+          "value": "paragraph-1",
+          "label": "t:sections.all.font_size.options.paragraph"
+        },
+        {
+          "value": "h1",
+          "label": "t:sections.all.font_size.options.h1"
+        },
+        {
+          "value": "h2",
+          "label": "t:sections.all.font_size.options.h2"
+        },
+        {
+          "value": "h3",
+          "label": "t:sections.all.font_size.options.h3"
+        },
+        {
+          "value": "h4",
+          "label": "t:sections.all.font_size.options.h4"
+        },
+        {
+          "value": "h5",
+          "label": "t:sections.all.font_size.options.h5"
+        },
+        {
+          "value": "h6",
+          "label": "t:sections.all.font_size.options.h6"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "label": "t:sections.all.font_weight.label",
+      "id": "font_weight",
+      "default": "",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.all.font_weight.options.default"
+        },
+        {
+          "value": "!font-thin",
+          "label": "t:sections.all.font_weight.options.thin"
+        },
+        {
+          "value": "!font-light",
+          "label": "t:sections.all.font_weight.options.light"
+        },
+        {
+          "value": "!font-normal",
+          "label": "t:sections.all.font_weight.options.normal"
+        },
+        {
+          "value": "!font-medium",
+          "label": "t:sections.all.font_weight.options.medium"
+        },
+        {
+          "value": "!font-semibold",
+          "label": "t:sections.all.font_weight.options.semibold"
+        },
+        {
+          "value": "!font-bold",
+          "label": "t:sections.all.font_weight.options.bold"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "italic_header_text",
+      "label": "t:sections.all.italic_header_text.label",
+      "default": false
+    }
+  ]
+}
+{% endschema %}

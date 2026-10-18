@@ -1,0 +1,164 @@
+{% comment %}
+  Renders the breadcrumb.
+
+  Accepts:
+  - text_style: {String} The text style
+  - show_divider: {Boolean} Show bottom rule (breadcrumb--divider)
+  - divider_style: {String} Optional. "dot" for middle dot (·), otherwise slash (/)
+
+  Usage:
+  {% render 'breadcrumbs' %}
+  {% render 'breadcrumbs', text_style: 'uppercase', divider_style: 'dot' %}
+{% endcomment %}
+
+{%- liquid
+  assign bc_is_dot = false
+  if divider_style == 'dot'
+    assign bc_is_dot = true
+  endif
+-%}
+
+{%- unless template.name == 'index' or template.name == 'cart' -%}
+  <nav
+    class="breadcrumb{% if text_style == 'uppercase' %} caption-with-letter-spacing{% elsif text_style == 'subtitle' %} subtitle{% endif %}{% if show_divider %} breadcrumb--divider{% endif %}{% if bc_is_dot %} breadcrumb--dot-dividers{% endif %}"
+    role="navigation"
+    aria-label="breadcrumbs"
+  >
+    <a href="{{ routes.root_url }}" class="link" title="{{ 'general.breadcrumbs.home_link_title' | t }}">{{ 'general.breadcrumbs.home' | t }}</a>
+
+    {%- if template.name == 'product' -%}
+      {%- liquid
+        assign breadcrumb_collection = collection
+        if breadcrumb_collection == blank and product.collections.size > 0
+          assign breadcrumb_collection = product.collections.first
+        endif
+      -%}
+      {%- liquid
+        assign bc_shape = product.metafields.custom.shape | default: blank
+        if bc_shape != blank
+          assign bc_shape_text = bc_shape | strip
+          assign bc_shape_anchor = bc_shape_text | handleize
+        endif
+      -%}
+
+      {%- if bc_shape != blank -%}
+        <span class="breadcrumb__divider{% if bc_is_dot %} breadcrumb__divider--dot{% endif %}" aria-hidden="true">
+          {%- if bc_is_dot -%}·{%- else -%}/{%- endif -%}
+        </span>
+        <a class="link" href="/collections/shape#{{ bc_shape_anchor }}">{{ bc_shape_text | escape }}</a>
+      {%- elsif breadcrumb_collection != blank and breadcrumb_collection.handle != blank -%}
+        <span class="breadcrumb__divider{% if bc_is_dot %} breadcrumb__divider--dot{% endif %}" aria-hidden="true">
+          {%- if bc_is_dot -%}·{%- else -%}/{%- endif -%}
+        </span>
+        {% capture bc_collection_url %}{{ routes.collections_url }}/{{ breadcrumb_collection.handle }}{% endcapture %}
+        {{ breadcrumb_collection.title | link_to: bc_collection_url, class: 'link' }}
+      {%- endif -%}
+      <span class="breadcrumb__divider{% if bc_is_dot %} breadcrumb__divider--dot{% endif %}" aria-hidden="true">
+        {%- if bc_is_dot -%}·{%- else -%}/{%- endif -%}
+      </span>
+      <span class="breadcrumb__current">{{ product.title | escape }}</span>
+
+    {%- elsif template.name == 'collection' and collection.handle -%}
+      <span class="breadcrumb__divider{% if bc_is_dot %} breadcrumb__divider--dot{% endif %}" aria-hidden="true">
+        {%- if bc_is_dot -%}·{%- else -%}/{%- endif -%}
+      </span>
+
+      {%- if current_tags -%}
+
+        {% capture url %}{{ routes.collections_url }}/{{ collection.handle }}{% endcapture %}
+        {{ collection.title | link_to: url, class: 'link' }}
+
+        <span class="breadcrumb__divider{% if bc_is_dot %} breadcrumb__divider--dot{% endif %}" aria-hidden="true">
+          {%- if bc_is_dot -%}·{%- else -%}/{%- endif -%}
+        </span>
+
+        {%- for tag in current_tags -%}
+{%- comment -%} Wholesale_Club_Product_Visibility_For_Loop Start {%- endcomment -%}
+{%- capture hide_resource -%}{% render "wc_product_visibility", resource: tag %}{%- endcapture -%}
+{%- if hide_resource == "true" -%}
+  {% continue %}
+{%- endif -%}
+{%- comment -%} Wholesale_Club_Product_Visibility_For_Loop End {%- endcomment -%}
+
+          {%- liquid
+            if tag contains "_"
+              assign tag_starts_with = tag | slice: 0
+              if tag_starts_with == "_"
+                if tag_count
+                  assign tag_count = tag_count | minus: 1 | at_least: 0
+                endif
+                continue
+              endif
+            endif
+
+            assign tag_name = tag | strip
+            assign tag_text = tag_name | capitalize
+          -%}
+          <span>{{ tag_text }}</span>
+
+          {%- unless forloop.last -%}
+            <span>+</span>
+          {%- endunless -%}
+
+        {%- endfor -%}
+      {%- else -%}
+        <span class="breadcrumb__current">{{ collection.title | escape }}</span>
+      {%- endif -%}
+
+    {%- elsif template.name == 'blog' -%}
+
+      <span class="breadcrumb__divider{% if bc_is_dot %} breadcrumb__divider--dot{% endif %}" aria-hidden="true">
+        {%- if bc_is_dot -%}·{%- else -%}/{%- endif -%}
+      </span>
+      {%- if current_tags %}
+        {{ blog.title | link_to: blog.url, class: 'link' }}
+        <span class="breadcrumb__divider{% if bc_is_dot %} breadcrumb__divider--dot{% endif %}" aria-hidden="true">
+          {%- if bc_is_dot -%}·{%- else -%}/{%- endif -%}
+        </span>
+        <span class="breadcrumb__current">{{ current_tags | join: ' + ' }}</span>
+      {%- else -%}
+        <span class="breadcrumb__current">{{ blog.title | escape }}</span>
+      {%- endif -%}
+
+    {%- elsif template.name == 'article' -%}
+
+      <span class="breadcrumb__divider{% if bc_is_dot %} breadcrumb__divider--dot{% endif %}" aria-hidden="true">
+        {%- if bc_is_dot -%}·{%- else -%}/{%- endif -%}
+      </span>
+      {{ blog.title | link_to: blog.url, class: 'link' }}
+      <span class="breadcrumb__divider{% if bc_is_dot %} breadcrumb__divider--dot{% endif %}" aria-hidden="true">
+        {%- if bc_is_dot -%}·{%- else -%}/{%- endif -%}
+      </span>
+      <span class="breadcrumb__current">{{ article.title | escape }}</span>
+
+    {%- elsif template.name == 'page' -%}
+
+      <span class="breadcrumb__divider{% if bc_is_dot %} breadcrumb__divider--dot{% endif %}" aria-hidden="true">
+        {%- if bc_is_dot -%}·{%- else -%}/{%- endif -%}
+      </span>
+      <span class="breadcrumb__current">{{ page.title }}</span>
+
+    {%- elsif template.name == 'search' -%}
+
+      <span class="breadcrumb__divider{% if bc_is_dot %} breadcrumb__divider--dot{% endif %}" aria-hidden="true">
+        {%- if bc_is_dot -%}·{%- else -%}/{%- endif -%}
+      </span>
+      <span class="breadcrumb__current">{{ page_title | replace: '*', '' }}</span>
+
+    {%- else -%}
+
+      <span class="breadcrumb__divider{% if bc_is_dot %} breadcrumb__divider--dot{% endif %}" aria-hidden="true">
+        {%- if bc_is_dot -%}·{%- else -%}/{%- endif -%}
+      </span>
+      <span class="breadcrumb__current">{{ page_title }}</span>
+
+    {%- endif -%}
+  </nav>
+{%- endunless -%}
+
+{% style %}
+  .breadcrumb__current {
+    color: black;
+    font-weight: 600;
+  }
+{% endstyle %}

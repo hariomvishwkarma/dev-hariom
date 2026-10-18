@@ -1,0 +1,44 @@
+{%- comment -%}
+  Renders a cross-sell card only when the product is eligible.
+  Excludes: cart items, Redo/protection products, wholesale-hidden products.
+  @param product {product}
+{%- endcomment -%}
+
+{%- liquid
+  assign show_recommendation = true
+
+  if settings.custom_cart_enable_checkout_protection and settings.custom_cart_protection_product != blank
+    if product.id == settings.custom_cart_protection_product.id
+      assign show_recommendation = false
+    endif
+  endif
+
+  # The pinned add-on already has its own row above checkout; showing it in the
+  # recommendation list too would put the same card on screen twice.
+  if settings.custom_cart_addon_product != blank
+    if product.id == settings.custom_cart_addon_product.id
+      assign show_recommendation = false
+    endif
+  endif
+
+  assign product_vendor = product.vendor | downcase
+  if product_vendor == 'redo' or product_vendor == 'returngo' or product_vendor == 'return go'
+    assign show_recommendation = false
+  endif
+
+  if show_recommendation
+    for item in cart.items
+      if item.product_id == product.id
+        assign show_recommendation = false
+        break
+      endif
+    endfor
+  endif
+-%}
+
+{%- if show_recommendation -%}
+  {%- capture hide_resource -%}{% render 'wc_product_visibility', resource: product %}{%- endcapture -%}
+  {%- unless hide_resource == 'true' -%}
+    {% render 'custom-cart-cross-sell', product: product %}
+  {%- endunless -%}
+{%- endif -%}

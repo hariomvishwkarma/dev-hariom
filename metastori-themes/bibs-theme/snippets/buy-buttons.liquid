@@ -1,0 +1,101 @@
+{% liquid
+  if product.has_only_default_variant and product.options_with_values.size < 2
+    assign selected_variant = product.selected_or_first_available_variant
+  else
+    assign selected_variant = product.selected_variant
+  endif
+%}
+
+{%- assign submit_button_classes = 'flex-1 rounded-full text-4 whitespace-nowrap flex gap-2 items-center justify-center add-to-cart-button' -%}
+{% unless selected_variant and selected_variant.available %}
+  {%- assign submit_button_classes = submit_button_classes | append: ' disabled' -%}
+{% endunless %}
+{%- capture add_to_cart_button_content -%}
+  <div class="flex items-center">
+    <span>
+      {%- if selected_variant -%}
+        {% if selected_variant.available == false %}
+          {% assign sold_out = true %}
+            <span class="buy-button-text">{{ 'sections.product-form.sold_out' | t }}</span>
+        {% else %}
+          {% assign sold_out = false %}
+          <span class="buy-button-text"> {{ 'sections.product-form.add_to_cart' | t }}{% if show_price_on_btn %} - {{ product.price | money_with_currency }}{% endif %}</span>
+        {% endif %}
+      {%- else -%} 
+        {% assign sold_out = false %}
+          <span class="buy-button-text">{{ 'sections.product-form.select_options' | t }}</span>
+      {%- endif -%}
+    </span>
+    {% render 'c-spinner', size: 'leading-none ml-2 inline w-4 h-4 add-to-cart-button-spinner invisible' %}
+  </div>
+{%- endcapture -%}
+
+<div class="flex flex-wrap gap-x-1.5 md:gap-x-2.5 gap-y-4 md:mx-0 z-1 bg-background">
+  {% capture qty_classes %} {% if sold_out %}hidden{% endif %} {% endcapture %}
+  {% render 'quantity-selector', section_id: section_id, product_form_id: product_form_id, classes: qty_classes %}
+
+  {% comment %} BUY BUTTON {% endcomment %}
+  {%- capture add_to_cart_id -%}Add-to-cart-{{ section_id }}{%- endcapture -%}
+  <div
+    class="add-to-cart-button-wrap flex-1 flex gap-4 font-medium {% if sold_out %}hidden{% endif %}"
+  >
+    {% render 'c-button',
+      type: 'submit',
+      name: 'add',
+      id: add_to_cart_id,
+      design: 'primary',
+      content: add_to_cart_button_content,
+      classes: submit_button_classes
+    %}
+  </div>
+
+  {% comment %} NOTIFY ME {% endcomment %}
+  {% capture notify_content %}
+    <div class="flex items-center gap-2">
+      {% render 'c-icon', icon: 'envelope', classes: 'notify-icon w-4 h-4 inline' %} 
+      <span class="buy-button-text">{{ 'sections.product-form.sold_out' | t }}</span>
+    </div>
+  {% endcapture %}
+
+  <div
+    class="{% unless sold_out %}hidden{% endunless %} notify-button-wrap flex-1 flex items-center gap-4 font-medium"
+  >
+    {% render 'c-button',
+      type: 'button',
+      name: 'notify-sold-out',
+      id: notify,
+      design: 'primary',
+      content: notify_content,
+      custom_attributes: 'data-open-drawer="notify-sold-out-drawer"',
+      classes: 'flex-1 !bg-[#CBCBCB] rounded-full text-4 whitespace-nowrap flex gap-2 items-center justify-center'
+    %}
+  </div>
+
+  {% comment %} SIMILAR PRODUCTS {% endcomment %}
+  {% assign similar_products = product.metafields['shopify--discovery--product_recommendation'].related_products.value %}
+  {% capture drawer_id %}drawer-{{ product.id }}{% endcapture %}
+  {% capture custom_attributes %} data-open-drawer="{{ drawer_id }}" {% endcapture %}
+  {%- capture display_setting -%}
+    {%- if selected_variant -%}
+      {%- if selected_variant.available == false and similar_products.count > 0 -%}
+        block
+      {%- else -%}
+        hidden
+      {%- endif -%}
+    {%- else -%}
+      {%- if product.first_available_variant == blank and similar_products.count > 0 -%}
+        block
+      {%- else -%}
+        hidden
+      {%- endif -%}
+    {%- endif -%}
+  {%- endcapture -%}
+  {% capture classes %} button-similar-products w-full h-fit rounded-full {{ display_setting }}{% endcapture %}
+  {% render 'c-button',
+    type: 'button',
+    translatable_content: 'products.product.similar_products.button_text',
+    design: 'primary',
+    custom_attributes: custom_attributes,
+    classes: classes
+  %}
+</div>

@@ -1,0 +1,169 @@
+{% comment %}
+  Renders connected-products
+
+  Accepts:
+  - main_product {Product}: Color swatches is shown for this Product object
+  - classes {String}: Additional classes to add to the color swatches container
+  - wrapper_classes {String}: Additional classes to add to the wrapper
+  - show_label {Boolean}: Only show color swatches label if this value is true
+  - show_color_swatches {Boolean}: Only show color swatches if this value is true
+  - is_product_card {Boolean}: Only show color swatches if this value is true
+  - gap {String}: Gap between color swatches
+  - render_swatches {Boolean}: Render the color swatches if this value is true
+
+  Usage:
+    {% render 'connected-products', main_product: product, show_color_swatches: show_color_swatches %}
+{% endcomment %}
+
+{% liquid
+  assign colors_as_swatches = settings.colors_as_swatches
+
+  assign connected_products = main_product.metafields.custom.connected_products.value
+  assign available_connected_products = connected_products | where: 'available', true | compact
+  assign sold_out_connected_products = connected_products | where: 'available', false | compact
+
+  assign is_subscription_products = false
+
+  if template.suffix contains 'subscription'
+    assign connected_products = connected_products | where: 'selected_or_first_available_selling_plan_allocation' | compact
+    assign connected_products_length = connected_products.size | plus: 0
+    assign is_subscription_products = true
+  else
+    paginate connected_products by 5
+      assign connected_products_length = paginate.items
+    endpaginate
+  endif
+
+  assign connected_products = connected_products | sort
+
+  assign main_product_color_swatch = main_product.metafields.custom.color_swatch.value
+%}
+
+{%- capture color_swatches_snippet -%}
+  {% if render_swatches %}
+    {%- assign is_quick_view = false -%}
+    {%- if template.suffix contains 'quick-view' -%}
+      {%- assign is_quick_view = true -%}
+    {%- endif -%}
+
+    {%- comment -%}Data used to find the availability of each color when switching variants{%- endcomment -%}
+    <script connected-product-data>
+      [
+        {%- for connected_product in connected_products -%}
+          {
+            "product_id": "{{ connected_product.id }}",
+            "has_only_default_variant": {{ connected_product.has_only_default_variant | json }},
+            "variants": [
+              {%- for variant in connected_product.variants -%}
+                {
+                  "variant_id": "{{variant.id}}",
+                  "availability": {{ variant.available }},
+                  "options": [
+                    {%- for option in variant.options -%}
+                      "{{option}}"{%- unless forloop.last -%},{%- endunless -%}
+                    {%- endfor -%}
+                    ]
+                }
+                {%- unless forloop.last -%},{%- endunless -%}
+              {%- endfor -%}
+            ]
+          }{%- unless forloop.last -%},{%- endunless -%}
+        {%- endfor -%}
+      ]
+    </script>
+
+    {%- comment -%}Main product{%- endcomment -%}
+    {% render 'connected-product', connected_product: main_product, classes: 'active main-slider-item', is_quick_view: is_quick_view %}
+
+    {%- comment -%}Connected products{%- endcomment -%}
+    {%- if template.suffix contains 'subscription' -%}
+      {%- for connected_product in available_connected_products -%}
+        {% render 'connected-product', connected_product: connected_product, is_quick_view: is_quick_view %}
+      {%- endfor -%}
+      {%- for connected_product in sold_out_connected_products -%}
+        {% render 'connected-product', connected_product: connected_product, is_quick_view: is_quick_view %}
+      {%- endfor -%}
+    {%- else -%}
+      {%  paginate connected_products by 50 %} 
+        {%- for connected_product in available_connected_products -%}
+          {% render 'connected-product', connected_product: connected_product, is_quick_view: is_quick_view %}
+        {%- endfor -%}
+        {%- for connected_product in sold_out_connected_products -%}
+          {% render 'connected-product', connected_product: connected_product, is_quick_view: is_quick_view %}
+        {%- endfor -%}
+      {% endpaginate %} 
+    {%- endif -%}
+    <div class="connected-products-spacer"></div>
+  {% endif %}
+{%- endcapture -%}
+
+{%- if connected_products_length > 0 -%}
+  <connected-products
+    data-block-type="{{ block_type }}"
+    {% if render_swatches %}
+      data-render="true"
+    {% endif %}
+    class="{{ classes | default: '' }}{% if colors_as_swatches %} is-color-swatches{% endif %}"
+    data-product-handle="{{ main_product.handle }}"
+    {% if is_subscription_products %}
+      data-subscription-products="true"
+    {% endif %}
+  >
+    {%- if show_label -%}
+      <div class="flex items-start gap-1 text-sm font-medium leading-[18px]">
+        <span class="flex flex-row">
+          {% render 'c-text', translatable_content: 'sections.product-form.color_swatches.title' %}
+          <sup class="text-sm leading-[18px]">*: </sup>
+        </span>
+        {%- capture custom_attributes -%}data-color-placeholder="{{ main_product_color_swatch.name }}"{%- endcapture -%}
+        <div class="flex font-semibold">
+          {% render 'c-text',
+            type: 'font-semibold',
+            content: main_product_color_swatch.name,
+            custom_attributes: custom_attributes
+          %}
+        </div>
+
+        {%- capture tooltip_text -%}
+          {{ 'sections.product-form.blocks.variant_selector.color.color-tool-tip_html' | t }}
+        {%- endcapture -%}
+        {%- if tooltip_text != blank -%}
+          <span
+            data-tooltip="{{ tooltip_text }}"
+            data-tooltip-placement="right-end"
+            data-no-arrows="true"
+          >
+            {% render 'c-icon', icon: 'question', classes: 'w-[11px] h-[11px]' %}
+          </span>
+        {%- endif -%}
+      </div>
+      {%- assign subtext_text = 'sections.product-form.blocks.variant_selector.color.color-subtext' | t -%}
+      {%- if subtext_text != blank -%}
+        {% render 'c-text', content: subtext_text, type: 'h9-regular text-grey-400', classes: 'mt-0.5' %}
+      {%- endif -%}
+    {%- endif -%}
+
+    <div class="color-swatch-wrapper flex {{ gap | default: 'gap-2.5' }} {{ wrapper_classes | default: 'flex-wrap' }}">
+      {{ color_swatches_snippet }}
+      <div
+        class="ml-auto"
+        data-remaining-swatches
+      >
+        {%- if is_product_card -%}
+          <span data-remaining-swatches-count>+0</span>
+        {%- else -%}
+          {{ 'sections.product-form.blocks.connected_products.see_more' | t }}
+          <span data-remaining-swatches-count>(0)</span>
+        {%- endif -%}
+      </div>
+    </div>
+
+    {% if render_swatches and is_product_card %}
+      {% render 'connected-products-json',
+        main_product: main_product,
+        connected_products: connected_products,
+        connected_products_length: connected_products_length
+      %}
+    {% endif %}
+  </connected-products>
+{%- endif -%}

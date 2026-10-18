@@ -1,0 +1,817 @@
+{% liquid
+  assign hc_b2b_tag = settings.b2b_mov_customer_tag | strip
+%}
+{% unless customer != blank and hc_b2b_tag != blank and customer.tags contains hc_b2b_tag %}
+{{ 'bundle-component-iw-new.css' | asset_url | stylesheet_tag }}
+
+<div class="product-options-section this">
+  <div class="option-cards">
+    {% assign widget_data = product.metafields.custom.pdp_widget_data.value %}
+    {% assign hc_dynamic_pricing = true %}
+    {% assign hc_price_1 = widget_data.first_option_price.value | plus: 0 %}
+    {% assign hc_compare_1 = widget_data.first_option_compareat.value | plus: 0 %}
+    {% assign hc_save_1 = widget_data.first_option_savings.value %}
+    {% assign hc_tier_2_variants = widget_data.first_option_tier_2_variants.value %}
+    {% assign hc_tier_variant = product.selected_or_first_available_variant %}
+    {% if hc_tier_2_variants != blank and hc_tier_variant != blank %}
+      {% for hc_t2_item in hc_tier_2_variants %}
+        {% if hc_t2_item.id == hc_tier_variant.id %}
+          {% assign hc_price_1 = widget_data.first_option_tier_2_price.value | plus: 0 %}
+          {% assign hc_compare_1 = widget_data.first_option_tier_2_compareat.value | plus: 0 %}
+          {% if widget_data.first_option_tier_2_savings.value != blank %}
+            {% assign hc_save_1 = widget_data.first_option_tier_2_savings.value %}
+          {% endif %}
+          {% break %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+    {% if hc_dynamic_pricing %}
+      {% assign hc_base_price = product.selected_or_first_available_variant.price | default: 0 %}
+      {% assign hc_compare_base = product.selected_or_first_available_variant.compare_at_price | default: 0 %}
+      {% if hc_compare_base < hc_base_price or hc_compare_base == 0 %}
+        {% assign hc_compare_base = hc_base_price %}
+      {% endif %}
+      {% assign hc_qty_1 = widget_data.option_quantity.value[0] | plus: 0 %}
+      {% assign hc_qty_mid = widget_data.option_quantity.value[1] | plus: 0 %}
+      {% assign hc_qty_max = widget_data.option_quantity.value[2] | plus: 0 %}
+      {% assign hc_save_mid = widget_data.second_option_savings.value | default: 10 | plus: 0 %}
+      {% assign hc_save_max = widget_data.third_option_savings.value | default: 15 | plus: 0 %}
+      {% assign hc_discount_mid = 100 | minus: hc_save_mid %}
+      {% assign hc_discount_max = 100 | minus: hc_save_max %}
+      {% assign hc_compare_mid = hc_compare_base | times: hc_qty_mid %}
+      {% assign hc_price_mid = hc_compare_mid | times: hc_discount_mid | divided_by: 100 %}
+      {% assign hc_compare_max = hc_compare_base | times: hc_qty_max %}
+      {% assign hc_price_max = hc_compare_max | times: hc_discount_max | divided_by: 100 %}
+    {% endif %}
+    {% comment %} Free shipping threshold: 65 USD. Show free shipping when discounted price is above $65. Prices in metafields are typically in cents (6500 = $65) {% endcomment %}
+    {% assign free_shipping_threshold_cents = settings.free_shipping_threshold | times: 100 %}
+
+    <div class="option-card" data-quantity="{{ widget_data["option_quantity"].value[0]}}">
+      {% if settings['pdp-widget-top-badge-1'].size > 0 %}
+        <div class="badge popular">{{ settings['pdp-widget-top-badge-1'] }}</div>
+      {% endif %}
+      <div class="buy-quantity-text">
+        <div class="selection-indicator-wrapper">
+          <div class="selection-indicator" ></div>
+        </div>
+        <span>Buy {{ widget_data.option_quantity.value[0] }} {{ widget_data.product_unit.value }}</span>
+      </div>
+
+      <div class="price">
+        {% if hc_compare_1 > hc_price_1 and hc_compare_1 > 0 %}
+          <span class="compare-at-price">
+            {{- hc_compare_1 | money_without_trailing_zeros -}}
+          </span>
+        {% endif %}
+        <span class="to-cart-price">
+          {{- hc_price_1 | money_without_trailing_zeros -}}
+        </span>
+      </div>
+      <img class="product-image" src="{{ widget_data["options_image"].value[0] }}" alt="Product">
+      {% if settings['pdp-widget-bottom-benefit-1'].length > 0 %}
+        <div class="subtext">{{ settings['pdp-widget-bottom-benefit-1'] }}</div>
+      {% endif %}
+      <div class="savings-tag" data-first-option-savings{% if hc_save_1 == blank %} style="display:none;"{% endif %}>
+        <img src="{{ settings.pdp-widget-saving-1-img.src | img_url}}" alt="product image">
+        <span data-first-option-savings-text>{% if hc_save_1 != blank %}Save {{ hc_save_1 }}%{% endif %}</span>
+      </div>
+    </div>
+
+    <div class="option-card active" data-quantity="{{ widget_data["option_quantity"].value[1]}}">
+      {% if settings['pdp-widget-top-badge-2'].size > 0 %}
+        <div class="badge popular">
+          <svg width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10.4998 13.9583C10.1665 13.9583 9.83317 13.9333 9.5165 13.875C7.74984 13.6166 6.1415 12.6 5.12484 11.0916C4.4165 10.025 4.0415 8.78329 4.0415 7.49996C4.0415 3.94163 6.9415 1.04163 10.4998 1.04163C14.0582 1.04163 16.9582 3.94163 16.9582 7.49996C16.9582 8.78329 16.5832 10.025 15.8748 11.0916C14.8498 12.6083 13.2415 13.6166 11.4582 13.8833C11.1665 13.9333 10.8332 13.9583 10.4998 13.9583ZM10.4998 2.29163C7.62484 2.29163 5.2915 4.62496 5.2915 7.49996C5.2915 8.54163 5.5915 9.54163 6.15817 10.3916C6.98317 11.6083 8.27484 12.425 9.70817 12.6333C10.2415 12.725 10.7665 12.725 11.2582 12.6333C12.7165 12.425 14.0082 11.6 14.8332 10.3833C15.3998 9.53329 15.6998 8.53328 15.6998 7.49162C15.7082 4.62495 13.3748 2.29163 10.4998 2.29163Z" fill="white"/>
+            <path d="M5.8916 18.825C5.77493 18.825 5.6666 18.8084 5.54993 18.7834C5.00826 18.6584 4.5916 18.2417 4.4666 17.7L4.17493 16.475C4.15826 16.4 4.09993 16.3417 4.0166 16.3167L2.6416 15.9917C2.12493 15.8667 1.7166 15.4833 1.57493 14.975C1.43326 14.4667 1.57493 13.9167 1.94993 13.5417L5.19993 10.2917C5.33326 10.1584 5.5166 10.0917 5.69993 10.1084C5.88326 10.125 6.04993 10.225 6.15826 10.3833C6.98326 11.6 8.27493 12.425 9.7166 12.6334C10.2499 12.725 10.7749 12.725 11.2666 12.6334C12.7249 12.425 14.0166 11.6 14.8416 10.3833C14.9416 10.225 15.1166 10.125 15.2999 10.1084C15.4833 10.0917 15.6666 10.1584 15.7999 10.2917L19.0499 13.5417C19.4249 13.9167 19.5666 14.4667 19.4249 14.975C19.2833 15.4833 18.8666 15.875 18.3583 15.9917L16.9833 16.3167C16.9083 16.3333 16.8499 16.3917 16.8249 16.475L16.5333 17.7C16.4083 18.2417 15.9916 18.6584 15.4499 18.7834C14.9083 18.9167 14.3499 18.725 13.9999 18.3L10.4999 14.275L6.99993 18.3083C6.7166 18.6417 6.3166 18.825 5.8916 18.825ZM5.57493 11.6917L2.83326 14.4334C2.75826 14.5084 2.7666 14.5917 2.78326 14.6417C2.7916 14.6834 2.83326 14.7667 2.93326 14.7833L4.30826 15.1084C4.84993 15.2334 5.2666 15.65 5.3916 16.1917L5.68326 17.4167C5.70826 17.525 5.7916 17.5583 5.8416 17.575C5.8916 17.5833 5.97493 17.5917 6.04993 17.5084L9.2416 13.8334C7.82493 13.5584 6.52493 12.8 5.57493 11.6917ZM11.7583 13.825L14.9499 17.4917C15.0249 17.5833 15.1166 17.5833 15.1666 17.5667C15.2166 17.5583 15.2916 17.5167 15.3249 17.4084L15.6166 16.1834C15.7416 15.6417 16.1583 15.225 16.6999 15.1L18.0749 14.775C18.1749 14.75 18.2166 14.675 18.2249 14.6333C18.2416 14.5917 18.2499 14.5 18.1749 14.425L15.4333 11.6833C14.4749 12.7917 13.1833 13.55 11.7583 13.825Z" fill="white"/>
+            <path d="M12.0753 10.7416C11.8586 10.7416 11.6003 10.6833 11.2919 10.5L10.5003 10.025L9.70861 10.4916C8.98361 10.925 8.50861 10.675 8.33361 10.55C8.15861 10.425 7.78361 10.05 7.97528 9.22497L8.17528 8.36663L7.50861 7.74995C7.14195 7.38328 7.00861 6.94163 7.13361 6.54163C7.25861 6.14163 7.62528 5.85829 8.14195 5.77495L9.03361 5.62496L9.45861 4.69163C9.70028 4.21663 10.0753 3.94995 10.5003 3.94995C10.9253 3.94995 11.3086 4.22497 11.5419 4.69997L12.0336 5.6833L12.8586 5.78329C13.3669 5.86663 13.7336 6.14995 13.8669 6.54995C13.9919 6.94995 13.8586 7.39162 13.4919 7.75829L12.8003 8.44997L13.0169 9.22497C13.2086 10.05 12.8336 10.425 12.6586 10.55C12.5669 10.625 12.3669 10.7416 12.0753 10.7416ZM8.50861 6.99164L9.08361 7.56661C9.35028 7.83328 9.48361 8.2833 9.40028 8.64996L9.24195 9.31662L9.90861 8.92495C10.2669 8.71662 10.7503 8.71662 11.1003 8.92495L11.7669 9.31662L11.6169 8.64996C11.5336 8.27496 11.6586 7.83328 11.9253 7.56661L12.5003 6.99164L11.7753 6.86662C11.4253 6.80828 11.0753 6.54997 10.9169 6.2333L10.5003 5.41663L10.0836 6.24996C9.93361 6.55829 9.58361 6.82497 9.23361 6.8833L8.50861 6.99164Z" fill="white"/>
+          </svg>
+          {{ settings['pdp-widget-top-badge-2'] }}
+        </div>
+      {% endif %}
+      <div class="buy-quantity-text">
+        <div class="selection-indicator-wrapper active">
+          <div class="selection-indicator" ></div>
+        </div>
+        <span>Buy {{ widget_data.option_quantity.value[1] }} {{ widget_data.product_unit.value }}s</span>
+      </div>
+
+      <div class="price">
+        {% if hc_dynamic_pricing %}
+          {% if hc_compare_mid > hc_price_mid %}
+            <span class="compare-at-price">
+              {{- hc_compare_mid | money_without_trailing_zeros -}}
+            </span>
+          {% endif %}
+          <span class="to-cart-price">
+            {{- hc_price_mid | money_without_trailing_zeros -}}
+          </span>
+        {% else %}
+        {% if widget_data.second_option_compareat.value > 0 -%}
+          <span class="compare-at-price">
+            {{- widget_data.second_option_compareat.value | json | money_without_trailing_zeros -}}
+          </span>
+        {%- endif -%}
+        <span class="to-cart-price">
+          {{- widget_data.second_option_price.value | json | money_without_trailing_zeros -}}
+        </span>
+        {% endif %}
+      </div>
+      <img class="product-image" src="{{ widget_data["options_image"].value[1] }}" alt="Product">
+      {% if settings['pdp-widget-bottom-benefit-2'].length > 0 %}
+        <div class="subtext">{{ settings['pdp-widget-bottom-benefit-2'] }}</div>
+      {% endif %}
+      {% if widget_data.second_option_price.value > free_shipping_threshold_cents %}
+      <div class="subtext-1">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 7V6.25C1.80109 6.25 1.61032 6.32902 1.46967 6.46967C1.32902 6.61032 1.25 6.80109 1.25 7H2ZM13 7H13.75C13.75 6.80109 13.671 6.61032 13.5303 6.46967C13.3897 6.32902 13.1989 6.25 13 6.25V7ZM13 9V8.25C12.8011 8.25 12.6103 8.32902 12.4697 8.46967C12.329 8.61032 12.25 8.80109 12.25 9H13ZM2 7.75H13V6.25H2V7.75ZM12.25 7V19H13.75V7H12.25ZM2.75 17V7H1.25V17H2.75ZM13 9.75H18V8.25H13V9.75ZM21.25 13V17H22.75V13H21.25ZM13.75 19V9H12.25V19H13.75ZM18.884 19.884C18.7679 20.0001 18.6301 20.0922 18.4784 20.1551C18.3268 20.2179 18.1642 20.2502 18 20.2502C17.8358 20.2502 17.6732 20.2179 17.5216 20.1551C17.3699 20.0922 17.2321 20.0001 17.116 19.884L16.056 20.944C16.5717 21.4597 17.2712 21.7494 18.0005 21.7494C18.7298 21.7494 19.4293 21.4597 19.945 20.944L18.884 19.884ZM17.116 18.116C17.2321 17.9999 17.3699 17.9078 17.5216 17.8449C17.6732 17.7821 17.8358 17.7498 18 17.7498C18.1642 17.7498 18.3268 17.7821 18.4784 17.8449C18.6301 17.9078 18.7679 17.9999 18.884 18.116L19.944 17.056C19.4283 16.5403 18.7288 16.2506 17.9995 16.2506C17.2702 16.2506 16.5707 16.5403 16.055 17.056L17.116 18.116ZM6.884 19.884C6.76792 20.0001 6.63011 20.0922 6.47843 20.1551C6.32675 20.2179 6.16418 20.2502 6 20.2502C5.83582 20.2502 5.67325 20.2179 5.52157 20.1551C5.36989 20.0922 5.23208 20.0001 5.116 19.884L4.056 20.944C4.57172 21.4597 5.27118 21.7494 6.0005 21.7494C6.72982 21.7494 7.42928 21.4597 7.945 20.944L6.884 19.884ZM5.116 18.116C5.23208 17.9999 5.36989 17.9078 5.52157 17.8449C5.67325 17.7821 5.83582 17.7498 6 17.7498C6.16418 17.7498 6.32675 17.7821 6.47843 17.8449C6.63011 17.9078 6.76792 17.9999 6.884 18.116L7.944 17.056C7.42828 16.5403 6.72882 16.2506 5.9995 16.2506C5.27018 16.2506 4.57072 16.5403 4.055 17.056L5.116 18.116ZM18.884 18.116C19.128 18.36 19.25 18.679 19.25 19H20.75C20.75 18.297 20.481 17.592 19.945 17.055L18.884 18.116ZM19.25 19C19.25 19.321 19.128 19.64 18.884 19.884L19.945 20.944C20.2008 20.6891 20.4028 20.3861 20.5411 20.0525C20.6794 19.7188 20.7504 19.3612 20.75 19H19.25ZM16 18.25H13V19.75H16V18.25ZM17.116 19.884C16.9995 19.7682 16.9071 19.6305 16.8443 19.4787C16.7815 19.327 16.7494 19.1642 16.75 19H15.25C15.25 19.703 15.519 20.408 16.055 20.945L17.116 19.884ZM16.75 19C16.75 18.679 16.872 18.36 17.116 18.116L16.055 17.056C15.7992 17.3109 15.5972 17.6139 15.4589 17.9475C15.3206 18.2812 15.2496 18.6388 15.25 19H16.75ZM5.116 19.884C4.99949 19.7682 4.90714 19.6305 4.84431 19.4787C4.78148 19.327 4.74942 19.1642 4.75 19H3.25C3.25 19.703 3.519 20.408 4.055 20.945L5.116 19.884ZM4.75 19C4.75 18.679 4.872 18.36 5.116 18.116L4.056 17.056C3.80016 17.3109 3.59725 17.6139 3.45892 17.9475C3.3206 18.2812 3.2496 18.6388 3.25 19H4.75ZM13 18.25H8V19.75H13V18.25ZM6.884 18.116C7.128 18.36 7.25 18.679 7.25 19H8.75C8.75 18.297 8.481 17.592 7.945 17.055L6.884 18.116ZM7.25 19C7.25 19.321 7.128 19.64 6.884 19.884L7.944 20.944C8.19984 20.6891 8.40275 20.3861 8.54108 20.0525C8.6794 19.7188 8.7504 19.3612 8.75 19H7.25ZM21.25 17C21.25 17.69 20.69 18.25 20 18.25V19.75C20.7293 19.75 21.4288 19.4603 21.9445 18.9445C22.4603 18.4288 22.75 17.7293 22.75 17H21.25ZM18 9.75C18.862 9.75 19.6886 10.0924 20.2981 10.7019C20.9076 11.3114 21.25 12.138 21.25 13H22.75C22.75 11.7402 22.2496 10.532 21.3588 9.64124C20.468 8.75045 19.2598 8.25 18 8.25V9.75ZM1.25 17C1.25 17.7293 1.53973 18.4288 2.05546 18.9445C2.57118 19.4603 3.27065 19.75 4 19.75V18.25C3.31 18.25 2.75 17.69 2.75 17H1.25Z" fill="#333333"/>
+          <path d="M7.5 6C7.5 5.20435 7.18393 4.44129 6.62132 3.87868C6.05871 3.31607 5.29565 3 4.5 3C4.23478 3 3.98043 3.10536 3.79289 3.29289C3.60536 3.48043 3.5 3.73478 3.5 4C3.5 4.79565 3.81607 5.55871 4.37868 6.12132C4.94129 6.68393 5.70435 7 6.5 7H7.5M7.5 6V7M7.5 6C7.5 5.20435 7.81607 4.44129 8.37868 3.87868C8.94129 3.31607 9.70435 3 10.5 3C10.7652 3 11.0196 3.10536 11.2071 3.29289C11.3946 3.48043 11.5 3.73478 11.5 4C11.5 4.79565 11.1839 5.55871 10.6213 6.12132C10.0587 6.68393 9.29565 7 8.5 7H7.5" stroke="#333333" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+        <p>Free Shipping</p>
+      </div>
+      {% endif %}
+      {% if widget_data.second_option_savings.value.size > 0 %}
+        <div class="savings-tag">
+          <img src="{{ settings.pdp-widget-saving-2-img.src | img_url }}" alt="product image">
+          <span>Save {{ widget_data.second_option_savings.value }}%</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="option-card" data-quantity="{{ widget_data["option_quantity"].value[2]}}">
+      {% if settings['pdp-widget-top-badge-3'].size > 0 %}
+        <div class="badge popular">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8.99163 12.6417C8.82497 12.6417 8.66663 12.575 8.54997 12.4584L6.5333 10.4417C6.29163 10.2 6.29163 9.80002 6.5333 9.55836C6.77497 9.31669 7.17497 9.31669 7.41663 9.55836L8.99163 11.1334L12.575 7.55002C12.8166 7.30836 13.2166 7.30836 13.4583 7.55002C13.7 7.79169 13.7 8.19169 13.4583 8.43336L9.4333 12.4584C9.31663 12.575 9.1583 12.6417 8.99163 12.6417Z" fill="white"/>
+            <path d="M10.0001 18.9584C9.47507 18.9584 8.95006 18.7834 8.54173 18.4334L7.22506 17.3001C7.09173 17.1834 6.7584 17.0667 6.5834 17.0667H5.15006C3.91673 17.0667 2.91673 16.0667 2.91673 14.8334V13.4084C2.91673 13.2334 2.80007 12.9084 2.6834 12.7751L1.5584 11.4501C0.875065 10.6417 0.875065 9.36675 1.5584 8.55842L2.6834 7.23342C2.80007 7.10008 2.91673 6.77508 2.91673 6.60008V5.16675C2.91673 3.93341 3.91673 2.93341 5.15006 2.93341H6.59173C6.76673 2.93341 7.10007 2.80841 7.2334 2.70008L8.55007 1.56675C9.36673 0.866748 10.6417 0.866748 11.4584 1.56675L12.7751 2.70008C12.9084 2.81675 13.2417 2.93341 13.4167 2.93341H14.8334C16.0667 2.93341 17.0667 3.93341 17.0667 5.16675V6.58342C17.0667 6.75842 17.1917 7.09175 17.3084 7.22508L18.4417 8.54175C19.1417 9.35841 19.1417 10.6334 18.4417 11.4501L17.3084 12.7667C17.1917 12.9001 17.0667 13.2334 17.0667 13.4084V14.8251C17.0667 16.0584 16.0667 17.0584 14.8334 17.0584H13.4167C13.2417 17.0584 12.9084 17.1834 12.7751 17.2917L11.4584 18.4251C11.0501 18.7834 10.5251 18.9584 10.0001 18.9584ZM5.15006 4.18341C4.6084 4.18341 4.16673 4.62508 4.16673 5.16675V6.59175C4.16673 7.06675 3.94173 7.67508 3.6334 8.03342L2.5084 9.35841C2.21673 9.70008 2.21673 10.2917 2.5084 10.6334L3.6334 11.9584C3.94173 12.3251 4.16673 12.9251 4.16673 13.4001V14.8251C4.16673 15.3667 4.6084 15.8084 5.15006 15.8084H6.59173C7.07506 15.8084 7.6834 16.0334 8.05006 16.3501L9.36673 17.4834C9.7084 17.7751 10.3084 17.7751 10.6501 17.4834L11.9667 16.3501C12.3334 16.0417 12.9417 15.8084 13.4251 15.8084H14.8417C15.3834 15.8084 15.8251 15.3667 15.8251 14.8251V13.4084C15.8251 12.9251 16.0501 12.3167 16.3667 11.9501L17.5001 10.6334C17.7917 10.2917 17.7917 9.69175 17.5001 9.35008L16.3667 8.03342C16.0501 7.66675 15.8251 7.05841 15.8251 6.57508V5.16675C15.8251 4.62508 15.3834 4.18341 14.8417 4.18341H13.4251C12.9417 4.18341 12.3334 3.95841 11.9667 3.64175L10.6501 2.50841C10.3084 2.21675 9.7084 2.21675 9.36673 2.50841L8.05006 3.65008C7.6834 3.95842 7.06673 4.18341 6.59173 4.18341H5.15006Z" fill="white"/>
+          </svg>
+          {{ settings['pdp-widget-top-badge-3'] }}
+        </div>
+      {% endif %}
+      <div class="buy-quantity-text">
+        <div class="selection-indicator-wrapper">
+          <div class="selection-indicator" ></div>
+        </div>
+        <span>Buy {{ widget_data.option_quantity.value[2] }} {{ widget_data.product_unit.value }}s</span>
+      </div>
+
+      <div class="price">
+        {% if hc_dynamic_pricing %}
+          {% if hc_compare_max > hc_price_max %}
+            <span class="compare-at-price">
+              {{- hc_compare_max | money_without_trailing_zeros -}}
+            </span>
+          {% endif %}
+          <span class="to-cart-price">
+            {{- hc_price_max | money_without_trailing_zeros -}}
+          </span>
+        {% else %}
+        {% if widget_data.third_option_compareat.value > 0 -%}
+          <span class="compare-at-price">
+            {{- widget_data.third_option_compareat.value | json | money_without_trailing_zeros -}}
+          </span>
+        {%- endif -%}
+        <span class="to-cart-price">
+          {{- widget_data.third_option_price.value | json | money_without_trailing_zeros -}}
+        </span>
+        {% endif %}
+      </div>
+      <img class="product-image" src="{{ widget_data["options_image"].value[2] }}" alt="Product">
+      {% if settings['pdp-widget-bottom-benefit-3'].length > 0 %}
+        <div class="subtext">{{ settings['pdp-widget-bottom-benefit-3'] }}</div>
+      {% endif %}
+      {% if widget_data.third_option_price.value > free_shipping_threshold_cents %}
+      <div class="subtext-1">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 7V6.25C1.80109 6.25 1.61032 6.32902 1.46967 6.46967C1.32902 6.61032 1.25 6.80109 1.25 7H2ZM13 7H13.75C13.75 6.80109 13.671 6.61032 13.5303 6.46967C13.3897 6.32902 13.1989 6.25 13 6.25V7ZM13 9V8.25C12.8011 8.25 12.6103 8.32902 12.4697 8.46967C12.329 8.61032 12.25 8.80109 12.25 9H13ZM2 7.75H13V6.25H2V7.75ZM12.25 7V19H13.75V7H12.25ZM2.75 17V7H1.25V17H2.75ZM13 9.75H18V8.25H13V9.75ZM21.25 13V17H22.75V13H21.25ZM13.75 19V9H12.25V19H13.75ZM18.884 19.884C18.7679 20.0001 18.6301 20.0922 18.4784 20.1551C18.3268 20.2179 18.1642 20.2502 18 20.2502C17.8358 20.2502 17.6732 20.2179 17.5216 20.1551C17.3699 20.0922 17.2321 20.0001 17.116 19.884L16.056 20.944C16.5717 21.4597 17.2712 21.7494 18.0005 21.7494C18.7298 21.7494 19.4293 21.4597 19.945 20.944L18.884 19.884ZM17.116 18.116C17.2321 17.9999 17.3699 17.9078 17.5216 17.8449C17.6732 17.7821 17.8358 17.7498 18 17.7498C18.1642 17.7498 18.3268 17.7821 18.4784 17.8449C18.6301 17.9078 18.7679 17.9999 18.884 18.116L19.944 17.056C19.4283 16.5403 18.7288 16.2506 17.9995 16.2506C17.2702 16.2506 16.5707 16.5403 16.055 17.056L17.116 18.116ZM6.884 19.884C6.76792 20.0001 6.63011 20.0922 6.47843 20.1551C6.32675 20.2179 6.16418 20.2502 6 20.2502C5.83582 20.2502 5.67325 20.2179 5.52157 20.1551C5.36989 20.0922 5.23208 20.0001 5.116 19.884L4.056 20.944C4.57172 21.4597 5.27118 21.7494 6.0005 21.7494C6.72982 21.7494 7.42928 21.4597 7.945 20.944L6.884 19.884ZM5.116 18.116C5.23208 17.9999 5.36989 17.9078 5.52157 17.8449C5.67325 17.7821 5.83582 17.7498 6 17.7498C6.16418 17.7498 6.32675 17.7821 6.47843 17.8449C6.63011 17.9078 6.76792 17.9999 6.884 18.116L7.944 17.056C7.42828 16.5403 6.72882 16.2506 5.9995 16.2506C5.27018 16.2506 4.57072 16.5403 4.055 17.056L5.116 18.116ZM18.884 18.116C19.128 18.36 19.25 18.679 19.25 19H20.75C20.75 18.297 20.481 17.592 19.945 17.055L18.884 18.116ZM19.25 19C19.25 19.321 19.128 19.64 18.884 19.884L19.945 20.944C20.2008 20.6891 20.4028 20.3861 20.5411 20.0525C20.6794 19.7188 20.7504 19.3612 20.75 19H19.25ZM16 18.25H13V19.75H16V18.25ZM17.116 19.884C16.9995 19.7682 16.9071 19.6305 16.8443 19.4787C16.7815 19.327 16.7494 19.1642 16.75 19H15.25C15.25 19.703 15.519 20.408 16.055 20.945L17.116 19.884ZM16.75 19C16.75 18.679 16.872 18.36 17.116 18.116L16.055 17.056C15.7992 17.3109 15.5972 17.6139 15.4589 17.9475C15.3206 18.2812 15.2496 18.6388 15.25 19H16.75ZM5.116 19.884C4.99949 19.7682 4.90714 19.6305 4.84431 19.4787C4.78148 19.327 4.74942 19.1642 4.75 19H3.25C3.25 19.703 3.519 20.408 4.055 20.945L5.116 19.884ZM4.75 19C4.75 18.679 4.872 18.36 5.116 18.116L4.056 17.056C3.80016 17.3109 3.59725 17.6139 3.45892 17.9475C3.3206 18.2812 3.2496 18.6388 3.25 19H4.75ZM13 18.25H8V19.75H13V18.25ZM6.884 18.116C7.128 18.36 7.25 18.679 7.25 19H8.75C8.75 18.297 8.481 17.592 7.945 17.055L6.884 18.116ZM7.25 19C7.25 19.321 7.128 19.64 6.884 19.884L7.944 20.944C8.19984 20.6891 8.40275 20.3861 8.54108 20.0525C8.6794 19.7188 8.7504 19.3612 8.75 19H7.25ZM21.25 17C21.25 17.69 20.69 18.25 20 18.25V19.75C20.7293 19.75 21.4288 19.4603 21.9445 18.9445C22.4603 18.4288 22.75 17.7293 22.75 17H21.25ZM18 9.75C18.862 9.75 19.6886 10.0924 20.2981 10.7019C20.9076 11.3114 21.25 12.138 21.25 13H22.75C22.75 11.7402 22.2496 10.532 21.3588 9.64124C20.468 8.75045 19.2598 8.25 18 8.25V9.75ZM1.25 17C1.25 17.7293 1.53973 18.4288 2.05546 18.9445C2.57118 19.4603 3.27065 19.75 4 19.75V18.25C3.31 18.25 2.75 17.69 2.75 17H1.25Z" fill="#333333"/>
+          <path d="M7.5 6C7.5 5.20435 7.18393 4.44129 6.62132 3.87868C6.05871 3.31607 5.29565 3 4.5 3C4.23478 3 3.98043 3.10536 3.79289 3.29289C3.60536 3.48043 3.5 3.73478 3.5 4C3.5 4.79565 3.81607 5.55871 4.37868 6.12132C4.94129 6.68393 5.70435 7 6.5 7H7.5M7.5 6V7M7.5 6C7.5 5.20435 7.81607 4.44129 8.37868 3.87868C8.94129 3.31607 9.70435 3 10.5 3C10.7652 3 11.0196 3.10536 11.2071 3.29289C11.3946 3.48043 11.5 3.73478 11.5 4C11.5 4.79565 11.1839 5.55871 10.6213 6.12132C10.0587 6.68393 9.29565 7 8.5 7H7.5" stroke="#333333" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+        <p>Free Shipping</p>
+      </div>
+      {% endif %}
+      {% if widget_data.third_option_savings.value.size > 0 %}
+        <div class="savings-tag">
+          <img src="{{ settings.pdp-widget-saving-3-img.src | img_url }}" alt="product image">
+          <span>Save {{ widget_data.third_option_savings.value }}%</span>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="picker-box">
+    <h4>Choose Color & Size</h4>
+    <div class="picker-group" id="variant-select-wrapper">
+      <script>
+      const variants = [
+        {% for variant in product.variants %}
+          {
+            size: {{ variant.option1 | json }},
+            color: {{ variant.option2 | json }},
+            id: {{ variant.id }},
+            price: {{ variant.price }},
+            compareAtPrice: {{ variant.compare_at_price | default: variant.price }},
+            available: {{ variant.available | json }},
+            inventoryQuantity: {{ variant.inventory_quantity }},
+            inventoryPolicy: {{ variant.inventory_policy | json }},
+            sellingPlanId: {%- if variant.selling_plan_allocations.size > 0 -%}{%- for allocation in variant.selling_plan_allocations limit: 1 -%}{{ allocation.selling_plan.id }}{%- endfor -%}{%- else -%}null{%- endif -%},
+            preorderMessageHtml: {% if variant.metafields.custom.preorder_message != blank %}{{ variant.metafields.custom.preorder_message | metafield_tag | json }}{% else %}null{% endif %},
+            preorderMessageText: {% if variant.metafields.custom.preorder_message != blank %}{{ variant.metafields.custom.preorder_message | metafield_tag | strip_html | strip | json }}{% else %}null{% endif %},
+            image: "{{ variant.metafields.custom.variant_swatch | default: variant.featured_image | img_url: 'master' }}"
+          }{% unless forloop.last %},{% endunless %}
+        {% endfor %}
+      ];
+      // Theme settings > Preorder > Enable pre-order: master switch for the feature.
+      const preorderEnabled = {% if settings.preorder_enabled %}true{% else %}false{% endif %};
+      const defaultPreorderMessageHtml = {% if settings.preorder_enabled and settings.preorder_text != blank %}{{ settings.preorder_text | json }}{% else %}''{% endif %};
+      const defaultPreorderMessage = {% if settings.preorder_enabled and settings.preorder_text != blank %}{{ settings.preorder_text | strip_html | strip | json }}{% else %}''{% endif %};
+      const bundleProductId = {{ product.id }};
+      const COMING_LATE_SUMMER_PRODUCT_ID = 8950542598430;
+      const COMING_LATE_SUMMER_SIZE = '3X';
+      const hcDynamicPricing = {{ hc_dynamic_pricing | json }};
+      const bundleQuantities = [
+        {{ widget_data.option_quantity.value[0] | plus: 0 }},
+        {{ widget_data.option_quantity.value[1] | plus: 0 }},
+        {{ widget_data.option_quantity.value[2] | plus: 0 }}
+      ];
+      const bundleSavePercents = {
+        mid: {{ widget_data.second_option_savings.value | default: 10 | json }},
+        max: {{ widget_data.third_option_savings.value | default: 15 | json }}
+      };
+      const bundleStaticFirst = {
+        price: {{ hc_price_1 | json }},
+        compare: {{ hc_compare_1 | json }},
+        savings: {{ hc_save_1 | json }}
+      };
+      const bundleFirstOptionTiers = {
+        tier1: {
+          price: {{ widget_data.first_option_price.value | default: 0 | plus: 0 | json }},
+          compare: {{ widget_data.first_option_compareat.value | default: 0 | plus: 0 | json }},
+          savings: {{ widget_data.first_option_savings.value | json }}
+        },
+        tier2: {
+          price: {{ widget_data.first_option_tier_2_price.value | default: 0 | plus: 0 | json }},
+          compare: {{ widget_data.first_option_tier_2_compareat.value | default: 0 | plus: 0 | json }},
+          savings: {{ widget_data.first_option_tier_2_savings.value | json }},
+          variantIds: [
+            {%- for v in widget_data.first_option_tier_2_variants.value -%}
+              {{ v.id }}{% unless forloop.last %},{% endunless %}
+            {%- endfor -%}
+          ]
+        }
+      };
+    </script>
+
+    </div>
+    <div class="features">
+      <span>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M20.2854 4.3208L21.7577 4.81159C21.8282 4.83475 21.8896 4.87957 21.9331 4.93966C21.9766 4.99975 22 5.07203 22 5.14621C22 5.22039 21.9766 5.29268 21.9331 5.35277C21.8896 5.41286 21.8282 5.45768 21.7577 5.48084L20.2854 5.97163C20.2334 5.98891 20.1862 6.01807 20.1475 6.0568C20.1087 6.09552 20.0796 6.14274 20.0623 6.19471L19.5727 7.6659C19.5495 7.73637 19.5047 7.79773 19.4446 7.84123C19.3845 7.88473 19.3122 7.90815 19.2381 7.90815C19.1639 7.90815 19.0916 7.88473 19.0315 7.84123C18.9714 7.79773 18.9266 7.73637 18.9034 7.6659L18.4126 6.19354C18.3954 6.14157 18.3662 6.09435 18.3275 6.05562C18.2888 6.0169 18.2415 5.98774 18.1896 5.97045L16.7184 5.48084C16.6479 5.45768 16.5865 5.41286 16.543 5.35277C16.4995 5.29268 16.4761 5.22039 16.4761 5.14621C16.4761 5.07203 16.4995 4.99975 16.543 4.93966C16.5865 4.87957 16.6479 4.83475 16.7184 4.81159L18.1907 4.3208C18.2427 4.30352 18.2899 4.27436 18.3287 4.23563C18.3674 4.1969 18.3965 4.14968 18.4138 4.09772L18.9034 2.62653C18.9266 2.55606 18.9714 2.4947 19.0315 2.4512C19.0916 2.4077 19.1639 2.38428 19.2381 2.38428C19.3122 2.38428 19.3845 2.4077 19.4446 2.4512C19.5047 2.4947 19.5495 2.55606 19.5727 2.62653L20.0635 4.09889C20.0987 4.20456 20.1809 4.28675 20.2866 4.32197M8.89984 4.02844C9.20277 3.11849 10.4896 3.11966 10.7925 4.02844L12.5972 9.44118L18.0099 11.2458C18.9187 11.5487 18.9187 12.8356 18.0099 13.1385L12.5972 14.9432L10.7925 20.3559C10.4896 21.2647 9.20277 21.2647 8.89984 20.3559L7.0952 14.9432L1.68246 13.1385C0.772512 12.8356 0.772512 11.5487 1.68246 11.2458L7.0952 9.44118L8.89984 4.02844ZM9.84502 6.75712L8.64388 10.3594C8.59487 10.5061 8.51239 10.6395 8.40296 10.7489C8.29353 10.8584 8.16016 10.9408 8.01337 10.9899L4.41114 12.191L8.01337 13.3921C8.16016 13.4411 8.29353 13.5236 8.40296 13.6331C8.51239 13.7425 8.59487 13.8759 8.64388 14.0226L9.84502 17.6249L11.0462 14.0226C11.0952 13.8759 11.1777 13.7425 11.2871 13.6331C11.3965 13.5236 11.5299 13.4411 11.6767 13.3921L15.2789 12.191L11.6767 10.9899C11.5299 10.9408 11.3965 10.8584 11.2871 10.7489C11.1777 10.6395 11.0952 10.5061 11.0462 10.3594L9.84502 6.75712ZM21.7577 18.9012L20.2854 18.4104C20.2334 18.3931 20.1862 18.3639 20.1475 18.3252C20.1087 18.2865 20.0796 18.2392 20.0623 18.1873L19.5727 16.7161C19.5495 16.6456 19.5047 16.5843 19.4446 16.5408C19.3845 16.4973 19.3122 16.4738 19.2381 16.4738C19.1639 16.4738 19.0916 16.4973 19.0315 16.5408C18.9714 16.5843 18.9266 16.6456 18.9034 16.7161L18.4126 18.1885C18.3954 18.2404 18.3662 18.2876 18.3275 18.3264C18.2888 18.3651 18.2415 18.3943 18.1896 18.4115L16.7184 18.9012C16.6479 18.9243 16.5865 18.9691 16.543 19.0292C16.4995 19.0893 16.4761 19.1616 16.4761 19.2358C16.4761 19.31 16.4995 19.3822 16.543 19.4423C16.5865 19.5024 16.6479 19.5472 16.7184 19.5704L18.1907 20.0612C18.2964 20.0964 18.3786 20.1786 18.4138 20.2843L18.9034 21.7555C18.9266 21.8259 18.9714 21.8873 19.0315 21.9308C19.0916 21.9743 19.1639 21.9977 19.2381 21.9977C19.3122 21.9977 19.3845 21.9743 19.4446 21.9308C19.5047 21.8873 19.5495 21.8259 19.5727 21.7555L20.0635 20.2831C20.0808 20.2311 20.1099 20.1839 20.1486 20.1452C20.1874 20.1065 20.2346 20.0773 20.2866 20.06L21.7577 19.5704C21.8282 19.5472 21.8896 19.5024 21.9331 19.4423C21.9766 19.3822 22 19.31 22 19.2358C22 19.1616 21.9766 19.0893 21.9331 19.0292C21.8896 18.9691 21.8282 18.9243 21.7577 18.9012Z" fill="#333333"/>
+        </svg>
+        1 Free Exchange per order</span
+      >
+      <span>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M20.2854 4.3208L21.7577 4.81159C21.8282 4.83475 21.8896 4.87957 21.9331 4.93966C21.9766 4.99975 22 5.07203 22 5.14621C22 5.22039 21.9766 5.29268 21.9331 5.35277C21.8896 5.41286 21.8282 5.45768 21.7577 5.48084L20.2854 5.97163C20.2334 5.98891 20.1862 6.01807 20.1475 6.0568C20.1087 6.09552 20.0796 6.14274 20.0623 6.19471L19.5727 7.6659C19.5495 7.73637 19.5047 7.79773 19.4446 7.84123C19.3845 7.88473 19.3122 7.90815 19.2381 7.90815C19.1639 7.90815 19.0916 7.88473 19.0315 7.84123C18.9714 7.79773 18.9266 7.73637 18.9034 7.6659L18.4126 6.19354C18.3954 6.14157 18.3662 6.09435 18.3275 6.05562C18.2888 6.0169 18.2415 5.98774 18.1896 5.97045L16.7184 5.48084C16.6479 5.45768 16.5865 5.41286 16.543 5.35277C16.4995 5.29268 16.4761 5.22039 16.4761 5.14621C16.4761 5.07203 16.4995 4.99975 16.543 4.93966C16.5865 4.87957 16.6479 4.83475 16.7184 4.81159L18.1907 4.3208C18.2427 4.30352 18.2899 4.27436 18.3287 4.23563C18.3674 4.1969 18.3965 4.14968 18.4138 4.09772L18.9034 2.62653C18.9266 2.55606 18.9714 2.4947 19.0315 2.4512C19.0916 2.4077 19.1639 2.38428 19.2381 2.38428C19.3122 2.38428 19.3845 2.4077 19.4446 2.4512C19.5047 2.4947 19.5495 2.55606 19.5727 2.62653L20.0635 4.09889C20.0987 4.20456 20.1809 4.28675 20.2866 4.32197M8.89984 4.02844C9.20277 3.11849 10.4896 3.11966 10.7925 4.02844L12.5972 9.44118L18.0099 11.2458C18.9187 11.5487 18.9187 12.8356 18.0099 13.1385L12.5972 14.9432L10.7925 20.3559C10.4896 21.2647 9.20277 21.2647 8.89984 20.3559L7.0952 14.9432L1.68246 13.1385C0.772512 12.8356 0.772512 11.5487 1.68246 11.2458L7.0952 9.44118L8.89984 4.02844ZM9.84502 6.75712L8.64388 10.3594C8.59487 10.5061 8.51239 10.6395 8.40296 10.7489C8.29353 10.8584 8.16016 10.9408 8.01337 10.9899L4.41114 12.191L8.01337 13.3921C8.16016 13.4411 8.29353 13.5236 8.40296 13.6331C8.51239 13.7425 8.59487 13.8759 8.64388 14.0226L9.84502 17.6249L11.0462 14.0226C11.0952 13.8759 11.1777 13.7425 11.2871 13.6331C11.3965 13.5236 11.5299 13.4411 11.6767 13.3921L15.2789 12.191L11.6767 10.9899C11.5299 10.9408 11.3965 10.8584 11.2871 10.7489C11.1777 10.6395 11.0952 10.5061 11.0462 10.3594L9.84502 6.75712ZM21.7577 18.9012L20.2854 18.4104C20.2334 18.3931 20.1862 18.3639 20.1475 18.3252C20.1087 18.2865 20.0796 18.2392 20.0623 18.1873L19.5727 16.7161C19.5495 16.6456 19.5047 16.5843 19.4446 16.5408C19.3845 16.4973 19.3122 16.4738 19.2381 16.4738C19.1639 16.4738 19.0916 16.4973 19.0315 16.5408C18.9714 16.5843 18.9266 16.6456 18.9034 16.7161L18.4126 18.1885C18.3954 18.2404 18.3662 18.2876 18.3275 18.3264C18.2888 18.3651 18.2415 18.3943 18.1896 18.4115L16.7184 18.9012C16.6479 18.9243 16.5865 18.9691 16.543 19.0292C16.4995 19.0893 16.4761 19.1616 16.4761 19.2358C16.4761 19.31 16.4995 19.3822 16.543 19.4423C16.5865 19.5024 16.6479 19.5472 16.7184 19.5704L18.1907 20.0612C18.2964 20.0964 18.3786 20.1786 18.4138 20.2843L18.9034 21.7555C18.9266 21.8259 18.9714 21.8873 19.0315 21.9308C19.0916 21.9743 19.1639 21.9977 19.2381 21.9977C19.3122 21.9977 19.3845 21.9743 19.4446 21.9308C19.5047 21.8873 19.5495 21.8259 19.5727 21.7555L20.0635 20.2831C20.0808 20.2311 20.1099 20.1839 20.1486 20.1452C20.1874 20.1065 20.2346 20.0773 20.2866 20.06L21.7577 19.5704C21.8282 19.5472 21.8896 19.5024 21.9331 19.4423C21.9766 19.3822 22 19.31 22 19.2358C22 19.1616 21.9766 19.0893 21.9331 19.0292C21.8896 18.9691 21.8282 18.9243 21.7577 18.9012Z" fill="#333333"/>
+        </svg>
+        Loved by 67K+ Customers</span
+      >
+    </div>
+  </div>
+
+  <div class="error-messages">
+    <p class="out_of_stock-error">Out of stock, please choose another size or color.</p>
+  </div>
+
+  <div class="preorder-message rte" style="display: none;">
+    {%- if settings.preorder_enabled -%}{{ settings.preorder_text }}{%- endif -%}
+  </div>
+
+  <button type="button" class="add-to-cart">
+    ADD TO CART - {% if hc_dynamic_pricing %}{{ hc_price_mid | money_without_trailing_zeros }}{% else %}{{ widget_data.second_option_price.value | json | money_without_trailing_zeros }}{% endif %}
+  </button>
+
+  <div class="preorder-message rte" style="display: none;">
+    {%- if settings.preorder_enabled -%}{{ settings.preorder_text }}{%- endif -%}
+  </div>
+
+  <div class="notify-iw">
+    <button id="restock-{{ product.handle }}">Notify Me</button>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const currency = '{{ cart.currency.symbol }}'
+    const priceEls = document.querySelectorAll('.option-card .price');
+    const quanSelectors = document.querySelectorAll('.option-cards .option-card');
+    const selectionIndicators = document.querySelectorAll('.selection-indicator-wrapper');
+    const ATC = document.querySelector('.add-to-cart');
+    const outofstockError = document.querySelector('.out_of_stock-error');
+    const notifyBlock = document.querySelector('.notify-iw');
+    const preorderMessage = document.querySelector('.preorder-message');
+    const enableNotifyMe = false; // Set to true to enable notify me feature
+    const loaderSVG = `
+  <svg class="spinner" width="16" height="16" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" stroke="#fff">
+    <g fill="none" fill-rule="evenodd" stroke-width="4">
+      <circle cx="22" cy="22" r="20" stroke-opacity="0.25"/>
+      <path d="M42 22c0-11.046-8.954-20-20-20">
+        <animateTransform 
+          attributeName="transform" 
+          type="rotate" 
+          from="0 22 22" 
+          to="360 22 22" 
+          dur="1s" 
+          repeatCount="indefinite"/>
+      </path>
+    </g>
+  </svg>
+  
+`;
+
+
+
+    const sizes = [...new Set(variants.map((v) => v.size))];
+
+    const buildPickerGroup = (pairNumber) => {
+      const label = document.createElement('div');
+      label.textContent = `{{ widget_data.product_unit.value }} #${pairNumber}`;
+      label.style.marginBottom = '0.5rem';
+      label.style.fontFamily = 'Satoshi';
+      label.style.fontSize = '20px';
+      label.style.fontWeight = '600';
+      label.classList.add("picker-label")
+
+      const sizeSelect = document.createElement('select');
+      const colorSelect = document.createElement('select');
+
+      const seletedVariantImage = document.createElement('div');
+      const imageEl = document.createElement('img');
+      imageEl.classList.add("selected-variant-image")
+      seletedVariantImage.appendChild(imageEl)
+      
+      const preorderText = document.createElement('div');
+      preorderText.classList.add("preorder-text");
+      preorderText.textContent = "Pre-Order";
+      preorderText.style.display = "none";
+
+      sizeSelect.innerHTML = `<option disabled selected>Select size</option>`;
+      colorSelect.innerHTML = `<option disabled selected>Select color</option>`;
+
+      sizes.forEach((size) => {
+        const opt = document.createElement('option');
+        opt.value = opt.textContent = size;
+        sizeSelect.appendChild(opt);
+      });
+
+      sizeSelect.addEventListener('change', () => {
+        colorSelect.innerHTML = `<option disabled selected>Select color</option>`;
+        const availableColors = [
+          ...new Map(
+            variants
+              .filter(v => v.size === sizeSelect.value)
+              .map(v => [v.color, { color: v.color, available: v.available }])
+          ).values()
+        ];
+
+        availableColors.forEach(obj => {
+          const opt = document.createElement('option');
+          opt.value = obj.color;
+          const isComingLateSummer = bundleProductId === COMING_LATE_SUMMER_PRODUCT_ID && sizeSelect.value === COMING_LATE_SUMMER_SIZE && !obj.available;
+          const outOfStockSuffix = isComingLateSummer ? 'Coming late summer' : 'Out of stock';
+          opt.textContent = obj.available ? obj.color : `${obj.color} (${outOfStockSuffix})`;
+          opt.setAttribute("data-available", obj.available);
+          colorSelect.appendChild(opt);
+          colorSelect.selectedIndex = 0;
+        });
+
+        imageEl.style.display = "none";
+        preorderText.style.display = "none";
+        sizeSelect.parentElement.setAttribute('selected-id', '');
+        sizeSelect.parentElement.setAttribute('selected-available', '');
+        sizeSelect.parentElement.setAttribute('selected-inventory-quantity', '-1');
+        sizeSelect.parentElement.setAttribute('selected-inventory-policy', '');
+        sizeSelect.parentElement.setAttribute('selected-selling-plan-ids', '');
+        setPrice();
+        checksSelection() 
+      });
+
+
+      colorSelect.addEventListener('change', () => {
+        const selectedSize = sizeSelect.value;
+        const selectedColor = colorSelect.value;
+        const match = variants.find((v) => v.size === selectedSize && v.color === selectedColor);
+        imageEl.src = match.image;
+        imageEl.style.display = "block";
+        sizeSelect.parentElement.setAttribute('selected-id', match ? match.id : '');
+        sizeSelect.parentElement.setAttribute('selected-available', match ? match.available : '');
+        sizeSelect.parentElement.setAttribute('selected-inventory-quantity', match ? match.inventoryQuantity : -1);
+        sizeSelect.parentElement.setAttribute('selected-inventory-policy', match ? match.inventoryPolicy : '');
+        sizeSelect.parentElement.setAttribute('selected-selling-plan-ids', match && match.sellingPlanId ? match.sellingPlanId : '');
+        
+        // Show preorder text when inventory policy is continue and quantity is below 1
+        const invQty = match ? match.inventoryQuantity : -1;
+        const isPickerPreorder = preorderEnabled && match && match.inventoryPolicy === "continue" && invQty < 1;
+        if (isPickerPreorder) {
+          preorderText.style.display = "block";
+        } else {
+          preorderText.style.display = "none";
+        }
+        
+        setPrice();
+        checksSelection()
+      });
+
+      const wrapper = document.createElement('div');
+      wrapper.classList.add('pair-picker');
+      wrapper.setAttribute('selected-id', '');
+      wrapper.setAttribute('selected-available', '');
+      wrapper.setAttribute('selected-inventory-quantity', '-1');
+      wrapper.setAttribute('selected-inventory-policy', '');
+      wrapper.setAttribute('selected-selling-plan-ids', '');
+      wrapper.append(label, sizeSelect, colorSelect, seletedVariantImage, preorderText);
+      return wrapper;
+    };
+
+    const createPickers = (count = 3) => {
+      const wrapper = document.getElementById('variant-select-wrapper');
+      wrapper.innerHTML = '';
+      for (let i = 1; i <= count; i++) {
+        wrapper.appendChild(buildPickerGroup(i));
+      }
+      ATC.setAttribute('data-limit', count);
+      checksSelection();
+    };
+
+    // Create initial pickers
+    createPickers({{ widget_data.option_quantity.value[1] }});
+
+    quanSelectors.forEach((selector) => {
+      selector.addEventListener('click', (e) => {
+        quanSelectors.forEach((s) => s.classList.remove('active'));
+        selectionIndicators.forEach((s) => s.classList.remove('active'));
+        selector.classList.add('active');
+        selector.querySelector(".selection-indicator-wrapper").classList.add('active');
+        createPickers(selector.getAttribute('data-quantity'));
+        const total = selector.querySelector('.price .to-cart-price').textContent;
+        ATC.innerHTML = `ADD TO CART - ${total}`;
+        setPrice();
+      });
+    });
+
+    function isVariantPreorder(match) {
+      if (!preorderEnabled) return false;
+      if (!match) return false;
+      return match.inventoryPolicy === "continue" && match.inventoryQuantity < 1;
+    }
+
+    function getPreorderMessageHtml(matches) {
+      const preorderMatch = matches.find((match) => isVariantPreorder(match));
+      if (!preorderMatch) return '';
+      return preorderMatch.preorderMessageHtml || defaultPreorderMessageHtml;
+    }
+
+    function getPreorderMessageText(match) {
+      if (!match) return defaultPreorderMessage;
+      return match.preorderMessageText || defaultPreorderMessage;
+    }
+
+    function checksSelection () {
+      let isOOS = false;
+      let hasPreorder = false;
+      let isIncomplete = false;
+      const selectedMatches = [];
+      document.querySelectorAll('.picker-group .pair-picker').forEach((picker) => {
+          let available = picker.getAttribute('selected-available');
+          let inventoryPolicy = picker.getAttribute('selected-inventory-policy');
+          let inventoryQty = parseInt(picker.getAttribute('selected-inventory-quantity') || '-1', 10);
+          let id = picker.getAttribute('selected-id');
+          let match = null;
+
+          if (id) {
+            match = variants.find((variant) => String(variant.id) === String(id));
+            if (match) selectedMatches.push(match);
+          }
+
+          const isPreorder = preorderEnabled && inventoryPolicy === "continue" && inventoryQty < 1;
+          if (isPreorder) {
+            hasPreorder = true;
+          }
+          
+          const isAvailable = available === "true";
+          if (!isAvailable && !isPreorder && id){
+            outofstockError.style.display = "block";
+            if (enableNotifyMe) {
+              notifyBlock?.classList?.add("show");
+              picker.querySelector("div").style.color = "red";
+            }
+            isOOS = true;
+          } else if (!id) {
+            isIncomplete = true;
+            picker.querySelector("div").style.color = "black";
+          } else {
+            picker.querySelector("div").style.color = "black";
+          }
+      })
+
+      // Show/hide preorder message
+      if (preorderMessage) {
+        if (hasPreorder) {
+          preorderMessage.innerHTML = getPreorderMessageHtml(selectedMatches);
+          preorderMessage.style.display = "block";
+        } else {
+          preorderMessage.style.display = "none";
+        }
+      }
+
+      if (!isOOS && !isIncomplete) {
+        outofstockError.style.display = "none";
+        if (enableNotifyMe) {
+          notifyBlock?.classList?.remove("show");
+        }
+        document.querySelectorAll('.picker-group .pair-picker').forEach((picker) => {
+          picker.querySelector("div").style.color = "black";
+        });
+      }
+
+      const activeCard = document.querySelector('.option-card.active .to-cart-price');
+      const activePrice = activeCard ? activeCard.textContent : '';
+      if (isOOS || isIncomplete) {
+        ATC.disabled = true;
+        ATC.classList.add('disabled');
+        ATC.classList.remove('preorder-active');
+      } else {
+        ATC.disabled = false;
+        ATC.classList.remove('disabled');
+        if (hasPreorder) {
+          ATC.classList.add('preorder-active');
+          ATC.innerHTML = activePrice ? `PRE-ORDER - ${activePrice}` : 'PRE-ORDER';
+        } else {
+          ATC.classList.remove('preorder-active');
+          if (activePrice) {
+            ATC.innerHTML = `ADD TO CART - ${activePrice}`;
+          }
+        }
+      }
+    }
+
+    function getUnitPriceCents() {
+      const pickers = document.querySelectorAll('.pair-picker');
+      for (const picker of pickers) {
+        const id = picker.getAttribute('selected-id');
+        if (!id) continue;
+        const match = variants.find((variant) => String(variant.id) === String(id));
+        if (!match) continue;
+        const compare = match.compareAtPrice > match.price ? match.compareAtPrice : match.price;
+        return { price: match.price, compare: compare };
+      }
+
+      const fallback = variants.find((variant) => variant.available) || variants[0];
+      if (!fallback) return { price: 0, compare: 0 };
+      const compare = fallback.compareAtPrice > fallback.price ? fallback.compareAtPrice : fallback.price;
+      return { price: fallback.price, compare: compare };
+    }
+
+    function getSelectedVariantId() {
+      const pickers = document.querySelectorAll('.pair-picker');
+      for (const picker of pickers) {
+        const id = picker.getAttribute('selected-id');
+        if (id) return parseInt(id, 10);
+      }
+      const fallback = variants.find((variant) => variant.available) || variants[0];
+      return fallback ? fallback.id : null;
+    }
+
+    function resolveStaticFirst(variantId) {
+      const id = variantId != null ? variantId : getSelectedVariantId();
+      if (window.HcBundlePricing && window.HcBundlePricing.getFirstOptionStatic) {
+        return window.HcBundlePricing.getFirstOptionStatic(id, bundleFirstOptionTiers);
+      }
+      return bundleStaticFirst;
+    }
+
+    function applyBundlePricing(variant) {
+      if (!hcDynamicPricing || !window.HcBundlePricing) return;
+
+      const staticFirst = resolveStaticFirst(variant ? variant.id : null);
+      bundleStaticFirst.price = staticFirst.price;
+      bundleStaticFirst.compare = staticFirst.compare;
+      bundleStaticFirst.savings = staticFirst.savings;
+
+      const unit = variant
+        ? { price: variant.price, compare: window.HcBundlePricing.getVariantCompareCents(variant) }
+        : getUnitPriceCents();
+      const totals = window.HcBundlePricing.calculate(
+        unit.price,
+        unit.compare,
+        bundleQuantities,
+        {
+          mid: window.HcBundlePricing.parseSavePercent(bundleSavePercents.mid, 10),
+          max: window.HcBundlePricing.parseSavePercent(bundleSavePercents.max, 15)
+        },
+        staticFirst
+      );
+
+      const container = document.querySelector('.option-cards');
+      window.HcBundlePricing.applyToOptionCards(container, totals);
+      const firstCard = container
+        ? container.querySelector('.option-card[data-quantity="' + String(bundleQuantities[0]) + '"]')
+        : null;
+      window.HcBundlePricing.updateFirstOptionSavingsTag(firstCard, staticFirst.savings);
+
+      const activeCard = document.querySelector('.option-card.active .to-cart-price');
+      const activePrice = activeCard ? activeCard.textContent.trim() : '';
+      if (!activePrice) return;
+
+      if (ATC.classList.contains('preorder-active')) {
+        ATC.innerHTML = `PRE-ORDER - ${activePrice}`;
+      } else if (!ATC.disabled) {
+        ATC.innerHTML = `ADD TO CART - ${activePrice}`;
+      }
+    }
+
+    function setPrice() {
+      applyBundlePricing(null);
+    }
+
+    setPrice();
+
+    if (hcDynamicPricing) {
+      document.addEventListener('variant:change', (e) => {
+        const variant = e.detail && e.detail.variant;
+        if (!variant || !window.HcBundlePricing) return;
+        applyBundlePricing(variant);
+      });
+    }
+
+
+
+async function refreshAndOpenCart() {
+  try {
+    const miniCart = document.querySelector('mini-cart');
+    const drawer = document.querySelector('cart-drawer');
+    if (!miniCart) throw new Error('MiniCart element not found');
+    if (!drawer) throw new Error('Cart drawer element not found');
+
+    const cartSection =
+      window.customCartDrawerEnabled || window.CustomCartUtils?.isEnabled?.()
+        ? 'custom-cart-drawer'
+        : 'mini-cart';
+    const sections = [cartSection, 'cart-icon-bubble', 'mobile-cart-icon-bubble'];
+    const res = await fetch(`${window.Shopify.routes.root}?sections=${sections.join(',')}`);
+    const data = await res.json();
+
+    sections.forEach((id) => {
+      const html = data[id];
+      if (!html) return;
+
+      const el = document.getElementById(id === cartSection ? 'mini-cart' : id);
+      if (!el) return;
+
+      if (
+        id === cartSection &&
+        (window.customCartDrawerEnabled || window.CustomCartUtils?.isEnabled?.())
+      ) {
+        window.CustomCartUtils?.patchCartDrawerContent?.(el, html);
+        window.CustomCartUtils?.dedupeCartDrawerChrome?.(
+          el.querySelector('[data-custom-cart]')
+        );
+        return;
+      }
+
+      const newHTML = new DOMParser()
+        .parseFromString(html, 'text/html')
+        .querySelector('.shopify-section')?.innerHTML;
+
+      if (newHTML) {
+        el.innerHTML = newHTML;
+        console.log(`✅ Updated section: ${id}`);
+      } else {
+        console.warn(`⚠️ Could not update section: ${id}`);
+      }
+    });
+
+    // Re-inject gift note button (if your component adds it)
+    if (miniCart.renderGiftNoteButton) {
+      miniCart.renderGiftNoteButton();
+      console.log('🎁 Gift note button re-rendered');
+    }
+
+    // Fire your custom event
+    document.dispatchEvent(new CustomEvent('cartdrawer:opened'));
+
+    // Open the drawer
+    if (drawer.openMenuDrawer) {
+      drawer.openMenuDrawer();
+      console.log('%c🛒 Drawer opened via openMenuDrawer()', 'color:blue;font-weight:bold;');
+    } else {
+      const details = drawer.querySelector('details');
+      if (details) details.setAttribute('open', true);
+      drawer.classList.add('is-open', 'active');
+      console.log('%c🛒 Drawer opened manually', 'color:orange;font-weight:bold;');
+    }
+
+    console.log('%c✨ Cart refreshed, count updated, and drawer opened!', 'color:green;font-weight:bold;');
+  } catch (err) {
+    console.error('❌ Error refreshing cart drawer and count:', err);
+  }
+}
+
+
+
+    ATC.addEventListener('click', () => {
+      // Don't do anything if button is disabled (OOS or incomplete)
+      if (ATC.disabled) return;
+
+      const pickers = document.querySelectorAll('.pair-picker');
+      const tocart = [];
+      let isToCart = true;
+
+      pickers.forEach((picker) => {
+        let available = picker.getAttribute('selected-available');
+        let inventoryPolicy = picker.getAttribute('selected-inventory-policy');
+        let inventoryQty = parseInt(picker.getAttribute('selected-inventory-quantity') || '-1', 10);
+        let id = picker.getAttribute('selected-id');
+        id = id?.length > 0 ? id : null;
+        
+        const match = id ? variants.find((variant) => String(variant.id) === String(id)) : null;
+        const isPreorder = preorderEnabled && inventoryPolicy === "continue" && inventoryQty < 1;
+        const isAvailable = available === "true";
+        
+        if (!isAvailable && !isPreorder && id) {
+          isToCart = false;
+        } else if (id == null) {
+          isToCart = false;
+        } else {
+          const cartItem = { id: parseInt(id), quantity: 1 };
+          if (isPreorder && match) {
+            cartItem.properties = {
+              'Pre-order': 'Yes',
+              _preorder: 'true',
+              'Pre-order message': getPreorderMessageText(match)
+            };
+          }
+          tocart.push(cartItem);
+        }
+      });
+
+      if (!isToCart) {
+        return;
+      }
+
+      ATC.disabled = true;
+      ATC.innerHTML = loaderSVG;
+
+      fetch('/cart/add.js', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ items: tocart }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          refreshAndOpenCart();
+          createPickers(ATC.getAttribute('data-limit'));
+        })
+        .catch((err) => {
+          console.error('Cart error:', err);
+        })
+        .finally(() => {
+          const price = document.querySelector('.option-card.active .to-cart-price')?.textContent || '$26';
+          ATC.innerHTML = `ADD TO CART - ${price}`;
+          checksSelection();
+        });
+    });
+
+    window.createPickers = createPickers;
+
+
+
+
+
+
+  });
+</script>
+
+
+<style>
+.option-card:nth-child(1) .savings-tag {
+  background: {{widget_data["first_saving_element_background"].value}};
+}
+
+.option-card:nth-child(2) .savings-tag {
+  background: {{widget_data["second_saving_element_background"].value}};
+}
+
+.option-card:nth-child(3) .savings-tag {
+  background: {{widget_data["third_saving_element_background"].value}};
+}
+</style>
+{% endunless %}
+
+
+
+
+
+
+

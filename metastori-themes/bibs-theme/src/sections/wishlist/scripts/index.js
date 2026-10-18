@@ -1,0 +1,2 @@
+import './shareWishlist';
+import './wishlist';

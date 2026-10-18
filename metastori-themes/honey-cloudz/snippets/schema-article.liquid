@@ -1,0 +1,88 @@
+{% doc %}
+  Outputs BlogPosting JSON-LD for article templates.
+  @example
+  {% render 'schema-article' %}
+{% enddoc %}
+
+{%- liquid
+  assign org_logo = blank
+  if shop.brand.logo != blank
+    assign org_logo = shop.brand.logo | image_url: width: 600
+  elsif settings.favicon != blank
+    assign org_logo = settings.favicon | image_url: width: 512
+  endif
+
+  assign author_url = blank
+  if article.metafields.custom.author_url != blank
+    assign author_url = article.metafields.custom.author_url.value | default: article.metafields.custom.author_url
+  endif
+  if author_url == blank
+    assign author_url = settings.schema_author_url
+  endif
+  if author_url == blank and settings.schema_founder_name != blank and article.author == settings.schema_founder_name
+    assign author_url = settings.schema_founder_url
+  endif
+  if author_url == blank and blog != blank
+    assign author_url = blog.url
+  endif
+  if author_url == blank
+    assign author_url = settings.schema_founder_url | default: '/'
+  endif
+  unless author_url contains '://'
+    assign author_url = request.origin | append: author_url
+  endunless
+-%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "@id": {{ request.origin | append: article.url | append: '#article' | json }},
+  "headline": {{ article.title | json }},
+  "url": {{ request.origin | append: article.url | json }},
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": {{ request.origin | append: article.url | json }}
+  },
+  "datePublished": {{ article.published_at | date: '%Y-%m-%dT%H:%M:%SZ' | json }},
+  "dateModified": {{ article.updated_at | default: article.published_at | date: '%Y-%m-%dT%H:%M:%SZ' | json }}
+  {%- if article.excerpt != blank -%}
+  ,"description": {{ article.excerpt | strip_html | json }}
+  {%- elsif article.content != blank -%}
+  ,"description": {{ article.content | strip_html | truncate: 300 | json }}
+  {%- endif -%}
+  {%- if article.content != blank -%}
+  ,"articleBody": {{ article.content | strip_html | json }}
+  {%- endif -%}
+  {%- if article.image -%}
+  ,"image": [{{ article.image | image_url: width: 1920 | json }}]
+  {%- endif -%}
+  {%- if article.author != blank -%}
+  ,"author": {
+    "@type": "Person",
+    "name": {{ article.author | json }},
+    "url": {{ author_url | json }}
+  }
+  {%- endif -%}
+  ,"publisher": {
+    "@type": "Organization",
+    "@id": {{ request.origin | append: '/#organization' | json }},
+    "name": {{ shop.name | json }}
+    {%- if org_logo != blank -%}
+    ,"logo": {
+      "@type": "ImageObject",
+      "url": {{ org_logo | json }}
+    }
+    {%- endif -%}
+  }
+  {%- if blog != blank -%}
+  ,"isPartOf": {
+    "@type": "Blog",
+    "name": {{ blog.title | json }},
+    "url": {{ request.origin | append: blog.url | json }}
+  }
+  {%- endif -%}
+  {%- if article.tags.size > 0 -%}
+  ,"keywords": {{ article.tags | join: ', ' | json }}
+  {%- endif -%}
+}
+</script>

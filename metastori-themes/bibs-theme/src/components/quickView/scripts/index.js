@@ -1,0 +1,2 @@
+import './mediaGallery';
+import './quickView';

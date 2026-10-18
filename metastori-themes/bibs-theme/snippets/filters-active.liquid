@@ -1,0 +1,52 @@
+{% liquid
+  assign sort_by = results.sort_by | default: results.default_sort_by
+  if results.url
+    assign results_url = results.url
+  else
+    assign terms = results.terms | escape
+    assign results_url = '?q=' | append: terms | append: '&options%5Bprefix%5D=last&sort_by=' | append: sort_by
+  endif
+%}
+
+<div id="ActiveFiltersContainer" class="mt-5 flex flex-wrap w-full gap-2 text-base select-none">
+  {%- for filter in results.filters -%}
+    {%- if filter.type == 'price_range' -%}
+      {%- if filter.min_value.value != null or filter.max_value.value != null -%}
+        <a
+          class="flex items-center flex-row inline-block px-4 py-2  text-grey-800 bg-grey-100 rounded-full hover:bg-grey-200 hover:text-grey-900"
+          href="{{ filter.url_to_remove }}"
+        >
+          {%- assign min_value = filter.min_value.value | default: 0 -%}
+          {%- assign max_value = filter.max_value.value | default: filter.range_max -%}
+          {{ min_value | money }} - {{ max_value | money }}
+          {% render 'c-icon', icon: 'close', classes: 'w-3.5 h-3.5 p-0.5 ml-2' %}
+        </a>
+      {%- endif -%}
+    {%- else -%}
+      {%- for filter_value in filter.active_values -%}
+        <a
+          class="flex flex-row items-center inline-block px-4 py-2  text-grey-800 bg-grey-100 rounded-full hover:bg-grey-200 hover:text-grey-900"
+          href="{{ filter_value.url_to_remove }}"
+        >
+          {% assign filterValueLabelArray = filter_value.label | split: '_' %}
+
+          {{ filter.label }}:
+          {% if filterValueLabelArray.size > 1 -%}
+            {{- filterValueLabelArray[1] -}}
+          {%- else -%}
+            {{- filterValueLabelArray -}}
+          {%- endif %}
+          {% render 'c-icon', icon: 'close', classes: 'w-4 h-4 ml-1' %}
+        </a>
+      {%- endfor -%}
+    {%- endif -%}
+  {%- endfor -%}
+
+  <a
+    href="{{ results_url }}"
+    class=" only:hidden no-underline items-center inline-block  px-4 py-2  text-grey-800 rounded-full hover:text-grey-900 flex flex-row"
+  >
+    {{- 'products.facets.clear_all' | t -}}
+    {% render 'c-icon', icon: 'close', classes: 'w-4 h-4 ml-1' %}
+  </a>
+</div>

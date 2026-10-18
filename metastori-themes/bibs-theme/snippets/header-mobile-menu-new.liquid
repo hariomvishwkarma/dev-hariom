@@ -1,0 +1,373 @@
+{% liquid
+  assign color_scheme = block.settings.color_scheme
+  assign color_scheme_class = 'overflow-auto no-scrollbar color-' | append: color_scheme
+
+  assign drawer_content_classes = 'p-4 relative'
+
+  assign promoboxes = metaobjects.menu_promo_block.values
+%}
+
+{%- capture toggle_label -%}
+  {% render 'c-icon', icon: 'burger-menu', classes: 'w-6 h-6' %}
+{%- endcapture -%}
+
+{% capture drawer_content %}
+  {% assign menu = block.settings.menu_new %}
+  {% comment %} {% assign class_thingy = 'transform transition-transform duration-200 ease-out -translate-x-full' %} {% endcomment %}
+  {% assign ul_classes = 'flex flex-col gap-4' %}
+  {% assign root_classes = 'flex-col gap-4 hidden' %}
+  {% assign child_classes = 'flex-col gap-4 hidden' %}
+  {% assign link_classes = 'bg-white rounded-lg' %}
+  {% assign image_classes = 'rounded-lg max-h-56' %}
+  {% assign button_classes = 'flex flex-row w-full justify-between items-center leading-none h-7' %}
+  {% assign menu_button_classes = 'flex flex-row gap-2 items-center p-4' %}
+
+  <new-drawer-nav class="flex flex-col gap-4">
+  <div class="drawer-header">
+    <div class="header grid grid-cols-3 items-center">
+      <div class="flex items-center gap-2">
+        <button type="button" class="hidden px-2 py-2" data-menu-back>
+          {% render 'c-icon', icon: 'arrow-left', classes: 'w-4 h-4' %}
+        </button>
+
+        <div data-menu-logo>
+          {% render 'logo', block: block, styles: 'width: 60px; display: block;' %}
+        </div>
+      </div>
+
+      <span
+        class="text-sm font-medium text-center justify-self-center"
+        data-menu-title
+      ></span>
+
+      <div class="justify-self-end">
+        {% liquid
+          capture button_content
+            render 'c-icon', icon: 'close', classes: 'w-3 h-3'
+          endcapture
+
+          render 'c-button', design: 'link--bg', content: button_content, custom_attributes: 'data-drawer-close', classes: 'px-2 py-2 inline-flex items-center justify-end'
+        %}
+      </div>
+    </div>
+  </div>
+
+  {% if menu.links.size > 0 %}
+    <div class="drawer-content">
+      {% comment %} LEVEL 0 {% endcomment %}
+      <div
+        class="{{ root_classes }}"
+        data-level="0"
+        data-menu-id="root"
+        data-parent-id=""
+        data-menu-title
+      >
+        <ul class="{{ ul_classes }}">
+          {% for link in menu.links %}
+            {% assign menu_id = link.title | handle %}
+            <li class="{{ link_classes }}">
+              {% if link.links.size > 0 %}
+                <div class="{{ menu_button_classes }}">
+                  {% assign link_title = link.title | downcase %}
+                  {% assign menu_icon = blank %}
+                  {% for icon_entry in shop.metaobjects.navigation_icon.values %}
+                    {% assign icon_entry_downcase = icon_entry.navigation_item_name | downcase  %}
+                    {% if icon_entry_downcase == link_title %}
+                      {% assign menu_icon = icon_entry.icon %}
+                      {% break %}
+                    {% endif %}
+                  {% endfor %}
+                  <div menu-icon="{{ menu_icon }}" link-title="{{ link_title }}">
+                    {% render 'c-menu-icon', icon: menu_icon, classes: 'ml-2 h-6 w-6'%}
+                  </div>
+
+                  {% comment %} {% render 'c-menu-icon', icon: menu_id  %} {% endcomment %}
+                  <button class="{{ button_classes }}" data-menu-open="{{ menu_id }}">
+                    {{ link.title }}
+                    {% render 'c-icon', icon: 'arrow-right', classes: 'w-6 h-6' %}
+                  </button>
+                </div>
+              {% else %}
+              <div class="{{ menu_button_classes }}">
+                {% comment %} {% render 'c-menu-icon', icon: menu_id  %} {% endcomment %}
+                  {% assign link_title = link.title | downcase %}
+                  {% assign menu_icon = blank %}
+                  {% for icon_entry in shop.metaobjects.navigation_icon.values %}
+                    {% assign icon_entry_downcase = icon_entry.navigation_item_name | downcase  %}
+                    {% if icon_entry_downcase == link_title %}
+                      {% assign menu_icon = icon_entry.icon %}
+                      {% break %}
+                    {% endif %}
+                  {% endfor %}
+                  <div menu-icon="{{ menu_icon }}" link-title="{{ link_title }}">
+                    {% render 'c-menu-icon', icon: menu_icon, classes: 'h-7 w-7'%}
+                  </div>
+                <a class="{{ button_classes }}" data-menu-id="{{ menu_id }}" href="{{ link.url }}">{{ link.title }}</a>
+              </div>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+
+        {% comment %} START PROMO BOX {% endcomment %}
+        <div class="promobox-wrapper flex flex-col gap-4">
+          {% for promobox in promoboxes %}
+            {% if promobox.level == 0 %}
+              {% render 'promo-boxes-new' promobox: promobox, content_alignement: promobox.content_alignement, level: promobox.level, image_classes: image_classes %}
+            {% endif %}
+          {% endfor %}
+          </div>
+        {% comment %} END PROMO BOX {% endcomment %}
+
+        {% comment %} START SOCIAL MEDIA ICONS {% endcomment %}
+        <div class="border-t">
+          <div class="flex flex-row justify-center gap-3 pt-7">
+            {% assign social_medias = block.settings.social_media | downcase | split: ',' %}
+
+            {% for media in social_medias %}
+              {% assign stripped_media = media | strip | append: '_media' %}
+              <a href="#" class="flex border rounded-full h-14 w-14 items-center justify-center">
+                {% render 'c-icon', icon: stripped_media, classes: 'h-6 w-6' %}
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+        {% comment %} END SOCIAL MEDIA ICONS {% endcomment %}
+      </div>
+
+      {% comment %} LEVEL 1 {% endcomment %}
+      {% for link in menu.links %}
+        {% if link.links.size > 0 %}
+          {% assign menu_id = link.title | handle %}
+          <div
+            class="{{ child_classes }}"
+            data-level="1"
+            data-menu-id="{{ menu_id }}"
+            data-parent-id="root"
+            data-menu-title="{{ link.title }}"
+          >
+            <ul class="{{ ul_classes }}">
+              {% for child_link in link.links %}
+                <li class="{{ link_classes }}">
+                  {% if child_link.links.size > 0 %}
+                    {% assign child_menu_id = child_link.title | handle %}
+                    <div class="{{ menu_button_classes }}">
+                      <button class="{{ button_classes }}" data-menu-open="{{ child_menu_id }}">
+                        {{ child_link.title }}
+                        {% render 'c-icon', icon: 'arrow-right', classes: 'w-6 h-6' %}
+                      </button>
+                    </div>
+                  {% else %}
+                  <div class="{{ menu_button_classes }}">
+                    <a class="{{ button_classes }}" href="{{ child_link.url }}">{{ child_link.title }}</a>
+                  </div>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+            {% comment %} START PROMO BOX {% endcomment %}
+            <div class="promobox-wrapper flex flex-col gap-4">
+              {% for promobox in promoboxes %}
+                {% if promobox.level == 1 %}
+                  {% render 'promo-boxes-new' promobox: promobox, content_alignement: promobox.content_alignement, level: promobox.level, image_classes: image_classes %}
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+
+      {% comment %} LEVEL 2 {% endcomment %}
+      {% for link in menu.links %}
+        {% if link.links.size > 0 %}
+          {% assign menu_id = link.title | handle %}
+          {% for child_link in link.links %}
+            {% if child_link.links.size > 0 %}
+              {% assign child_menu_id = child_link.title | handle %}
+              <ul
+                class="{{ child_classes }}"
+                data-level="2"
+                data-menu-id="{{ child_menu_id }}"
+                data-parent-id="{{ menu_id }}"
+                data-menu-title="{{ child_link.title }}"
+              >
+                {% for grand_child_link in child_link.links %}
+                  <li class="{{ link_classes }}">
+                    {% if grand_child_link.links.size > 0 %}
+                      <div class="{{ menu_button_classes }}">
+                        <button class="{{ button_classes }}">
+                          {{ grand_child_link.title }}
+                          {% render 'c-icon', icon: 'arrow-right', classes: 'w-6 h-6' %}
+                        </button>
+                      </div>
+                    {% else %}
+                      <div class="{{ menu_button_classes }}">
+                        <a class="{{ button_classes }}" href="{{ grand_child_link.url }}">{{ grand_child_link.title }}</a>
+                      </div>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+                {% comment %} START PROMO BOX {% endcomment %}
+                <div class="promobox-wrapper flex flex-col gap-4">
+                  {% for promobox in promoboxes %}
+                    {% if promobox.level == 2 %}
+                      {% render 'promo-boxes-new' promobox: promobox, content_alignement: promobox.content_alignement, level: promobox.level, image_classes: image_classes %}
+                    {% endif %}
+                  {% endfor %}
+                  </div>
+                {% comment %} END PROMO BOX {% endcomment %}
+              </ul>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+</new-drawer-nav>
+
+{% endcapture %}
+
+<style>
+  new-drawer-nav .active {
+    display: flex;
+  }
+</style>
+
+<script defer>
+  class NewDrawerNav extends HTMLElement {
+    constructor() {
+      super();
+      this.activeMenu = null;
+      this.header = null;
+      this.logoEl = null;
+      this.backButton = null;
+      this.titleEl = null;
+
+      this.handleClick = this.handleClick.bind(this);
+    }
+
+    connectedCallback() {
+      requestAnimationFrame(() => {
+        this.cacheHeader();
+        this.initRoot();
+        this.addEventListener('click', this.handleClick);
+      });
+    }
+
+    disconnectedCallback() {
+      this.removeEventListener('click', this.handleClick);
+    }
+
+    cacheHeader() {
+      const wrapper = this.parentElement;
+      if (!wrapper) return;
+
+      this.header = wrapper.querySelector('.drawer-header');
+      if (!this.header) return;
+
+      this.logoEl = this.header.querySelector('[data-menu-logo]');
+      this.backButton = this.header.querySelector('[data-menu-back]');
+      this.titleEl = this.header.querySelector('[data-menu-title]');
+    }
+
+    initRoot() {
+      // Prefer using the explicit root id
+      const root = this.querySelector('[data-menu-id="root"]');
+      if (!root) return;
+
+      root.classList.add('active');
+      root.classList.remove('hidden');
+      this.activeMenu = root;
+
+      this.updateHeader();
+    }
+
+    handleClick(event) {
+      const openButton = event.target.closest('[data-menu-open]');
+      const backButton = event.target.closest('[data-menu-back]');
+
+      // Forward navigation
+      if (openButton && this.contains(openButton)) {
+        const targetId = openButton.getAttribute('data-menu-open');
+        const targetMenu = this.querySelector(`[data-menu-id="${targetId}"]`);
+        if (!targetMenu) return;
+
+        this.slideTo(targetMenu);
+        return;
+      }
+
+      // Back navigation
+      if (backButton && this.contains(backButton)) {
+        if (!this.activeMenu) return;
+
+        const parentId = this.activeMenu.getAttribute('data-parent-id');
+        const currentId = this.activeMenu.getAttribute('data-menu-id');
+
+        if (!parentId && currentId === 'root') return;
+
+        const targetId = parentId || 'root';
+        const targetMenu = this.querySelector(`[data-menu-id="${targetId}"]`);
+        if (!targetMenu) return;
+
+        this.slideTo(targetMenu);
+      }
+    }
+
+    slideTo(targetMenu) {
+      const current = this.activeMenu;
+
+      if (current && current !== targetMenu) {
+        current.classList.remove('active');
+        current.classList.add('hidden');
+      }
+
+      targetMenu.classList.add('active');
+      targetMenu.classList.remove('hidden');
+      this.activeMenu = targetMenu;
+
+      this.updateHeader();
+    }
+
+    updateHeader() {
+      if (!this.header) this.cacheHeader();
+      if (!this.header) return;
+
+      const isRoot = !this.activeMenu || this.activeMenu.getAttribute('data-menu-id') === 'root';
+
+      const title = (this.activeMenu && this.activeMenu.getAttribute('data-menu-title')) || '';
+
+      if (this.titleEl) {
+        this.titleEl.textContent = title;
+      }
+
+      if (this.backButton) {
+        this.backButton.classList.toggle('hidden', isRoot);
+      }
+
+      if (this.logoEl) {
+        this.logoEl.classList.toggle('hidden', !isRoot);
+      }
+    }
+  }
+
+  if (!customElements.get('new-drawer-nav')) {
+    customElements.define('new-drawer-nav', NewDrawerNav);
+  }
+</script>
+
+{% render 'c-drawer',
+  drawer_id: 'mobile-menu-drawer',
+  toggle_label: toggle_label,
+  drawer_placement: 'left',
+  toggle_type: 'link--bg',
+  drawer_content: drawer_content,
+  drawer_header_classes: 'bg-background text-foreground',
+  drawer_header_menu_padding: true,
+  drawer_width: 'lg',
+  classes: 'flex lg:hidden',
+  drawer_classes: color_scheme_class,
+  header_menu: false,
+  drawer_backdrop: false,
+  hide_close_button: true,
+  drawer_content_classes: drawer_content_classes
+%}

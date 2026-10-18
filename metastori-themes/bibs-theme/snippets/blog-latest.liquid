@@ -1,0 +1,53 @@
+{% assign featured_articles = '' %}
+{% paginate blog.articles by 500 %}
+  {% for article in blog.articles %}
+    {% if article.tags contains 'Featured article' %}
+      {% assign featured_articles = featured_articles | append: article.handle | append: ',' %}
+    {% endif %}
+  {% endfor %}
+{% endpaginate %}
+{% assign featured_articles = featured_articles | split: ',' %}
+
+{% render 'blog-featured-articles', featured_articles: featured_articles %}
+
+{% paginate blog.articles by 24 %}
+  <div class="{% if featured_articles.size > 0 %}blog-articles {% endif %}relative container-fluid py-6 md:py-1">
+    <div class="load-more-grid overflow-x-hidden sm:grid {{ grid_class }} md:gap-2">
+      {% assign featured_articles = '' %}
+      {% paginate blog.articles by 500 %}
+        {% for article in blog.articles %}
+          {% if article.tags contains 'featured article' %}
+            {% assign featured_articles = featured_articles | append: article.handle | append: ',' %}
+          {% endif %}
+        {% endfor %}
+      {% endpaginate %}
+      {% assign featured_articles = featured_articles | split: ',' %}
+
+      {%- if featured_articles.size > 0 -%}
+        {% for handle in featured_articles %}
+          {% assign article = articles[handle] %}
+          <div class="md:!hidden relative z-1 listing-item overflow-hidden">
+            {% render 'card-article', article: article %}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      {% for article in blog.articles %}
+        {% unless article.tags contains 'featured article' %}
+          <div class="relative z-1 listing-item overflow-hidden">
+            {% render 'card-article', article: article %}
+          </div>
+        {% endunless %}
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if paginate.current_page < paginate.pages %}
+    {% render 'load-more-pagination', pagination: paginate %}
+    <div data-loading class="hidden">
+      <div class="absolute inset-0 flex items-center justify-center bg-background/50">
+        {%- render 'c-spinner', size: 'w-16 h-16' -%}
+      </div>
+    </div>
+  {% endif %}
+{% endpaginate %}

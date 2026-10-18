@@ -1,0 +1,135 @@
+{%- comment -%}
+  Renders a shop the look block
+
+  Accepts:
+    - bg_image {image}
+    - bg_image_mobile {image}
+    - add_to_cart_position {string}: use top-left, top-right, bottom-left or bottom-right
+    - hide_add_to_cart_label {boolean}
+    - block_id {string}
+    - section_id {id}
+    - product_1 {product}
+    - product_1_position_x {int}
+    - product_1_position_y {int}
+    - product_1_position_x_mobile {int}
+    - product_1_position_y_mobile {int}
+    - product_2 {product}
+    - product_2_position_x {int}
+    - product_2_position_y {int}
+    - product_2_position_x_mobile {int}
+    - product_2_position_y_mobile {int}
+    - product_3 {product}
+    - product_3_position_x {int}
+    - product_3_position_y {int}
+    - product_3_position_x_mobile {int}
+    - product_3_position_y_mobile {int}
+    - span_double {boolean}: used in collection grid to cover the space of two product tiles
+
+  Usage:
+    {% render 'shop-the-look-block' %}
+{%- endcomment -%}
+
+{% liquid
+  case add_to_cart_position
+    when 'top-left'
+      assign add_to_cart_position_class = 'top-4 left-4'
+    when 'top-right'
+      assign add_to_cart_position_class = 'top-4 right-4'
+    when 'bottom-left'
+      assign add_to_cart_position_class = 'bottom-4 left-4'
+    else
+      assign add_to_cart_position_class = 'bottom-4 right-4'
+  endcase
+
+  assign bg_image_mobile = bg_image_mobile | default: bg_image
+  assign bg_image = bg_image | default: bg_image_mobile
+  assign image_object_fit = image_object_fit | default: 'cover'
+%}
+
+<div class="collage_image-wrapper relative {% if span_double %}col-span-2{% endif %}">
+  {%- if bg_image or bg_image_mobile -%}
+    <picture>
+      <source media="(min-width: 768px)" srcset="{{ bg_image | image_url: width: 1946 }}">
+      {% render 'c-image',
+        image: bg_image_mobile,
+        classes: 'h-full',
+        image_fit: image_object_fit,
+        image_classes: image_height_class,
+        alt: 'Shop the look image'
+      %}
+    </picture>
+  {%- else -%}
+    {{ 'image' | placeholder_svg_tag: 'w-full h-full fill-grey-600 bg-gray-100' }}
+  {%- endif -%}
+
+  {% unless hide_add_to_cart_label %}
+    {% capture button %}
+      <div class="absolute {{ add_to_cart_position_class }}">
+        {%- capture button_id -%}drawer-{{ block_id }}{%- endcapture -%}
+        {%- capture button_text -%}{{ 'sections.shop_the_look.title'| t }}{%- endcapture -%}
+        {%- capture button_icon -%}{% render 'c-icon', icon: 'cart', classes: 'w-6 h-6 inline' %}{%- endcapture -%}
+
+        {%- render 'c-expandable-button', id: button_id, button_text: button_text, icon: button_icon -%}
+      </div>
+    {% endcapture %}
+    {% capture drawer_id %}drawer-{{ block_id }}{% endcapture %}
+    {% capture drawer_header %} 
+      {% capture title %}{{ 'sections.shop_the_look.title'| t }}{% endcapture %}
+      {% render 'c-text', custom_tag: 'h4', content: title %}
+    {% endcapture %}
+    {% capture drawer_content %} 
+      <div class="px-4 flex flex-col">
+        {% if product_1.title %}
+          {%- render 'product-card-w-atc-button', product: product_1, section_id: section_id  -%}
+        {% endif %}
+        {% if product_2.title %}
+          {% render 'c-divider', type: 'primary-thin', classes: 'my-4' %}
+          {%- render 'product-card-w-atc-button', product: product_2, section_id: section_id  -%}
+        {% endif %}
+        {% if product_3.title %}
+          {% render 'c-divider', type: 'primary-thin', classes: 'my-4' %}
+          {%- render 'product-card-w-atc-button', product: product_3, section_id: section_id  -%}
+        {% endif %}
+      </div>
+    {% endcapture %}
+    {% render 'c-drawer',
+      drawer_id: drawer_id,
+      drawer_header: drawer_header,
+      drawer_content: drawer_content,
+      toggle_button: button,
+      drawer_width: 'md'
+    %}
+  {% endunless %}
+  {% if product_1.title and product_1_position_x and product_1_position_y %}
+    {% render 'c-point',
+      block_id: block_id,
+      block_product: product_1,
+      x_position: product_1_position_x,
+      y_position: product_1_position_y,
+      x_position_mobile: product_1_position_x_mobile,
+      y_position_mobile: product_1_position_y_mobile
+    %}
+  {% endif %}
+
+  {% if product_2.title and product_2_position_x and product_2_position_y %}
+    {% render 'c-point',
+      block_id: block.id,
+      block_product: product_2,
+      x_position: product_2_position_x,
+      y_position: product_2_position_y,
+      x_position_mobile: product_2_position_x_mobile,
+      y_position_mobile: product_2_position_y_mobile
+    %}
+  {% endif %}
+
+  {% if product_3.title and product_3_position_x and product_3_position_y %}
+    {% render 'c-point',
+      block_id: block.id,
+      block_product: product_3,
+      x_position: product_3_position_x,
+      y_position: product_3_position_y,
+      x_position_mobile: product_3_position_x_mobile,
+      y_position_mobile: product_3_position_y_mobile
+    %}
+  {% endif %}
+</div>

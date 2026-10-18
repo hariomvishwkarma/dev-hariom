@@ -1,0 +1,236 @@
+{%- assign current_variant = product.selected_variant -%}
+
+{% if product.selling_plan_groups.size > 0 %}
+  <div class="shopify-block shopify-app-block">
+    <div class="shopify_subscriptions_app_container" data-section-id="{{ section.id }}">
+      {% for variant in product.variants %}
+        {% liquid
+          assign variant_price = variant.price | money_with_currency | escape
+          assign variant_compared_at_price = variant.compare_at_price | money_with_currency | escape
+        %}
+        {% if variant.selling_plan_allocations.size > 0 %}
+          {%- capture section_classes -%}
+            {%- if current_variant.id != blank -%}
+              {%- if variant.id != current_variant.id -%}
+                shopify_subscriptions_app_block--hidden
+              {%- endif -%}
+            {%- else -%}
+              shopify_subscriptions_app_block--disabled
+              {% if forloop.index0 != 0 -%}
+                shopify_subscriptions_app_block--hidden
+              {%- endif -%}
+            {%- endif -%}
+          {%- endcapture -%}
+          <section
+            data-variant-id="{{ variant.id }}"
+            class="shopify_subscriptions_app_block {{ section_classes }}"
+          >
+            <fieldset class="shopify_subscriptions_fieldset">
+              {% unless product.requires_selling_plan %}
+                <div class="shopify_subscriptions_app_block_label">
+                  <div class="shopify_subscriptions_purchase_option_wrapper custom-checkbox-flex">
+                    <label class="shopify_subscriptions_purchase_option_label">
+                      <input
+                        type="radio"
+                        name="purchase_block_label_{{ section.id }}_{{ variant.id }}"
+                        checked
+                        class="hidden"
+                        data-is-subscription="false"
+                      >
+                      <div class="custom-checkbox"></div>
+                      <span>
+                        {{ 'sections.product-form.blocks.selling_plan_selector.one_time_purchase' | t }}
+                      </span>
+                    </label>
+                    <div class="shopify_subscriptions_in_widget_price">{{ variant_price }}</div>
+                  </div>
+                  <select
+                    name="purchaseOption_{{ section.id }}_{{ variant.id }}"
+                    class="button--pills purchase_option_selector hidden"
+                  >
+                    <option
+                      value="{{ allocation.selling_plan.id }}"
+                      id="{{ section.id }}_one_time_purchase"
+                      data-radio-type="one_time_purchase"
+                      data-variant-id="{{ variant.id }}"
+                      data-variant-price="{{ variant_price }}"
+                      data-variant-compare-at-price="{{ variant_compared_at_price }}"
+                    >
+                      {{ 'sections.product-form.blocks.selling_plan_selector.one_time_purchase' | t }}
+                    </option>
+                  </select>
+                </div>
+              {% endunless %}
+              {% assign group_ids = variant.selling_plan_allocations | map: 'selling_plan_group_id' | uniq %}
+              {% for group_id in group_ids %}
+                {% liquid
+                  assign allocations = variant | map: 'selling_plan_allocations' | where: 'selling_plan_group_id', group_id
+
+                  if allocations.first.selling_plan.name == 'Delivery every 6 Weeks' or allocations.first.selling_plan.name contains 'week subscription with'
+                    continue
+                  endif
+
+                  if forloop.first
+                    assign first_selling_plan_group = true
+                  else
+                    assign first_selling_plan_group = false
+                  endif
+                %}
+
+                <div class="shopify_subscriptions_app_block_label">
+                  <div class="shopify_subscriptions_purchase_option_wrapper custom-checkbox-flex">
+                    <label class="shopify_subscriptions_purchase_option_label">
+                      <input
+                        type="radio"
+                        name="purchase_block_label_{{ section.id }}_{{ variant.id }}"
+                        class="hidden"
+                        data-is-subscription="true"
+                      >
+                      <div class="custom-checkbox"></div>
+                      <span>{{ 'sections.product-form.blocks.selling_plan_selector.subscription_label' | t }}</span>
+                      {%- assign selling_plan_price_adjustment_value = allocations.first.selling_plan.price_adjustments.first.value -%}
+                      {%- assign selling_plan_price_adjustment_value_type = allocations.first.selling_plan.price_adjustments.first.value_type -%}
+                      {%- case selling_plan_price_adjustment_value_type -%}
+                        {%- when 'percentage' -%}
+                          {%- assign selling_plan_price_adjustment_value = selling_plan_price_adjustment_value
+                            | append: '%'
+                          -%}
+                        {%- when 'fixed_amount' -%}
+                          {%- assign selling_plan_price_adjustment_value = selling_plan_price_adjustment_value
+                            | money_with_currency
+                            | escape
+                          -%}
+                      {%- endcase -%}
+                      <span class="shopify_subscriptions_purchase_option_save_label">
+                        {{-
+                          'sections.product-form.blocks.selling_plan_selector.save_label'
+                          | t: discount: selling_plan_price_adjustment_value
+                        }}
+                      </span>
+                    </label>
+
+                    <div class="leading-4">
+                      <span class="text-2-medium">
+                        {{ 'sections.product-form.blocks.selling_plan_selector.per_piece' | t }}
+                      </span>
+                      <span
+                        class="shopify_subscriptions_in_widget_price allocation_price"
+                        id="{{ section.id }}_{{ group_id }}_{{ variant.id }}_allocation_price"
+                      >
+                        {%- assign first_allocation_price = allocations.first.price | money_with_currency | escape -%}
+                        {{ first_allocation_price }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="shopify_subscriptions_purchase_option_wrapper">
+                    <span class="h9-regular text-grey-400">
+                      {{- 'sections.product-form.blocks.selling_plan_selector.subtext' | t -}}
+                    </span>
+                    <select
+                      name="purchaseOption_{{ section.id }}_{{ variant.id }}"
+                      class="button--pills purchase_option_selector"
+                    >
+                      {%- for allocation in allocations -%}
+                        {% liquid
+                          if forloop.first and product.requires_selling_plan and first_selling_plan_group
+                            assign plan_checked = 'checked'
+                          else
+                            assign plan_checked = null
+                          endif
+
+                          assign allocation_price = allocation.price | money_with_currency | escape
+                          assign allocation_compared_at_price = allocation.compare_at_price | money_with_currency | escape
+                          assign selling_plan_price_adjustment_value = allocation.selling_plan.price_adjustments.first.value
+                          assign selling_plan_price_adjustment_value_type = allocation.selling_plan.price_adjustments.first.value_type
+                          case selling_plan_price_adjustment_value_type
+                            when 'percentage'
+                              assign selling_plan_price_adjustment_value = selling_plan_price_adjustment_value | append: '%'
+                            when 'fixed_amount'
+                              assign selling_plan_price_adjustment_value = selling_plan_price_adjustment_value | money_with_currency | escape
+                          endcase
+                          assign selling_plan_price_adjustment_value = 'sections.product-form.blocks.selling_plan_selector.save_label' | t: discount: selling_plan_price_adjustment_value
+                        %}
+                        <option
+                          value="{{ allocation.selling_plan.id }}"
+                          aria-label="{{ allocation.selling_plan.name }}. Product price {{ allocation_price }}"
+                          data-radio-type="selling_plan"
+                          data-selling-plan-id="{{ allocation.selling_plan.id }}"
+                          data-selling-plan-group-id="{{ section.id }}_{{ group_id }}_{{ variant.id }}"
+                          data-selling-plan-adjustment="{{ allocation.selling_plan.price_adjustments.size }}"
+                          data-selling-plan-adjustment-value="{{ selling_plan_price_adjustment_value }}"
+                          data-variant-price="{{ allocation_price }}"
+                          data-variant-compare-at-price="{{ allocation_compared_at_price }}"
+                          {{ plan_checked }}
+                        >
+                          {{ allocation.selling_plan.name }}
+                        </option>
+                      {%- endfor -%}
+                    </select>
+                  </div>
+                  <div class="shopify_subscriptions_purchase_option_content">
+                    {% liquid
+                      assign subscription_usps = shop.metaobjects.subscription_usps.values | where: 'set_active', true
+                    %}
+                    <div
+                      class="shopify_subscriptions_purchase_option_usps"
+                    >
+                      {% for usp in subscription_usps %}
+                        <div class="shopify_subscriptions_purchase_option_usp">
+                          {%- if usp.icon.value != blank -%}
+                            <div class="shopify_subscriptions_purchase_option_usp_icon">
+                              {{ usp.icon.value.icon }}
+                            </div>
+                          {%- endif -%}
+                          <div class="shopify_subscriptions_purchase_option_usp_text">
+                            {{ usp.text | metafield_tag }}
+                          </div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                    <div class="shopify_subscriptions_purchase_option_info"></div>
+                    <div class="shopify_subscriptions_purchase_option_products">
+                      <div class="shopify_subscriptions_purchase_option_products_label">
+                        {{ 'sections.product-form.blocks.selling_plan_selector.products_label' | t }}
+                      </div>
+                      <div
+                        class="shopify_subscriptions_purchase_option_products_list"
+                        data-selling-plan-id="{{ allocation.selling_plan.id }}"
+                      >
+                        {% render 'subscription-connected-products',
+                          main_product: product,
+                          classes: '-mr-[18px] md:-mr-6'
+                        %}
+                      </div>
+                    </div>
+                    <div class="shopify_subscriptions_purchase_option_content--buttom">
+                      <div class="text-grey-400 flex gap-1">
+                        {% render 'c-icon', icon: 'info', classes: 'w-3 h-3' %}
+                        {{ 'sections.product-form.blocks.selling_plan_selector.info_text' | t }}
+                      </div>
+                      {%- if settings.subscription_builder_link != blank -%}
+                        {% render 'c-link',
+                          translatable_content: 'sections.product-form.blocks.selling_plan_selector.try_subscription_builder',
+                          type: 'link',
+                          classes: 'hidden md:block',
+                          href: settings.subscription_builder_link
+                        %}
+                      {%- endif -%}
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </fieldset>
+          </section>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <input
+      name="selling_plan"
+      class="selected-selling-plan-id"
+      type="hidden"
+    >
+    <span id="shopify_subscriptions_app_block_error_message" class="shopify_subscriptions_app_block--hidden">
+      {{- 'sections.product-form.blocks.selling_plan_selector.error_message' | t -}}
+    </span>
+  </div>
+{% endif %}

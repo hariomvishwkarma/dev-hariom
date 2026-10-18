@@ -1,0 +1,237 @@
+{%- comment -%}
+  Renders the subscription selection drawer and opener. This snippet is used in the product form
+
+  Accepts:
+    - collection: The collection object that contains the product
+    - upsell_products: The upsell products to be displayed in the subscription selection drawer
+
+  Usage:
+    {% render 'subscription-selection' %}
+{%- endcomment -%}
+
+{% liquid
+  assign has_upsell_products = false
+  if upsell_products != blank
+    assign has_upsell_products = true
+  endif
+%}
+
+<subscription-drawer class="subscription-selection" data-section-id="{{ section.id }}" data-upsell-open="false">
+  <div class="subscription-selection--content transition-transform">
+    {%- capture button_content -%}
+      {% render 'c-icon', icon: 'close', classes: 'w-4 h-4' %}
+    {%- endcapture -%}
+    <div class="absolute right-[30px] top-[30px] z-1 leading-none lg:hidden">
+      {% render 'c-button',
+        design: 'link--bg',
+        content: button_content,
+        custom_attributes: 'data-drawer-close',
+        classes: 'inline-flex items-center'
+      %}
+    </div>
+    <div class="subscription-selection--header">
+      {% render 'c-title',
+        translatable_content: 'sections.product-form.blocks.selling_plan_selector.your_selection',
+        custom_tag: 'h4'
+      %}
+      {% render 'c-text',
+        translatable_content: 'sections.product-form.blocks.selling_plan_selector.products_label',
+        type: 'text-xs text-grey-500'
+      %}
+    </div>
+    <div class="subscription-selection-upsell--header hidden">
+      {% render 'c-title',
+        translatable_content: 'sections.product-form.blocks.selling_plan_selector.upsell_header_html',
+        custom_tag: 'h5',
+        classes: '[&>span]:text-accent'
+      %}
+      {% render 'c-text',
+        translatable_content: 'sections.product-form.blocks.selling_plan_selector.upsell_text',
+        type: 'text-xs'
+      %}
+    </div>
+    {%- capture button_content -%}
+      {% render 'c-icon', icon: 'close', classes: 'w-4 h-4' %}
+    {%- endcapture -%}
+    <div class="upsell-close-button absolute right-6 top-6 z-1 leading-none hidden">
+      {% render 'c-button', design: 'link--bg', content: button_content, classes: 'inline-flex items-center p-1.5' %}
+    </div>
+    {%- if has_upsell_products -%}
+      <div class="subscription-selection--upsell-products !hidden">
+        {%- for upsell_product in upsell_products -%}
+          {% render 'card-product',
+            card_product: upsell_product,
+            show_secondary_media: true,
+            media_aspect_ratio: 'bibs',
+            set_default_color_swatch: true
+          %}
+        {%- endfor -%}
+      </div>
+    {%- endif -%}
+    <form id="subscription_builder" class="contents{% if has_upsell_products %} has_upsell_products{% endif %}">
+      <div
+        class="hidden text-accent bg-accent/10 text-1-regular px-3 py-2 rounded mb-4"
+        role="alert"
+        data-product-form-error-message
+      ></div>
+      <div class="subscription-selection--products-list no-scrollbar">
+        {%- capture single_product -%}
+          <div class="subscription-selection--product subscription-selection--product-skeleton">
+            <div class="subscription-selection--product-image">
+              {% render 'c-icon', icon: 'product-image-placeholder', classes: 'w-full h-full p-1 text-foreground' %}
+            </div>
+            <div class="subscription-selection--product-details">
+              <div class="subscription-selection--product-details-left">
+                {%- for title in (1..3) -%}
+                  <div class="subscription-selection--product-detail"></div>
+                {%- endfor -%}
+              </div>
+              <div class="subscription-selection--product-details-right">
+                <div class="subscription-selection--product-detail"></div>
+              </div>
+            </div>
+          </div>
+        {%- endcapture -%}
+        {% for item in (1..3) %}
+          {{ single_product }}
+        {% endfor %}
+        <template>
+          {{ single_product }}
+        </template>
+      </div>
+      <div class="subscription-selection--subscriptions">
+        <p class="text-sm">{{ 'sections.product-form.blocks.selling_plan_selector.frequency' | t }}</p>
+        <p class="text-xs text-grey-500">
+          {{ 'sections.product-form.blocks.selling_plan_selector.frequency_subtext' | t }}
+        </p>
+        {%- assign first_product_variant = collection.products.first.variants.first -%}
+        {% assign allocations = first_product_variant.selling_plan_allocations %}
+        <fieldset class="subscription-selection--subscriptions-options">
+          {%- for allocation in allocations -%}
+            {% liquid
+              if allocation.selling_plan.name == 'Delivery every 6 Weeks' or allocation.selling_plan_group_id == 'd4ce9933d3969dd40e8c40941e4ec532cd204d02'
+                continue
+              endif
+            %}
+            {% liquid
+              if forloop.first
+                assign plan_checked = 'checked'
+              else
+                assign plan_checked = null
+              endif
+            %}
+            <input
+              type="radio"
+              name="subscription_frequency"
+              id="subscription_frequency_{{ forloop.index }}"
+              class="hidden"
+              value="{{ allocation.selling_plan.options.first.value }}"
+              data-radio-type="selling_plan"
+              data-selling-plan-id="{{ allocation.selling_plan.id }}"
+              data-selling-plan-adjustment="{{ allocation.selling_plan.price_adjustments.size }}"
+              data-selling-plan-adjustment-value="{{ selling_plan_price_adjustment_value }}"
+              {{ plan_checked }}
+            >
+            <label
+              for="subscription_frequency_{{ forloop.index }}"
+              class="subscription-selection--subscriptions-option"
+            >
+              {% liquid
+                assign frequency = allocation.selling_plan.options.first.value
+
+                if frequency contains 4
+                  assign frequency_text = 'sections.product-form.blocks.selling_plan_selector.frequency_text' | t: frequency: 4
+                elsif frequency contains 6
+                  assign frequency_text = 'sections.product-form.blocks.selling_plan_selector.frequency_text' | t: frequency: 6
+                elsif frequency contains 8
+                  assign frequency_text = 'sections.product-form.blocks.selling_plan_selector.frequency_text' | t: frequency: 8
+                else
+                  assign frequency_text = frequency
+                endif
+              %}
+              {{ frequency_text }}
+            </label>
+          {%- endfor -%}
+        </fieldset>
+        {%- assign frequency_info_html = 'sections.product-form.blocks.selling_plan_selector.frequency_info_html'
+          | t
+        -%}
+        {% if frequency_info_html != blank %}
+          <div class="subscription-selection--subscriptions-info">
+            <div class="flex items-center gap-2">
+              {% render 'c-icon', icon: 'stars', classes: 'w-4.5 h-auto' %}
+              <span class="flex-1">
+                {{ frequency_info_html }}
+              </span>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="subscription-selection--footer">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            {% render 'c-text', type: 'h7-semibold', translatable_content: 'cart.sub_total' %}
+            {%- assign subtotal = 0 | money -%}
+            {% render 'c-text', type: 'h7-semibold', classes: 'subscription-selection--subtotal', content: subtotal %}
+          </div>
+
+          {%- capture add_to_cart_button_content -%}
+            <div class="flex items-center">
+              <span class="buy-button-text">{{  'cart.add_more_products_html' | t }}</span>
+              {% render 'c-spinner', size: 'leading-none ml-2 inline w-4 h-4 add-to-subscription-button-spinner hidden' %}
+            </div>
+          {%- endcapture -%}
+          {%- capture custom_attributes -%}
+            data-add-more-label="{{ 'cart.add_more_products_html' | t }}"
+            data-add-to-cart-label="{{ 'sections.product-form.add_to_cart' | t }}"
+            data-continue-label="{{ 'cart.continue' | t }}"
+          {%- endcapture -%}
+          {% render 'c-button',
+            type: 'submit',
+            content: add_to_cart_button_content,
+            custom_attributes: custom_attributes,
+            design: 'primary',
+            classes: 'w-full rounded-full text-4 whitespace-nowrap flex gap-2 items-center justify-center add-to-cart-button disabled',
+            id: 'subscription-submit-button'
+          %}
+        </div>
+      </div>
+      <input
+        name="selling_plan"
+        class="selected-selling-plan-id"
+        type="hidden"
+        value="{{ allocations.first.selling_plan.id }}"
+      >
+    </form>
+  </div>
+  <div
+    class="subscription-selection--backdrop bg-black backdrop-blur-sm bg-opacity-30 fixed inset-0 z-30 cursor-pointer lg:hidden"
+  ></div>
+</subscription-drawer>
+
+<div class="subscription-drawer-opener">
+  <div class="subscription-drawer-opener--wrapper">
+    <div class="subscription-drawer-opener--content">
+      <div class="subscription-drawer-opener--content-left">
+        {% render 'c-text',
+          translatable_content: 'sections.product-form.blocks.selling_plan_selector.your_selection',
+          type: 'text-medium'
+        %}
+        {% render 'c-text',
+          translatable_content: 'sections.product-form.blocks.selling_plan_selector.products_label',
+          type: 'text-medium text-grey-500'
+        %}
+      </div>
+      <div class="subscription-drawer-opener--content-right">
+        <div class="subscription-drawer-opener--products">
+          {%- for item in (1..3) -%}
+            <div class="subscription-drawer-opener--product">
+              {% render 'c-icon', icon: 'product-image-placeholder', classes: 'w-full h-full p-1 text-foreground' %}
+            </div>
+          {%- endfor -%}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

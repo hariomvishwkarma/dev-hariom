@@ -1,0 +1,113 @@
+{%- comment -%}
+  Data attributes for collection-filter-bar: handle, bra type, solution/size/color/coverage/shape tokens.
+  @param product {Product}
+  @param section {Section} — uses main-collection-product-grid filter settings when present; otherwise defaults (custom.*).
+{%- endcomment -%}
+{%- liquid
+  assign product_bra_type_token = ''
+  assign bra_mf = product.metafields.custom.bra_type
+  assign bra_mf_val = ''
+
+  if bra_mf != blank and bra_mf.value != blank
+    if bra_mf.value.system.handle != blank
+      assign bra_mf_val = bra_mf.value.system.handle | strip | downcase
+    else
+      assign bra_mf_val = bra_mf.value | strip | downcase
+    endif
+  endif
+
+  if bra_mf_val contains 'insert'
+    assign product_bra_type_token = 'inserts'
+  elsif bra_mf_val contains 'breast' and bra_mf_val contains 'form'
+    assign product_bra_type_token = 'breast-form'
+  endif
+
+  assign sol_ns = section.settings.solution_filter_namespace | default: 'custom'
+  assign sol_key = section.settings.solution_filter_key | default: 'solution'
+  assign size_ns = section.settings.size_filter_namespace | default: 'custom'
+  assign size_key = section.settings.size_filter_key | default: 'size'
+  assign cov_ns = section.settings.coverage_filter_namespace | default: 'custom'
+  assign cov_key = section.settings.coverage_filter_key | default: 'coverage'
+  assign shp_ns = section.settings.shape_filter_namespace | default: 'custom'
+  assign shp_key = section.settings.shape_filter_key | default: 'shape'
+-%}
+{%- capture product_solution_tokens -%}
+  {%- render 'product-filter-metafield-tokens',
+    product: product,
+    namespace: sol_ns,
+    key: sol_key,
+    fallback_namespace: 'custom',
+    fallback_key: 'solution'
+  -%}
+{%- endcapture -%}
+{%- liquid
+  # Size comes from the product's own Size option, so the filter only matches
+  # sizes the PDP actually offers. The size metafield is maintained by hand and
+  # drifts from the variants (e.g. XXS listed on products with no XXS variant).
+  assign product_size_tokens = ''
+  for option in product.options_with_values
+    assign size_opt_down = option.name | strip | downcase
+    if size_opt_down == 'size'
+      for value in option.values
+        assign size_label = value.name | default: value
+        assign size_token = size_label | strip | handleize
+        if size_token != blank
+          assign product_size_tokens = product_size_tokens | append: size_token | append: '||'
+        endif
+      endfor
+      break
+    endif
+  endfor
+-%}
+{%- liquid
+  assign product_color_tokens = ''
+  for option in product.options_with_values
+    assign color_opt_down = option.name | strip | downcase
+    if color_opt_down == 'color' or color_opt_down == 'colour'
+      for value in option.values
+        assign color_label = value.name | default: value
+        assign color_token = color_label | strip | handleize
+        if color_token != blank
+          assign product_color_tokens = product_color_tokens | append: color_token | append: '||'
+        endif
+      endfor
+      break
+    endif
+  endfor
+-%}
+{%- if product_size_tokens == blank -%}
+  {%- capture product_size_tokens -%}
+    {%- render 'product-filter-metafield-tokens',
+      product: product,
+      namespace: size_ns,
+      key: size_key,
+      fallback_namespace: 'custom',
+      fallback_key: 'size'
+    -%}
+  {%- endcapture -%}
+{%- endif -%}
+{%- capture product_coverage_tokens -%}
+  {%- render 'product-filter-metafield-tokens',
+    product: product,
+    namespace: cov_ns,
+    key: cov_key,
+    fallback_namespace: 'custom',
+    fallback_key: 'coverage'
+  -%}
+{%- endcapture -%}
+{%- capture product_shape_tokens -%}
+  {%- render 'product-filter-metafield-tokens',
+    product: product,
+    namespace: shp_ns,
+    key: shp_key,
+    fallback_namespace: 'custom',
+    fallback_key: 'shape'
+  -%}
+{%- endcapture -%}
+data-product-handle="{{ product.handle }}"
+data-product-bra-type="{{ product_bra_type_token | escape }}"
+data-product-filter-solution="{{ product_solution_tokens | strip | escape }}"
+data-product-filter-size="{{ product_size_tokens | strip | escape }}"
+data-product-filter-color="{{ product_color_tokens | strip | escape }}"
+data-product-filter-coverage="{{ product_coverage_tokens | strip | escape }}"
+data-product-filter-shape="{{ product_shape_tokens | strip | escape }}"

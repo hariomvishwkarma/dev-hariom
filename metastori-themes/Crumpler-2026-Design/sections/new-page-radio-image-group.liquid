@@ -1,0 +1,368 @@
+
+
+{% style %}
+  .image-designer-section {
+    display: flex;
+    position: relative;
+    overflow: hidden;
+    padding: {{ section.settings.section_padding }}px;
+    flex-direction: column;
+  }
+
+  .image-designer-title {
+    pointer-events:none;
+    user-select: none;
+    z-index: {{ section.settings.section_title_z }};
+    color: {{ section.settings.section_title_color }};
+    font-weight: {{ section.settings.section_title_weight }};
+    /* line-height: .9; */
+  }
+
+  /* Section heights */
+  @media screen and (min-width: 768px) {
+    .image-designer-section {
+      height: 90vh;
+    }
+    .image-designer-title {
+      font-size: {{ section.settings.font_size }}vw;
+    }
+  }
+  @media screen and (max-width: 767px) {
+    .image-designer-section {
+      height: 90vh;
+    }
+    .image-designer-title {
+      font-size: {{ section.settings.mobile_font_size }}vw;
+    }
+  }
+
+  /* Flex alignment classes */
+  .position-top-left     { justify-content: flex-start; align-items: flex-start;   text-align: left; }
+  .position-top-center   { justify-content: flex-start; align-items: center;      text-align: center; }
+  .position-top-right    { justify-content: flex-start; align-items: flex-end;    text-align: right; }
+
+  .position-middle-left  { justify-content: center;     align-items: flex-start;  text-align: left; }
+  .position-middle-center{ justify-content: center;     align-items: center;      text-align: center; }
+  .position-middle-right { justify-content: center;     align-items: flex-end;    text-align: right; }
+
+  .position-bottom-left  { justify-content: flex-end;   align-items: flex-start;  text-align: left; }
+  .position-bottom-center{ justify-content: flex-end;   align-items: center;      text-align: center; }
+  .position-bottom-right { justify-content: flex-end;   align-items: flex-end;    text-align: right; }
+
+  .image-block, .video-block {
+    position: absolute;
+    cursor: grab;
+    user-select: none;
+    opacity: {{ section.settings.opacity }};
+  }
+  {% for block in section.blocks %}
+    {% if block.settings.video != blank %}
+      {% assign b = block.settings %}
+      #{{ block.id }}{
+        left: {{ b.x }}%;
+        top: {{ b.y }}%;
+        width: {{ b.width }}%;
+        z-index: {{ b.z_index }};
+        width:100%;
+        height:auto;
+      }
+    {% endif %}
+  {% endfor %}
+{% endstyle %}
+
+<div class="image-designer-section position-{{ section.settings.section_title_position }}">
+  <div class="image-designer-title">
+    {{ section.settings.section_title }}
+  </div>
+  {% for block in section.blocks %}
+    {% assign b = block.settings %}
+    {% if b.image != blank %}
+      <style>
+        @media screen and (min-width: 1026px) {
+          .image-block-{{ block.id }} {
+            width: {{ b.width }}%;
+          }
+        }
+        @media screen and (max-width: 1025px) {
+          .image-block-{{ block.id }} {
+            width: {{ b.mobile_width }}%;
+          }
+        }
+      </style>
+      <img
+        src="{{ b.image | image_url }}"
+        class="image-block image-block-{{ block.id }}"
+        style="
+          left: {{ b.x }}%;
+          top: {{ b.y }}%;
+          z-index: {{ b.z_index }};
+        "
+        width="100%"
+        height="auto"
+        data-id="{{ block.id }}"
+      />
+    {% elsif b.video != blank %}
+      {% assign video_id = block.id %}
+      {{ b.video | video_tag: autoplay:true, muted:true, loop:true,class:'video-block', id:video_id }}
+    {% endif %}
+  {% endfor %}
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const container = document.querySelector(".image-designer-section");
+    const images = container.querySelectorAll(".image-block");
+    const videos = container.querySelectorAll(".video-block");
+
+    let active = null;
+    let shiftX = 0;
+    let shiftY = 0;
+
+    images.forEach(img => {
+      // Desktop: Mouse
+      img.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        startDrag(e.clientX, e.clientY, img);
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+      });
+
+      // Mobile: Touch
+      img.addEventListener("touchstart", (e) => {
+        if (e.touches.length > 1) return; // ignore multi-touch
+        const touch = e.touches[0];
+        startDrag(touch.clientX, touch.clientY, img);
+        document.addEventListener("touchmove", onTouchMove, { passive: false });
+        document.addEventListener("touchend", onTouchEnd);
+      });
+    });
+
+    videos.forEach(video => {
+      // Desktop: Mouse
+      video.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        startDrag(e.clientX, e.clientY, video);
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+      });
+
+      // Mobile: Touch
+      video.addEventListener("touchstart", (e) => {
+        if (e.touches.length > 1) return; // ignore multi-touch
+        const touch = e.touches[0];
+        startDrag(touch.clientX, touch.clientY, video);
+        document.addEventListener("touchmove", onTouchMove, { passive: false });
+        document.addEventListener("touchend", onTouchEnd);
+      });
+    });
+
+    function startDrag(clientX, clientY, img) {
+      active = img;
+
+      const rect = img.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+
+      shiftX = clientX - rect.left;
+      shiftY = clientY - rect.top;
+
+      img.style.cursor = "grabbing";
+    }
+
+    function onMouseMove(e) {
+      e.preventDefault();
+      updatePosition(e.clientX, e.clientY);
+    }
+
+    function onTouchMove(e) {
+      if (!active) return;
+      if (e.touches.length > 1) return;
+
+      const touch = e.touches[0];
+      e.preventDefault(); // Prevent scroll
+      updatePosition(touch.clientX, touch.clientY);
+    }
+
+    function updatePosition(clientX, clientY) {
+      if (!active) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const containerWidth = containerRect.width;
+      const containerHeight = containerRect.height;
+
+      let x = clientX - containerRect.left - shiftX;
+      let y = clientY - containerRect.top - shiftY;
+
+      let leftPercent = (x / containerWidth) * 100;
+      let topPercent = (y / containerHeight) * 100;
+
+      leftPercent = Math.max(0, Math.min(100, leftPercent));
+      topPercent = Math.max(0, Math.min(100, topPercent));
+
+      active.style.left = leftPercent + "%";
+      active.style.top = topPercent + "%";
+    }
+
+    function onMouseUp() {
+      if (active) {
+        active.style.cursor = "grab";
+        active = null;
+      }
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    }
+
+    function onTouchEnd() {
+      if (active) {
+        active.style.cursor = "grab";
+        active = null;
+      }
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+    }
+  });
+</script>
+
+{% schema %}
+  {
+    "name": "Image Designer",
+    "settings": [
+      {
+        "type": "richtext",
+        "id": "section_title",
+        "label": "Section Title",
+        "default": "<p>Your Title</p>"
+      },
+      {
+        "type": "range",
+        "id": "font_size",
+        "label": "Desktop Font Size (vw)",
+        "min": 1,
+        "max": 100,
+        "step": 1,
+        "default": 10
+      },{
+        "type": "range",
+        "id": "mobile_font_size",
+        "label": "Mobile Font Size (vw)",
+        "min": 1,
+        "max": 100,
+        "step": 1,
+        "default": 10
+      },
+      {
+        "type": "color",
+        "id": "section_title_color",
+        "label": "Title Color",
+        "default": "#000000"
+      },
+      {
+        "type": "select",
+        "id": "section_title_weight",
+        "label": "Font Weight",
+        "options": [
+          { "value": "400", "label": "Normal" },
+          { "value": "600", "label": "Semi Bold" },
+          { "value": "700", "label": "Bold" }
+        ],
+        "default": "700"
+      },
+      {
+        "type": "select",
+        "id": "section_title_position",
+        "label": "Title Position",
+        "options": [
+          { "value": "top-left", "label": "Top Left" },
+          { "value": "top-center", "label": "Top Center" },
+          { "value": "top-right", "label": "Top Right" },
+          { "value": "middle-left", "label": "Middle Left" },
+          { "value": "middle-center", "label": "Middle Center" },
+          { "value": "middle-right", "label": "Middle Right" },
+          { "value": "bottom-left", "label": "Bottom Left" },
+          { "value": "bottom-center", "label": "Bottom Center" },
+          { "value": "bottom-right", "label": "Bottom Right" }
+        ],
+        "default": "top-center"
+      },
+      {
+        "type": "number",
+        "id": "section_title_z",
+        "label": "Title Z-Index",
+        "default": 2
+      },
+      {
+        "type": "range",
+        "id": "section_padding",
+        "label": "Section Padding (px)",
+        "min": 0,
+        "max": 200,
+        "step": 10,
+        "default": 40
+      },
+      {
+        "type": "range",
+        "id": "opacity",
+        "label": "Opacity",
+        "min": 0,
+        "max": 1,
+        "step": 0.1,
+        "default": 1
+      },
+    ],
+    "blocks": [
+      {
+        "type": "image",
+        "name": "Image Block",
+        "settings": [
+          {
+            "type": "image_picker",
+            "id": "image",
+            "label": "Image"
+          },
+          {
+            "type": "video",
+            "id": "video",
+            "label": "Video"
+          },
+          {
+            "type": "number",
+            "id": "x",
+            "label": "X Position (%)",
+            "default": 10
+          },
+          {
+            "type": "number",
+            "id": "y",
+            "label": "Y Position (%)",
+            "default": 10
+          },
+          {
+            "type": "number",
+            "id": "width",
+            "label": "Desktop Width (%)",
+            "default": 20
+          },
+          {
+            "type": "number",
+            "id": "mobile_width",
+            "label": "Mobile Width (%)",
+            "default": 20
+          },
+          {
+            "type": "range",
+            "id": "z_index",
+            "label": "Z-Index",
+            "min": 0,
+            "max": 99,
+            "default": 1
+          }
+        ]
+      }
+    ],
+    "presets": [
+      {
+        "name": "Image Designer",
+        "category": "Custom"
+      }
+    ]
+  }
+{% endschema %}

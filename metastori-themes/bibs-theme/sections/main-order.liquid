@@ -1,0 +1,307 @@
+{% liquid
+  if order.pickup_in_store
+    assign order_delivery = 'customer.order.store_pickup' | t
+  else
+    assign order_delivery = 'customer.order.home_delivery' | t
+  endif
+
+  if order.fulfillment_status == 'unfulfilled'
+    assign order_stat_label = 'customer.order.new_order' | t
+  else
+    assign order_stat_label = 'customer.order.completed_order' | t
+  endif
+
+  assign order_date = order.created_at | date: '%d/%m/%Y'
+
+  assign subtotal_price = order.subtotal_price | money
+  assign vat = order.tax_price | money
+  assign discount = order.total_discounts | money
+  assign total_price = order.total_price | money
+  assign shipping_price = order.shipping_price | money
+
+  if order.item_count > 1
+    assign item_count = 'customer.order.item_count_multiple' | t: item_count: order.item_count
+  else
+    assign item_count = 'customer.order.item_count' | t: item_count: order.item_count
+  endif
+%}
+
+<div class="color-{{ section.settings.color_scheme }} container-fluid flex flex-col md:flex-row flex-wrap md:gap-x-14 md:gap-y-8">
+  <div class="my-6 md:mb-0 basis-full">
+    {% assign page_title = 'customer.order.title' | t: name: order.id %}
+    {% render 'c-title', content: page_title, custom_tag: 'h2' %}
+  </div>
+  <div class="md:flex-1">
+    <div class="flex gap-4 flex-wrap w-72 md:w-auto">
+      <div class="flex gap-2 flex-col basis-[45%] md:basis-28">
+        {% render 'c-text',
+          translatable_content: 'customer.orders.order_no',
+          type: 'text-2-regular',
+          classes: 'text-grey-700'
+        %}
+        {% render 'c-text', content: order.id, type: 'text-1-regular' %}
+      </div>
+      <div class="flex gap-2 flex-col basis-[45%] md:basis-28 md:order-1">
+        {% render 'c-text',
+          translatable_content: 'customer.orders.status',
+          type: 'text-2-regular',
+          classes: 'text-grey-700'
+        %}
+        {% render 'c-text', content: order_stat_label, type: 'text-1-regular' %}
+      </div>
+      <div class="flex gap-2 flex-col basis-[45%] md:basis-28 md:order-4">
+        {% render 'c-text',
+          translatable_content: 'customer.orders.date',
+          type: 'text-2-regular',
+          classes: 'text-grey-700'
+        %}
+        {% render 'c-text', content: order_date, type: 'text-1-regular' %}
+      </div>
+      <div class="flex gap-2 flex-col basis-[45%] md:basis-28 md:order-6">
+        {% render 'c-text',
+          translatable_content: 'customer.orders.items_num',
+          type: 'text-2-regular',
+          classes: 'text-grey-700'
+        %}
+        {% render 'c-text', content: order.item_count, type: 'text-1-regular' %}
+      </div>
+      <div class="flex gap-2 flex-col basis-[45%] md:basis-28 md:order-5">
+        {% render 'c-text',
+          translatable_content: 'customer.orders.delivery',
+          type: 'text-2-regular',
+          classes: 'text-grey-700'
+        %}
+        {% render 'c-text', content: order_delivery, type: 'text-1-regular' %}
+      </div>
+      {% assign price = order.total_price | money %}
+      <div class="flex gap-2 flex-col basis-[45%] md:basis-28 md:order-3">
+        {% render 'c-text',
+          translatable_content: 'customer.orders.amount',
+          type: 'text-2-regular',
+          classes: 'text-grey-700'
+        %}
+        {% render 'c-text', content: price, type: 'text-1-regular' %}
+      </div>
+    </div>
+
+    {% capture print_label %}
+        {% render 'c-icon', icon: 'print' %}{% render 'c-text', translatable_content: 'customer.orders.print_orders', type: 'text-2-regular' %}
+      {% endcapture %}
+    {% capture track_order %}
+        {% render 'c-icon', icon: 'location-pin', classes: 'text-foreground w-[15px] h-[17px]' %} {% render 'c-text', type: 'text-2-regular', translatable_content: 'customer.orders.track_order' %}
+      {% endcapture %}
+
+    <div class="flex gap-4 mt-10 pb-8 mb-12 border-b-4 border-b-foreground basis-full">
+      {% render 'c-link',
+        content: print_label,
+        href: '#',
+        classes: 'link decoration-grey-400 [&>svg]:inline-block flex items-baseline gap-2 font-medium'
+      %}
+
+      {% render 'c-link',
+        content: track_order,
+        href: last_order.order_status_url,
+        classes: 'flex items-center gap-1 text-base decoration-grey-400',
+        type: 'link'
+      %}
+    </div>
+
+    <div>
+      <div>
+        {% render 'c-title',
+          custom_tag: 'h4',
+          type: 'h7-bold',
+          translatable_content: 'customer.order.delivery',
+          classes: 'md:text-3xl'
+        %}
+        <div class="md:flex md:gap-10 lg:gap-28">
+          {% assign delivery_address = order.shipping_address.address1
+            | append: ' '
+            | append: order.shipping_address.address2
+            | append: ', '
+            | append: order.shipping_address.zip
+            | append: ' '
+            | append: order.shipping_address.city
+          %}
+          <div class="mt-6 mb-12 flex flex-col gap-4 md:basis-[250px]">
+            <div>
+              {% render 'c-text',
+                translatable_content: 'customer.order.delivery_address',
+                type: 'text-2-regular',
+                classes: 'text-grey-700 pb-1'
+              %}
+              {% render 'c-text', type: 'paragraph-2', content: delivery_address %}
+            </div>
+            <div>
+              {% render 'c-text',
+                translatable_content: 'customer.order.package_arrive_date',
+                type: 'text-2-regular',
+                classes: 'text-grey-700 pb-1'
+              %}
+              {% render 'c-text', type: 'paragraph-2', content: 'Wed, Dec 25' %}
+            </div>
+          </div>
+          <div class="mt-6 mb-12 flex-col gap-4 hidden md:flex  md:basis-[250px]">
+            <div>
+              {% render 'c-text',
+                translatable_content: 'customer.order.delivery_address',
+                type: 'text-2-regular',
+                classes: 'text-grey-700 pb-1'
+              %}
+              {% render 'c-text', type: 'paragraph-2', content: delivery_address %}
+            </div>
+            <div>
+              {% render 'c-text',
+                translatable_content: 'customer.order.package_arrive_date',
+                type: 'text-2-regular',
+                classes: 'text-grey-700 pb-1'
+              %}
+              {% render 'c-text', type: 'paragraph-2', content: 'Wed, Dec 25' %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        {% render 'c-title',
+          custom_tag: 'h4',
+          type: 'h7-bold',
+          translatable_content: 'customer.order.payment',
+          classes: 'md:text-3xl'
+        %}
+        <div class="mt-6 mb-12 flex flex-col gap-4 md:gap-10 lg:gap-28 md:flex-row">
+          {% assign transaction = order.transactions | first %}
+          {% comment %}
+            {% if transaction.payment_details %}
+            {% assign credit_card = '**** ' | append: transaction.payment_details.credit_card_last_four_digits %}
+              ... content
+            {% endif %}
+          {% endcomment %}
+          {% assign credit_card = '**** 4444' %}
+          {% assign billing_address = order.billing_address.address1
+            | append: ' '
+            | append: order.billing_address.address2
+            | append: ', '
+            | append: order.billing_address.zip
+            | append: ' '
+            | append: order.billing_address.city
+          %}
+          <div class="mt-1 md:basis-[250px]">
+            {% render 'c-text',
+              translatable_content: 'customer.order.payment_method',
+              type: 'text-2-regular',
+              classes: 'text-grey-700 pb-1'
+            %}
+            <div class="mt-1 flex gap-2 items-center">
+              <span class="inline-block border rounded-sm border-grey-300 p-1">
+                {%- render 'c-icon', icon: 'mastercard', classes: 'h-[14px] w-6' -%}
+              </span>
+              {% render 'c-text', type: 'text-1-regular', content: credit_card, custom_tag: 'span' %}
+            </div>
+          </div>
+          <div class="md:basis-[250px]">
+            {% render 'c-text',
+              translatable_content: 'customer.order.billing_address',
+              type: 'text-2-regular',
+              classes: 'text-grey-700 pb-1'
+            %}
+            {% render 'c-text', type: 'paragraph-2', content: billing_address %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      {% render 'c-title',
+        custom_tag: 'h4',
+        type: 'h7-bold',
+        translatable_content: 'customer.order.order',
+        classes: 'mb-6'
+      %}
+      <div>
+        {% for product in order.line_items %}
+          {% render 'card-order-product',
+            product: product,
+            classes: 'flex h-[104px] gap-2 pb-4 mb-4 border-b border-b-foreground'
+          %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="basis-[344px]">
+    <div class="mt-16 md:mt-0 py-6 px-4 bg-foreground text-background -mx-4 md:mx-0">
+      <div class="flex justify-between border-b border-white pb-4">
+        {% render 'c-text', translatable_content: 'customer.order.arrive_date', type: 'text-2-regular' %}
+        {% render 'c-text', content: 'WEDNESDAY, DECEMBER 25', type: 'text-2-regular' %}
+      </div>
+      <div class="flex flex-col gap-4 py-6 border-b-4 border-b-white">
+        <span class="flex justify-between">
+          {% render 'c-text', type: 'paragraph-2', translatable_content: 'customer.order.subtotal' %}
+          {% render 'c-text', type: 'h8-bold', content: subtotal_price %}
+        </span>
+        <span class="flex justify-between">
+          {% render 'c-text', type: 'paragraph-2', translatable_content: 'customer.order.vat' %}
+          {% render 'c-text', type: 'h8-bold', content: vat %}
+        </span>
+        <span class="flex justify-between">
+          {% render 'c-text', type: 'paragraph-2', translatable_content: 'customer.order.estimated_shipping' %}
+          {% render 'c-text', type: 'h8-bold', content: shipping_price %}
+        </span>
+        <span class="flex justify-between">
+          {% render 'c-text', type: 'paragraph-2', translatable_content: 'customer.order.discount' %}
+          {% render 'c-text', type: 'h8-bold', content: discount %}
+        </span>
+      </div>
+      <div class="pt-6">
+        <span class="flex justify-between">
+          <span class="flex gap-1">
+            {% render 'c-text', type: 'h8-bold', translatable_content: 'customer.order.total' %}
+            {% render 'c-text', type: 'text-2-regular', content: item_count %}
+          </span>
+          {% render 'c-text', type: 'h7-bold', content: total_price %}
+        </span>
+      </div>
+    </div>
+
+    <div class="mt-12 mb-8 bg-grey-200 py-5 px-4 flex flex-col gap-4 items-center text-center">
+      <span>
+        {% render 'c-text', translatable_content: 'customer.order.cancel_first_sentence', type: 'text-1-regular' %}
+        {% render 'c-text', translatable_content: 'customer.order.cancel_second_sentence', type: 'text-1-regular' %}
+      </span>
+      {% capture cancel_button_content %}
+        {% render 'c-text', type: 'h8-bold', translatable_content: 'customer.order.cancel_button' %}
+      {% endcapture %}
+      {% render 'c-button', content: cancel_button_content %}
+    </div>
+
+    <div class="mt-12 mb-8 bg-grey-200 py-7 px-4 flex flex-col gap-4 items-center text-center">
+      <span>
+        {% render 'c-text', translatable_content: 'customer.order.return_first_sentence', type: 'text-1-regular' %}
+      </span>
+      {% capture return_button_content %}
+        {% render 'c-text', type: 'h8-bold', translatable_content: 'customer.order.return_button' %}
+      {% endcapture %}
+      {% render 'c-button', content: return_button_content %}
+    </div>
+
+    {% capture return_button_content %}
+      {% render 'c-text', type: 'text-4', translatable_content: 'customer.order.back_button' %}
+    {% endcapture %}
+    {% render 'c-button', content: return_button_content, design: 'primary', classes: 'button--full-rounded' %}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "t:sections.order.name",
+  "class": "customer order",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.colors.label",
+      "default": "background-1"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,82 @@
+{% doc %}
+  Outputs a MerchantReturnPolicy JSON object for merchant listings.
+  @param {boolean} [include_id] - Include @id for shared reference (default true)
+  @example
+  {% render 'schema-return-policy' %}
+{% enddoc %}
+
+{%- liquid
+  assign currency_code = cart.currency.iso_code | default: shop.currency
+  assign shipping_country = settings.schema_shipping_country | strip
+  if shipping_country == blank
+    assign shipping_country = localization.country.iso_code | default: shop.address.country_code
+  endif
+  assign shipping_country = shipping_country | upcase
+
+  # returnPolicyCountry: where returns are sent. applicableCountry: where the policy applies.
+  assign return_policy_country = settings.schema_address_country | strip
+  if return_policy_country == blank
+    assign return_policy_country = shop.address.country_code
+  endif
+  if return_policy_country == blank
+    assign return_policy_country = shipping_country
+  endif
+  assign return_policy_country = return_policy_country | upcase
+  if shipping_country == blank
+    assign shipping_country = return_policy_country
+  endif
+  if shipping_country == blank
+    assign shipping_country = 'US'
+  endif
+  if return_policy_country == blank
+    assign return_policy_country = shipping_country
+  endif
+
+  assign return_days = settings.schema_return_days | default: 30
+  assign return_fees = settings.schema_return_fees | default: 'https://schema.org/ReturnFeesCustomerResponsibility'
+  assign return_method = settings.schema_return_method | default: 'https://schema.org/ReturnByMail'
+  assign return_category = settings.schema_return_policy_category | default: 'https://schema.org/MerchantReturnFiniteReturnWindow'
+  assign return_shipping_fee = settings.schema_return_shipping_fee | default: '0' | strip
+  if return_shipping_fee == blank
+    assign return_shipping_fee = '0'
+  endif
+  assign return_policy_url = settings.schema_return_policy_url
+  if return_policy_url == blank and shop.refund_policy != blank and shop.refund_policy.url != blank
+    assign return_policy_url = shop.refund_policy.url
+  endif
+  if return_policy_url != blank
+    unless return_policy_url contains 'http'
+      assign return_policy_url = request.origin | append: return_policy_url
+    endunless
+  endif
+  assign output_id = true
+  if include_id == false
+    assign output_id = false
+  endif
+-%}
+{
+  "@type": "MerchantReturnPolicy"
+  {%- if output_id -%}
+  ,"@id": {{ request.origin | append: '/#merchant-return-policy' | json }}
+  {%- endif -%}
+  ,"applicableCountry": {{ shipping_country | json }}
+  ,"returnPolicyCountry": {{ return_policy_country | json }}
+  ,"returnPolicyCategory": {{ return_category | json }}
+  {%- if return_category == 'https://schema.org/MerchantReturnFiniteReturnWindow' -%}
+  ,"merchantReturnDays": {{ return_days }}
+  {%- endif -%}
+  {%- unless return_category == 'https://schema.org/MerchantReturnNotPermitted' -%}
+  ,"returnMethod": {{ return_method | json }}
+  ,"returnFees": {{ return_fees | json }}
+    {%- if return_fees == 'https://schema.org/ReturnShippingFees' -%}
+  ,"returnShippingFeesAmount": {
+    "@type": "MonetaryAmount",
+    "value": {{ return_shipping_fee }},
+    "currency": {{ currency_code | json }}
+  }
+    {%- endif -%}
+  {%- endunless -%}
+  {%- if return_policy_url != blank -%}
+  ,"url": {{ return_policy_url | json }}
+  {%- endif -%}
+}

@@ -1,0 +1,122 @@
+{%- comment -%}
+  Renders breadcrumbs for the current page.
+
+  Accepts:
+
+  Usage:
+    {% render 'c-breadcrumbs' %}
+{%- endcomment -%}
+
+{%- if settings.enable_breadcrumbs -%}
+  {% unless template == 'index' or template == 'cart' or template == 'list-collections' or template == '404' %}
+    {% assign t = template | split: '.' | first %}
+
+    {%- assign is_subscription_template = false -%}
+    {%- if template.name == 'collection' and template.suffix == 'subscription' -%}
+      {%- assign is_subscription_template = true -%}
+    {%- endif -%}
+
+    <breadcrumbs-nav class="container-fluid py-3{% if is_subscription_template %} border-b border-borders{% endif %}">
+      {%- if settings.enable_back_button -%}
+        {%- capture back_button_content -%}
+          {%- render 'c-icon', icon: 'flat-arrow-left' -%}
+          {%- assign back_button_text = 'general.breadcrumbs.back_button' | t -%}
+          {%- render 'c-text', classes: 'inline', type: 'h8-bold', content: back_button_text -%}
+        {%- endcapture -%}
+        {% render 'c-button', design: 'link--hover', content: back_button_content, classes: 'flex items-center gap-1' %}
+      {%- endif -%}
+      <nav class="breadcrumbs" role="navigation" aria-label="breadcrumbs">
+        <ol>
+          <li>
+            {%- assign home_content = 'general.breadcrumbs.home' | t -%}
+            {% render 'c-link',
+              href: '/',
+              type: 'link--hover font-medium',
+              title: home_content,
+              content: home_content
+            %}
+          </li>
+
+          {%- case t -%}
+            {%- when 'page' -%}
+              <li>
+                <span aria-current="page">{{ page.title }}</span>
+              </li>
+
+            {%- when 'product' -%}
+              {%- if collection.url -%}
+                <li>
+                  {% render 'c-link',
+                    href: collection.url,
+                    type: 'link--hover',
+                    title: collection.title,
+                    content: collection.title
+                  %}
+                </li>
+              {%- endif -%}
+
+              <li>
+                <span aria-current="page">{{ product.title }}</span>
+              </li>
+
+            {%- when 'collection' and collection.handle -%}
+              {%- if current_tags -%}
+                <li>
+                  {% render 'c-link',
+                    href: collection.url,
+                    type: 'link--hover',
+                    title: collection.title,
+                    content: collection.title
+                  %}
+                </li>
+                <li>
+                  <span aria-current="page">{{ current_tags | join: ' + ' }}</span>
+                </li>
+              {%- else -%}
+                <li>
+                  <span aria-current="page">{{ collection.title }}</span>
+                </li>
+              {%- endif -%}
+
+            {%- when 'blog' -%}
+              {%- if current_tags -%}
+                <li>
+                  {% render 'c-link', href: blog.url, type: 'link--hover', title: blog.title, content: blog.title %}
+                </li>
+                <li>
+                  <span aria-current="page">{{ current_tags | join: ' + ' }}</span>
+                </li>
+              {%- else -%}
+                <li>
+                  <span aria-current="page">{{ blog.title }}</span>
+                </li>
+              {%- endif -%}
+
+            {%- when 'article' -%}
+              <li>
+                {% render 'c-link', href: blog.url, type: 'link--hover', title: blog.title, content: blog.title %}
+              </li>
+              <li>
+                <span aria-current="page">{{ article.title }}</span>
+              </li>
+
+            {% when 'search' %}
+              {% liquid
+                assign term = page_title | split: ':' | last | split: 'results found for' | last
+                assign searchfor = page_title | split: ':' | first
+              %}
+
+              <li aria-current="page">
+                <span aria-current="page">{{ searchfor }}: {{ term }}</span>
+              </li>
+
+            {%- else -%}
+              <li aria-current="page">
+                <span aria-current="page">{{ page_title }}</span>
+              </li>
+          {%- endcase -%}
+        </ol>
+      </nav>
+    </breadcrumbs-nav>
+  {% endunless %}
+{%- endif -%}

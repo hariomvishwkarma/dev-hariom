@@ -1,0 +1,131 @@
+{%- liquid
+  assign promo_images = false
+  if block.settings.promo_image_1 != blank or block.settings.promo_image_2 != blank
+    assign promo_images = true
+  endif
+
+  assign hc_hide_bundles_for_b2b = false
+  assign hc_shop_all_handle = link.title | handle
+  assign hc_b2b_tag = settings.b2b_mov_customer_tag | default: 'B2B Customer' | strip
+  if hc_shop_all_handle == 'shop-all' and customer != blank and hc_b2b_tag != blank and customer.tags contains hc_b2b_tag
+    assign hc_hide_bundles_for_b2b = true
+  endif
+  assign hc_mega_badge_shown = false
+-%}
+<mega-menu class="is-megamenu mega-menu--layout-columns{% if block.settings.show_menu_image %}{% if promo_images %} show-images{% else %} show-images-without-promo{% endif %}{% endif %}">
+  <a href="{{ link.url }}" class="header__menu-item{% if link.active or link.child_active %} header__active-menu-item{% endif %} header__menu-item--top list-menu__item focus-inset"{% if link.current %} aria-current="page"{% endif %}>
+    <span class="label">{{ link.title | escape }}</span>
+    {% render 'icon', icon: 'caret' %}
+  </a>
+  {%- if link.links != blank or promo_images -%}
+    <div class="list-menu-dropdown hidden">
+      <div class="page-width page-width--mega-menu{% if block.settings.narrow %} page-width--inner{% endif %}">
+        <div class="mega-menu__panel">
+          {%- if link.links != blank -%}
+            <div class="mega-menu__columns">
+              {%- for childlink in link.links -%}
+                {%- assign hc_child_handle = childlink.title | handle -%}
+                {%- if hc_hide_bundles_for_b2b and hc_child_handle == 'bundles' -%}
+                  {%- continue -%}
+                {%- endif -%}
+                <div class="mega-menu__column" id="mega-column-{{ childlink.title | handleize }}">
+                  <h3 class="mega-menu__column-title">
+                    {{ childlink.title | escape }}
+                    {%- unless hc_mega_badge_shown -%}
+                      <span class="mega-menu__column-badge">NEW? START HERE</span>
+                      {%- assign hc_mega_badge_shown = true -%}
+                    {%- endunless -%}
+                  </h3>
+                  <ul class="mega-menu__column-list list-menu" role="list">
+                    {%- for grandchildlink in childlink.links -%}
+                      {%- assign hc_grandchild_handle = grandchildlink.title | handle -%}
+                      {%- if hc_hide_bundles_for_b2b and hc_grandchild_handle == 'bundles' -%}
+                        {%- continue -%}
+                      {%- endif -%}
+                      {%- liquid
+                        assign gh = grandchildlink.handle | downcase
+                        assign gt = grandchildlink.title | strip | downcase
+                        assign is_post_op = false
+                        if gh contains 'mastectomy' or gh contains 'lumpectomy' or gh contains 'explant'
+                          assign is_post_op = true
+                        elsif gt contains 'mastectomy' or gt contains 'lumpectomy' or gt contains 'explant'
+                          assign is_post_op = true
+                        endif
+                      -%}
+                      <li>
+                        <a href="{{ grandchildlink.url }}" class="mega-menu__column-link header__menu-item list-menu__item focus-inset{% if grandchildlink.current %} list-menu__item--active{% endif %}"{% if grandchildlink.current %} aria-current="page"{% endif %}>
+                          {%- if childlink.title == 'Shape' -%}
+                            <span class="mega-menu__column-link-bullet" aria-hidden="true">
+                              {%- liquid
+                                assign shape_icon = 'shape-triangle'
+                                assign gh = grandchildlink.handle | downcase
+                                assign gt = grandchildlink.title | strip | downcase
+
+                                if gh contains 'teardrop' or gh contains 'waterdrop' or gt contains 'teardrop' or gt contains 'waterdrop'
+                                  assign shape_icon = 'shape-teardrop'
+                                elsif gh contains 'half-moon' or gh contains 'half_moon' or gh contains 'halfmoon' or gt contains 'half moon' or gt contains 'half-moon'
+                                  assign shape_icon = 'shape-half-moon'
+                                elsif gh contains 'triangle' or gt contains 'triangle'
+                                  assign shape_icon = 'shape-triangle'
+                                elsif gh contains 'oval' or gt contains 'oval'
+                                  assign shape_icon = 'shape-oval'
+                                endif
+                              -%}
+                              {% render 'icon', icon: shape_icon %}
+                            </span>
+                          {%- endif -%}
+                          <span class="mega-menu__column-link-text">
+                            <span class="label">{{ grandchildlink.title | escape }}</span>
+                            {%- if is_post_op -%}
+                              <span class="mega-menu__post-op-tag">POST-OP</span>
+                            {%- endif -%}
+                          </span>
+                        </a>
+                      </li>
+                    {%- endfor -%}
+                  </ul>
+                  <a href="{{ childlink.url }}" class="mega-menu__column-shop-all">Shop All</a>
+                </div>
+              {%- endfor -%}
+            </div>
+          {%- endif -%}
+
+          <div class="mega-menu__promos">
+            {%- if block.settings.promo_image_1 != blank or block.settings.promo_heading_1 != blank or block.settings.promo_text_1 != blank -%}
+              <div class="mega-menu__promo">
+                <a class="mega-menu__promo-link"{% if block.settings.promo_link_1 != blank %} href="{{ block.settings.promo_link_1 }}"{% else %} role="link" aria-disabled="true"{% endif %}>
+                  <div class="mega-menu__promo-media media">
+                    {%- if block.settings.promo_image_1 != blank -%}
+                      {{ block.settings.promo_image_1 | image_url: width: 600 | image_tag: loading: 'lazy', class: 'motion-reduce', sizes: '(min-width: 990px) 40vw, 100vw', alt: '' }}
+                    {%- else -%}
+                      <div class="mega-menu__promo-placeholder" aria-hidden="true"></div>
+                    {%- endif -%}
+                  </div>
+                  {%- if block.settings.promo_heading_1 != blank or block.settings.promo_text_1 != blank -%}
+                    <span class="mega-menu__promo-label">{% if block.settings.promo_heading_1 != blank %}{{ block.settings.promo_heading_1 | escape }}{% elsif block.settings.promo_text_1 != blank %}{{ block.settings.promo_text_1 | escape }}{% endif %}</span>
+                  {%- endif -%}
+                </a>
+              </div>
+            {%- endif -%}
+            {%- if block.settings.promo_image_2 != blank or block.settings.promo_heading_2 != blank or block.settings.promo_text_2 != blank -%}
+              <div class="mega-menu__promo">
+                <a class="mega-menu__promo-link"{% if block.settings.promo_link_2 != blank %} href="{{ block.settings.promo_link_2 }}"{% else %} role="link" aria-disabled="true"{% endif %}>
+                  <div class="mega-menu__promo-media media">
+                    {%- if block.settings.promo_image_2 != blank -%}
+                      {{ block.settings.promo_image_2 | image_url: width: 600 | image_tag: loading: 'lazy', class: 'motion-reduce', sizes: '(min-width: 990px) 40vw, 100vw', alt: '' }}
+                    {%- else -%}
+                      <div class="mega-menu__promo-placeholder" aria-hidden="true"></div>
+                    {%- endif -%}
+                  </div>
+                  {%- if block.settings.promo_heading_2 != blank or block.settings.promo_text_2 != blank -%}
+                    <span class="mega-menu__promo-label">{% if block.settings.promo_heading_2 != blank %}{{ block.settings.promo_heading_2 | escape }}{% elsif block.settings.promo_text_2 != blank %}{{ block.settings.promo_text_2 | escape }}{% endif %}</span>
+                  {%- endif -%}
+                </a>
+              </div>
+            {%- endif -%}
+          </div>
+        </div>
+      </div>
+    </div>
+  {%- endif -%}
+</mega-menu>

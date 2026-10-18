@@ -1,0 +1,199 @@
+{% liquid
+  assign content_classes = 'px-4 my-6 space-y-2'
+  assign content_wrapper_classes = ''
+  assign header_wrapper_classes = 'flex justify-between items-center gap-4 px-4 py-4'
+  assign input_classes = 'py-3 focus:shadow-none peer-placeholder-shown:top-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+
+  assign printing_product = product.metafields.custom.add_on_printing.value
+  assign printing_options = printing_product.metafields.custom.printing_options.value
+  assign printing_product_add_on = printing_product.metafields.custom.add_on.value.products.value
+  assign enabled_custom_printing = printing_product.metafields.custom.enabled_custom_printing
+  assign section_label = 'sections.product-form.add_on_printing.printing_service' | t
+  assign button_label = 'sections.product-form.add_on_printing.no_printing_added' | t
+  assign drawer_title = 'sections.product-form.add_on_printing.add_printing_service' | t
+  assign player_name_label = 'sections.product-form.add_on_printing.player_name' | t
+  assign your_name_label = 'sections.product-form.add_on_printing.your_name' | t
+%}
+
+<div
+  data-trigger-chosen-print-template
+  class="hidden border border-grey-300 justify-between items-center px-4 py-5"
+>
+  <div class="flex flex-col gap-1">
+    <div>
+      {% render 'c-text',
+        translatable_content: 'sections.product-form.add_on_printing.print_label',
+        type: 'h7-bold',
+        custom_tag: 'span'
+      %}
+      {% render 'c-text',
+        content: '1 SCHMEICHEL',
+        type: 'h7-bold',
+        custom_tag: 'span',
+        custom_attributes: 'data-label-print-name'
+      %}
+    </div>
+    <div data-label-selected-add-on class="text-left hidden">
+      {% render 'c-text', content: '+', custom_tag: 'span', type: 'text-1-medium', classes: 'capitalize' %}
+      {% render 'c-text',
+        content: 'Add On Name',
+        custom_tag: 'span',
+        type: 'text-1-medium',
+        classes: 'capitalize',
+        custom_attributes: 'data-label-print-add-on-name'
+      %}
+
+      <span class="inline-flex ml-[2px]">
+        {%- render 'c-text', content: '(', type: 'text-1-medium', custom_tag: 'span' -%}
+        {%- render 'c-text',
+          content: '/ Price',
+          type: 'text-1-medium',
+          custom_tag: 'span',
+          custom_attributes: 'data-label-print_price'
+        -%}
+        {%- render 'c-text', content: ')', type: 'text-1-medium', custom_tag: 'span' -%}
+      </span>
+    </div>
+  </div>
+  <span data-remove-printing class="pl-1">
+    {% render 'c-icon', icon: 'trash', classes: 'h-7 w-6' %}
+  </span>
+</div>
+
+{%- capture toggle_label -%}
+  <div data-trigger-print-empty class="flex border border-grey-300 justify-between items-center px-4 py-5 text-left [&_input]:hidden">
+    {% render 'c-text', content: button_label, type: 'text-1-medium' %}
+    <span class="p-2 bg-foreground inline-block rounded-full">
+      {% render 'c-icon', icon: 'plus', classes: 'w-5 h-5 text-background' %}
+    </span>
+  </div>
+{%- endcapture -%}
+
+{% capture add_on_drawer_content %}
+  <!-- Add On Header -->
+  <div class="flex justify-between items-center gap-4 mx-4 mb-4 overflow-auto p-4 border-b border-b-grey-300">
+    {% liquid
+      render 'c-text', content: drawer_title, type: 'h7-bold', classes: 'tracking-[0.14px]'
+
+      capture button_content
+        render 'c-icon', icon: 'close', classes: 'w-6 h-6'
+      endcapture
+      render 'c-button', design: 'link--bg', content: button_content, custom_attributes: 'data-drawer-close', classes: 'inline-flex items-center'
+    %}
+  </div>
+
+  <div role="list" class="mx-4 [&_button]:uppercase [&_button[data-tab-open]]:font-bold [&_button[data-tab-open]]:underline [&_button[data-tab-open]]:underline-offset-2 [&_button[data-tab-open]]:decoration-1 [&_button[data-tab-open]]:pointer-events-none">
+    <div data-printing-header class="mb-9 flex gap-1">
+      <div class="pb-4 gap-2 text-left inline">
+        {% render 'c-button', design: 'link--hover', content: player_name_label, custom_attributes: 'data-button-type="predefined" data-tab-open="true"', classes: 'prints-button' %}
+      </div>
+      {% if enabled_custom_printing %}
+        <span class="text-sm">|</span>
+        <div class="pb-4 gap-2 text-left inline">
+          {% render 'c-button', design: 'link--hover', content: your_name_label, custom_attributes: 'data-button-type="custom"', classes: 'prints-button' %}
+        </div>
+      {% endif %}
+      <div class="[&>p]:inline inline-block ml-auto" data-main-printing-price>
+        {% render 'price', main_product: printing_product, type: 'text-1-regular' classes: 'text-grey-500 inline' %}
+      </div>
+    </div>
+    <!-- Content -->
+    <div class="{{ content_wrapper_classes }} flex flex-col gap-6 items-start" data-predefined-prints>
+      <div class="relative h-8 mb-6">
+        <div data-select-placeholder class="border-2 border-foreground rounded-full h7-bold pl-4 py-3 pr-3 inline cursor-pointer select-none [&>svg]:w-4 [&>svg]:h-4 [&>svg]:-mt-[3px]">
+          <span class="inline-block mr-1 [&>span]:font-bold" data-select-placeholder-content>
+            {{ player_name_label }}
+          </span>
+          {% render 'c-icon', icon: 'arrow-down' %}
+        </div>
+        <div data-select-options class="absolute z-1 top-9 bg-foreground text-background py-5 pr-1 hidden">
+          <ul class="px-4 max-h-72 w-[256px] overflow-y-auto secondary-scrollbar">
+            {%- for option in printing_options -%}
+              <li data-select-option class="{% unless forloop.first %}pt-3 {% endunless %}{% unless forloop.last %}pb-3 {% endunless %} pr-6 cursor-pointer">
+                {% render 'c-text', type: 'text-1-medium', content: option, custom_tag: 'span' %}
+              </li>
+            {%- endfor -%}
+          </ul> 
+        </div>
+      </div>
+    </div>
+    <div class="{{ content_wrapper_classes }} hidden -mt-[10px]" data-custom-prints>
+      <div>
+        <div data-auth-input class="mb-8 relative">
+          {% render 'c-input',
+            input_type: 'text',
+            input_name: 'own_text',
+            id: 'own_text',
+            label_translatable_content: 'sections.product-form.add_on_printing.add_your_name',
+            input_classes: input_classes
+          %}
+          <span data-auth-checkmark>
+            {% render 'c-icon',
+              icon: 'checkmark',
+              classes: 'input-icon-success hidden absolute top-[.9rem] right-4 text-success w-5 h-5 inline'
+            %}
+          </span>
+        </div>
+        <div data-auth-input class="mb-8 relative">
+          {% render 'c-input',
+            input_type: 'number',
+            input_name: 'own_number',
+            id: 'own_text',
+            label_translatable_content: 'sections.product-form.add_on_printing.add_your_number',
+            input_classes: input_classes
+          %}
+          <span data-auth-checkmark>
+            {% render 'c-icon',
+              icon: 'checkmark',
+              classes: 'input-icon-success hidden absolute top-[.9rem] right-4 text-success w-5 h-5 inline'
+            %}
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-6">
+      {% if printing_product_add_on %}
+        <div class="w-full">
+        {% for add_on in printing_product_add_on %}
+          <div class="flex justify-between">
+            {% render 'c-checkbox', label_content: add_on.title, checkbox_value: add_on.selected_or_first_available_variant.id, id: add_on.selected_or_first_available_variant.id, checkbox_name: 'add_on', classes: 'flex text-grey-500', checkbox_color_border: 'border-grey-500 peer-checked:border-foreground', custom_attributes: 'data-printing-add-on' %}
+            {% render 'price', main_product: add_on, type: 'text-1-regular' classes: 'text-grey-500' %}
+            <span class="hidden" data-printing-addon-inputs>
+              <input type="hidden" name="printing_product_addon_id" value="{{ add_on.selected_or_first_available_variant.id }}" disabled data-printing-input>
+              <input type="hidden" name="printing_product_addon_quantity" value="1" disabled data-printing-input>
+            </span>
+          </div>
+          {% if forloop.last %}{% break %}{% endif %}
+        {% endfor %}
+        </div>
+      {% endif %}
+      {% render 'c-text', translatable_content: 'sections.product-form.add_on_printing.disclaimer', type: 'text-1-regular', classes: 'text-foreground' %}
+    </div>
+  </div>
+  <div class="absolute bottom-0 inset-x-0 py-3 px-4">
+    {% render 'c-button', id: 'add-printing-to-order-button', translatable_content: 'sections.product-form.add_on_printing.add_to_order', design: 'primary', classes: 'button--full-rounded uppercase', custom_attributes: 'disabled' %}
+  </div>
+  <span class="hidden" data-printing-product-inputs>
+    <input type="hidden" name="printing_product_id" value="{{ printing_product.selected_or_first_available_variant.id }}" disabled data-printing-input>
+    <input type="hidden" name="printing_product_quantity" value="1" disabled data-printing-input>
+    <input type="hidden" name="printing_product_text" value="" disabled data-printing-input>
+  </span>
+{% endcapture %}
+
+{% render 'c-text',
+  type: 'text-1-bold',
+  content: section_label,
+  classes: 'mt-8 flex justify-between',
+  custom_attributes: 'data-printing-add-on-heading'
+%}
+
+{% render 'c-drawer',
+  drawer_id: 'product-add-on-printing',
+  toggle_label: toggle_label,
+  drawer_content: add_on_drawer_content,
+  classes: 'leading-none',
+  drawer_classes: 'bg-background',
+  toggle_type: 'w-full',
+  hide_close_button: true,
+  drawer_width: 'md'
+%}

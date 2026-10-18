@@ -1,0 +1,139 @@
+{% liquid
+  capture content_for_querystring
+    echo content_for_header
+  endcapture
+
+  assign quiz_url = content_for_querystring | split: '"pageurl":"' | last | split: '"' | first | replace: '\/', '/' | replace: '%20', ' ' | replace: '\u0026', '&'
+
+  assign quiz_name = quiz_url | split: 'quiz_name=' | last | split: '&' | first
+  assign quiz_pathname = shop.url | append: quiz_url | split: 'quiz_location=' | last | split: '&' | first
+  assign quiz_pathname = shop.url | append: quiz_pathname | replace: '%2F', '/'
+
+  assign quiz = shop.metaobjects.quiz[quiz_name]
+  assign bg_color = quiz.result_bg_color
+  assign secondary_bg_color = quiz.result_secondary_bg_color
+  assign highlight_color = quiz.result_highlight_color
+  assign subheading = quiz.result_subheading
+  assign subheadings = quiz.result_subheadings.value
+  assign random_index = 'now' | date: '%N' | modulo: subheadings.size | plus: 0
+  assign subheading = subheadings[random_index]
+  assign heading = quiz.result_title_second_part
+  assign description = quiz.result_description | metafield_tag
+  assign add_to_cart_text = quiz.result_add_to_cart_text
+  assign shop_collection_text = quiz.result_shop_collection_text
+  assign share_text = quiz.resut_share_text
+  assign retake_quiz_text = quiz.result_retake_quiz_button_text
+  assign bottom_heading = quiz.result_bottom_section_heading
+  assign bottom_link_1 = quiz.result_bottom_button_link_1
+  assign bottom_link_2 = quiz.result_bottom_button_link_2
+  assign shop_all_text = quiz.result_page_shop_all_text
+
+  assign match_product = collection.products[0]
+  assign match_prod_filter_colors = match_product.metafields.custom.filter_colors.value | join: ' '
+  assign shield_type = match_product.metafields.custom.shield_type
+%}
+
+<script>
+  document.body.classList.add('quiz-page', 'quiz-result-container', 'quiz-result');
+</script>
+
+<custom-result-quiz
+  data-bg-color="{{ bg_color }}"
+  data-highlight-color="{{ highlight_color }}"
+  data-secondary-bg-color="{{ secondary_bg_color }}"
+  data-quiz-pathname="{{ quiz_pathname }}"
+  data-match-prod-name="{{ match_product.title }}"
+  data-shop-all-text="{{ shop_all_text }}"
+  data-match-filter-colors="{{ match_prod_filter_colors }}"
+  style="
+    {% if highlight_color %}
+      --highlight-color: {{ highlight_color }}
+    {% endif %}
+  "
+>
+  <div class="quiz__nav">
+    <a
+      class="retake-quiz-button"
+      href="{{ quiz_pathname }}"
+    >
+      {% render 'c-icon', icon: 'arrow-left', classes: 'quiz__button--back' %}
+      {{ retake_quiz_text }}
+    </a>
+    {% render 'c-icon', icon: 'close', classes: 'quiz__button--close' %}
+  </div>
+
+  <div class="quiz-result">
+    <div class="quiz-result__content">
+      <div class="quiz-result__content__main">
+        <h5 class="quiz-result__subheading">
+          {{ subheading }}
+        </h5>
+        <h1 class="quiz-result__heading">
+          {{ shield_type }}
+          {{ heading }}
+        </h1>
+        {% if description %}
+          <div class="quiz-result__description">
+            {{ description }}
+          </div>
+        {% endif %}
+        <div class="quiz-result__main-buttons">
+          <button data-add-to-cart class="quiz-result__main-btn">{{ add_to_cart_text }}</button>
+          <a href="#shop-collection" class="quiz-result__sedondary-btn">{{ shop_collection_text }}</a>
+        </div>
+      </div>
+      <div class="quiz-result__content__side">
+        <div class="quiz-result__product-preview">
+          {% render 'card-product',
+            card_product: match_product,
+            show_secondary_media: true,
+            media_aspect_ratio: 'bibs',
+            with_text: true
+          %}
+        </div>
+      </div>
+      <div class="quiz-result__content__bottom">
+        <div class="quiz-result__nav-btns">
+          <button class="quiz-result__share-btn">
+            {% render 'c-icon', icon: 'share-l' %}
+            {{ share_text }}
+          </button>
+          <template class="copied-result-link-message">
+            {% render 'c-icon', icon: 'checkmark' %}
+            Copied
+          </template>
+          <a href="{{ quiz_pathname }}" class="quiz-result__retake-btn">
+            {{ retake_quiz_text }}
+          </a>
+        </div>
+        <div class="quiz-result__side-btns">
+          <h6 class="quiz-result__side-heading">{{ bottom_heading }}</h6>
+          <div class="quiz-result__btns-container">
+            <a target="_blank" href="{{ bottom_link_1.value.url }}">
+              {{ bottom_link_1.value.text }}
+              {% render 'c-icon', icon: 'flat-arrow-left' %}
+            </a>
+            <a target="_blank" href="{{ bottom_link_2.value.url }}">
+              {{ bottom_link_2.value.text }}
+              {% render 'c-icon', icon: 'flat-arrow-left' %}
+            </a>
+          </div>
+        </div>
+      </div>
+      <h4 id="shop-collection" class="shop-collection-heading">{{ shop_collection_text }}</h4>
+    </div>
+  </div>
+</custom-result-quiz>
+
+{% schema %}
+{
+  "name": "Quiz result",
+  "class": "section-quiz",
+  "settings": [],
+  "presets": [
+    {
+      "name": "Quiz result"
+    }
+  ]
+}
+{% endschema %}

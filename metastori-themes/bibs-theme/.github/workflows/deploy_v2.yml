@@ -1,0 +1,65 @@
+name: Deploy v2
+on: workflow_dispatch
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Merge main into production
+        run: |
+          git fetch origin
+          git checkout -B production-v2 origin/production-v2
+          if git merge origin/main --no-ff -m "Merge main into production-v2 [auto]"; then
+            echo "✅ Merge successful"
+          else
+            echo "❌ Merge conflict detected. Aborting deploy."
+            git merge --abort
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Commit built assets and push production
+        run: |
+          git add assets/parcel_scripts.js assets/parcel_style.css
+          git commit -m "Merge main + built assets into production [auto]" || echo "No asset changes"
+          git push origin production-v2
+
+      - name: Merge production into market branches
+        run: |
+          MARKETS=( "int" "us" )
+          for MARKET in "${MARKETS[@]}"; do
+            BRANCH="production-v2-$MARKET"
+            if git ls-remote --exit-code --heads origin $BRANCH; then
+              git fetch origin $BRANCH
+              git checkout -B $BRANCH origin/$BRANCH
+            else
+              git checkout -B $BRANCH origin/production-v2
+            fi
+            if git merge origin/production-v2 --no-ff -m "Merge production-v2 into $BRANCH [auto]"; then
+              echo "✅ Merge successful for $BRANCH"
+            else
+              echo "❌ Merge conflict in $BRANCH. Aborting."
+              git merge --abort
+              exit 1
+            fi
+            git push --set-upstream origin $BRANCH
+          done

@@ -1,0 +1,106 @@
+{% comment %}
+  Renders connected-products for subscription products
+
+  Accepts:
+  - main_product {Product}: Color swatches is shown for this Product object
+  - classes {String}: Additional classes to add to the color swatches container
+
+  Usage:
+    {% render 'subscription-connected-products', main_product: product %}
+{% endcomment %}
+
+{% liquid
+  assign connected_products = main_product.metafields.custom.connected_products.value
+  assign related_products = main_product.metafields['shopify--discovery--product_recommendation'].related_products.value
+
+  assign connected_products = connected_products | where: 'selected_or_first_available_selling_plan_allocation' | compact
+
+  assign connected_products_length = connected_products.size | plus: 0
+  assign related_products_length = related_products | map: 'id' | size
+
+  assign connected_products = connected_products | sort
+
+  assign main_product_color_swatch = main_product.metafields.custom.color_swatch.value
+
+  if connected_products_length == 0
+    assign connected_products = related_products
+    assign connected_products_length = related_products_length
+  endif
+%}
+
+{%- capture color_swatches_snippet -%}
+  {%- comment -%}Main product{%- endcomment -%}
+  <span
+    class="swiper-slide main-slider-item{% unless main_product.available %} disabled{% endunless %} {{ border_classes }}"
+    data-color="{{ main_product_color_swatch.name }}"
+    data-connected-product-id="{{ main_product.id }}"
+    data-connected-variant-id="{{ main_product.selected_variant.id }}"
+  >
+    <div class="relative">
+      {%- render 'c-image', image: main_product.featured_image, aspect_ratio: 'bibs' -%}
+      {%- render 'quantity-selector', classes: 'absolute inset-x-4 bottom-2 bg-secondary-background', icon_sizes: 'w-2 h-2 md:w-2.5 md:h-2.5' -%}
+    </div>
+    <div class="product-card-content-wrapper border-t border-borders p-2.5 relative">
+      {%- render 'c-text',
+        content: main_product.title,
+        type: 'text-sm font-medium',
+        classes: 'tracking-sm md:tracking-base truncate leading-tight'
+      -%}
+    </div>
+    <script type="application/json">
+      {{ main_product.variants | json }}
+    </script>
+  </span>
+
+  {%- comment -%}Connected products{%- endcomment -%}
+  {%- for connected_product in connected_products -%}
+    {%- if connected_product.available -%}
+      {%- assign connected_product_color_swatch = connected_product.metafields.custom.color_swatch.value -%}
+      <span
+        class="swiper-slide product-card-quickadd {% unless connected_product.available %} disabled{% endunless %} {{ border_classes }}"
+        data-color="{{ connected_product_color_swatch.name }}"
+        data-connected-product-id="{{ connected_product.id }}"
+        data-connected-variant-id="{{ connected_product.selected_variant.id }}"
+      >
+        <div class="relative">
+          {%- render 'c-image', image: connected_product.featured_image, aspect_ratio: 'bibs' -%}
+          {% render 'quantity-selector', min_qty: 0, value: 0, classes: 'absolute inset-x-4 bottom-2 bg-secondary-background', icon_sizes: 'w-2 h-2 md:w-2.5 md:h-2.5' %}
+        </div>
+        <div class="product-card-content-wrapper border-t border-borders p-2.5 relative">
+          {%- render 'c-text',
+            content: connected_product.title,
+            type: 'text-sm font-medium',
+            classes: 'tracking-sm md:tracking-base truncate leading-tight'
+          -%}
+        </div>
+        <script type="application/json">
+          {{ connected_product.variants | json }}
+        </script>
+      </span>
+    {%- endif -%}
+  {%- endfor -%}
+{%- endcapture -%}
+
+{%- if connected_products_length > 0 -%}
+  <div
+    class="{{ classes | default: '' }}"
+  >
+    {%- capture swiper_options -%}
+      {
+        "slidesPerView": "auto",
+        "slidesPerGroupAuto": true,
+        "spaceBetween": 4
+      }
+    {%- endcapture -%}
+
+    {%- capture swiper_attribute -%}
+        data-swiper='{{- swiper_options -}}'
+      {%- endcapture -%}
+
+    <div class="swiper" {{ swiper_attribute }}>
+      <div class="swiper-wrapper">
+        {{ color_swatches_snippet }}
+      </div>
+    </div>
+  </div>
+{%- endif -%}

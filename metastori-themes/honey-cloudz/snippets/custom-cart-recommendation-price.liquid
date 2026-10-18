@@ -1,0 +1,76 @@
+{%- comment -%}
+  Wholesale-aware variant prices for custom cart recommendations (matches snippets/price.liquid).
+  @param product {product}
+  @param variant {variant} optional — defaults to selected/first available
+{%- endcomment -%}
+
+{%- liquid
+  assign base_product = product
+  assign base_variant = variant | default: product.selected_or_first_available_variant
+
+  if shop.metafields.sawholesale.base_price == blank
+    assign base_price = 'compare_at_price'
+  else
+    assign base_price = shop.metafields.sawholesale.base_price
+  endif
+
+  assign saw_discount = 0
+  assign saw_has_discount = false
+  assign price_key = blank
+
+  if customer.tags != blank
+    for mf in base_product.metafields.sawholesale
+      capture hide_resource
+        render 'wc_product_visibility', resource: mf
+      endcapture
+      if hide_resource == 'true'
+        continue
+      endif
+
+      capture product_customer_tag
+        echo mf | first | replace: 'discount_', ''
+      endcapture
+      if customer.tags contains product_customer_tag
+        assign saw_has_discount = true
+        assign discount_key = product_customer_tag | prepend: 'discount_'
+        assign price_key = product_customer_tag | prepend: 'price_'
+        assign saw_discount = base_product.metafields.sawholesale[discount_key] | divided_by: 100.0
+      endif
+    endfor
+  endif
+
+  assign saw_discount = 1 | minus: saw_discount
+
+  if base_price == 'price' or base_variant.compare_at_price == blank or base_variant.compare_at_price == 0 or base_variant.compare_at_price < base_variant.price
+    assign saw_variant_compare_at_price = base_variant.price
+  else
+    assign saw_variant_compare_at_price = base_variant.compare_at_price
+  endif
+
+  assign cpe = shop.metafields.sawholesale.cpe | default: 'true'
+  if base_variant.metafields.sawholesale[price_key] != blank and cpe == 'true'
+    assign saw_variant_price = base_variant.metafields.sawholesale[price_key]
+  else
+    assign saw_variant_price = saw_variant_compare_at_price | times: saw_discount
+  endif
+
+  if saw_has_discount == false or saw_variant_price >= saw_variant_compare_at_price
+    assign display_price = base_variant.price
+    assign display_compare = base_variant.compare_at_price
+  else
+    assign display_price = saw_variant_price
+    assign display_compare = saw_variant_compare_at_price
+  endif
+
+  assign on_sale = false
+  if display_compare != blank and display_compare > display_price
+    assign on_sale = true
+  endif
+-%}
+
+{%- if on_sale -%}
+  <span class="visually-hidden">{{ 'products.product.price.regular_price' | t }}</span>
+  <s class="custom-cart__recommendation-price-compare" data-custom-cross-sell-compare>{{ display_compare | money }}</s>
+  <span class="visually-hidden">{{ 'products.product.price.sale_price' | t }}</span>
+{%- endif -%}
+<span class="custom-cart__recommendation-price" data-custom-cross-sell-price>{{ display_price | money }}</span>

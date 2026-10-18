@@ -1,0 +1,287 @@
+{% liquid
+  assign section_image = section.settings.image
+  assign image_height = section.settings.image_height
+  assign flip_order = section.settings.flip_order
+  assign flip_order_mobile = section.settings.flip_order_mobile
+  assign margin_bottom = section.settings.margin_bottom
+
+  assign section_heading = section.settings.heading
+  assign section_content = section.settings.text_content
+  assign custom_color = section.settings.custom_color
+  assign custom_text_color = section.settings.custom_text_color
+
+  assign button_text = section.settings.button_text
+  assign button_text_2 = section.settings.button_text_2
+  assign button_link = section.settings.button_link
+  assign button_link_2 = section.settings.button_link_2
+
+  assign font_size = section.settings.custom_text_size
+
+  case font_size
+    when 'small'
+      assign font_size_class = 'text-xs'
+    when 'medium'
+      assign font_size_class = 'text-xl'
+    when 'large'
+      assign font_size_class = 'text-3xl'
+    else
+      assign font_size_class = blank
+  endcase
+%}
+
+{% style %}
+  #shopify-section-{{ section.id }} {
+    --custom-button-color: {{ section.settings.button_color }};
+  }
+  #shopify-section-{{ section.id }} .button_outline--primary {
+    color: var(--custom-button-color);
+    border-color: var(--custom-button-color);
+  }
+{% endstyle %}
+
+<div class="image-section color-{{ section.settings.color_scheme }}">
+  <div class="container-fluid !px-0">
+    <div class="flex md:flex-row {% if flip_order == true %}md:flex-row-reverse{% endif %} {% if flip_order_mobile == true %} flex-col-reverse{% else %} flex-col{% endif %} gap-0">
+      <div class="w-full md:w-1/2">
+        {% liquid
+          case image_height
+            when 'small'
+              assign image_height_class = 'max-h-[400px] lg:max-h-[500px]'
+            when 'medium'
+              assign image_height_class = 'max-h-[500px] lg:max-h-[600px]'
+            when 'large'
+              assign image_height_class = 'max-h-[600px] lg:max-h-[700px]'
+            else
+              assign image_height_class = ''
+          endcase
+          render 'c-image', image: section_image, classes: 'h-full', image_classes: image_height_class
+        %}
+      </div>
+      <div class="w-full md:w-1/2 flex">
+        <div class="container flex flex-col justify-center items-center py-8 md:py-0">
+          {% liquid
+            if section_heading contains '[' and section_heading contains ']' and custom_color != blank and custom_color != 'rgba(0,0,0,0)'
+              assign opening_tag = '<span ' | append: 'style="color:' | append: custom_color | append: ';">'
+              assign section_heading = section_heading | replace: '[', opening_tag | replace: ']', '</span>'
+            else
+              assign section_heading = section_heading
+            endif
+          %}
+          {% liquid
+            if section_content contains '[' and section_content contains ']' and custom_text_color != blank and custom_text_color != 'rgba(0,0,0,0)'
+              assign opening_tag = '<span ' | append: 'style="color:' | append: custom_text_color | append: ';">'
+              assign section_content = section_content | replace: '[', opening_tag | replace: ']', '</span>'
+            else
+              assign section_content = section_content
+            endif
+
+            if section_content contains '((' and section_content contains '))' and font_size != 'none'
+              assign opening_tag = '<span ' | append: 'class="' | append: font_size_class | append: '">'
+              assign section_content = section_content | replace: '((', opening_tag | replace: '))', '</span>'
+            else
+              assign section_content = section_content
+            endif
+          %}
+          <div class="md:max-w-[563px] 2xl:max-w-[770px] px-10">
+            {{ section_heading }}
+            {{ section_content }}
+            {%- if button_text != blank or button_text_2 != blank -%}
+              <div class="flex flex-wrap gap-4 pt-6 lg:pt-8">
+                {% if button_text != blank %}
+                  {%- assign button_1href = button_link | default: '#' -%}
+                  {% render 'c-link', href: button_1href, content: button_text, type: 'button_outline--primary' %}
+                {% endif %}
+                {% if button_text_2 != blank %}
+                  {%- assign button_2href = button_link_2 | default: '#' -%}
+                  {% render 'c-link', href: button_2href, content: button_text_2, type: 'button_outline--primary' %}
+                {% endif %}
+              </div>
+            {%- endif -%}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {%- render 'divider', height: margin_bottom, color_scheme: section.settings.color_scheme -%}
+</div>
+
+{% schema %}
+{
+  "name": "t:sections.image-section-single.name",
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:settings_schema.colors.color_scheme"
+    },
+    {
+      "type": "checkbox",
+      "id": "flip_order",
+      "label": "t:sections.image-section-single.settings.flip_order",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "flip_order_mobile",
+      "label": "t:sections.image-section-single.settings.flip_order_mobile",
+      "visible_if": "{{ section.settings.flip_order == true }}",
+      "default": false
+    },
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "t:sections.image-section-single.settings.image_picker"
+    },
+    {
+      "type": "select",
+      "id": "image_height",
+      "label": "t:sections.image-section.settings.image_height.label",
+      "options": [
+        {
+          "value": "auto",
+          "label": "t:sections.image-section.settings.image_height.options.auto.label"
+        },
+        {
+          "value": "small",
+          "label": "t:sections.image-section.settings.image_height.options.small.label"
+        },
+        {
+          "value": "medium",
+          "label": "t:sections.image-section.settings.image_height.options.medium.label"
+        },
+        {
+          "value": "large",
+          "label": "t:sections.image-section.settings.image_height.options.large.label"
+        }
+      ],
+      "default": "auto"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.image-section-single.settings.text.header.settings_section_header"
+    },
+    {
+      "type": "richtext",
+      "default": "<h2>",
+      "id": "heading",
+      "label": "t:sections.image-section-single.settings.text.header.section_heading"
+    },
+    {
+      "type": "richtext",
+      "default": "<p>",
+      "id": "text_content",
+      "label": "t:sections.image-section-single.settings.text.header.section_content"
+    },
+    {
+      "type": "color",
+      "id": "custom_color",
+      "label": "t:sections.image-section-single.settings.text.header.custom_color.label",
+      "info": "t:sections.image-section-single.settings.text.header.custom_color.info"
+    },
+    {
+      "type": "color",
+      "id": "custom_text_color",
+      "label": "t:sections.image-section-single.settings.text.header.custom_text_color.label",
+      "info": "t:sections.image-section-single.settings.text.header.custom_text_color.info"
+    },
+    {
+      "type": "select",
+      "id": "custom_text_size",
+      "label": "t:sections.image-section-single.settings.text.header.custom_text_size.label",
+      "info": "t:sections.image-section-single.settings.text.header.custom_text_size.info",
+      "options": [
+        {
+          "value": "none",
+          "label": "t:sections.image-section-single.settings.text.header.font-size.options.none.label"
+        },
+        {
+          "value": "small",
+          "label": "t:sections.image-section-single.settings.text.header.font-size.options.small.label"
+        },
+        {
+          "value": "medium",
+          "label": "t:sections.image-section-single.settings.text.header.font-size.options.medium.label"
+        },
+        {
+          "value": "large",
+          "label": "t:sections.image-section-single.settings.text.header.font-size.options.large.label"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button 1 name"
+    },
+    {
+      "type": "url",
+      "id": "button_link",
+      "label": "Button 1 link"
+    },
+    {
+      "type": "text",
+      "id": "button_text_2",
+      "label": "Button 2 name"
+    },
+    {
+      "type": "url",
+      "id": "button_link_2",
+      "label": "Button 2 link"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button color",
+      "default": "#857FBB"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.all.margin.heading"
+    },
+    {
+      "type": "select",
+      "id": "margin_bottom",
+      "label": "t:sections.all.margin.margin_bottom.label",
+      "options": [
+        {
+          "label": "t:sections.all.margin.margin_bottom.none",
+          "value": "none"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.small",
+          "value": "small"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.normal",
+          "value": "normal"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.large",
+          "value": "large"
+        },
+        {
+          "label": "t:sections.all.margin.margin_bottom.custom.label",
+          "value": "custom"
+        }
+      ],
+      "default": "large"
+    },
+    {
+      "type": "range",
+      "min": 0,
+      "max": 100,
+      "default": 16,
+      "step": 1,
+      "label": "t:sections.all.margin.margin_bottom.custom.value",
+      "visible_if": "{{ section.settings.margin_bottom == 'custom' }}",
+      "unit": "px",
+      "id": "margin_bottom_custom"
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.image-section-single.name"
+    }
+  ]
+}
+{% endschema %}

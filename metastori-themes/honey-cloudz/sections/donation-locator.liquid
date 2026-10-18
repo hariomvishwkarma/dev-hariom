@@ -1,0 +1,684 @@
+{%- liquid
+  assign metaobject_type = section.settings.metaobject_type | default: 'donation_organizations'
+  assign org_entries = shop.metaobjects[metaobject_type].values
+  assign lat_key = section.settings.latitude_field_key | default: 'latitude' | strip
+  assign lng_key = section.settings.longitude_field_key | default: 'longitude' | strip
+  assign pin_color = section.settings.pin_color | default: settings.colors_reviews
+  assign pin_active_color = section.settings.pin_active_color | default: settings.colors_accent
+  assign accent_color = section.settings.colors_button_background | default: settings.colors_reviews
+  assign tag_color = section.settings.tag_color
+  assign tag_blue_color = section.settings.tag_blue_color | default: pin_color
+
+  assign org_index = 0
+  assign org_json = ''
+  assign all_types = ''
+  assign all_states = ''
+-%}
+
+{%- comment -%}
+  Shopify Liquid only returns 50 metaobject values unless paginated.
+  Paginate by 250 (Liquid max for metaobject values) so all organizations load.
+  Builds the JSON payload plus the unique type / state lists in a single pass.
+{%- endcomment -%}
+{%- paginate org_entries by 250 -%}
+  {%- for org in org_entries -%}
+    {%- liquid
+      assign org_index = org_index | plus: 1
+
+      assign org_types = org.type.value | default: '' | split: ','
+      assign org_type_list = ''
+      for org_type in org_types
+        assign type_clean = org_type | strip
+        if type_clean != blank
+          assign org_type_list = org_type_list | append: type_clean | append: '||'
+          assign all_types = all_types | append: type_clean | append: '||'
+        endif
+      endfor
+      assign org_type_array = org_type_list | split: '||'
+
+      assign org_state = org.state.value | strip
+      assign org_state_code = org.state_code.value | strip
+      if org_state != blank
+        assign all_states = all_states | append: org_state | append: '||'
+      endif
+
+      assign org_contacts = org.contact.value
+      if org_contacts == blank
+        assign org_contacts = '' | split: ','
+      endif
+
+      assign org_lat_field = org[lat_key]
+      assign org_lng_field = org[lng_key]
+      assign org_lat = org_lat_field.value | default: ''
+      assign org_lng = org_lng_field.value | default: ''
+    -%}
+    {%- capture org_item -%}
+      {
+        "id": {{ org_index }},
+        "handle": {{ org.system.handle | json }},
+        "name": {{ org.organization.value | default: org.system.handle | json }},
+        "state": {{ org_state | json }},
+        "stateCode": {{ org_state_code | json }},
+        "addr": {{ org.address.value | default: '' | json }},
+        "contacts": {{ org_contacts | json }},
+        "types": {{ org_type_array | json }}
+        {%- comment -%} Raw values – validated in JS; entries without valid coordinates fall back to address geocoding. {%- endcomment -%}
+        ,"lat": {{ org_lat | json }},"lng": {{ org_lng | json }}
+      }
+    {%- endcapture -%}
+    {%- liquid
+      if org_index > 1
+        assign org_json = org_json | append: ','
+      endif
+      assign org_json = org_json | append: org_item
+    -%}
+  {%- endfor -%}
+{%- endpaginate -%}
+
+{%- liquid
+  assign type_options = all_types | split: '||' | uniq | sort_natural
+  assign state_options = all_states | split: '||' | uniq | sort_natural
+-%}
+
+{%- style -%}
+  #shopify-section-{{ section.id }} {
+    --section-padding-top: {{ section.settings.padding_top }}px;
+    --section-padding-bottom: {{ section.settings.padding_bottom }}px;
+    --dl-panel-max-height: {{ section.settings.panel_max_height }}px;
+    --dl-panel-max-height-mobile: {{ section.settings.panel_max_height_mobile }}px;
+    --dl-pin: {{ pin_color }};
+    --dl-pin-rgb: {{ pin_color.red }}, {{ pin_color.green }}, {{ pin_color.blue }};
+    --dl-accent: {{ accent_color }};
+    --dl-accent-active: {{ pin_active_color }};
+    --dl-tag: {{ tag_color }};
+    --dl-tag-rgb: {{ tag_color.red }}, {{ tag_color.green }}, {{ tag_color.blue }};
+    --dl-tag-blue: {{ tag_blue_color }};
+    --dl-tag-blue-rgb: {{ tag_blue_color.red }}, {{ tag_blue_color.green }}, {{ tag_blue_color.blue }};
+    --dl-tag-active: {{ tag_color | color_darken: 12 }};
+    --dl-tag-blue-active: {{ tag_blue_color | color_darken: 12 }};
+    {%- if section.settings.use_custom_colors -%}
+      --dl-bg: {{ section.settings.colors_background }};
+      --dl-surface: {{ section.settings.colors_background }};
+      --dl-controls-bg: {{ section.settings.colors_controls_background }};
+      --dl-ink: {{ section.settings.colors_text }};
+      --dl-ink-rgb: {{ section.settings.colors_text.red }}, {{ section.settings.colors_text.green }}, {{ section.settings.colors_text.blue }};
+      --dl-muted: rgba({{ section.settings.colors_text.red }}, {{ section.settings.colors_text.green }}, {{ section.settings.colors_text.blue }}, 0.65);
+      --dl-line: {{ section.settings.colors_border }};
+      --dl-card-hover: rgba({{ section.settings.colors_text.red }}, {{ section.settings.colors_text.green }}, {{ section.settings.colors_text.blue }}, 0.03);
+      --dl-card-active-bg: {{ section.settings.colors_card_active_background }};
+      --color-background: {{ section.settings.colors_background.red }}, {{ section.settings.colors_background.green }}, {{ section.settings.colors_background.blue }};
+      --color-foreground: {{ section.settings.colors_text.red }}, {{ section.settings.colors_text.green }}, {{ section.settings.colors_text.blue }};
+      --color-heading: {{ section.settings.colors_text.red }}, {{ section.settings.colors_text.green }}, {{ section.settings.colors_text.blue }};
+      --color-button-background: {{ section.settings.colors_button_background.red }}, {{ section.settings.colors_button_background.green }}, {{ section.settings.colors_button_background.blue }};
+      --color-button-text: {{ section.settings.colors_button_label.red }}, {{ section.settings.colors_button_label.green }}, {{ section.settings.colors_button_label.blue }};
+      --color-button-border: {{ section.settings.colors_button_background.red }}, {{ section.settings.colors_button_background.green }}, {{ section.settings.colors_button_background.blue }};
+    {%- endif -%}
+  }
+
+  @media screen and (max-width: 950px) {
+    #shopify-section-{{ section.id }} > .section--padding > .page-width {
+      padding-left: 0;
+      padding-right: 0;
+      max-width: 100%;
+    }
+
+    #shopify-section-{{ section.id }} .hc-donation-locator__shell {
+      border-inline: none;
+    }
+
+    #shopify-section-{{ section.id }} .hc-donation-locator__header,
+    #shopify-section-{{ section.id }} .hc-donation-locator__controls,
+    #shopify-section-{{ section.id }} .hc-donation-locator__results-head,
+    #shopify-section-{{ section.id }} .hc-donation-locator__card,
+    #shopify-section-{{ section.id }} .hc-donation-locator__empty {
+      padding-inline: 1.6rem;
+    }
+  }
+{%- endstyle -%}
+
+{{ 'section-donation-locator.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'donation-locator.js' | asset_url }}" defer="defer"></script>
+
+<div class="section--padding{% if section.settings.show_divider %} section--divider{% endif %}">
+  <div class="{% unless section.settings.full_width %}page-width{% endunless %}{% if section.settings.full_width %} page-width--full-width{% endif %}">
+    <hc-donation-locator
+      class="hc-donation-locator"
+      data-api-key="{{ section.settings.map_api_key | escape }}"
+      data-map-id="{{ section.settings.map_id | escape }}"
+      data-default-lat="{{ section.settings.default_map_lat }}"
+      data-default-lng="{{ section.settings.default_map_lng }}"
+      data-default-zoom="{{ section.settings.default_map_zoom }}"
+      data-geocode-suffix="{{ section.settings.geocode_suffix | escape }}"
+      data-invalid-search-title="{{ section.settings.invalid_search_title | escape }}"
+      data-invalid-search-text="{{ section.settings.invalid_search_text | escape }}"
+      data-no-results-title="{{ section.settings.no_results_title | escape }}"
+      data-no-results-text="{{ section.settings.no_results_text | escape }}"
+      data-locating-text="{{ section.settings.locating_text | escape }}"
+      data-directions-label="{{ section.settings.directions_label | escape }}"
+      data-blue-tag-types="{{ section.settings.blue_tag_types | escape }}"
+      data-geo-unavailable-text="{{ section.settings.geo_unavailable_text | escape }}"
+      data-geo-failed-text="{{ section.settings.geo_failed_text | escape }}"
+    >
+      <div class="hc-donation-locator__shell">
+        {%- if section.settings.heading != blank or section.settings.subheading != blank -%}
+          <header class="hc-donation-locator__header">
+            <div>
+              {%- if section.settings.heading != blank -%}
+                <h2 class="hc-donation-locator__title">{{ section.settings.heading | escape }}</h2>
+              {%- endif -%}
+              {%- if section.settings.subheading != blank -%}
+                <p class="hc-donation-locator__subtitle">{{ section.settings.subheading | escape }}</p>
+              {%- endif -%}
+            </div>
+          </header>
+        {%- endif -%}
+
+        <div class="hc-donation-locator__controls">
+          <div class="hc-donation-locator__controls-layout">
+            <div class="hc-donation-locator__search-row">
+              <div class="hc-donation-locator__field">
+                <label for="DonationLocatorState-{{ section.id }}">{{ section.settings.state_label | escape }}</label>
+                <input
+                  id="DonationLocatorState-{{ section.id }}"
+                  data-state-input
+                  type="text"
+                  list="DonationLocatorStates-{{ section.id }}"
+                  autocomplete="off"
+                  placeholder="{{ section.settings.state_placeholder | escape }}"
+                  value=""
+                >
+                <datalist id="DonationLocatorStates-{{ section.id }}">
+                  {%- for state_option in state_options -%}
+                    {%- if state_option != blank -%}
+                      <option value="{{ state_option | escape }}"></option>
+                    {%- endif -%}
+                  {%- endfor -%}
+                </datalist>
+              </div>
+              <div class="hc-donation-locator__field">
+                <label for="DonationLocatorDistance-{{ section.id }}">{{ section.settings.distance_label | escape }}</label>
+                <select id="DonationLocatorDistance-{{ section.id }}" data-distance-select>
+                  <option value="0">{{ section.settings.distance_option_no_limit | escape }}</option>
+                  <option value="25">25 mi</option>
+                  <option value="50">50 mi</option>
+                  <option value="100">100 mi</option>
+                  <option value="250">250 mi</option>
+                </select>
+              </div>
+              <div class="hc-donation-locator__field">
+                <label for="DonationLocatorCount-{{ section.id }}">{{ section.settings.results_label | escape }}</label>
+                <select id="DonationLocatorCount-{{ section.id }}" data-count-select>
+                  <option value="0" selected>{{ section.settings.results_option_no_limit | escape }}</option>
+                  <option value="10">10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
+              <button type="button" class="hc-donation-locator__search-btn" data-search-btn>
+                {{ section.settings.search_button_label | escape }}
+              </button>
+              <button
+                type="button"
+                class="hc-donation-locator__near-btn"
+                data-near-btn
+                title="{{ section.settings.use_location_label | escape }}"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path>
+                </svg>
+                {{ section.settings.use_location_label | escape }}
+              </button>
+            </div>
+
+            {%- if section.settings.show_filters and type_options.size > 0 -%}
+              <div class="hc-donation-locator__filters">
+                {%- for type_option in type_options -%}
+                  {%- if type_option != blank -%}
+                    <label class="hc-donation-locator__filter">
+                      <input type="checkbox" data-filter-type value="{{ type_option | escape }}">
+                      <span class="hc-donation-locator__filter-title">{{ type_option | escape }}</span>
+                    </label>
+                  {%- endif -%}
+                {%- endfor -%}
+              </div>
+            {%- endif -%}
+          </div>
+        </div>
+
+        <div class="hc-donation-locator__split">
+          <div class="hc-donation-locator__results">
+            <div class="hc-donation-locator__results-head">
+              <div class="hc-donation-locator__results-head-text" data-results-head>
+                {{ section.settings.initial_results_text | escape }}
+              </div>
+              <button
+                type="button"
+                class="hc-donation-locator__clear-selection"
+                data-clear-selection
+                hidden
+              >
+                {{ section.settings.clear_selection_label | default: 'Clear' | escape }}
+              </button>
+            </div>
+            <div class="hc-donation-locator__results-body" data-results-list>
+              {%- if org_index == 0 -%}
+                <div class="hc-donation-locator__empty">
+                  <h3>{{ section.settings.no_entries_title | escape }}</h3>
+                  <p>{{ section.settings.no_entries_text | escape }}</p>
+                </div>
+              {%- endif -%}
+            </div>
+          </div>
+
+          <div class="hc-donation-locator__map-wrap">
+            <div class="hc-donation-locator__map" data-map></div>
+            <div class="hc-donation-locator__map-msg" data-map-msg>
+              <div class="hc-donation-locator__map-msg-icon"></div>
+              <h3>{{ section.settings.map_error_title | escape }}</h3>
+              <p>{{ section.settings.map_error_text | escape }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script type="application/json" data-donation-locator-orgs>
+        [{{ org_json }}]
+      </script>
+    </hc-donation-locator>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Donation locator",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Find a Donation Organization"
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Search organizations accepting Honey Cloudz donations by state."
+    },
+    {
+      "type": "header",
+      "content": "Google Maps"
+    },
+    {
+      "type": "text",
+      "id": "map_api_key",
+      "label": "Google Maps API key",
+      "info": "Enable Maps JavaScript API and Geocoding API. Organization addresses are geocoded in the browser to place map pins."
+    },
+    {
+      "type": "text",
+      "id": "map_id",
+      "label": "Google Map ID",
+      "info": "Required for Advanced Markers. Create in Google Cloud Console → Map Management."
+    },
+    {
+      "type": "text",
+      "id": "metaobject_type",
+      "label": "Metaobject type handle",
+      "default": "donation_organizations",
+      "info": "Fields used: state_code, state, organization, address, contact (list), type, latitude, longitude."
+    },
+    {
+      "type": "text",
+      "id": "latitude_field_key",
+      "label": "Latitude field key",
+      "default": "latitude",
+      "info": "Metaobject field handle for latitude. Entries with valid latitude/longitude are pinned exactly; others fall back to their address."
+    },
+    {
+      "type": "text",
+      "id": "longitude_field_key",
+      "label": "Longitude field key",
+      "default": "longitude"
+    },
+    {
+      "type": "text",
+      "id": "geocode_suffix",
+      "label": "Geocode country suffix",
+      "default": "United States",
+      "info": "Appended to addresses when placing map pins without latitude/longitude, to improve accuracy."
+    },
+    {
+      "type": "range",
+      "id": "default_map_zoom",
+      "min": 3,
+      "max": 12,
+      "step": 1,
+      "label": "Default map zoom",
+      "default": 4
+    },
+    {
+      "type": "text",
+      "id": "default_map_lat",
+      "label": "Default map latitude",
+      "default": "39"
+    },
+    {
+      "type": "text",
+      "id": "default_map_lng",
+      "label": "Default map longitude",
+      "default": "-95"
+    },
+    {
+      "type": "header",
+      "content": "Search & filters"
+    },
+    {
+      "type": "text",
+      "id": "state_label",
+      "label": "State field label",
+      "default": "State"
+    },
+    {
+      "type": "text",
+      "id": "state_placeholder",
+      "label": "State placeholder",
+      "default": "e.g. California or CA"
+    },
+    {
+      "type": "text",
+      "id": "distance_label",
+      "label": "Distance field label",
+      "default": "Distance"
+    },
+    {
+      "type": "text",
+      "id": "distance_option_no_limit",
+      "label": "No distance limit label",
+      "default": "No limit"
+    },
+    {
+      "type": "text",
+      "id": "results_label",
+      "label": "Results field label",
+      "default": "Results"
+    },
+    {
+      "type": "text",
+      "id": "results_option_no_limit",
+      "label": "No results limit label",
+      "default": "No limit"
+    },
+    {
+      "type": "text",
+      "id": "search_button_label",
+      "label": "Search button label",
+      "default": "Search"
+    },
+    {
+      "type": "text",
+      "id": "use_location_label",
+      "label": "Use my location label",
+      "default": "Use my location"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_filters",
+      "label": "Show type filters",
+      "default": true,
+      "info": "Checkboxes are built automatically from the Type field of all entries."
+    },
+    {
+      "type": "header",
+      "content": "Messages"
+    },
+    {
+      "type": "text",
+      "id": "initial_results_text",
+      "label": "Initial results text",
+      "default": "Showing all organizations"
+    },
+    {
+      "type": "text",
+      "id": "clear_selection_label",
+      "label": "Clear selection label",
+      "default": "Clear"
+    },
+    {
+      "type": "text",
+      "id": "invalid_search_title",
+      "label": "State not found title",
+      "default": "State not found"
+    },
+    {
+      "type": "text",
+      "id": "invalid_search_text",
+      "label": "State not found text",
+      "default": "Enter a state name or state code and search again."
+    },
+    {
+      "type": "text",
+      "id": "no_results_title",
+      "label": "No results title",
+      "default": "No organizations found"
+    },
+    {
+      "type": "text",
+      "id": "no_results_text",
+      "label": "No results text",
+      "default": "Try another state, increasing the distance or clearing a filter."
+    },
+    {
+      "type": "text",
+      "id": "no_entries_title",
+      "label": "No entries title",
+      "default": "No organizations yet"
+    },
+    {
+      "type": "text",
+      "id": "no_entries_text",
+      "label": "No entries text",
+      "default": "Add donation_organizations metaobject entries in Shopify admin."
+    },
+    {
+      "type": "text",
+      "id": "locating_text",
+      "label": "Locating organizations text",
+      "default": "Locating organizations…"
+    },
+    {
+      "type": "text",
+      "id": "directions_label",
+      "label": "Directions link label",
+      "default": "Directions"
+    },
+    {
+      "type": "text",
+      "id": "map_error_title",
+      "label": "Map error title",
+      "default": "Map couldn't load"
+    },
+    {
+      "type": "textarea",
+      "id": "map_error_text",
+      "label": "Map error text",
+      "default": "Check the Google Maps API key, Map ID, billing, and HTTP referrer restrictions for this domain."
+    },
+    {
+      "type": "text",
+      "id": "geo_unavailable_text",
+      "label": "Geolocation unavailable text",
+      "default": "Geolocation isn't available in this browser."
+    },
+    {
+      "type": "text",
+      "id": "geo_failed_text",
+      "label": "Geolocation failed text",
+      "default": "Couldn't get your location. Search by state instead."
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "checkbox",
+      "id": "full_width",
+      "label": "Make section full width",
+      "default": false
+    },
+    {
+      "type": "range",
+      "id": "panel_max_height",
+      "min": 320,
+      "max": 900,
+      "step": 20,
+      "unit": "px",
+      "label": "List & map panel height (desktop)",
+      "default": 600
+    },
+    {
+      "type": "range",
+      "id": "panel_max_height_mobile",
+      "min": 240,
+      "max": 700,
+      "step": 20,
+      "unit": "px",
+      "label": "Map height (mobile)",
+      "default": 360
+    },
+    {
+      "type": "checkbox",
+      "id": "show_divider",
+      "label": "Show section divider",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "checkbox",
+      "id": "use_custom_colors",
+      "label": "Use custom colors",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "pin_color",
+      "label": "Brand blue / map pin color",
+      "default": "#03ddff"
+    },
+    {
+      "type": "color",
+      "id": "tag_color",
+      "label": "Type tag color",
+      "default": "#e07a9f"
+    },
+    {
+      "type": "color",
+      "id": "tag_blue_color",
+      "label": "Blue type tag color",
+      "default": "#03ddff"
+    },
+    {
+      "type": "text",
+      "id": "blue_tag_types",
+      "label": "Types shown in blue",
+      "default": "Bra & Clothing Program",
+      "info": "Comma-separated type names (not case-sensitive) that use the blue tag color."
+    },
+    {
+      "type": "color",
+      "id": "pin_active_color",
+      "label": "Active pin color",
+      "default": "#1a1b18"
+    },
+    {
+      "type": "color",
+      "id": "colors_button_label",
+      "label": "Button text",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "colors_button_background",
+      "label": "Button background",
+      "default": "#03ddff"
+    },
+    {
+      "type": "color",
+      "id": "colors_text",
+      "label": "Text",
+      "default": "#212326"
+    },
+    {
+      "type": "color",
+      "id": "colors_background",
+      "label": "Background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "colors_controls_background",
+      "label": "Controls background",
+      "default": "#FBF9F6"
+    },
+    {
+      "type": "color",
+      "id": "colors_border",
+      "label": "Border",
+      "default": "#ECE7E1"
+    },
+    {
+      "type": "color",
+      "id": "colors_card_active_background",
+      "label": "Active card background",
+      "default": "#FBEFF3"
+    },
+    {
+      "type": "header",
+      "content": "Padding"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding top",
+      "default": 36
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding bottom",
+      "default": 36
+    }
+  ],
+  "presets": [
+    {
+      "name": "Donation locator"
+    }
+  ]
+}
+{% endschema %}
