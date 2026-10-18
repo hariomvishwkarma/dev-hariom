@@ -1,0 +1,84 @@
+{%- comment -%}
+  Renders an image
+
+  Accepts:
+    - image {Object}: an image object
+    - classes {String}: classes to add to the image container
+    - image_classes {String}: classes to add to the image
+    - style {String}: inline styles to add to the image container
+    - aspect_ratio {String}: aspect ratio to use for the image container
+    - image_width {Integer}: width of the image
+    - image_fit {String}: cover, contain, fill, none
+    - lazy {Boolean}: whether to lazy load the image
+    - alt {String}: alt text for the image
+    - object_placement {String}:
+
+  Usage:
+    {% render 'c-image' with image: image %}
+{%- endcomment -%}
+
+{%- capture sizes -%}
+  (min-width: 990px) calc(100vw - 10rem), (min-width: 750px) calc((100vw - 11.5rem) / 2), calc(100vw - 4rem)
+{%- endcapture -%}
+
+{%- assign image_width = image_width | default: 1200 -%}
+
+{% liquid
+  case aspect_ratio
+    when 'portrait'
+      assign ratio = 'aspect-portrait'
+    when 'square'
+      assign ratio = 'aspect-square'
+    when 'rectangle'
+      assign ratio = 'aspect-rectangle'
+    when 'landscape'
+      assign ratio = 'aspect-video'
+    when 'bibs'
+      assign ratio = 'aspect-bibs'
+    when 'portrait-in-landscape'
+      assign ratio = 'aspect-[6/4]'
+    else
+      assign ratio = 'aspect-auto'
+  endcase
+
+  case image_fit
+    when 'contain'
+      assign image_fit = 'object-contain'
+    when 'fill'
+      assign image_fit = 'object-fill'
+    when 'scale-down'
+      assign image_fit = 'object-scale-down'
+    when 'none'
+      assign image_fit = 'object-none'
+    else
+      assign image_fit = 'object-cover'
+  endcase
+
+  assign object_position = object_position | default: ' center '
+%}
+
+<div class="{{ ratio }} {{ classes | default: '' }}" style="{{ style | default: '' }}">
+  {% if image %}
+    {%- assign image_class = 'w-full h-full'
+      | append: ' '
+      | append: image_fit
+      | append: ' '
+      | append: object_position
+      | append: ' '
+      | append: image_classes
+    -%}
+    {{
+      image
+      | image_url: width: image_width
+      | image_tag:
+        class: image_class,
+        loading: lazy,
+        sizes: sizes,
+        widths: '500, 750, 1000, 1280, 1536, 1946, 2500',
+        alt: alt
+    }}
+  {% else %}
+    {% assign svg_tag = 'w-full h-full fill-grey-600 bg-gray-100 ' | append: image_classes %}
+    {{ 'image' | placeholder_svg_tag: svg_tag }}
+  {% endif %}
+</div>

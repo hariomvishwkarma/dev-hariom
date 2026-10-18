@@ -1,0 +1,945 @@
+{{ 'component-slider.css' | asset_url | stylesheet_tag }}
+
+{%- liquid
+  assign layout_slider = false
+  if section.settings.layout_mode == 'slider'
+    assign layout_slider = true
+  endif
+
+  assign promo_cols_desktop = section.settings.columns_desktop | plus: 0
+  assign promo_cols_mobile = section.settings.columns_mobile | plus: 0
+
+  # Arrows: show if more cards than desktop OR mobile column count
+  assign promo_slider_show_arrows = false
+  if layout_slider and section.blocks.size > 1
+    if section.blocks.size > promo_cols_desktop or section.blocks.size > promo_cols_mobile
+      assign promo_slider_show_arrows = true
+    endif
+  endif
+
+  # All cards fit desktop row but not mobile row — hide arrows from desktop up only
+  assign promo_slider_arrows_mobile_only = false
+  if layout_slider and section.blocks.size > 1 and section.blocks.size <= promo_cols_desktop and section.blocks.size > promo_cols_mobile
+    assign promo_slider_arrows_mobile_only = true
+  endif
+
+  assign promo_slider_fit_desktop = false
+  if layout_slider and section.blocks.size > 0 and section.blocks.size <= promo_cols_desktop
+    assign promo_slider_fit_desktop = true
+  endif
+
+  assign shadow_alpha = section.settings.box_shadow_opacity | divided_by: 100.0
+  assign shadow_color = section.settings.box_shadow_color | color_modify: 'alpha', shadow_alpha
+-%}
+
+{%- style -%}
+  .section-{{ section.id }}-padding {
+    padding-top: {{ section.settings.padding_top | times: 0.75 | round: 0 }}px;
+    padding-bottom: {{ section.settings.padding_bottom | times: 0.75 | round: 0 }}px;
+  }
+
+  @media screen and (min-width: 750px) {
+    .section-{{ section.id }}-padding {
+      padding-top: {{ section.settings.padding_top }}px;
+      padding-bottom: {{ section.settings.padding_bottom }}px;
+    }
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__box {
+    background-color: {{ section.settings.box_background }};
+    border-radius: {{ section.settings.box_border_radius }}px;
+    box-shadow: {{ section.settings.box_shadow_x }}px {{ section.settings.box_shadow_y }}px {{ section.settings.box_shadow_blur }}px {{ section.settings.box_shadow_spread }}px {{ shadow_color }};
+    padding: {{ section.settings.box_padding }}px;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__heading {
+    color: {{ section.settings.heading_color }};
+    font-weight: {{ section.settings.heading_font_weight }};
+    {% if section.settings.heading_uppercase %}
+      text-transform: uppercase;
+    {% else %}
+      text-transform: none;
+    {% endif %}
+    margin: 0 0 {{ section.settings.heading_spacing_bottom }}px;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__grid,
+  #PromoPanel-{{ section.id }} .promo-panel__slider-list {
+    gap: {{ section.settings.card_gap }}px;
+  }
+
+  {% unless layout_slider %}
+    #PromoPanel-{{ section.id }} .promo-panel__grid {
+      display: grid;
+      grid-template-columns: repeat({{ section.settings.columns_mobile }}, minmax(0, 1fr));
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    @media screen and (min-width: 990px) {
+      #PromoPanel-{{ section.id }} .promo-panel__grid {
+        grid-template-columns: repeat({{ section.settings.columns_desktop }}, minmax(0, 1fr));
+      }
+    }
+  {% endunless %}
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+    isolation: isolate;
+    height: 100%;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__media {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    display: block !important;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__content {
+    position: relative;
+    z-index: 2;
+    padding: 1.6rem 1.8rem;
+    text-align: left;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__cover-link {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: block !important;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__cover-link ~ .promo-card__content {
+    pointer-events: none;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__cover-link ~ .promo-card__content .promo-card__cta,
+  #PromoPanel-{{ section.id }} .promo-card__cover-link ~ .promo-card__content a.promo-card__cta {
+    pointer-events: auto;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__badge {
+    position: absolute;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border-radius: 50%;
+    font-weight: 600;
+    line-height: 1.1;
+    pointer-events: none;
+    aspect-ratio: 1;
+    padding: 0.4em;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__badge--top-left {
+    top: 1rem;
+    left: 1rem;
+  }
+  #PromoPanel-{{ section.id }} .promo-card__badge--top-right {
+    top: 1rem;
+    right: 1rem;
+  }
+  #PromoPanel-{{ section.id }} .promo-card__badge--bottom-left {
+    bottom: 1rem;
+    left: 1rem;
+  }
+  #PromoPanel-{{ section.id }} .promo-card__badge--bottom-right {
+    bottom: 1rem;
+    right: 1rem;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__title {
+    margin: 0 0 0.5rem;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__description {
+    margin: 0 0 1rem;
+    line-height: 1.45;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__description p {
+    margin: 0;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__cta {
+    display: inline-block;
+    text-decoration: none;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    line-height: 1;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-card__cta:hover {
+    opacity: 0.92;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-wrap.slider-arrows--hide .slider-buttons {
+    display: none;
+  }
+
+  /* Slider: flush to inner box edges + no Dawn peek / scroll inset gutters */
+  #PromoPanel-{{ section.id }} .promo-panel__slider-wrap {
+    --desktop-margin-left-first-item: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-viewport {
+    position: relative;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-list.slider--tablet,
+  #PromoPanel-{{ section.id }} .promo-panel__slider-list.slider--desktop {
+    scroll-padding-left: 0;
+    scroll-padding-right: 0;
+    margin-bottom: 0;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-list.slider--desktop .slider__slide:first-child {
+    margin-left: 0;
+    scroll-margin-left: 0;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-list.slider--tablet .slider__slide:first-of-type {
+    margin-left: 0;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-list.slider--desktop:after,
+  #PromoPanel-{{ section.id }} .promo-panel__slider-list.slider--tablet:after {
+    padding-left: 0;
+    margin-left: 0;
+  }
+
+  {% if layout_slider and promo_slider_fit_desktop %}
+    @media screen and (min-width: 990px) {
+      #PromoPanel-{{ section.id }} .promo-panel__slider-list.promo-panel__slider-list--fit-desktop {
+        display: grid !important;
+        grid-template-columns: repeat({{ section.blocks.size }}, minmax(0, 1fr)) !important;
+        overflow-x: visible !important;
+        width: 100%;
+      }
+
+      #PromoPanel-{{ section.id }} .promo-panel__slider-list.promo-panel__slider-list--fit-desktop.slider--desktop .slider__slide,
+      #PromoPanel-{{ section.id }} .promo-panel__slider-list.promo-panel__slider-list--fit-desktop.slider--desktop .grid__item {
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+      }
+    }
+  {% endif %}
+
+  /* Arrows: sides, vertically centered on cards; black circle + white caret */
+  #PromoPanel-{{ section.id }} .promo-panel__slider-buttons {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0.35rem;
+    pointer-events: none;
+    z-index: 4;
+    margin: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-buttons .slider-counter {
+    display: none;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-buttons .slider-button {
+    pointer-events: auto;
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    border-radius: 50%;
+    background: #000000;
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-buttons .slider-button[disabled] {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-buttons .slider-button:not([disabled]):hover {
+    background: #1a1a1a;
+    color: #ffffff;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-buttons .slider-button .svg-wrapper,
+  #PromoPanel-{{ section.id }} .promo-panel__slider-buttons .slider-button svg {
+    color: #ffffff;
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__slider-buttons .slider-button svg path {
+    fill: currentColor;
+  }
+
+  @media screen and (min-width: 990px) {
+    #PromoPanel-{{ section.id }} .promo-panel__slider-wrap--arrows-mobile-only .promo-panel__slider-buttons {
+      display: none !important;
+    }
+  }
+
+  #PromoPanel-{{ section.id }} .promo-panel__placeholder {
+    background: rgba(var(--color-foreground), 0.06);
+    min-height: 12rem;
+  }
+{%- endstyle -%}
+
+<div
+  id="PromoPanel-{{ section.id }}"
+  class="promo-panel promo-panel--{{ section.settings.layout_mode }} color-{{ section.settings.color_scheme }} gradient"
+  style="background-color: {{ section.settings.section_background }};"
+>
+  <div class="page-width section-{{ section.id }}-padding isolate">
+    <div class="promo-panel__box">
+      {%- if section.settings.heading != blank -%}
+        <h2 class="promo-panel__heading inline-richtext {{ section.settings.heading_size }}">
+          {{ section.settings.heading }}
+        </h2>
+      {%- endif -%}
+
+      {%- if section.blocks.size > 0 -%}
+        {%- if layout_slider -%}
+          <slider-component
+            class="promo-panel__slider-wrap slider-mobile-gutter{% if promo_slider_arrows_mobile_only %} promo-panel__slider-wrap--arrows-mobile-only{% endif %}{% if section.settings.show_slider_arrows == false %} slider-arrows--hide{% endif %}"
+          >
+            <div class="promo-panel__slider-viewport">
+              <ul
+                id="Slider-{{ section.id }}"
+                class="promo-panel__slider-list list-unstyled grid grid--{{ section.settings.columns_desktop }}-col-desktop grid--{{ section.settings.columns_mobile }}-col-tablet-down slider slider--desktop slider--tablet{% if promo_slider_fit_desktop %} promo-panel__slider-list--fit-desktop{% endif %}{% if settings.animations_reveal_on_scroll %} scroll-trigger animate--slide-in{% endif %}"
+                role="list"
+                aria-label="{{ section.settings.slider_aria_label | escape }}"
+              >
+                {%- for block in section.blocks -%}
+                  <li
+                    id="Slide-{{ section.id }}-{{ forloop.index }}"
+                    class="promo-panel__cell grid__item slider__slide"
+                    {{ block.shopify_attributes }}
+                  >
+                    {% render 'promotional-panel-card', block: block, section: section %}
+                  </li>
+                {%- endfor -%}
+              </ul>
+              {%- if promo_slider_show_arrows and section.settings.show_slider_arrows -%}
+                <div class="slider-buttons promo-panel__slider-buttons">
+                  <button
+                    type="button"
+                    class="slider-button slider-button--prev"
+                    name="previous"
+                    aria-label="{{ 'general.slider.previous_slide' | t }}"
+                  >
+                    <span class="svg-wrapper">{{ 'icon-caret.svg' | inline_asset_content }}</span>
+                  </button>
+                  <div class="slider-counter caption">
+                    <span class="slider-counter--current">1</span>
+                    <span aria-hidden="true"> / </span>
+                    <span class="visually-hidden">{{ 'general.slider.of' | t }}</span>
+                    <span class="slider-counter--total">{{ section.blocks.size }}</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="slider-button slider-button--next"
+                    name="next"
+                    aria-label="{{ 'general.slider.next_slide' | t }}"
+                  >
+                    <span class="svg-wrapper">{{ 'icon-caret.svg' | inline_asset_content }}</span>
+                  </button>
+                </div>
+              {%- endif -%}
+            </div>
+          </slider-component>
+        {%- else -%}
+          <ul
+            class="promo-panel__grid list-unstyled"
+            role="list"
+          >
+            {%- for block in section.blocks -%}
+              <li
+                class="promo-panel__cell"
+                {{ block.shopify_attributes }}
+              >
+                {% render 'promotional-panel-card', block: block, section: section %}
+              </li>
+            {%- endfor -%}
+          </ul>
+        {%- endif -%}
+      {%- else -%}
+        <div class="promo-panel__placeholder center rte">Add promo cards in the theme editor.</div>
+      {%- endif -%}
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Promotional panel",
+  "tag": "section",
+  "class": "section",
+  "disabled_on": {
+    "groups": ["header", "footer"]
+  },
+  "settings": [
+    {
+      "type": "header",
+      "content": "Section background"
+    },
+    {
+      "type": "color",
+      "id": "section_background",
+      "label": "Background color",
+      "default": "#f6f1e7"
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-1"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "label": "Top padding",
+      "default": 36
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "label": "Bottom padding",
+      "default": 36
+    },
+    {
+      "type": "header",
+      "content": "Shadow box (inner container)"
+    },
+    {
+      "type": "color",
+      "id": "box_background",
+      "label": "Box background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "box_border_radius",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "label": "Box corner radius",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "box_padding",
+      "min": 12,
+      "max": 64,
+      "step": 2,
+      "unit": "px",
+      "label": "Inner padding",
+      "default": 28
+    },
+    {
+      "type": "range",
+      "id": "box_shadow_x",
+      "min": -40,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "label": "Shadow offset X",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "box_shadow_y",
+      "min": -40,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "label": "Shadow offset Y",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "box_shadow_blur",
+      "min": 0,
+      "max": 80,
+      "step": 1,
+      "unit": "px",
+      "label": "Shadow blur",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "box_shadow_spread",
+      "min": -20,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "label": "Shadow spread",
+      "default": 0
+    },
+    {
+      "type": "color",
+      "id": "box_shadow_color",
+      "label": "Shadow color",
+      "default": "#000000"
+    },
+    {
+      "type": "range",
+      "id": "box_shadow_opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "label": "Shadow opacity",
+      "default": 10
+    },
+    {
+      "type": "header",
+      "content": "Heading"
+    },
+    {
+      "type": "inline_richtext",
+      "id": "heading",
+      "label": "Heading",
+      "default": "New campaigns & collections"
+    },
+    {
+      "type": "select",
+      "id": "heading_size",
+      "label": "Heading size",
+      "options": [
+        { "value": "h4", "label": "Small" },
+        { "value": "h3", "label": "Medium" },
+        { "value": "h2", "label": "Large" },
+        { "value": "h1", "label": "Extra large" },
+        { "value": "h0", "label": "Huge" }
+      ],
+      "default": "h2"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#121212"
+    },
+    {
+      "type": "select",
+      "id": "heading_font_weight",
+      "label": "Heading font weight",
+      "options": [
+        { "value": "400", "label": "Normal" },
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semibold" },
+        { "value": "700", "label": "Bold" },
+        { "value": "800", "label": "Extra bold" }
+      ],
+      "default": "700"
+    },
+    {
+      "type": "checkbox",
+      "id": "heading_uppercase",
+      "label": "Uppercase heading",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "heading_spacing_bottom",
+      "min": 8,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "label": "Space below heading",
+      "default": 20
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "select",
+      "id": "layout_mode",
+      "label": "Layout",
+      "options": [
+        { "value": "stacked", "label": "Stacked columns (grid)" },
+        { "value": "slider", "label": "Slider (flex row + arrows)" }
+      ],
+      "default": "stacked"
+    },
+    {
+      "type": "select",
+      "id": "columns_desktop",
+      "label": "Columns on large screens",
+      "options": [
+        { "value": "1", "label": "1" },
+        { "value": "2", "label": "2" },
+        { "value": "3", "label": "3" },
+        { "value": "4", "label": "4" }
+      ],
+      "default": "3"
+    },
+    {
+      "type": "select",
+      "id": "columns_mobile",
+      "label": "Columns on small screens",
+      "options": [
+        { "value": "1", "label": "1" },
+        { "value": "2", "label": "2" }
+      ],
+      "default": "1"
+    },
+    {
+      "type": "range",
+      "id": "card_gap",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "label": "Gap between cards",
+      "default": 16
+    },
+    {
+      "type": "checkbox",
+      "id": "show_slider_arrows",
+      "label": "Show slider arrows & counter",
+      "default": true,
+      "info": "Arrows show when the row needs horizontal scrolling on desktop or mobile (e.g. 3 cards with 1 column on mobile). When all cards fit on desktop but not on small screens, arrows show only on mobile. Turn off to hide arrows everywhere."
+    },
+    {
+      "type": "text",
+      "id": "slider_aria_label",
+      "label": "Slider accessible name",
+      "default": "Promotional cards"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "promo_card",
+      "name": "Promo card",
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Background image"
+        },
+        {
+          "type": "url",
+          "id": "card_link",
+          "label": "Card link (optional)",
+          "info": "Covers the whole card except the button"
+        },
+        {
+          "type": "range",
+          "id": "card_min_height",
+          "min": 100,
+          "max": 420,
+          "step": 4,
+          "unit": "px",
+          "label": "Card minimum height",
+          "default": 280
+        },
+        {
+          "type": "range",
+          "id": "image_border_radius",
+          "min": 0,
+          "max": 40,
+          "step": 1,
+          "unit": "px",
+          "label": "Image / card corner radius",
+          "default": 10
+        },
+        {
+          "type": "color",
+          "id": "overlay_color",
+          "label": "Image overlay color",
+          "default": "#000000"
+        },
+        {
+          "type": "range",
+          "id": "overlay_opacity",
+          "min": 0,
+          "max": 100,
+          "step": 5,
+          "unit": "%",
+          "label": "Overlay opacity",
+          "info": "Controls how strong the overlay is for both solid color and gradient/background modes. Lower values show more of the photo.",
+          "default": 35
+        },
+        {
+          "type": "checkbox",
+          "id": "overlay_use_background",
+          "label": "Use background overlay (gradient or solid)",
+          "default": false,
+          "info": "Uses the Background picker instead of overlay color. The photo always sits underneath—use Overlay opacity and transparent gradient stops (top of card) for a soft fade like the Nordic card."
+        },
+        {
+          "type": "color_background",
+          "id": "background",
+          "label": "Background",
+          "default": "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.4) 75%, rgba(0,0,0,0.75) 100%)"
+        },
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title",
+          "default": "Collection name"
+        },
+        {
+          "type": "checkbox",
+          "id": "show_title",
+          "label": "Show title",
+          "default": true
+        },
+        {
+          "type": "range",
+          "id": "title_font_size",
+          "min": 10,
+          "max": 100,
+          "step": 1,
+          "unit": "px",
+          "label": "Title font size",
+          "default": 22
+        },
+        {
+          "type": "color",
+          "id": "title_color",
+          "label": "Title color",
+          "default": "#ffffff"
+        },
+        {
+          "type": "select",
+          "id": "title_font_weight",
+          "label": "Title font weight",
+          "options": [
+            { "value": "500", "label": "Medium" },
+            { "value": "600", "label": "Semibold" },
+            { "value": "700", "label": "Bold" },
+            { "value": "800", "label": "Extra bold" }
+          ],
+          "default": "700"
+        },
+        {
+          "type": "checkbox",
+          "id": "title_uppercase",
+          "label": "Uppercase title",
+          "default": true
+        },
+        {
+          "type": "richtext",
+          "id": "description",
+          "label": "Description",
+          "default": "<p>Short supporting text for this promo.</p>"
+        },
+        {
+          "type": "checkbox",
+          "id": "show_description",
+          "label": "Show description",
+          "default": true
+        },
+        {
+          "type": "range",
+          "id": "description_font_size",
+          "min": 8,
+          "max": 100,
+          "step": 1,
+          "unit": "px",
+          "label": "Description font size",
+          "default": 15
+        },
+        {
+          "type": "color",
+          "id": "description_color",
+          "label": "Description color",
+          "default": "#ffffff"
+        },
+        {
+          "type": "header",
+          "content": "Button"
+        },
+        {
+          "type": "checkbox",
+          "id": "show_button",
+          "label": "Show button",
+          "default": false
+        },
+        {
+          "type": "text",
+          "id": "button_label",
+          "label": "Button text",
+          "default": "View campaign"
+        },
+        {
+          "type": "url",
+          "id": "button_link",
+          "label": "Button link"
+        },
+        {
+          "type": "color",
+          "id": "button_background",
+          "label": "Button background",
+          "default": "#7d9478"
+        },
+        {
+          "type": "color",
+          "id": "button_text_color",
+          "label": "Button text color",
+          "default": "#ffffff"
+        },
+        {
+          "type": "range",
+          "id": "button_radius",
+          "min": 0,
+          "max": 40,
+          "step": 1,
+          "unit": "px",
+          "label": "Button corner radius",
+          "default": 6
+        },
+        {
+          "type": "header",
+          "content": "Badge (discount circle)"
+        },
+        {
+          "type": "checkbox",
+          "id": "show_badge",
+          "label": "Show badge",
+          "default": false
+        },
+        {
+          "type": "text",
+          "id": "badge_text",
+          "label": "Badge text",
+          "default": "-20%"
+        },
+        {
+          "type": "color",
+          "id": "badge_background",
+          "label": "Badge background",
+          "default": "#7d9478"
+        },
+        {
+          "type": "color",
+          "id": "badge_text_color",
+          "label": "Badge text color",
+          "default": "#ffffff"
+        },
+        {
+          "type": "range",
+          "id": "badge_size",
+          "min": 44,
+          "max": 120,
+          "step": 2,
+          "unit": "px",
+          "label": "Badge diameter",
+          "default": 64
+        },
+        {
+          "type": "range",
+          "id": "badge_font_size",
+          "min": 8,
+          "max": 32,
+          "step": 1,
+          "unit": "px",
+          "label": "Badge font size",
+          "default": 14
+        },
+        {
+          "type": "select",
+          "id": "badge_position",
+          "label": "Badge position",
+          "options": [
+            { "value": "top-left", "label": "Top left" },
+            { "value": "top-right", "label": "Top right" },
+            { "value": "bottom-left", "label": "Bottom left" },
+            { "value": "bottom-right", "label": "Bottom right" }
+          ],
+          "default": "top-right"
+        }
+      ]
+    }
+  ],
+  "max_blocks": 12,
+  "presets": [
+    {
+      "name": "Promotional panel",
+      "blocks": [
+        {
+          "type": "promo_card",
+          "settings": {
+            "title": "Nordic collection",
+            "description": "<p>Beautiful Nordic collection</p>",
+            "show_badge": true,
+            "badge_text": "-20%"
+          }
+        },
+        {
+          "type": "promo_card",
+          "settings": {
+            "title": "50% off selected pacifiers",
+            "show_button": true,
+            "button_label": "View campaign",
+            "show_badge": true,
+            "badge_text": "50% OFF",
+            "badge_background": "#e8a598"
+          }
+        },
+        {
+          "type": "promo_card",
+          "settings": {
+            "title": "Textile starter pack",
+            "show_button": true,
+            "button_label": "View campaign"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,540 @@
+{% assign list_variant_restrict = '' | split: ',' %}
+{% capture product_variant %}{% render 'bss-ltap-hv-rules' %}{% endcapture -%}
+{%- unless product_variant contains 'Liquid error' -%}
+  {% assign list_variant_restrict = product_variant | strip | split: ',' %}
+{%- endunless -%}
+{% comment %}
+  Renders a list of product's variants
+  Accepts:
+  - product: {Object} Product Liquid object
+  - show_image: {Boolean} Shows image of the variant in the row
+  - show_icon: {Boolean} Shows icon of the variant in the row
+  - is_modal: {Boolean} Defines if this snippet lives in a modal (optional)
+  Usage:
+  {% render 'pdp-quick-order-list', product: product %}
+{% endcomment %}
+
+{% comment %}customize BSS Commerce ltsp{% endcomment %}
+{% capture check_ltsp %}
+  {% assign bssltspp = product | default: item | default: prod %}{% capture bssltspop %}{% endcapture %}{% render 'bsscommerce-login-to-see-price', product: bssltspp, old_price: bssltspop %}
+{% endcapture %}
+
+{% comment %} TODO: enable theme-check once `line_items_for` is accepted as valid filter {% endcomment %}
+{% # theme-check-disable %}
+{%- assign items_in_cart = cart | line_items_for: product | sum: 'quantity' -%}
+{% # theme-check-enable %}
+
+{% unless check_ltsp contains 'ltsp' %}
+  <div class="quick-order-list-container color-{{ section.settings.color_scheme }}{% unless is_modal %} gradient{% endunless %}">
+    <quick-order-list
+      class="section-{{ section.id }}-padding py-4"
+      id="{{ section.id }}-{{ product.id }}"
+      data-section="{{ section.id }}"
+      data-product-id="{{ product.id }}"
+      data-url="{{ product.url }}"
+    >
+      {% comment %}
+        QUICK ORDER LIST TABS
+      {% endcomment %}
+
+      {%- assign has_nipple_type = false -%}
+      {%- assign nipple_type_option = false -%}
+
+      {% for option in product.options_with_values %}
+        {%- assign option_name = option.name | handle -%}
+        {%- if option_name == 'nipple-type' -%}
+          {%- assign has_nipple_type = true -%}
+          {%- assign nipple_type_option = option -%}
+        {%- endif -%}
+      {% endfor %}
+      <variant-tabs class="variant-tabs">
+        <div class="variant-tabs__header">
+          {% if product.variants.size > 1 %}
+            <h3>{{ 'sections.quick_order_list.variant_header_many' | t }}</h3>
+          {% else %}
+            <h3>{{ 'sections.quick_order_list.variant_header_single' | t }}</h3>
+          {% endif %}
+          <p class="variant-tabs__subtitle">
+            {%- if has_nipple_type and nipple_type_option.values.size > 1 -%}
+              {{ 'sections.quick_order_list.variant_sub_title_shapes' | t }}
+            {%- elsif has_flow_type and flow_type_option.values.size > 1 -%}
+              {{ 'sections.quick_order_list.variant_sub_title_flow_types' | t }}
+            {%- endif -%}
+          </p>
+        </div>
+
+        <div class="variant-tabs__navigation" role="tablist">
+          {%- if has_nipple_type and nipple_type_option.values.size > 1 -%}
+            {%- assign target_option = nipple_type_option | default: flow_type_option -%}
+
+            {%- for value in target_option.values -%}
+              <button
+                class="variant-tab {% if forloop.first %}variant-tab--active{% endif %}"
+                data-tab-target="tab-{{ value | handle }}"
+                data-option-value="{{ value | escape }}"
+              >
+                <span class="variant-tab__icon">
+                  <div class="variant-tab__icon-container">
+                    {% assign option_value = value | downcase %}
+                    {%- assign option_icon = null -%}
+
+                    {% for nipple_type_icon in shop.metaobjects.nipple_type_icons.values %}
+                      {% assign option_name = nipple_type_icon.name | downcase %}
+                      {% if option_name == option_value %}
+                        {%- assign option_icon = nipple_type_icon.icon -%}
+                        {% break %}
+                      {% endif %}
+                    {% endfor %}
+
+                    {%- if option_icon != blank -%}
+                      <div class="variant-tab__icon">
+                        {{ option_icon }}
+                      </div>
+                    {%- endif -%}
+                  </div>
+                </span>
+                <span class="variant-tab__label">{{ value }}</span>
+              </button>
+            {%- endfor -%}
+          {%- elsif has_flow_type and flow_type_option.values.size > 1 -%}
+            {%- for value in flow_type_option.values -%}
+              <button
+                class="variant-tab {% if forloop.first %}variant-tab--active{% endif %}"
+                role="tab"
+                aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+                data-tab-target="tab-{{ value | handle }}"
+                data-option-value="{{ value | escape }}"
+              >
+                <span class="variant-tab__label">{{ value }}</span>
+              </button>
+            {%- endfor -%}
+          {%- endif -%}
+        </div>
+      </variant-tabs>
+
+      {% comment %}
+        END QUICK ORDER LIST TABS
+      {% endcomment %}
+
+      <form
+        action="{{ routes.cart_update_url }}"
+        class="quick-order-list__contents critical-hidden"
+        method="post"
+        id="QuickOrderList"
+      >
+        <div class="quick-order-list__container" id="main-variant-items">
+          <div class="js-contents flex flex-col">
+            {%- if has_nipple_type or has_flow_type -%}
+              {%- assign target_option = nipple_type_option | default: flow_type_option -%}
+
+              {%- comment -%} Count total available variants {%- endcomment -%}
+              {%- assign total_available_variants = 0 -%}
+              {%- for variant in product.variants -%}
+                {%- assign bss_variant_id = variant.id | append: '' -%}
+                {%- unless list_variant_restrict contains bss_variant_id -%}
+                  {%- if variant.available -%}
+                    {%- assign total_available_variants = total_available_variants | plus: 1 -%}
+                  {%- endif -%}
+                {%- endunless -%}
+              {%- endfor -%}
+
+              <span class="variant-count-info">
+                {%- if has_nipple_type and nipple_type_option.values.size > 1 -%}
+                  {%- if total_available_variants > 0 -%}
+                    {{ total_available_variants }}
+                    {{ 'sections.quick_order_list.variants_available' | t }}
+                    {{ nipple_type_option.values.size }}
+                    {{ 'sections.quick_order_list.variant_pacifier_shapes' | t }}
+                  {%- else -%}
+                    {{ 'sections.quick_order_list.variants_unavailable' | t }}
+                  {%- endif -%}
+                {%- elsif has_flow_type and flow_type_option.values.size > 1 -%}
+                  {%- if total_available_variants > 0 -%}
+                    {{ total_available_variants }}
+                    {{ 'sections.quick_order_list.variants_available' | t }}
+                    {{ flow_type_option.values.size }}
+                    {{ 'sections.quick_order_list.variant_flow_types' | t }}
+                  {%- else -%}
+                    {{ 'sections.quick_order_list.variants_unavailable' | t }}
+                  {%- endif -%}
+                {%- endif -%}
+              </span>
+
+              {%- comment -%} Render tabbed content for variants {%- endcomment -%}
+              {%- for value in target_option.values -%}
+                <div
+                  class="variant-tab-content {% if forloop.first %}variant-tab-content--active{% endif %}"
+                  id="tab-{{ value | handle }}"
+                  role="tabpanel"
+                >
+                  {%- comment -%} Count variants for this specific option value {%- endcomment -%}
+                  {%- assign tab_variant_count = 0 -%}
+                  {%- for variant in product.variants -%}
+                    {%- assign variant_has_option = false -%}
+                    {%- for option in variant.options -%}
+                      {%- if option == value -%}
+                        {%- assign variant_has_option = true -%}
+                        {%- break -%}
+                      {%- endif -%}
+                    {%- endfor -%}
+                    {%- if variant_has_option -%}
+                      {%- assign bss_variant_id = variant.id | append: '' -%}
+                      {%- unless list_variant_restrict contains bss_variant_id -%}
+                        {%- assign tab_variant_count = tab_variant_count | plus: 1 -%}
+                      {%- endunless -%}
+                    {%- endif -%}
+                  {%- endfor -%}
+
+                  <table class="quick-order-list__table">
+                    <caption class="visually-hidden">
+                      {{ 'sections.cart.title' | t }}
+                      -
+                      {{ value }}
+                      (
+                      {{- tab_variant_count }}
+                      variants)
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th class="caption-with-letter-spacing" scope="col">
+                          {{ 'sections.quick_order_list.variant' | t }}
+                        </th>
+                        <th class="large-up-hide right caption-with-letter-spacing" scope="col">
+                          {{ 'sections.quick_order_list.variant_total' | t }}
+                        </th>
+                        <th
+                          class="quick-order-list__table-heading--wide small-hide medium-hide caption-with-letter-spacing"
+                          scope="col"
+                        >
+                          {{ 'products.product.quantity.label' | t }}
+                        </th>
+                        <th class="small-hide medium-hide right caption-with-letter-spacing" scope="col">
+                          {{ 'sections.quick_order_list.variant_total' | t }}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {%- for variant in product.variants -%}
+                        {%- assign variant_has_option = false -%}
+                        {%- for option in variant.options -%}
+                          {%- if option == value -%}
+                            {%- assign variant_has_option = true -%}
+                            {%- break -%}
+                          {%- endif -%}
+                        {%- endfor -%}
+
+                        {%- if variant_has_option -%}
+                          {%- assign bss_variant_id = variant.id | append: '' -%}
+                          {%- unless list_variant_restrict contains bss_variant_id -%}
+                            {%- render 'pdp-quick-order-list-row',
+                              item: variant,
+                              image: variant.image,
+                              sku: variant.sku,
+                              barcode: variant.barcode,
+                              variant: variant,
+                              show_image: show_image,
+                              show_sku: show_sku,
+                              show_icon: show_icon,
+                              is_modal: is_modal
+                            -%}
+                          {%- endunless -%}
+                        {%- endif -%}
+                      {%- endfor -%}
+                    </tbody>
+                  </table>
+                </div>
+              {%- endfor -%}
+            {%- else -%}
+              <table class="quick-order-list__table">
+                <caption class="visually-hidden">
+                  {{ 'sections.cart.title' | t }}
+                </caption>
+                <thead>
+                  <tr>
+                    <th class="caption-with-letter-spacing" scope="col">
+                      {%- if product.has_only_default_variant -%}
+                        {{ 'sections.quick_order_list.product' | t }}
+                      {%- else -%}
+                        {{ 'sections.quick_order_list.variant' | t }}
+                      {%- endif -%}
+                    </th>
+                    <th class="large-up-hide right caption-with-letter-spacing" scope="col">
+                      {%- if product.has_only_default_variant -%}
+                        {{ 'sections.quick_order_list.product_total' | t }}
+                      {%- else -%}
+                        {{ 'sections.quick_order_list.variant_total' | t }}
+                      {%- endif -%}
+                    </th>
+                    <th
+                      class="quick-order-list__table-heading--wide small-hide medium-hide caption-with-letter-spacing"
+                      scope="col"
+                    >
+                      {{ 'products.product.quantity.label' | t }}
+                    </th>
+                    <th class="small-hide medium-hide right caption-with-letter-spacing" scope="col">
+                      {%- if product.has_only_default_variant -%}
+                        {{ 'sections.quick_order_list.product_total' | t }}
+                      {%- else -%}
+                        {{ 'sections.quick_order_list.variant_total' | t }}
+                      {%- endif -%}
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {%- if product.has_only_default_variant -%}
+                    {% assign bss_variant_id = false %}
+                    {%- if product.has_only_default_variant -%}
+                      {% assign bss_variant_id = product.selected_or_first_available_variant.id | append: '' %}
+                    {%- else -%}
+                      {% assign bss_variant_id = variant.id | append: '' %}
+                    {%- endif -%}
+                    {% unless list_variant_restrict contains bss_variant_id %}
+                      {%- render 'pdp-quick-order-list-row',
+                        item: product,
+                        image: product.featured_media,
+                        sku: product.selected_or_first_available_variant.sku,
+                        barcode: product.selected_or_first_available_variant.barcode,
+                        variant: product.selected_or_first_available_variant,
+                        show_image: show_image,
+                        show_sku: show_sku,
+                        show_icon: show_icon,
+                        is_modal: is_modal
+                      -%}
+                    {% endunless %}
+                  {%- else -%}
+                    {%- for variant in product.variants -%}
+                      {% assign bss_variant_id = false %}
+                      {%- if product.has_only_default_variant -%}
+                        {% assign bss_variant_id = product.selected_or_first_available_variant.id | append: '' %}
+                      {%- else -%}
+                        {% assign bss_variant_id = variant.id | append: '' %}
+                      {%- endif -%}
+                      {% unless list_variant_restrict contains bss_variant_id %}
+                        {%- render 'pdp-quick-order-list-row',
+                          item: variant,
+                          image: variant.image,
+                          sku: variant.sku,
+                          barcode: variant.barcode,
+                          variant: variant,
+                          show_image: show_image,
+                          show_icon: show_icon,
+                          show_sku: show_sku,
+                          is_modal: is_modal
+                        -%}
+                      {% endunless %}
+                    {%- endfor -%}
+                  {%- endif -%}
+                </tbody>
+              </table>
+            {% endif %}
+          </div>
+        </div>
+
+        <p
+          class="visually-hidden"
+          id="quick-order-list-live-region-text-{{ product.id }}"
+          aria-live="polite"
+          role="status"
+        ></p>
+        <p
+          class="visually-hidden"
+          id="shopping-cart-variant-item-status"
+          aria-live="polite"
+          aria-hidden="true"
+          role="status"
+        >
+          {{ 'accessibility.loading' | t }}
+        </p>
+      </form>
+
+      {%- if product.has_only_default_variant or product.variants.size == 1 -%}
+        <span class="quick-order-list-error">
+          {% comment %} Populated by JS {% endcomment %}
+        </span>
+      {%- else -%}
+        <div
+          class="quick-order-list__total{% unless is_modal %} gradient{% endunless %}"
+          id="quick-order-list-total-{{ product.id }}-{{ section.id }}"
+        >
+          <div class="quick-order-list-total__info">
+            <div class="quick-order-list__total-items">
+              <span>
+                {{ items_in_cart }}
+                {% if items_in_cart == 1 -%}
+                  {{- 'sections.quick_order_list.quick_order_total_item' | t -}}
+                {%- else -%}
+                  {{- 'sections.quick_order_list.quick_order_total_items' | t -}}
+                {%- endif %}
+              </span>
+              <p class="h5">{{ 'sections.quick_order_list.total_items' | t }}</p>
+            </div>
+            <div class="quick-order-list-total__price">
+              <div class="totals__product-total">
+                <span class="totals__subtotal-value">
+                  {% comment %} TODO: enable theme-check once `line_items_for` is accepted as valid filter {% endcomment %}
+                  {% # theme-check-disable %}
+                  {{ cart | line_items_for: product | sum: 'original_line_price' | money }}
+                  {% # theme-check-enable %}
+                </span>
+                <p class="totals__subtotal h5">{{ 'sections.quick_order_list.product_total' | t }}</p>
+              </div>
+              <small class="tax-note caption-large rte">
+                {%- if cart.duties_included and cart.taxes_included -%}
+                  {%- if shop.shipping_policy.body == blank -%}
+                    {{ 'sections.cart.duties_and_taxes_included_shipping_at_checkout_without_policy' | t }}
+                  {%- else -%}
+                    {{
+                      'sections.cart.duties_and_taxes_included_shipping_at_checkout_with_policy_html'
+                      | t: link: shop.shipping_policy.url
+                    }}
+                  {%- endif -%}
+                {%- elsif cart.duties_included == false and cart.taxes_included -%}
+                  {%- if shop.shipping_policy.body == blank -%}
+                    {{ 'sections.cart.taxes_included_shipping_at_checkout_without_policy' | t }}
+                  {%- else -%}
+                    {{
+                      'sections.cart.taxes_included_shipping_at_checkout_with_policy_html'
+                      | t: link: shop.shipping_policy.url
+                    }}
+                  {%- endif -%}
+                {%- elsif cart.duties_included and cart.taxes_included == false -%}
+                  {%- if shop.shipping_policy.body == blank -%}
+                    {{ 'sections.cart.duties_included_taxes_at_checkout_shipping_at_checkout_without_policy' | t }}
+                  {%- else -%}
+                    {{
+                      'sections.cart.duties_included_taxes_at_checkout_shipping_at_checkout_with_policy_html'
+                      | t: link: shop.shipping_policy.url
+                    }}
+                  {%- endif -%}
+                {%- elsif cart.duties_included == false and cart.taxes_included == false -%}
+                  {%- if shop.shipping_policy.body == blank -%}
+                    {{ 'sections.cart.taxes_at_checkout_shipping_at_checkout_without_policy' | t }}
+                  {%- else -%}
+                    {{
+                      'sections.cart.taxes_at_checkout_shipping_at_checkout_with_policy_html'
+                      | t: link: shop.shipping_policy.url
+                    }}
+                  {%- endif -%}
+                {%- endif -%}
+              </small>
+            </div>
+            {% if settings.free_cart_bar_enabled != blank %}
+              {%- render 'free-delivery-bar',
+                section: section,
+                show_progress: false,
+                classes: 'free-delivery-bar-product relative',
+                attributes: 'data-free-delivery-product'
+              -%}
+            {% endif %}
+            <div class="quick-order-list-total__column large-up-hide">
+              <div class="quick-order-list-buttons">
+                <a
+                  href="{{ routes.cart_url }}"
+                  class="quick-order-list__button button button--secondary button--full-width"
+                >
+                  <span class="quick-order-list__button-text">{{- 'sections.quick_order_list.view_cart' | t -}}</span>
+                </a>
+                <div class="variant-remove-total">
+                  {%- render 'loading-spinner' -%}
+                  <quick-order-list-remove-all-button
+                    class="no-js-hidden"
+                    data-action="confirm"
+                  >
+                    <button class="button button--tertiary" type="button">
+                      <span class="svg-wrapper">
+                        {{- 'icon-remove.svg' | inline_asset_content -}}
+                      </span>
+
+                      <span class="text-body">{{ 'sections.quick_order_list.remove_all' | t }}</span>
+                    </button>
+                  </quick-order-list-remove-all-button>
+                </div>
+              </div>
+              <span class="quick-order-list__message caption-large" role="status">
+                <span class="quick-order-list__message-icon hidden">
+                  <span class="svg-wrapper">
+                    {{- 'icon-checkmark.svg' | inline_asset_content -}}
+                  </span>
+                </span>
+                <span class="quick-order-list__message-text"></span>
+              </span>
+              <span class="quick-order-list-error">
+                {% comment %} Populated by JS {% endcomment %}
+              </span>
+            </div>
+            <div class="quick-order-list-total__column small-hide medium-hide">
+              <div class="quick-order-list-buttons">
+                <a
+                  href="{{ routes.cart_url }} "
+                  class="quick-order-list__button button button-primary small-hide  medium-hide"
+                >
+                  <span class="quick-order-list__button-text">
+                    {{- 'sections.quick_order_list.view_cart' | t -}}
+                    <span> ({{ items_in_cart }})</span></span
+                  >
+                </a>
+                <div class="variant-remove-total{% if items_in_cart == 0 %} variant-remove-total--empty{% endif %}">
+                  {%- render 'loading-spinner' -%}
+                  <quick-order-list-remove-all-button
+                    class="no-js-hidden"
+                    data-action="confirm"
+                  >
+                    <button class="button button--tertiary" type="button">
+                      <span class="svg-wrapper">
+                        {{- 'icon-remove.svg' | inline_asset_content -}}
+                      </span>
+                      <span class="text-body">{{ 'sections.quick_order_list.remove_all' | t }}</span>
+                    </button>
+                  </quick-order-list-remove-all-button>
+                </div>
+              </div>
+              <span class="quick-order-list__message caption-large" role="status">
+                <span class="quick-order-list__message-icon hidden">
+                  <span class="svg-wrapper">
+                    {{- 'icon-checkmark.svg' | inline_asset_content -}}
+                  </span>
+                </span>
+                <span class="quick-order-list__message-text"></span>
+              </span>
+              <span class="quick-order-list-error">
+                {% comment %} Populated by JS {% endcomment %}
+              </span>
+            </div>
+          </div>
+          <div class="quick-order-list-total__confirmation hidden">
+            <span class="text-body">
+              {{ 'sections.quick_order_list.remove_all_items_confirmation' | t: quantity: items_in_cart }}
+            </span>
+            <quick-order-list-remove-all-button
+              data-action="remove"
+            >
+              <button
+                class="quick-order-list__button-confirm button button--secondary"
+                type="button"
+              >
+                {{- 'sections.quick_order_list.remove_all' | t -}}
+              </button>
+            </quick-order-list-remove-all-button>
+            <quick-order-list-remove-all-button
+              data-action="cancel"
+            >
+              <button
+                class="quick-order-list__button-cancel button button--tertiary"
+                type="button"
+              >
+                {{- 'sections.quick_order_list.cancel' | t -}}
+              </button>
+            </quick-order-list-remove-all-button>
+          </div>
+        </div>
+      {%- endif -%}
+    </quick-order-list>
+    <template id="QuickOrderListErrorTemplate-{{ product.id }}">
+      {{ 'icon-error.svg' | inline_asset_content }}
+      <span class="quick-order-list-error-message caption-large" role="alert"></span>
+    </template>
+  </div>
+{% else %}
+
+{% endunless %}

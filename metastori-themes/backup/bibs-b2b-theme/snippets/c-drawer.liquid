@@ -1,0 +1,157 @@
+{%- comment -%}
+  Renders a drawer
+
+  Accepts:
+    - drawer_id {String}: sets the id of the drawer
+    - drawer_placement {String}: sets the placement of the drawer
+    - drawer_width {String}: sets the width of the drawer
+    - drawer_header {String}: sets the header of the drawer
+    - drawer_header_classes {String}: sets the classes of the drawer header
+    - drawer_header_menu_padding {Boolean}: menu padding for the drawer header
+    - drawer_content {String}: sets the content of the drawer
+    - drawer_content_classes {String}: sets the classes of the drawer content
+    - drawer_body_classes {String}: sets the classes of the drawer body
+    - drawer_footer {String}: sets the footer of the drawer
+    - drawer_backdrop {Boolean}: sets the backdrop of the drawer
+    - toggle_label {String}: sets the toggle label of the drawer
+    - toggle_type {String}: sets the toggle type of the drawer
+    - toggle_button {Object}: send the entire btn instead of just the label to insert into the btn
+    - toggle_custom_attributes {String}: sets the toggle custom attributes of the drawer
+    - classes {String}: sets the classes of the drawer
+    - drawer_classes {String}: sets the classes of the drawer
+    - close_button_in_body {Boolean}: puts the close button in the body of the drawer
+    - hide_close_button {Boolean}: hides the close button of the drawer
+    - header_menu {Boolean}: sets the header menu of the drawer
+    - close_button_classes {String}: sets the classes of the close button
+
+  Usage:
+    {% render 'c-drawer' %}
+{%- endcomment -%}
+
+{% liquid
+  case drawer_width
+    when 'sm'
+      assign width = 'max-w-sm'
+    when 'md'
+      assign width = 'max-w-[420px]'
+    when 'lg'
+      assign width = 'max-w-[496px]'
+    else
+      assign width = 'max-w-xs'
+  endcase
+
+  case drawer_placement
+    when 'left'
+      assign placement = 'top-0 left-0 h-full -translate-x-full' | append: ' ' | append: width
+    when 'top'
+      assign placement = 'top-0 left-0 right-0 -translate-y-full'
+    when 'bottom'
+      assign placement = 'bottom-0 left-0 right-0 translate-y-full'
+    when 'below-header'
+      assign placement = 'right-0 h-screen translate-x-full ' | append: width
+    else
+      assign placement = 'top-0 right-0 h-full translate-x-full' | append: ' ' | append: width
+  endcase
+
+  if header_menu
+    assign tag = 'header-drawer'
+  else
+    assign tag = 'c-drawer'
+  endif
+
+  assign close_button_classes = 'inline-flex items-center p-1.5'
+
+  assign drawer_backdrop = drawer_backdrop | default: true
+%}
+
+<{{ tag }}
+  data-component-id="{{ drawer_id }}"
+  data-placement="{{ drawer_placement }}"
+  data-backdrop="{{ drawer_backdrop }}"
+  {% if header_menu %}
+    data-backdrop-classes="hidden md:block bg-black bg-opacity-30 fixed inset-0 z-40 cursor-pointer"
+  {% endif %}
+  class="{{ classes }}"
+>
+  <!-- Drawer toggle label -->
+  {%- if toggle_label -%}
+    <button
+      class="relative {{ toggle_type }}"
+      type="button"
+      data-drawer-target="{{ drawer_id }}"
+      {{ toggle_custom_attributes }}
+    >
+      {{- toggle_label -}}
+    </button>
+  {%- endif -%}
+
+  <!-- Drawer toggle button -->
+  {%- if toggle_button -%}
+    {{- toggle_button -}}
+  {%- endif -%}
+
+  <!-- drawer component -->
+  <div
+    id="{{ drawer_id }}"
+    class="fixed {{ placement }} {{ drawer_classes }} z-50 transition-transform w-full drawer-wrapper"
+    tabindex="-1"
+  >
+    {%- unless hide_close_button -%}
+      {%- unless close_button_in_body -%}
+        <!-- close button -->
+        {%- capture button_content -%}
+          {% render 'c-icon', icon: 'close', classes: 'w-4 h-4' %}
+        {%- endcapture -%}
+        <div class="absolute right-6 top-6 z-1 leading-none">
+          {% render 'c-button',
+            design: 'link--bg',
+            content: button_content,
+            custom_attributes: 'data-drawer-close',
+            classes: close_button_classes
+          %}
+        </div>
+      {%- endunless -%}
+    {%- endunless -%}
+
+    <!-- Drawer content -->
+    <div class="drawer-content-wrapper h-full flex flex-col {{ drawer_content_classes }}">
+      <!-- Drawer header -->
+      {%- if drawer_header -%}
+        <div class="{{ drawer_header_classes }}">
+          <div class="drawer-header flex flex-col gap-6 mx-4 md:mx-[30px] pt-10 {% if drawer_header_menu_padding %} !py-4 {% endif %} pb-6 border-b border-borders">
+            {{- drawer_header -}}
+          </div>
+        </div>
+      {%- endif -%}
+      <!-- Drawer body -->
+      {%- if drawer_content -%}
+        <div class="contents {{ drawer_body_classes }}">
+          {%- unless hide_close_button -%}
+            {%- if close_button_in_body -%}
+              <!-- close button -->
+              {%- capture button_content -%}
+                {% render 'c-icon', icon: 'close', classes: 'w-4 h-4' %}
+              {%- endcapture -%}
+              <div class="justify-end md:flex-none text-right m-[30px] mb-0">
+                {% render 'c-button',
+                  design: 'link--bg_no-padding',
+                  content: button_content,
+                  custom_attributes: 'data-drawer-close',
+                  classes: close_button_classes
+                %}
+              </div>
+            {%- endif -%}
+          {%- endunless -%}
+          {{- drawer_content -}}
+        </div>
+      {%- endif -%}
+      <!-- Drawer footer -->
+      {%- if drawer_footer -%}
+        {{- drawer_footer -}}
+      {%- endif -%}
+      <div class="loading">
+        {%- render 'c-icon', icon: 'spinner', classes: 'w-6 h-6 animate-spin-slow' -%}
+      </div>
+    </div>
+  </div>
+</{{ tag }}>

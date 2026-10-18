@@ -1,0 +1,106 @@
+{% capture check_ltsp %}
+  {% assign bssltspp = product | default: item | default: prod %}{% capture bssltspop %}{% endcapture %}{% render 'bsscommerce-login-to-see-price', product: bssltspp, old_price: bssltspop %}
+{% endcapture %}
+
+{%- liquid
+  if use_variant
+    assign target = product.selected_or_first_available_variant
+  elsif placeholder
+    assign target = null
+  else
+    assign target = product
+  endif
+
+  assign compare_at_price = target.compare_at_price
+  assign price = target.price | default: 1999
+  assign price_min = product.price_min
+  assign price_max = product.price_max
+  assign available = target.available | default: false
+  assign money_price = price | money
+  assign money_price_min = price_min | money
+  assign money_price_max = price_max | money
+  if settings.currency_code_enabled
+    assign money_price = price | money_with_currency
+    assign money_price_min = price_min | money_with_currency
+    assign money_price_max = price_max | money_with_currency
+  endif
+
+  if target == product and product.price_varies
+    assign money_price = 'products.product.price.from_price_html' | t: price: money_price
+  endif
+
+  assign list_price = product.metafields.custom.list_price
+  assign msrp = product.metafields.custom.msrp
+  assign list_price_dkk = product.metafields.custom.list_price_dkk
+  assign msrp_dkk = product.metafields.custom.msrp_dkk
+
+  assign active_currency = localization.country.currency.iso_code | default: cart.currency.iso_code
+  assign display_list_price = list_price
+  assign display_msrp = msrp
+  assign show_list_price = false
+  assign show_msrp = false
+
+  if active_currency == 'DKK'
+    assign display_list_price = list_price_dkk
+    assign display_msrp = msrp_dkk
+
+    if list_price_dkk != blank and list_price_dkk > 0 and list_price_dkk > price
+      assign show_list_price = true
+    endif
+
+    if msrp_dkk != blank and msrp_dkk > 0 and msrp_dkk > price
+      assign show_msrp = true
+    endif
+  else
+    if list_price != blank and list_price > 0 and list_price > price
+      assign show_list_price = true
+    endif
+
+    if msrp != blank and msrp > 0 and msrp > price
+      assign show_msrp = true
+    endif
+  endif
+%}
+
+<div class="flex {% if customer.tags contains 'Approved' %}flex-col{% else %}flex-col-reverse{% endif %} border border-[#a6a6a6] rounded-lg !p-4">
+  {% if customer.tags contains 'Approved' %}
+    <div class="your-price price-wrapper mb-4">
+      <span class="label">{{- 'products.product.price.your_price' | t -}}</span>
+      {%- assign bssltspp = product | default: item | default: prod -%}
+      {%- capture bssltspop %}{% comment %}start BSS Commerce ltsp{% endcomment %}{% assign bssltspp = product | default: item | default: prod %}{% capture bssltspop %}{{ product.price  | money }}{% endcapture %}{% render 'bsscommerce-login-to-see-price', product: bssltspp, old_price: bssltspop %}{% comment %}end BSS Commerce ltsp{% endcomment %}{% endcapture -%}
+      <span class="text-4xl font-semibold">
+        {%- render 'bsscommerce-login-to-see-price', product: bssltspp, old_price: bssltspop -%}
+      </span>
+    </div>
+  {% else %}
+    <a href="{{ routes.account_login_url }}?checkout_url=/" class="login-required button button-primary">
+      {{- 'products.product.price.login_for_price' | t | default: 'Login to see price' -}}
+    </a>
+  {% endif %}
+  {% if customer.tags contains 'Approved' %}
+    {% if show_list_price %}
+      <div class="list-price price-wrapper">
+        <span class="label">{{- 'products.product.price.list_price' | t -}}</span>
+        <span class="price-value line-through">{{ display_list_price | money }}</span>
+      </div>
+
+      {% if display_list_price > price %}
+        <div class="you-save price-wrapper">
+          {% assign savings = display_list_price | minus: price %}
+          {% assign percent = savings | times: 100 | divided_by: display_list_price %}
+          <p>
+            {{- 'products.product.price.you_save' | t | default: 'You save' }}
+          </p>
+
+          <span class="savings-text text-[var(--sunset)]"> {{ percent | round }}% ({{ savings | money }}) </span>
+        </div>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+  {% if show_msrp %}
+    <div class="rrp price-wrapper">
+      <span class="label">{{- settings.msrp_price_text | default: 'MSRP' -}}</span>
+      <span class="price-value">{{ display_msrp | money }}</span>
+    </div>
+  {% endif %}
+</div>

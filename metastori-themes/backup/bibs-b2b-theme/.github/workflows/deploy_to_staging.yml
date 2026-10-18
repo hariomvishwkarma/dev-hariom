@@ -1,0 +1,78 @@
+name: Deploy to Staging
+
+on: workflow_dispatch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Merge main into staging (with conflict check)
+        run: |
+          git fetch origin
+          git checkout -B staging origin/staging
+
+          # Attempt merge
+          if git merge origin/main --no-ff -m "Merge main into staging [auto]"; then
+            echo "✅ Merge successful"
+          else
+            echo "❌ Merge conflict detected. Aborting deploy."
+            exit 1
+          fi
+
+          git push origin staging
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Commit and push built assets to staging
+        run: |
+          git add assets/main.js assets/main.css
+          git commit -m "Add built main.js and main.css [auto]" || echo "No changes to commit"
+          git push origin staging
+
+      - name: Merge staging into staging-[market] branches (with conflict checks)
+        run: |
+          MARKETS=( "eu" )
+          for MARKET in "${MARKETS[@]}"; do
+            BRANCH="staging-$MARKET"
+
+            # Check if the remote branch exists
+            if git ls-remote --exit-code --heads origin $BRANCH; then
+              echo "✅ Remote branch $BRANCH exists. Checking out..."
+              git fetch origin $BRANCH
+              git checkout -B $BRANCH origin/$BRANCH
+            else
+              echo "⚠️ Remote branch $BRANCH does not exist. Creating from staging."
+              git checkout -B $BRANCH origin/staging
+            fi
+
+            # Attempt merge
+            if git merge origin/staging --no-ff -m "Merge staging into $BRANCH [auto]"; then
+              echo "✅ Merge successful for $BRANCH"
+            else
+              echo "❌ Merge conflict detected in $BRANCH. Aborting."
+              exit 1
+            fi
+
+            git push --set-upstream origin $BRANCH
+
+          done
