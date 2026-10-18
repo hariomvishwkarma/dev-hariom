@@ -1,0 +1,505 @@
+{% style %}
+  .cst-grid {
+    display: grid;
+    gap: {{ section.settings.gap }}px;
+    grid-template-columns: repeat({{ section.settings.mobile_columns }}, 1fr);
+    max-width: 1400px;
+    margin-inline: auto;
+    padding-inline: {{ section.settings.gap | append: 'px' }};
+    position: relative;
+  }
+
+  @media screen and (min-width: 768px) {
+    .cst-grid {
+      grid-template-columns: repeat({{ section.settings.desktop_columns }}, 1fr);
+    }
+  }
+
+  .cst-product-card {
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+    transition: opacity 0.3s ease;
+  }
+
+  .cst-main-slider .cst-slide-inner {
+    width: 100%;
+    aspect-ratio: 17/20;
+  }
+
+  .cst-image-link {
+    position: relative;
+  }
+
+  .cst-product-image-wrapper {
+    aspect-ratio: 17/20;
+    position: relative;
+    background-color: #eee;
+    overflow: hidden;
+  }
+  
+  .cst-product-image {
+    display: block;
+    height: 100%;
+  }
+  .cst-product-image.skeleton,
+  .cst-swatch-image.skeleton {
+    opacity: 0;
+  }
+
+  .cst-swatch-image-wrapper {
+    /* aspect-ratio: 1/1; */
+    position: relative;
+    background-color: #eee;
+    overflow: hidden;
+  }
+  
+  .cst-swatch-image {
+    display: block;
+    cursor:pointer;
+    height: 100%;
+  }
+
+  .cst-disabled::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: {{section.settings.overlay_color}};
+    opacity: {{section.settings.overlay_opacity}};
+    /* pointer-events: none; */
+    /* cursor: auto; */
+    display: block;
+  }
+
+  .cst-product-title {
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color:#000000;
+    text-decoration:none;
+  }
+
+  .cst-swatches {
+    display: flex;
+    align-items: center;
+    margin-top: 0.5rem;
+    gap: 8px;
+    position: relative;
+  }
+
+  .cst-swatches .cst-slide-inner {
+    border: 0.8px solid transparent;
+    transition: all 0.3s;
+  }
+
+  .cst-swatches .swiper-slide.cst-active .cst-slide-inner {
+    border-color: #333;
+  }
+
+  .cst-hidden {
+    display: none !important;
+  }
+  
+  .cst-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 30px 0;
+  }
+
+  .cst-page-button {
+    padding: 2px 5px;
+    text-decoration: none;
+    font-size: 16px;
+    color: #333;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s ease;
+  }
+
+  .cst-page-button:hover {
+    border-color: #333;
+  }
+
+  .cst-page-button.active {
+    border-color: #333;
+  }
+
+  .cst-main-slider,
+  .cst-swatch-slider {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .swiper-button-prev,
+  .swiper-button-next {
+    position: relative;
+    left: auto;
+    right: auto;
+    top: auto;
+    bottom: auto;
+    width: 18px;
+    height: 100%;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+    background-color: #fff;
+  }
+
+  .swiper-button-prev {
+    position: absolute;
+    left: 0;
+    justify-content: start;
+  }
+
+  .swiper-button-next {
+    position: absolute;
+    right: 0;
+    justify-content: end;
+  }
+
+  .swiper-button-prev::after,
+  .swiper-button-next::after {
+    font-size: 14px;
+    color: #333;
+  }
+
+  .swiper-button-prev.swiper-button-disabled,
+  .swiper-button-next.swiper-button-disabled {
+    display: none !important;
+  }
+
+  @media(max-width: 425px) {
+    .swiper-button-prev,
+    .swiper-button-next {
+      width: 14px;
+    }
+
+    .swiper-button-prev::after,
+    .swiper-button-next::after {
+      font-size: 10px;
+      color: #333;
+    }
+  }
+
+  .cst-tags-box {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: clamp(70px, 100vw, 200px);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 5px;
+    border: 1px solid red;
+  }
+
+  .cst-img-box {
+    display: flex;
+    width: 70px;
+    z-index: 1;
+  }
+  .cst-img-box img {
+    display: flex;
+  }
+{% endstyle %}
+
+{% paginate collection.products by section.settings.products_per_page %}
+    <div class="cst-grid">
+      {% for product in collection.products %}
+
+        {% assign is_available = product.available %}
+
+        <div class="cst-product-card {% unless is_available %} disabled{% endunless %}" data-product-id="{{ product.id }}">
+          <div class="cst-main-slider">
+            <div class="cst-wrapper swiper-wrapper">
+              {% comment %} {% if is_available %} {% endcomment %}
+                {% for variant in product.variants %}
+                  {% assign variant_img = variant.featured_image | image_url %}
+                  {% unless variant_img contains '.gif' %}
+                    {% if variant_img %}
+                      <div class="swiper-slide">
+                        <div class="cst-slide-inner">
+                          <a href="{{ variant.url }}" class="cst-image-link {% unless variant.metafields.pickup.shipping_qty > 0 %} cst-disabled {% endunless %}">
+                            <div class="cst-product-image-wrapper">
+                                <link rel="preload" as="image" href="{{ variant_img }}">
+                                <img
+                                  class="cst-product-image skeleton"
+                                  src="{{ variant_img }}"
+                                  alt="{{ product.title }}"
+                                  width="100%"
+                                  height="auto"
+                                  loading="lazy"
+                                  onload="this.classList.remove('skeleton')"
+                                />
+                            </div>
+                          </a>
+                        </div>
+                      </div>
+                    {% endif %}
+                  {% endunless %}
+                {% endfor %}
+              {% comment %} {% else %}
+                <div class="swiper-slide">
+                  <div class="cst-slide-inner">
+                    <a href="{{ product.url }}" class="cst-image-link cst-disabled">
+                      <div class="cst-product-image-wrapper">
+                          <link rel="preload" as="image" href="{{ product.featured_image }}">
+                          <img
+                            class="cst-product-image skeleton"
+                            src="{{ product.featured_image | img_url: '400x' }}"
+                            alt="{{ product.title }}"
+                            width="100%"
+                            height="auto"
+                            loading="lazy"
+                            onload="this.classList.remove('skeleton')"
+                          />
+                      </div>
+                    </a>
+                  </div>
+                </div>
+              {% endif %} {% endcomment %}
+            </div>
+          </div>
+
+          <a class="cst-product-title" href="{{ product.url }}">{{ product.title }} - {{ product.price | money_without_trailing_zeros }}</a>
+
+          <div class="cst-swatches">
+            <div class="swiper-button-prev cst-swatch-prev"></div>
+            <div class="cst-swatch-slider">
+              <div class="cst-swatch-wrapper swiper-wrapper">
+                {% for variant in product.variants %}
+                  {% assign variant_img = variant.featured_image | img_url: '100x' %}
+                  {% unless variant_img contains '.gif' %}
+                    {% if variant_img %}
+                      <div class="swiper-slide">
+                        <div class="cst-slide-inner">
+                          {% comment %} <a href="{{ variant.url }}" class="cst-image-link {% unless variant.metafields.pickup.shipping_qty > 0 %} cst-disabled {% endunless %}"> {% endcomment %}
+                            <div class="cst-swatch-image-wrapper">
+                                <img
+                                  class="cst-swatch-image skeleton"
+                                  src="{{ variant_img }}"
+                                  alt="{{ product.title }}"
+                                  width="100%"
+                                  height="auto"
+                                  loading="lazy"
+                                  onload="this.classList.remove('skeleton')"
+                                />
+                            </div>
+                          {% comment %} </a> {% endcomment %}
+                        </div>
+                      </div>
+                    {% endif %}
+                  {% endunless %}
+                {% endfor %}
+              </div>
+            </div>
+            <div class="swiper-button-next cst-swatch-next"></div>
+          </div>
+
+          
+          {% unless is_available %}
+            {% if section.settings.tag_soldout_img != blank  %}
+              <div class="cst-tags-box">
+                <div class="cst-img-box">
+                  <img src="{{ section.settings.tag_soldout_img | img_url: '400x' }}" width="100%" height="auto" alt="soldout">
+                </div>
+              </div>
+            {% endif %}
+          {% endunless %}
+        </div>
+
+      {% endfor %}
+
+    </div>
+
+    {% if paginate.pages > 1 %}
+        <div class="cst-pagination">
+        {% if paginate.previous %}
+            <a href="{{ paginate.previous.url }}" class="cst-page-button">←</a>
+        {% endif %}
+
+        {% for part in paginate.parts %}
+            {% if part.is_link %}
+            <a href="{{ part.url }}" class="cst-page-button">{{ part.title }}</a>
+            {% else %}
+            <span class="cst-page-button active">{{ part.title }}</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if paginate.next %}
+            <a href="{{ paginate.next.url }}" class="cst-page-button">→</a>
+        {% endif %}
+        </div>
+    {% endif %}
+{% endpaginate %}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.cst-grid .cst-product-card').forEach(function (card) {
+      const mainSliderEle = card.querySelector('.cst-main-slider');
+      const swatchSliderEle = card.querySelector('.cst-swatch-slider');
+
+      if(!mainSliderEle || !swatchSliderEle) return;
+
+      const mainSwiper = new Swiper(mainSliderEle, {
+        slidesPerView: 1,
+        spaceBetween: 8,
+        allowTouchMove: true,
+        simulateTouch: true,   // allows mouse drag as swipe on desktop
+        cssMode: false,
+        mousewheel:{
+          invert:false,
+          forceToAxis:true,
+        },
+        on: {
+          slideChange: function() {
+            setSwatchActive(mainSwiper.activeIndex);
+            
+          }
+        }
+      });
+
+      const swatchSwiper = new Swiper(swatchSliderEle, {
+        slidesPerView: 7,
+        slidesPerGroup: 1,
+        breakpoints: {
+          0: { 
+            slidesPerView: 4,
+            spaceBetween: 2,
+          },
+          425: { 
+            slidesPerView: 5,
+            spaceBetween: 4,
+          },
+          768: { 
+            slidesPerView: 6,
+            spaceBetween: 4,
+          },
+          1200: { 
+            slidesPerView: 7,
+            spaceBetween: 4,
+          }
+        },
+        navigation: {
+          nextEl: card.querySelector('.cst-swatch-next'),
+          prevEl: card.querySelector('.cst-swatch-prev'),
+        },
+      });
+
+      console.log(swatchSwiper);
+      swatchSwiper.slides.forEach((slideEl, idx) => {
+        slideEl.addEventListener('mouseenter', () => {
+          mainSwiper.slideTo(idx, 500);
+          setSwatchActive(idx);
+        });
+      });
+
+      function setSwatchActive(activeIndex) {
+        swatchSwiper.slides.forEach((slide, index) => {
+          slide.classList.toggle('cst-active', index === activeIndex);
+        })
+      }
+
+      setSwatchActive(0);
+    });
+  });
+</script>
+
+
+{% schema %}
+{
+  "name": "Custom Collection Grid",
+  "tag": "section",
+  "settings": [
+    {
+      "type": "range",
+      "id": "products_per_page",
+      "label": "Products per page",
+      "min": 4,
+      "max": 50,
+      "step": 1,
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "desktop_columns",
+      "label": "Desktop columns",
+      "min": 2,
+      "max": 5,
+      "step": 1,
+      "default": 4
+    },
+    {
+      "type": "range",
+      "id": "mobile_columns",
+      "label": "Mobile columns",
+      "min": 1,
+      "max": 3,
+      "step": 1,
+      "default": 2
+    },
+    {
+      "type": "range",
+      "id": "gap",
+      "label": "Grid gap (px)",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "default": 20
+    },
+    {
+      "type": "header",
+      "content": "Swatches Settings"
+    },
+    {
+      "type": "range",
+      "label": "Max Swatch",
+      "id": "swatch_max",
+      "min": 2,
+      "max": 20,
+      "default": 5,
+    },
+    {
+      "type": "header",
+      "content": "Disabled Settings"
+    },
+    {
+      "type": "color",
+      "label": "Overlay Color",
+      "id": "overlay_color",
+      "default": "#FF9C9C"
+    },
+    {
+      "type": "range",
+      "label": "Overlay Opacity",
+      "id": "overlay_opacity",
+      "min": 0,
+      "max": 1,
+      "step": 0.1,
+      "default": 0.4,
+    },
+    {
+      "type": "header",
+      "content": "Special Tags Settings"
+    },
+    {
+      "type":"image_picker",
+      "id": "tag_soldout_img",
+      "label": "Soldout Image",
+      "info": "this will show if product is unavailable"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Custom Collection Grid"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,352 @@
+{% style %}
+  .cst-blocks-container {
+    display: none;
+  }
+  .cst-repair-container a{
+    color:#3495fa;
+  }
+  .cst-repair-container {
+    font-weight: 600;
+    color: #000;
+    font-size:{{ section.settings.sec_desc_font_size }};
+  }
+  .cst-container {
+    /* max-width: 1440px; */
+    /* margin-inline: auto; */
+    padding: 0 1.8rem;
+  }
+  .cst-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    justify-content: start;
+    align-items: start;
+  }
+
+  .cst-tab-navigation {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    white-space: nowrap;
+  }
+
+  .cst-tab-title {
+    color: #C4C4C4;
+    cursor: pointer;
+  }
+  .cst-tab-title.active {
+    color: #000;
+    text-decoration: underline;
+    text-underline-offset: 7px;
+  }
+
+  .cst-tab-content {
+    margin-top: 5px;
+    display: none;
+    counter-reset: list-counter;
+  }
+  .cst-tab-content.active {
+    display: block;
+  }
+
+  .cst-accordion-title {
+    cursor: pointer;
+    counter-increment: list-counter;
+    display: flex;
+    gap: 5px;
+  }
+  .cst-accordion-title::before {
+    content: counter(list-counter, decimal-leading-zero) ".";
+    color: inherit;
+    display: flex;
+  }
+  .cst-accordion-content {
+    height: 0;
+    overflow: hidden;
+    padding-inline-start: 24px;
+    transition: height 0.5s;
+  }
+
+  .cst-media {
+    margin-top: 20px;
+    width: 100%;
+    aspect-ratio: {{section.settings.media_ratio}};
+    background-color: #eee;
+  }
+  .cst-media img,
+  .cst-media video {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    background: #fff;
+  }
+
+.cst-page-description h2, .cst-page-description{
+  font-size:{{ section.settings.sec_desc_font_size }};
+}
+
+@media (min-width:1026px){
+  .cst-row{
+    gap:0;
+  }
+  .cst-row .cst-col{
+    width:34%;
+    padding-right: 15px;
+  }
+}
+
+  @media (max-width:1025px){
+    .cst-page-description h2, .cst-page-description{
+      font-size:{{ section.settings.sec_desc_font_size_m }};
+    }
+    .cst-repair-container {
+        font-size:{{ section.settings.sec_desc_font_size_m }};
+    }
+    .cst-row .cst-col {
+      flex: 1;
+      min-width: 250px;
+      max-width: 450px;
+    }
+  }
+{% endstyle %}
+
+<div class="cst-repair-container">
+  <div class="cst-container">
+    <div class="cst-blocks-container" data-layout="{{ section.settings.page_layout }}">
+      {% content_for 'blocks' %}
+    </div>
+    <div class="cst-row">
+      {% case section.settings.page_layout %}
+        {% when "layout_1" %}
+          {% comment %} all in first column {% endcomment %}
+          <div class="cst-col">
+            {% if section.settings.sec_desc != blank %}
+              <div class="cst-page-description">{{ section.settings.sec_desc }}</div>
+            {% endif %}
+            <div class="cst-tab-navigation"></div>
+            <div class="cst-tab-panels"></div>
+            <div class="cst-media-container"></div>
+          </div>
+          
+        {% when "layout_2" %}
+          {% comment %} left(text, tab menu), right(media) {% endcomment %}
+          <div class="cst-col">
+            {% if section.settings.sec_desc != blank %}
+              <div class="cst-page-description">{{ section.settings.sec_desc }}</div>
+            {% endif %}
+            <div class="cst-tab-navigation"></div>
+          </div>
+          <div class="cst-col">
+            <div class="cst-tab-panels"></div>
+            <div class="cst-media-container"></div>
+          </div>
+          
+        {% when "layout_3" %}
+          {% comment %} left(text), right(tab menu, media) {% endcomment %}
+          <div class="cst-col cst-col-text">
+            {% if section.settings.sec_desc != blank %}
+              <div class="cst-page-description">{{ section.settings.sec_desc }}</div>
+            {% endif %}
+          </div>
+          <div class="cst-col cst-col-tab">
+            <div class="cst-tab-navigation"></div>
+            <div class="cst-tab-panels"></div>
+            <div class="cst-media-container"></div>
+          </div>
+          
+      {% endcase %}
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const blocks = document.querySelector(".cst-blocks-container");
+  const tabsTitle = Array.from(blocks.querySelectorAll(".cst-tab-title"));
+  const tabsContent = Array.from(blocks.querySelectorAll(".cst-tab-content"));
+  const accordions = Array.from(blocks.querySelectorAll(".cst-accordion"));
+
+  const tabsNav = document.querySelector(".cst-tab-navigation");
+  const tabsPanel = document.querySelector(".cst-tab-panels");
+
+  // Arange Elements
+  function setTabNavigation() {
+    if(!tabsNav || !tabsTitle) return;
+    tabsNav.innerHTML = "";
+    tabsTitle.forEach(item => tabsNav.appendChild(item));
+  }
+  
+  function setTabPanels() {
+    if(!tabsNav || !tabsContent) return;
+    tabsPanel.innerHTML = "";
+    tabsContent.forEach(item => tabsPanel.appendChild(item));
+  }
+  
+  // tab navigation
+  function addTabListener() {
+    tabsTitle.forEach(tab_title => {
+      tab_title.addEventListener('click', function() {
+        const activeTitle = tabsTitle.find((t) => t.classList.contains('active'));
+        if(activeTitle && activeTitle === tab_title) return;
+        activeTitle && activeTitle.classList.remove('active');
+
+        const targetId = tab_title.dataset.targetPanel;
+        const openedPanel = tabsContent.find((panel) => panel.classList.contains('active'));
+        const targetPanel = tabsContent.find((panel) => panel.dataset.panelId === targetId);
+
+        if(openedPanel && openedPanel != targetPanel) {
+          openedPanel.classList.remove('active');
+        }
+        targetPanel.classList.add('active');
+        tab_title.classList.add('active');
+      })
+    })
+  }
+
+  // Accordion of tabs panel
+  function addAccordionListener() {
+    accordions.forEach(acc => {
+      const acc_title = acc.querySelector('.cst-accordion-title');
+      const acc_toggle = acc_title.querySelector('.cst-accordion-toggle');
+      const acc_body = acc.querySelector('.cst-accordion-content');
+
+      acc_title.addEventListener("click", function() {
+        const activePanel = tabsContent.find((panel) => panel.classList.contains('active'));
+        if(!activePanel) return;
+        const panelAccordions = Array.from(activePanel.querySelectorAll('.cst-accordion'));
+        const activeAccordion = panelAccordions.find(a => a.classList.contains('active'));
+        if(activeAccordion) {
+          if(activeAccordion === acc) {
+            acc.classList.remove('active');
+            acc_body.style.height = '0px';
+            acc_toggle.innerHTML = '+';
+            return;
+          }
+          else {
+            activeAccordion.classList.remove('active');
+            activeAccordion.querySelector('.cst-accordion-content').style.height = '0px';
+            activeAccordion.querySelector('.cst-accordion-toggle').innerHTML = '+';  
+          }
+        }
+
+        acc.classList.add('active');
+        acc_body.style.height = `${acc_body.scrollHeight}px`;
+        acc_toggle.innerHTML = '-';
+      })
+    })
+  }
+  
+  setTabNavigation();
+  setTabPanels();
+  addTabListener();
+  tabsTitle.length > 0 && tabsTitle[0].dispatchEvent(new Event('click'));
+  addAccordionListener();
+
+  window.addEventListener("resize", () => {
+    
+  });
+
+});
+</script>
+
+
+{% schema %}
+{
+  "name": "Crumpler Repairs",
+  "settings": [
+    { 
+      "type": "richtext",
+      "label": "Section Content",
+      "id": "sec_desc" 
+    },
+    {
+        "type": "select",
+        "id": "sec_desc_font_size",
+        "label": "Font Size",
+        "options": [
+            {
+                "label": "S",
+                "value": "13px"
+            },
+            {
+                "label": "M",
+                "value": "26px"
+            },
+            {
+                "label": "L",
+                "value": "36px"
+            },
+            {
+                "label": "XL",
+                "value": "50px"
+            },
+            {
+                "label": "XXL",
+                "value": "134px"
+            }
+        ],
+        "default":"13px"
+    },
+    {
+        "type": "select",
+        "id": "sec_desc_font_size_m",
+        "label": "Font Size (Mobile)",
+        "options": [
+            {
+                "label": "S",
+                "value": "13px"
+            },
+            {
+                "label": "M",
+                "value": "26px"
+            },
+            {
+                "label": "L",
+                "value": "36px"
+            },
+            {
+                "label": "XL",
+                "value": "50px"
+            },
+            {
+                "label": "XXL",
+                "value": "134px"
+            }
+        ],
+        "default":"26px"
+    },
+    {
+      "type":"select",
+      "label": "Layout",
+      "id": "page_layout",
+      "options": [
+        {"value": "layout_1", "label": "layout-1 : all in first column"},
+        {"value": "layout_2", "label": "layout-2 : left(text, tab menu), right(media)"},
+        {"value": "layout_3", "label": "layout-3 : left(text), right(tab menu, media)"},
+      ],
+      "default": "layout_2"
+    },
+    {
+      "type": "select",
+      "label": "Image/Video Ratio",
+      "id": "media_ratio",
+      "options": [
+        {"value": "1/1", "label": "1/1"},
+        {"value": "17/20", "label": "17/20"},
+        {"value": "16/9", "label": "16/90"},
+      ],
+      "default": "17/20"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "_repair_tab"
+    }
+  ],
+  "presets": [
+    { 
+      "name": "Crumpler Repairs" 
+    }
+  ]
+}
+{% endschema %}

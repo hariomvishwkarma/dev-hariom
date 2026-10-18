@@ -1,0 +1,158 @@
+{% if template.name == 'index' %}
+<style>
+  body.promo-activated {
+    padding-bottom: 30px;
+  }
+  .promo-banner-main {
+    position: fixed;
+    bottom: 0;
+    z-index: 2;
+    background: {{ section.settings.bg_color }};
+    width: 100%;
+    display:none;
+  }
+  .promo-banner-items {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-weight: 500;
+    font-size: 10px;
+    {% comment %} line-height: 100%; {% endcomment %}
+    text-transform: capitalize;
+    padding: 10px;
+  }
+  .promo-banner-wrapper {
+    position: relative;
+  }
+  .close-promo-banner {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 14px;
+    border-radius: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+</style>
+
+<div class="promo-banner-main">
+  <div class="promo-banner-wrapper">
+    <div class="promo-banner-items">
+      {%- for block in section.blocks -%}
+        {% unless forloop.first %}•{% endunless %}
+        {% assign amount = block.settings.shipping_amount | times: 100 | money_without_trailing_zeros %}
+        <div class="promo-item">
+          {{ block.settings.text | replace:"[amount]",amount }}
+        </div>
+      {%- endfor -%}
+    </div>
+    <button class="close-promo-banner" aria-label="Close promotion banner">
+      <svg width="9" height="8" viewBox="0 0 9 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7.79928 7.12948L4.85491 4.18511L7.80419 1.23583L7.32328 0.754916L4.374 3.70419L1.42963 0.759823L0.948716 1.24074L3.89309 4.18511L0.943809 7.13438L1.42472 7.6153L4.374 4.66602L7.31837 7.61039L7.79928 7.12948Z" fill="black" stroke="black" stroke-width="0.346997"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const banner = document.querySelector('.promo-banner-main');
+  const closeBtn = document.querySelector('.close-promo-banner');
+  const cookieName = 'promoBannerClosedAt';
+  const hoursToHide = 24;
+
+  // Get cookie value
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+  }
+
+  // Set cookie
+  function setCookie(name, value, hours) {
+    const date = new Date();
+    date.setTime(date.getTime() + hours * 60 * 60 * 1000);
+    document.cookie = `${name}=${value}; expires=${date.toUTCString()}; path=/`;
+  }
+
+  // Check cookie on load
+  const savedTime = getCookie(cookieName);
+  if (savedTime) {
+    const elapsedHours = (Date.now() - parseInt(savedTime, 10)) / (1000 * 60 * 60);
+    if (elapsedHours < hoursToHide) {
+      // Less than 24 hours → hide banner
+      if (banner){
+        banner.style.display = 'none';
+        document.body.classList.remove('promo-activated');
+      }
+    } else {
+      // 24+ hours passed → remove cookie and show again
+      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      if (banner){
+        banner.style.display = 'block';
+        document.body.classList.add('promo-activated');
+      }
+    }
+  }else{
+    if (banner){
+      banner.style.display = 'block';
+      document.body.classList.add('promo-activated');
+    }
+  }
+
+  // Close button click event
+  if (closeBtn && banner) {
+    closeBtn.addEventListener('click', () => {
+      banner.style.display = 'none';
+      document.body.classList.remove('promo-activated');
+      setCookie(cookieName, Date.now(), hoursToHide);
+    });
+  }
+});
+
+</script>
+
+{% endif %}
+
+{% schema %}
+{
+  "name": "Promo-Banner",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    {
+      "type": "color",
+      "id":"bg_color",
+      "label": "Background",
+      "default":"#fff"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "item",
+      "name":"Item",
+      "settings":[
+        {
+          "type": "text",
+          "id": "text",
+          "label":"Text",
+          "info": "Use [amount], for dynamic shipping according to market."
+        },
+        {
+          "type": "text",
+          "id": "shipping_amount",
+          "label":"Shipping Amount",
+          "info": "Use Digit value only."
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Promo-Banner"
+    }
+  ]
+}
+{% endschema %}

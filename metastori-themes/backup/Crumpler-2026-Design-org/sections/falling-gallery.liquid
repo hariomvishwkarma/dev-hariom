@@ -1,0 +1,403 @@
+{% comment %}
+  Falling Gallery Section
+{% endcomment %}
+
+<div class="fg-container" id="falling-gallery-{{ section.id }}">
+  <div class="center-wrapper">
+    <div class="top-text"><a href="https://www.crumpler.com/collections/lightweight">
+      LIGHTWEIGHT <span class="flip-text">collection</span></a>
+    </div>
+
+    <div class="bottom-text">
+      a BACKPACK/TOTE, a CROSSBODY and a MESSENGER.
+    </div>
+  </div>
+</div>
+
+<style>
+  .center-wrapper{
+  position:absolute;
+  top:50%;
+  left:50%;
+  height: 10vh;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  width:100%;
+  z-index:9;
+}
+
+.top-text{
+  color:black;
+  font-size:68px;
+  line-height:1.4;
+}
+.top-text a{
+  color:black;
+}
+
+.flip-text{
+  display:inline-block;
+  transform:scale(-1,-1);
+}
+
+.bottom-text{
+  color:black;
+  font-size:18px;
+  line-height:1.4;
+  width:40%;
+  margin:10px auto 0;
+}
+
+.bottom-text sup{
+  font-size:0.6em;
+  margin-right:4px;
+}
+
+@media (max-width:1024px){
+  .top-text{
+    font-size:26px;
+  }
+
+  .bottom-text{
+    width:90%;
+    font-size:15px;
+  }
+}
+  .fg-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: visible;
+    clip-path: inset(0);
+    perspective: 1200px;
+    contain: layout style;
+    z-index:1;
+  }
+
+  .fg-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 28vw;
+    will-change: transform;
+    pointer-events: none;
+    opacity: 0;                /* hidden until image loads */
+    transition: opacity 0.4s ease;
+  }
+
+  .fg-image.fg-loaded {
+    opacity: 1;
+  }
+
+  .fg-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  @media (max-width: 768px) {
+    .fg-image { width: 56vw; }
+  }
+</style>
+
+<script>
+(function () {
+
+  /* ─── Sources ────────────────────────────────────────────────────────── */
+
+  var imageSrcs = (function () {
+    var liquid = [
+      {% for image in section.settings.images %}
+        "{{ image | img_url: '800x' }}"{% unless forloop.last %},{% endunless %}
+      {% endfor %}
+    ];
+    if (liquid.length) return liquid;
+    return Array.from({ length: 12 }, function (_, i) {
+      return 'https://cdn.crumpler.com/lightweight-range/lw-corrected-' + (i + 1) + '.jpg';
+    });
+  })();
+
+  /* ─── Shuffle (Fisher-Yates) ─────────────────────────────────────────── */
+
+  for (var i = imageSrcs.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = imageSrcs[i];
+    imageSrcs[i] = imageSrcs[j];
+    imageSrcs[j] = tmp;
+  }
+
+  /* ─── Helpers ────────────────────────────────────────────────────────── */
+
+  function rand(min, max) { return Math.random() * (max - min) + min; }
+
+  var imgIdx = 0;
+  function nextSrc() {
+    var s = imageSrcs[imgIdx];
+    imgIdx = (imgIdx + 1) % imageSrcs.length;
+    return s;
+  }
+
+  /* ─── Cached layout values (avoid per-frame reflow) ──────────────── */
+
+  var container  = document.getElementById('falling-gallery-{{ section.id }}');
+  var cachedH    = container.offsetHeight || window.innerHeight;
+  var cachedW    = window.innerWidth;
+  var isMobile   = cachedW <= 768;
+  var imgWidthVw = isMobile ? 56 : 28;
+  var estImgH    = cachedW * (imgWidthVw / 100) * 1.3;
+
+  function updateCachedLayout() {
+    cachedH    = container.offsetHeight || window.innerHeight;
+    cachedW    = window.innerWidth;
+    isMobile   = cachedW <= 768;
+    imgWidthVw = isMobile ? 56 : 28;
+    estImgH    = cachedW * (imgWidthVw / 100) * 1.3;
+  }
+
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(updateCachedLayout, 200);
+  });
+
+  function safeEntryT() {
+    var maxT = (1.5 * cachedH - estImgH) / (2.65 * cachedH);
+    return Math.max(0.15, Math.min(maxT, 0.50));
+  }
+
+  /* ─── Pool ─────────────────────────────────────────────────────────── */
+
+  var POOL_SIZE = 4;
+  var pool = [];
+
+  for (var i = 0; i < POOL_SIZE; i++) {
+    var wrapper = document.createElement('div');
+    wrapper.className = 'fg-image';
+    var img = document.createElement('img');
+    img.decoding = 'async';
+    wrapper.appendChild(img);
+    container.appendChild(wrapper);
+    wrapper.style.transform = 'translate3d(-9999px, 0, 0)';
+    pool.push({ wrapper: wrapper, img: img, active: false, anim: null });
+  }
+
+  /* ─── Single shared rAF loop ───────────────────────────────────────── */
+
+  var active = new Set();
+  var rafId = null;
+  var rescuePending = false;
+
+  function tick(now) {
+    var anyVisible = false;
+
+    for (var item of active) {
+      var a = item.anim;
+      var t = (now - a.startTime) / a.duration;
+
+      if (t >= 1) {
+        item.wrapper.style.transform = 'translate3d(-9999px, 0, 0)';
+        item.wrapper.classList.remove('fg-loaded');
+        item.active = false;
+        active.delete(item);
+        continue;
+      }
+
+      var elapsed = now - a.startTime;
+      var y     = a.startY + t * a.totalTravel;
+      var swayX = Math.sin((elapsed / a.swaySpeed) * Math.PI * 2) * a.swayAmount;
+      var rx    = a.startRX + (a.endRX - a.startRX) * t;
+      var ry    = a.startRY + (a.endRY - a.startRY) * t;
+      var rz    = a.startRZ + (a.endRZ - a.startRZ) * t;
+
+      item.wrapper.style.transform =
+        'translate3d(' + (a.baseLeftPx + swayX) + 'px, ' + y + 'px, 0)' +
+        ' rotateX(' + rx + 'deg) rotateY(' + ry + 'deg) rotateZ(' + rz + 'deg)';
+
+      /* Visible check using cached estImgH — no layout reads */
+      if ((y + estImgH) > 0 && y < cachedH) anyVisible = true;
+    }
+
+    /* Safety net: if nothing is visible (or close to visible), queue
+       a rescue drop so the viewport never stays empty for long.
+       Uses safeEntryT() to guarantee the image starts above the
+       viewport on every device and falls in naturally. */
+    if (!anyVisible && !rescuePending && sectionVisible) {
+      rescuePending = true;
+      setTimeout(function () {
+        rescuePending = false;
+        dropImage(safeEntryT());
+      }, 0);
+    }
+
+    if (active.size > 0) {
+      rafId = requestAnimationFrame(tick);
+    } else {
+      rafId = null;
+      /* Loop is about to stop — no active images at all.
+         Drop one immediately so the viewport doesn't go empty. */
+      if (sectionVisible && !rescuePending) {
+        rescuePending = true;
+        setTimeout(function () {
+          rescuePending = false;
+          dropImage(safeEntryT());
+        }, 0);
+      }
+    }
+  }
+
+  function ensureLoop() {
+    if (!rafId) rafId = requestAnimationFrame(tick);
+  }
+
+  /* ─── Drop ─────────────────────────────────────────────────────────── */
+
+  function dropImage(preElapsedFraction) {
+    preElapsedFraction = preElapsedFraction || 0;
+
+    var item = pool.find(function (p) { return !p.active; });
+    if (!item) return;
+
+    item.active = true;
+
+    /* Hide until image data is ready — prevents empty-box pop-in */
+    item.wrapper.classList.remove('fg-loaded');
+    var src = nextSrc();
+    item.img.onload = function () { item.wrapper.classList.add('fg-loaded'); };
+    item.img.src = src;
+    /* Handle cached images (onload may not fire) */
+    if (item.img.complete) item.wrapper.classList.add('fg-loaded');
+
+    var imgWidthPx  = cachedW * (imgWidthVw / 100);
+    var baseLeftPx  = rand(0, cachedW - imgWidthPx);
+
+    var startY      = -(cachedH * 1.5);
+    var endY        = cachedH * 1.15;
+    var totalTravel = endY - startY;
+    var duration    = rand(16000, 28000);
+
+    item.anim = {
+      startTime:  performance.now() - preElapsedFraction * duration,
+      duration:   duration,
+      baseLeftPx: baseLeftPx,
+      startY:     startY,
+      totalTravel: totalTravel,
+      swayAmount: rand(5, 15),
+      swaySpeed:  rand(3000, 6000),
+      startRX: rand(-3, 3),  endRX: rand(-3, 3) + rand(-6, 6),
+      startRY: rand(-4, 4),  endRY: rand(-4, 4) + rand(-8, 8),
+      startRZ: rand(-4, 4),  endRZ: rand(-4, 4) + rand(-6, 6),
+      _hiddenAt: null
+    };
+
+    active.add(item);
+    ensureLoop();
+  }
+
+  /* ─── Scheduler ────────────────────────────────────────────────────── */
+
+  var schedulerTimer = null;
+
+  function scheduleNext() {
+    schedulerTimer = setTimeout(function () {
+      dropImage(0);
+      scheduleNext();
+    }, rand(4000, 7000));
+  }
+
+  /* ─── Pause when tab hidden ────────────────────────────────────────── */
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+      clearTimeout(schedulerTimer);
+      var now = performance.now();
+      for (var item of active) item.anim._hiddenAt = now;
+    } else {
+      var now = performance.now();
+      for (var item of active) {
+        if (item.anim._hiddenAt !== null) {
+          item.anim.startTime += now - item.anim._hiddenAt;
+          item.anim._hiddenAt = null;
+        }
+      }
+      if (sectionVisible) {
+        ensureLoop();
+        scheduleNext();
+      }
+    }
+  });
+
+  /* ─── Pause when section is off-screen (IntersectionObserver) ──────── */
+
+  var sectionVisible = true;
+
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      sectionVisible = entries[0].isIntersecting;
+      if (sectionVisible) {
+        /* Resume — shift startTimes so animations pick up smoothly */
+        ensureLoop();
+        scheduleNext();
+      } else {
+        /* Pause — stop rAF and scheduler to save CPU */
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        clearTimeout(schedulerTimer);
+      }
+    }, { rootMargin: '100px' });
+    observer.observe(container);
+  }
+
+  /* ─── Shopify theme editor cleanup ─────────────────────────────────── */
+
+  document.addEventListener('shopify:section:unload', function (e) {
+    if (e.detail.sectionId !== '{{ section.id }}') return;
+    if (rafId) cancelAnimationFrame(rafId);
+    clearTimeout(schedulerTimer);
+    if (observer) observer.disconnect();
+    pool.forEach(function (p) { p.wrapper.remove(); });
+  });
+
+  /* ─── Boot ─────────────────────────────────────────────────────────── */
+
+  function init() {
+    var safe = safeEntryT();
+
+    /* First image — just above the viewport, falls in within 1-3 s */
+    dropImage(safe);
+
+    /* Seed just one image on all devices. The scheduler brings the
+       rest in at a comfortable pace — no cluster on first load. */
+    schedulerTimer = setTimeout(function () {
+      scheduleNext();
+    }, isMobile ? 4000 : 5000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Falling Gallery",
+  "tag": "section",
+  "class": "falling-gallery-section",
+  "settings": [
+    {
+      "type": "image_picker",
+      "id": "images",
+      "label": "Gallery Images",
+      "info": "Select images to fall. Leave empty to use the default Crumpler CDN images."
+    }
+  ],
+  "presets": [
+    {
+      "name": "Falling Gallery"
+    }
+  ]
+}
+{% endschema %}

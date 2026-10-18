@@ -1,0 +1,244 @@
+{{ 'invert-multicolumn.css' | asset_url | stylesheet_tag }}
+
+{% assign is_even = section.blocks | size | modulo: 2 %}
+{% if is_even == 0 %}
+{% else %}
+  {% assign odd_blocks = true %}
+{% endif %}
+
+<style>
+  {% for block in section.blocks %}
+    {% capture desktop_css %} {{desktop_css}}
+      .invert-multicolumn-image-{{ block.id }} img, .invert-multicolumn-image-{{ block.id }} video{
+        width:{{block.settings.image_width}}%;
+      }
+    {% endcapture %}
+    {% capture mobile_css %} {{mobile_css}}
+      .invert-multicolumn-image-{{ block.id }} img, .invert-multicolumn-image-{{ block.id }} video{
+        width:{{block.settings.image_width_m}}%;
+      }
+    {% endcapture %}
+  {% endfor %}
+  @media (min-width:768px){
+    {{desktop_css}}
+    .invert_multi_text_{{ section.id }}{
+      font-size:{{ section.settings.font_size }};
+    }
+    {% if odd_blocks %}
+      .invert-multicolumn-item:last-child{
+        width:100%;
+      }
+    {% endif %}
+  }
+  @media (max-width:767px){
+    {{mobile_css}}
+    .invert_multi_text_{{ section.id }}{
+      font-size:{{ section.settings.font_size_m }};
+    }
+  }
+  .invert-multicolumn-item-flex:hover{
+    text-decoration:none;
+  }
+</style>
+
+<div class="invert-multicolumn-main">
+  <div class="invert-multicolumn-item-list">
+    {% for block in section.blocks %}
+      <div class="invert-multicolumn-item invert-multicolumn-item-{{ block.id }}" style="background:{{ block.settings.bg_color }};">
+        {% if block.settings.link != blank %}<a href="{{ block.settings.link }}" class="invert-multicolumn-item-flex">{% else %}<div class="invert-multicolumn-item-flex">{% endif %}
+        <div class="invert-multicolumn-image invert-multicolumn-image-{{ block.id }}">
+            {% if block.settings.image != blank %}
+                {% assign image_height = block.settings.image.width | divided_by: block.settings.image.aspect_ratio | round %}
+                {{ block.settings.image
+                | image_url: width: 3840
+                | image_tag:
+                    width: block.settings.image.width,
+                    height: image_height,
+                    class: 'desktop_invert_multi_image',
+                    sizes: '100vw',
+                    widths: '170, 320, 375, 414, 550, 750, 1100, 1500, 1780, 2000, 3000, 3840',
+                    alt: block.settings.image.alt
+                }}
+
+                {% if block.settings.image_m != blank %}
+                    {% assign mobile_height = block.settings.image_m.width | divided_by: block.settings.image_m.aspect_ratio | round %}
+                    {{ block.settings.image_m
+                        | image_url: width: 750
+                        | image_tag:
+                        width: block.settings.image_m.width,
+                        height: mobile_height,
+                        class: 'mobile_invert_multi_image',
+                        sizes: '100vw',
+                        widths: '320, 375, 414, 550, 750',
+                        alt: block.settings.image_m.alt
+                    }}
+                {% else %}
+                    {% assign mobile_height = block.settings.image.width | divided_by: block.settings.image.aspect_ratio | round %}
+                    {{
+                        block.settings.image
+                        | image_url: width: 750
+                        | image_tag:
+                        width: block.settings.image.width,
+                        height: mobile_height,
+                        class: 'mobile_invert_multi_image',
+                        sizes: '100vw',
+                        widths: '320, 375, 414, 550, 750',
+                        alt: block.settings.image.alt
+                    }}
+                {% endif %}
+            {% elsif  block.settings.video != blank %}
+                {{ block.settings.video | video_tag: loop: true, controls: false, muted: true, autoplay: true, class:"desktop_invert_multi_video" }}
+              {% if block.settings.video_m != blank %}
+                {{ block.settings.video_m | video_tag: loop: true, controls: false, muted: true, autoplay: true, class:"mobile_invert_multi_video" }}
+              {% else %}
+                {{ block.settings.video | video_tag: loop: true, controls: false, muted: true, autoplay: true, class:"mobile_invert_multi_video" }}
+              {% endif %}
+            {% endif %}
+        </div>
+        <div class="invert_multi_content">
+          <div class="invert_multi_text invert_multi_text_{{ section.id }}" style="color:{{ block.settings.text_color }};">{{ block.settings.text }}</div>
+        </div>
+        {% if block.settings.link != blank %}</a>{% else %}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% schema %}
+  {
+    "name": "Invert Multicolumn",
+    "settings": [
+        {
+          "type": "select",
+          "id": "font_size",
+          "label": "Font Size",
+          "options": [
+              {
+                  "label": "S",
+                  "value": "13px"
+              },
+              {
+                  "label": "M",
+                  "value": "26px"
+              },
+              {
+                  "label": "L",
+                  "value": "36px"
+              },
+              {
+                  "label": "XL",
+                  "value": "50px"
+              },
+              {
+                  "label": "XXL",
+                  "value": "134px"
+              }
+          ],
+          "default":"26px"
+        },
+        {
+            "type": "select",
+            "id": "font_size_m",
+            "label": "Font Size (Mobile)",
+            "options": [
+                {
+                    "label": "S",
+                    "value": "13px"
+                },
+                {
+                    "label": "M",
+                    "value": "26px"
+                },
+                {
+                    "label": "L",
+                    "value": "36px"
+                },
+                {
+                    "label": "XL",
+                    "value": "50px"
+                },
+                {
+                    "label": "XXL",
+                    "value": "134px"
+                }
+            ],
+            "default":"26px"
+        },
+    ],
+    "blocks": [
+      {
+        "type": "Column",
+        "name":"Column",
+        "settings": [
+          {
+            "type": "color",
+            "id":"bg_color",
+            "label":"Background Color",
+            "default":"#fff"
+          },
+          {
+            "type": "text",
+            "id":"text",
+            "label":"Text"
+          },
+          {
+            "type": "color",
+            "id":"text_color",
+            "label":"Text Color",
+            "default":"#000"
+          },
+          {
+            "type": "image_picker",
+            "id":"image",
+            "label": "Image"
+          },
+          {
+            "type": "image_picker",
+            "id":"image_m",
+            "label": "Image - Mobile"
+          },
+          {
+            "type": "video",
+            "id":"video",
+            "label": "Video"
+          },
+          {
+            "type": "video",
+            "id":"video_m",
+            "label": "Video - Mobile"
+          },
+          {
+            "type": "url",
+            "id": "link",
+            "label": "Link"
+          },
+          {
+            "type": "range",
+            "id":"image_width",
+            "step": 1,
+            "min": 1,
+            "max": 100,
+            "default":50,
+            "unit": "%",
+            "label": "Image/Video Width"
+          },
+          {
+            "type": "range",
+            "id":"image_width_m",
+            "step": 1,
+            "min": 1,
+            "max": 100,
+            "default":50,
+            "unit": "%",
+            "label": "Image/Video Width (Mobile)"
+          }
+        ]
+      }
+    ],
+    "presets": [
+      {
+        "name": "Invert Multicolumn"
+      }
+    ]
+  }
+{% endschema %}

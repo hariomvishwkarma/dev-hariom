@@ -1,0 +1,1057 @@
+{% comment %}
+  Putty Squish Game - Shopify Section File
+  Assets hosted at: https://crumpler.b-cdn.net/
+
+  INSTALLATION:
+  1. In Shopify admin, go to Online Store > Themes > Edit Code
+  2. Under "Sections", click "Add a new section"
+  3. Name it "putty-game" and paste this entire file
+  4. Then in the theme customizer, add the "Putty Squish Game" section to any page
+{% endcomment %}
+
+<!-- Preload game models so they download before other page assets -->
+<link rel="preload" href="https://crumpler.b-cdn.net/low_poly_simple_hallway_room-Draco.glb" as="fetch" crossorigin>
+<link rel="preload" href="https://crumpler.b-cdn.net/hand-origin-positioning-fixed.glb" as="fetch" crossorigin>
+<link rel="preload" href="https://crumpler.b-cdn.net/second-drawer-Draco.glb" as="fetch" crossorigin>
+<link rel="preload" href="https://crumpler.b-cdn.net/DaryoshTad-Draco.glb" as="fetch" crossorigin>
+<link rel="preload" href="https://crumpler.b-cdn.net/Froglet-Draco.glb" as="fetch" crossorigin>
+<link rel="preload" href="https://crumpler.b-cdn.net/Putty-Ball-Realistic-Draco.glb" as="fetch" crossorigin>
+
+<style>
+  .putty-game-wrapper {
+    width: 100%;
+    position: relative;
+  }
+  #putty-game-container * { margin: 0; padding: 0; box-sizing: border-box; }
+  #putty-game-container {
+    width: 100%;
+    height: {{ section.settings.game_height }}vh;
+    min-height: 400px;
+    position: relative;
+    overflow: hidden;
+    background: #d0b9a2;
+  }
+  #putty-game-container canvas { display: block; width: 100%; height: 100%; }
+  #putty-esc-hint {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    z-index: 200;
+    font-family: 'Arial', sans-serif;
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+    background: none;
+    border: none;
+    padding: 12px 24px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #putty-esc-hint.visible { opacity: 1; }
+  #putty-exit-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    z-index: 200;
+    font-family: 'Arial', sans-serif;
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.5);
+    border-radius: 0;
+    padding: 12px 24px;
+    cursor: pointer;
+    display: none;
+    pointer-events: auto;
+    touch-action: manipulation;
+  }
+  #putty-exit-btn.visible { display: block; }
+  #putty-loading {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #d0b9a2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+  }
+  #putty-loading h2 {
+    color: white;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    margin-bottom: 20px;
+  }
+  .putty-loader {
+    width: 60px; height: 60px;
+    border: 4px solid #333;
+    border-top-color: #888;
+    border-radius: 50%;
+    animation: putty-spin 1s linear infinite;
+  }
+  @keyframes putty-spin { to { transform: rotate(360deg); } }
+  #putty-bag-label {
+    position: absolute;
+    pointer-events: none;
+    z-index: 50;
+    font-family: 'Arial', sans-serif;
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+    transform: translate(-50%, -100%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    white-space: nowrap;
+  }
+  #putty-bag-label.visible { opacity: 1; }
+  #putty-play-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1;
+    cursor: pointer;
+  }
+  #putty-play-overlay.hidden { display: none; }
+  #putty-play-button {
+    font-family: 'Arial', sans-serif;
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    line-height: 1.2;
+  }
+  #putty-play-button:hover { opacity: 1; }
+  #putty-mobile-controls {
+    display: none;
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 40%;
+    pointer-events: none;
+    z-index: 60;
+  }
+  #putty-joystick-area {
+    position: absolute;
+    left: 20px; bottom: 20px;
+    width: 120px; height: 120px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    pointer-events: auto;
+    touch-action: none;
+  }
+  #putty-joystick-knob {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 50px; height: 50px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 50%;
+  }
+
+  @media (max-width: 768px) {
+    #putty-mobile-controls { display: block; }
+  }
+</style>
+
+<div class="putty-game-wrapper" id="putty-game-wrapper">
+  <div id="putty-game-container">
+    <div id="putty-loading">
+      <h2>Loading...</h2>
+      <div class="putty-loader"></div>
+    </div>
+    <div id="putty-play-overlay">
+      <button id="putty-play-button">Welcome to Putty World<br><br>Tap to Play<br><br>Move - WASD<br>Look - Mouse<br>Exit - Esc</button>
+    </div>
+    <div id="putty-esc-hint">Esc to Exit</div>
+    <div id="putty-exit-btn">Exit</div>
+    <div id="putty-bag-label"></div>
+    <div id="putty-mobile-controls">
+      <div id="putty-joystick-area">
+        <div id="putty-joystick-knob"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
+
+const CDN_BASE = 'https://crumpler.b-cdn.net/';
+
+// Navigate to product page in same tab
+function openLink(url) { window.location.href = url; }
+
+// ── State ──
+let camera, scene, renderer, controls;
+let leftHandContainer, rightHandContainer, leftMixer, rightMixer, leftSqueezeAction, rightSqueezeAction;
+let drawerTemplate, daryoshTemplate, frogletTemplate, roomTemplate, puttyTemplate;
+let bagTemplates = [];
+let puttyBalls = [];
+let spawnedDrawers = [];
+let isSquishing = false;
+let nearbyPutty = null;
+let pendingPutty = null;
+let bagClickCount = 0;
+let bagTypeIndex = 0;
+let sceneTransformed = false;
+let nearbyBag = null;
+let isMobile = false;
+let gameStarted = false;
+let playerAvatar = null;
+let mirrors = [];
+
+const MIRROR_LAYER = 1;
+const HANDS_LAYER = 2;
+
+const raycaster = new THREE.Raycaster();
+const clickCenter = new THREE.Vector2(0, 0);
+
+const bagMetadata = {
+  'froglet': { label: 'OPEN PUTTY FROGLET', url: 'https://www.crumpler.com/products/froglet?variant=43865971195983' },
+  'daryosh': { label: "OPEN PUTTY DARYOSH'S TAD", url: 'https://www.crumpler.com/products/daryoshs-tad?variant=4444615462100' },
+  'drawer': { label: 'OPEN PUTTY SECOND DRAWER', url: 'https://www.crumpler.com/products/second-drawer?variant=44446150983759' }
+};
+
+let roomWidth = 8;
+let roomDepth = 12;
+const ROOM_SCALE = 0.05;
+
+const velocity = new THREE.Vector3();
+const direction = new THREE.Vector3();
+let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+const MOVE_SPEED = 50;
+const PLAYER_HEIGHT = 2.4;
+
+const HAND_SCALE = 0.2;
+const LEFT_HAND_POS = { x: -0.18, y: -0.10, z: -0.55 };
+const RIGHT_HAND_POS = { x: 0.18, y: -0.10, z: -0.55 };
+
+const loadedRooms = new Map();
+const RENDER_DISTANCE = 1;
+let initialLoadComplete = false;
+
+// ── Init immediately so game loads before other page assets ──
+init();
+
+async function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xd0b9a2);
+  scene.fog = new THREE.Fog(0xd0b9a2, 10, 50);
+
+  const container = document.getElementById('putty-game-container');
+  camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 200);
+  camera.position.set(4, PLAYER_HEIGHT, 4);
+  camera.layers.set(0);
+  camera.layers.enable(0);
+  camera.layers.enable(HANDS_LAYER);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'default' });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.shadowMap.enabled = false;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  container.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+  hemiLight.position.set(0, 20, 0);
+  scene.add(hemiLight);
+  const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  mainLight.position.set(5, 10, 5);
+  mainLight.castShadow = false;
+  scene.add(mainLight);
+
+  controls = new PointerLockControls(camera, document.body);
+  scene.add(controls.getObject());
+
+  const loader = new GLTFLoader();
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/');
+  loader.setDRACOLoader(dracoLoader);
+
+  try {
+    // Load all models concurrently where possible
+    const [hallway, leftHandGLTF, rightHandGLTF, drawer, daryosh, froglet, putty] = await Promise.all([
+      loader.loadAsync(CDN_BASE + 'low_poly_simple_hallway_room-Draco.glb'),
+      loader.loadAsync(CDN_BASE + 'hand-origin-positioning-fixed.glb'),
+      loader.loadAsync(CDN_BASE + 'hand-origin-positioning-fixed.glb'),
+      loader.loadAsync(CDN_BASE + 'second-drawer-Draco.glb'),
+      loader.loadAsync(CDN_BASE + 'DaryoshTad-Draco.glb'),
+      loader.loadAsync(CDN_BASE + 'Froglet-Draco.glb'),
+      loader.loadAsync(CDN_BASE + 'Putty-Ball-Realistic-Draco.glb')
+    ]);
+
+    // Room template
+    roomTemplate = hallway.scene;
+    const rawBox = new THREE.Box3().setFromObject(roomTemplate);
+    const ROOM_GAP = 0.02;
+    roomWidth = (rawBox.max.x - rawBox.min.x) * ROOM_SCALE + ROOM_GAP;
+    roomDepth = (rawBox.max.z - rawBox.min.z) * ROOM_SCALE + ROOM_GAP;
+
+    // Hands
+    const setupHand = (gltf, scaleX, pos) => {
+      const model = gltf.scene;
+      model.scale.set(scaleX, HAND_SCALE, HAND_SCALE);
+      model.position.set(pos.x, pos.y, pos.z);
+      model.traverse(c => { c.layers.set(HANDS_LAYER); });
+      camera.add(model);
+      return model;
+    };
+    leftHandContainer = setupHand(leftHandGLTF, HAND_SCALE, LEFT_HAND_POS);
+    rightHandContainer = setupHand(rightHandGLTF, -HAND_SCALE, RIGHT_HAND_POS);
+
+    leftMixer = new THREE.AnimationMixer(leftHandContainer);
+    rightMixer = new THREE.AnimationMixer(rightHandContainer);
+
+    const findSqueezeClip = (gltf) => gltf.animations.find(a =>
+      /squeeze|grab|action/i.test(a.name)
+    ) || gltf.animations[0];
+
+    if (leftHandGLTF.animations.length > 0) {
+      leftSqueezeAction = leftMixer.clipAction(findSqueezeClip(leftHandGLTF));
+      leftSqueezeAction.setLoop(THREE.LoopOnce);
+      leftSqueezeAction.clampWhenFinished = true;
+      leftSqueezeAction.timeScale = 3.0;
+    }
+    if (rightHandGLTF.animations.length > 0) {
+      rightSqueezeAction = rightMixer.clipAction(findSqueezeClip(rightHandGLTF));
+      rightSqueezeAction.setLoop(THREE.LoopOnce);
+      rightSqueezeAction.clampWhenFinished = true;
+      rightSqueezeAction.timeScale = 3.0;
+    }
+
+    // Bag templates
+    const BAG_TEMPLATE_SCALE = 0.08;
+    const puttyMaterial = new THREE.MeshStandardMaterial({ color: 0xd3bea8, roughness: 0.7, metalness: 0.1 });
+    const applyPuttyMaterial = (model) => {
+      model.traverse(c => { if (c.isMesh) c.material = puttyMaterial.clone(); });
+    };
+
+    drawerTemplate = drawer.scene;
+    drawerTemplate.scale.setScalar(BAG_TEMPLATE_SCALE);
+    applyPuttyMaterial(drawerTemplate);
+
+    daryoshTemplate = daryosh.scene;
+    daryoshTemplate.scale.setScalar(BAG_TEMPLATE_SCALE);
+    applyPuttyMaterial(daryoshTemplate);
+
+    frogletTemplate = froglet.scene;
+    frogletTemplate.scale.setScalar(BAG_TEMPLATE_SCALE);
+    applyPuttyMaterial(frogletTemplate);
+
+    bagTemplates = [drawerTemplate, daryoshTemplate, frogletTemplate];
+
+    // Putty template
+    puttyTemplate = putty.scene;
+    puttyTemplate.scale.setScalar(0.25);
+    puttyTemplate.traverse(c => {
+      if (c.isMesh) {
+        const oldColor = c.material.color ? c.material.color.clone() : new THREE.Color(0x888888);
+        c.material = new THREE.MeshStandardMaterial({ color: oldColor, roughness: 0.7, metalness: 0.1 });
+      }
+    });
+
+    // Avatar (non-blocking)
+    loader.loadAsync(CDN_BASE + 'crumpler-man.glb').then(avatarGLTF => {
+      playerAvatar = avatarGLTF.scene;
+      playerAvatar.scale.setScalar(0.8);
+      const avatarMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, roughness: 0.6, metalness: 0.1 });
+      playerAvatar.traverse(c => {
+        c.layers.set(MIRROR_LAYER);
+        if (c.isMesh) { c.material = avatarMat; c.castShadow = false; c.receiveShadow = false; }
+      });
+      scene.add(playerAvatar);
+    }).catch(() => {});
+
+    updateRooms();
+    document.getElementById('putty-loading').style.display = 'none';
+    isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1 || window.innerWidth <= 768;
+
+    // Set play button text based on device
+    const playBtn = document.getElementById('putty-play-button');
+    if (isMobile) {
+      playBtn.innerHTML = 'Tap to enter Putty World and get your<br>hands on our new colour collection.<br><br>Controls:<br>Move: Left Circle<br>Look: Drag Around<br>Tap: Squeeze Putty';
+    } else {
+      playBtn.innerHTML = 'Click to enter Putty World and get your<br>hands on our new colour collection.<br><br>Controls:<br>Move: W/A/S/D Keys<br>Look: Mouse<br>Click: Squeeze Putty<br>Exit: Esc';
+    }
+
+  } catch (error) {
+    console.error('Error loading models:', error);
+    document.getElementById('putty-loading').innerHTML =
+      '<h2 style="color:#ff6b6b;">Error loading game assets.</h2><p style="color:white;font-size:14px;">' + error.message + '</p>';
+  }
+
+  setupEventListeners();
+  animate();
+}
+
+// ── Rooms ──
+function getRoomKey(rx, rz) { return rx + ',' + rz; }
+
+function updateRooms() {
+  const playerPos = controls.getObject().position;
+  const cx = Math.floor(playerPos.x / roomWidth);
+  const cz = Math.floor(playerPos.z / roomDepth);
+  const maxNew = initialLoadComplete ? 1 : 999;
+  let created = 0;
+
+  for (let rx = cx - RENDER_DISTANCE; rx <= cx + RENDER_DISTANCE && created < maxNew; rx++) {
+    for (let rz = cz - RENDER_DISTANCE; rz <= cz + RENDER_DISTANCE && created < maxNew; rz++) {
+      const key = getRoomKey(rx, rz);
+      if (!loadedRooms.has(key)) { createRoom(rx, rz); created++; }
+    }
+  }
+  if (!initialLoadComplete) initialLoadComplete = true;
+
+  let removed = 0;
+  for (const [key, data] of loadedRooms) {
+    if (removed >= 1) break;
+    const [rx, rz] = key.split(',').map(Number);
+    if (Math.abs(rx - cx) > RENDER_DISTANCE + 1 || Math.abs(rz - cz) > RENDER_DISTANCE + 1) {
+      scene.remove(data.room);
+      data.puttyBalls.forEach(p => { scene.remove(p); const i = puttyBalls.indexOf(p); if (i > -1) puttyBalls.splice(i, 1); });
+      if (data.mirror) { scene.remove(data.mirror); const i = mirrors.indexOf(data.mirror); if (i > -1) mirrors.splice(i, 1); }
+      loadedRooms.delete(key);
+      removed++;
+    }
+  }
+}
+
+const spawnRoomRx = Math.floor(4 / 8);
+const spawnRoomRz = Math.floor(4 / 12);
+
+function createRoom(rx, rz) {
+  const room = roomTemplate.clone(true);
+  room.scale.setScalar(ROOM_SCALE);
+  room.rotation.set(0, 0, 0);
+  room.position.set(rx * roomWidth, 0, rz * roomDepth);
+  room.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+  scene.add(room);
+  const mirror = createMirror(rx, rz);
+  if (mirror) scene.add(mirror);
+  const isSpawnRoom = (rx === spawnRoomRx && rz === spawnRoomRz);
+  const roomPutty = createPuttyForRoom(rx, rz, isSpawnRoom ? 10 : 3);
+  loadedRooms.set(getRoomKey(rx, rz), { room, puttyBalls: roomPutty, mirror });
+}
+
+function createMirror(rx, rz) {
+  const cx = rx * roomWidth, cz = rz * roomDepth;
+  const geo = new THREE.PlaneGeometry(0.8, 1.2);
+  const mirror = new Reflector(geo, { clipBias: 0.01, textureWidth: 512, textureHeight: 512, color: 0x999999 });
+  mirror.position.set(cx, PLAYER_HEIGHT, cz + roomDepth * 0.49);
+  mirror.rotation.y = Math.PI;
+  mirror.camera.layers.enable(MIRROR_LAYER);
+
+  const frame = new THREE.Mesh(
+    new THREE.BoxGeometry(0.88, 1.28, 0.04),
+    new THREE.MeshStandardMaterial({ color: 0x4a4a4a, metalness: 0.8, roughness: 0.2 })
+  );
+  frame.position.copy(mirror.position);
+  frame.position.z += 0.05;
+  frame.rotation.y = Math.PI;
+  scene.add(frame);
+  mirrors.push(mirror);
+  return mirror;
+}
+
+function createPuttyForRoom(rx, rz, count) {
+  count = count || 3;
+  const balls = [];
+  const cx = rx * roomWidth, cz = rz * roomDepth;
+  for (let i = 0; i < count; i++) {
+    const p = createPuttyBall();
+    p.position.set(cx + (Math.random() - 0.5) * roomWidth * 0.7, 1.8, cz + (Math.random() - 0.5) * roomDepth * 0.7);
+    p.rotation.y = Math.random() * Math.PI * 2;
+    scene.add(p);
+    puttyBalls.push(p);
+    balls.push(p);
+  }
+  return balls;
+}
+
+function createPuttyBall() {
+  const p = puttyTemplate.clone();
+  p.traverse(c => { if (c.isMesh) { c.material = c.material.clone(); c.castShadow = true; c.receiveShadow = true; } });
+  p.userData.isPutty = true;
+  return p;
+}
+
+// ── Raycast click detection ──
+function raycastClick() {
+  raycaster.setFromCamera(clickCenter, camera);
+  const puttyHits = raycaster.intersectObjects(puttyBalls.filter(p => p.visible), true);
+  if (puttyHits.length > 0 && puttyHits[0].distance < 4.0 && !isSquishing) {
+    let hit = puttyHits[0].object;
+    while (hit.parent && !hit.userData.isPutty) hit = hit.parent;
+    if (hit.userData.isPutty) { squishPutty(hit); return true; }
+  }
+  const bagHits = raycaster.intersectObjects(spawnedDrawers, true);
+  if (bagHits.length > 0 && bagHits[0].distance < 6.0) {
+    let hit = bagHits[0].object;
+    while (hit.parent && !hit.userData.isBag) hit = hit.parent;
+    if (hit.userData.isBag && hit.userData.bagType) {
+      const meta = bagMetadata[hit.userData.bagType];
+      if (meta && meta.url) { openLink(meta.url); return true; }
+    }
+  }
+  return false;
+}
+
+// Shared function to exit the game (works on both mobile and desktop)
+function exitGame() {
+  const playOverlay = document.getElementById('putty-play-overlay');
+  const escHint = document.getElementById('putty-esc-hint');
+  const exitBtn = document.getElementById('putty-exit-btn');
+  if (controls && controls.isLocked) controls.unlock();
+  escHint.classList.remove('visible');
+  exitBtn.classList.remove('visible');
+  playOverlay.classList.remove('hidden');
+  gameStarted = false;
+  moveForward = moveBackward = moveLeft = moveRight = false;
+}
+
+// ── Event listeners ──
+function setupEventListeners() {
+  const playOverlay = document.getElementById('putty-play-overlay');
+  const playButton = document.getElementById('putty-play-button');
+  const gameContainer = document.getElementById('putty-game-container');
+  const escHint = document.getElementById('putty-esc-hint');
+  const exitBtn = document.getElementById('putty-exit-btn');
+
+  // Play button: enter game
+  playButton.addEventListener('click', (e) => {
+    e.stopPropagation();
+    gameStarted = true;
+    playOverlay.classList.add('hidden');
+    if (isMobile) {
+      exitBtn.classList.add('visible');
+    } else {
+      controls.lock();
+    }
+  });
+
+  // Exit button — use touchstart on mobile (click is suppressed by preventDefault)
+  exitBtn.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    exitGame();
+  }, { passive: false });
+  exitBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    exitGame();
+  });
+
+  // In-game click: scoped to the game container only (NOT document)
+  // This prevents clicks elsewhere on the page from re-locking the pointer
+  let lastClickTime = 0;
+  function handleGameClick(e) {
+    const now = performance.now();
+    if (now - lastClickTime < 100) return;
+    lastClickTime = now;
+    if (!gameStarted) return;
+    if (e.target && e.target.closest && e.target.closest('#putty-mobile-controls')) return;
+    if (e.target && e.target.closest && e.target.closest('#putty-play-overlay')) return;
+    if (e.target && e.target.closest && e.target.closest('#putty-exit-btn')) return;
+
+    if (!isMobile && !controls.isLocked) {
+      // Only re-lock if user clicked inside the game container
+      controls.lock();
+    } else if (controls.isLocked) {
+      if (!raycastClick()) {
+        if (nearbyBag && nearbyBag.userData.bagType) {
+          const meta = bagMetadata[nearbyBag.userData.bagType];
+          if (meta && meta.url) openLink(meta.url);
+        } else if (nearbyPutty && !isSquishing) {
+          squishPutty(nearbyPutty);
+        }
+      }
+    }
+  }
+
+  // Scope click/mousedown to the game container only
+  gameContainer.addEventListener('click', handleGameClick);
+  gameContainer.addEventListener('mousedown', handleGameClick);
+
+  // When pointer lock is active, clicks go to the lock target (document.body),
+  // NOT to our gameContainer. We need a document-level listener BUT only for
+  // in-game interactions (when already locked).
+  document.addEventListener('mousedown', (e) => {
+    if (!controls.isLocked) return; // ignore if not locked — prevents re-focus bug
+    const now = performance.now();
+    if (now - lastClickTime < 100) return;
+    lastClickTime = now;
+    if (!raycastClick()) {
+      if (nearbyBag && nearbyBag.userData.bagType) {
+        const meta = bagMetadata[nearbyBag.userData.bagType];
+        if (meta && meta.url) openLink(meta.url);
+      } else if (nearbyPutty && !isSquishing) {
+        squishPutty(nearbyPutty);
+      }
+    }
+  });
+
+  controls.addEventListener('lock', () => {
+    escHint.classList.add('visible');
+    gameStarted = true;
+    playOverlay.classList.add('hidden');
+  });
+
+  controls.addEventListener('unlock', () => {
+    exitGame();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!gameStarted || !controls.isLocked) return;
+    switch (e.code) {
+      case 'KeyW': case 'ArrowUp': moveForward = true; e.preventDefault(); break;
+      case 'KeyS': case 'ArrowDown': moveBackward = true; e.preventDefault(); break;
+      case 'KeyA': case 'ArrowLeft': moveLeft = true; e.preventDefault(); break;
+      case 'KeyD': case 'ArrowRight': moveRight = true; e.preventDefault(); break;
+    }
+  });
+
+  document.addEventListener('keyup', (e) => {
+    if (!gameStarted) return;
+    switch (e.code) {
+      case 'KeyW': case 'ArrowUp': moveForward = false; break;
+      case 'KeyS': case 'ArrowDown': moveBackward = false; break;
+      case 'KeyA': case 'ArrowLeft': moveLeft = false; break;
+      case 'KeyD': case 'ArrowRight': moveRight = false; break;
+    }
+  });
+
+  // Mobile controls
+  const joystickArea = document.getElementById('putty-joystick-area');
+  const joystickKnob = document.getElementById('putty-joystick-knob');
+  let joystickActive = false, joystickCenter = { x: 0, y: 0 };
+
+  joystickArea.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    joystickActive = true;
+    const r = joystickArea.getBoundingClientRect();
+    joystickCenter = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  joystickArea.addEventListener('touchmove', (e) => {
+    if (!joystickActive) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    const dx = t.clientX - joystickCenter.x, dy = t.clientY - joystickCenter.y;
+    const dist = Math.min(Math.sqrt(dx * dx + dy * dy), 40);
+    const angle = Math.atan2(dy, dx);
+    joystickKnob.style.transform = `translate(calc(-50% + ${Math.cos(angle) * dist}px), calc(-50% + ${Math.sin(angle) * dist}px))`;
+    moveForward = dy < -15; moveBackward = dy > 15; moveLeft = dx < -15; moveRight = dx > 15;
+  });
+  joystickArea.addEventListener('touchend', () => {
+    joystickActive = false;
+    joystickKnob.style.transform = 'translate(-50%,-50%)';
+    moveForward = moveBackward = moveLeft = moveRight = false;
+  });
+
+  // Mobile look + tap-to-interact
+  let lastTouchX = 0, lastTouchY = 0, lookTouchId = null;
+  let touchStartX = 0, touchStartY = 0, touchMoved = false;
+
+  gameContainer.addEventListener('touchstart', (e) => {
+    if (!gameStarted || e.target.closest('#putty-mobile-controls') || e.target.closest('#putty-play-overlay') || e.target.closest('#putty-exit-btn')) return;
+    e.preventDefault();
+    const t = e.touches[e.touches.length - 1];
+    if (t.clientX > window.innerWidth * 0.3) {
+      lookTouchId = t.identifier;
+      lastTouchX = t.clientX; lastTouchY = t.clientY;
+      touchStartX = t.clientX; touchStartY = t.clientY;
+      touchMoved = false;
+    }
+  }, { passive: false });
+  gameContainer.addEventListener('touchmove', (e) => {
+    if (!gameStarted || lookTouchId === null) return;
+    e.preventDefault();
+    for (let i = 0; i < e.touches.length; i++) {
+      const t = e.touches[i];
+      if (t.identifier === lookTouchId) {
+        const dx = t.clientX - lastTouchX, dy = t.clientY - lastTouchY;
+        // Mark as a drag if finger moved more than 10px from start
+        if (!touchMoved && (Math.abs(t.clientX - touchStartX) > 10 || Math.abs(t.clientY - touchStartY) > 10)) {
+          touchMoved = true;
+        }
+        const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+        euler.setFromQuaternion(camera.quaternion);
+        euler.y -= dx * 0.003;
+        euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.x - dy * 0.003));
+        camera.quaternion.setFromEuler(euler);
+        lastTouchX = t.clientX; lastTouchY = t.clientY;
+        break;
+      }
+    }
+  }, { passive: false });
+  gameContainer.addEventListener('touchend', (e) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const ct = e.changedTouches[i];
+      if (ct.identifier === lookTouchId) {
+        // If it was a quick tap (no drag), raycast from tap position to interact
+        if (!touchMoved && isMobile && gameStarted) {
+          const rect = renderer.domElement.getBoundingClientRect();
+          const tapNDC = new THREE.Vector2(
+            ((ct.clientX - rect.left) / rect.width) * 2 - 1,
+            -((ct.clientY - rect.top) / rect.height) * 2 + 1
+          );
+          raycaster.setFromCamera(tapNDC, camera);
+
+          // Check bags (wider distance on mobile)
+          const bagHits = raycaster.intersectObjects(spawnedDrawers, true);
+          if (bagHits.length > 0 && bagHits[0].distance < 10.0) {
+            let hit = bagHits[0].object;
+            while (hit.parent && !hit.userData.isBag) hit = hit.parent;
+            if (hit.userData.isBag && hit.userData.bagType) {
+              const meta = bagMetadata[hit.userData.bagType];
+              if (meta && meta.url) { openLink(meta.url); lookTouchId = null; return; }
+            }
+          }
+          // Check putty (wider distance on mobile)
+          const puttyHits = raycaster.intersectObjects(puttyBalls.filter(p => p.visible), true);
+          if (puttyHits.length > 0 && puttyHits[0].distance < 8.0 && !isSquishing) {
+            let hit = puttyHits[0].object;
+            while (hit.parent && !hit.userData.isPutty) hit = hit.parent;
+            if (hit.userData.isPutty) { squishPutty(hit); lookTouchId = null; return; }
+          }
+          // Fallback: find nearest object close to tap ray (forgiving cone)
+          if (!isSquishing) {
+            const tapRayDir = raycaster.ray.direction;
+            const tapRayOrig = raycaster.ray.origin;
+            let bestPutty = null, bestPuttyAngle = Infinity;
+            for (let i = 0; i < puttyBalls.length; i++) {
+              const p = puttyBalls[i];
+              if (!p.visible) continue;
+              const toP = new THREE.Vector3().subVectors(p.position, tapRayOrig);
+              const dist = toP.length();
+              if (dist > 8.0) continue;
+              toP.normalize();
+              const angle = Math.acos(Math.min(1, tapRayDir.dot(toP)));
+              if (angle < 0.35 && angle < bestPuttyAngle) { bestPuttyAngle = angle; bestPutty = p; }
+            }
+            if (bestPutty && bestPutty.userData.isPutty) { squishPutty(bestPutty); lookTouchId = null; return; }
+          }
+        }
+        lookTouchId = null;
+        break;
+      }
+    }
+  });
+
+
+  window.addEventListener('resize', () => {
+    const c = document.getElementById('putty-game-container');
+    camera.aspect = c.clientWidth / c.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(c.clientWidth, c.clientHeight);
+    isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1 || window.innerWidth <= 768;
+  });
+}
+
+// ── Squish animation ──
+function squishPutty(putty) {
+  if (!leftSqueezeAction || !rightSqueezeAction) return;
+  isSquishing = true;
+  pendingPutty = putty;
+
+  leftSqueezeAction.reset(); leftSqueezeAction.play();
+  rightSqueezeAction.reset(); rightSqueezeAction.play();
+
+  const onFinished = (e) => {
+    if (e.action !== leftSqueezeAction) return;
+    leftMixer.removeEventListener('finished', onFinished);
+    const resetStart = performance.now();
+    const sLZ = leftHandContainer.position.z, sRZ = rightHandContainer.position.z;
+    const sLX = leftHandContainer.position.x, sRX = rightHandContainer.position.x;
+    const smoothReset = () => {
+      const p = Math.min((performance.now() - resetStart) / 150, 1);
+      const e = 1 - Math.pow(1 - p, 2);
+      leftHandContainer.position.z = sLZ + (LEFT_HAND_POS.z - sLZ) * e;
+      rightHandContainer.position.z = sRZ + (RIGHT_HAND_POS.z - sRZ) * e;
+      leftHandContainer.position.x = sLX + (LEFT_HAND_POS.x - sLX) * e;
+      rightHandContainer.position.x = sRX + (RIGHT_HAND_POS.x - sRX) * e;
+      if (p < 1) requestAnimationFrame(smoothReset); else isSquishing = false;
+    };
+    requestAnimationFrame(smoothReset);
+  };
+  leftMixer.addEventListener('finished', onFinished);
+
+  const animDuration = (leftSqueezeAction.getClip().duration / leftSqueezeAction.timeScale) * 1000;
+  const startTime = performance.now();
+  const origScale = putty.scale.x;
+  let bagSpawned = false;
+
+  const animateSquish = () => {
+    if (!isSquishing) return;
+    const progress = Math.min((performance.now() - startTime) / animDuration, 1);
+    const anim = Math.sin(progress * Math.PI);
+    leftHandContainer.position.z = LEFT_HAND_POS.z - anim * 0.05;
+    rightHandContainer.position.z = RIGHT_HAND_POS.z + anim * 0.05;
+    leftHandContainer.position.x = LEFT_HAND_POS.x + anim * 0.03;
+    rightHandContainer.position.x = RIGHT_HAND_POS.x - anim * 0.03;
+
+    if (putty && putty.visible) {
+      if (progress > 0.5 && progress < 0.65) {
+        const s = origScale * (1 - (progress - 0.5) / 0.15);
+        putty.scale.setScalar(s);
+      } else if (progress >= 0.65) {
+        putty.scale.setScalar(0);
+        if (!bagSpawned && pendingPutty) { bagSpawned = true; replacePuttyWithDrawer(pendingPutty); pendingPutty = null; }
+      }
+    }
+    if (progress < 1) requestAnimationFrame(animateSquish);
+  };
+  requestAnimationFrame(animateSquish);
+}
+
+function replacePuttyWithDrawer(putty) {
+  const pos = putty.position.clone();
+  putty.visible = false;
+  const idx = puttyBalls.indexOf(putty);
+  if (idx > -1) puttyBalls.splice(idx, 1);
+
+  const ti = bagTypeIndex;
+  const bag = bagTemplates[ti].clone();
+  const types = ['drawer', 'daryosh', 'froglet'];
+  bag.userData.bagType = types[ti];
+  bagTypeIndex = (bagTypeIndex + 1) % 3;
+  bag.userData.isBag = true;
+  bag.position.copy(pos);
+  bag.position.y = 1.9;
+  bag.rotation.y = Math.random() * Math.PI * 2;
+  bag.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+
+  const BAG_SCALE = 0.08;
+  bag.scale.setScalar(0);
+  scene.add(bag);
+  spawnedDrawers.push(bag);
+
+  const start = performance.now();
+  const pop = (t) => {
+    const p = Math.min((t - start) / 300, 1);
+    bag.scale.setScalar(BAG_SCALE * (1 - Math.pow(2, -10 * p) * Math.cos((p * 10 - 0.75) * Math.PI * 2 / 3)));
+    if (p < 1) requestAnimationFrame(pop);
+  };
+  requestAnimationFrame(pop);
+  bagClickCount++;
+  if (bagClickCount >= 6 && !sceneTransformed) transformScene();
+}
+
+function transformScene() {
+  sceneTransformed = true;
+  const c = new THREE.Color(0xd3bea8);
+  scene.background = c;
+  scene.fog.color = c;
+  scene.traverse(o => {
+    if (o.isMesh && o.material) {
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach(m => { m.color = c; m.map = null; m.needsUpdate = true; });
+    }
+  });
+}
+
+// ── Proximity checks (reuse vectors) ──
+const _camDir = new THREE.Vector3();
+const _toObj = new THREE.Vector3();
+const bagLabel = document.getElementById('putty-bag-label');
+
+function checkNearbyPutty() {
+  const pp = controls.getObject().position;
+  camera.getWorldDirection(_camDir);
+  const maxDist = isMobile ? 5.0 : 3.0;
+  const minDot = isMobile ? 0.4 : 0.7;
+  let closest = null, closestDist = Infinity;
+  for (let i = 0; i < puttyBalls.length; i++) {
+    const p = puttyBalls[i];
+    if (!p.visible) continue;
+    const d = pp.distanceTo(p.position);
+    if (d < maxDist) {
+      _toObj.subVectors(p.position, pp).normalize();
+      const dot = _camDir.dot(_toObj);
+      if (dot > minDot && d < closestDist) { closestDist = d; closest = p; }
+    }
+  }
+  nearbyPutty = closest;
+}
+
+function checkNearbyBag() {
+  const pp = controls.getObject().position;
+  camera.getWorldDirection(_camDir);
+  const maxDist = isMobile ? 8.0 : 5.0;
+  const minDot = isMobile ? 0.85 : 0.97;
+  let closest = null, closestDist = Infinity;
+  for (let i = 0; i < spawnedDrawers.length; i++) {
+    const b = spawnedDrawers[i];
+    const d = pp.distanceTo(b.position);
+    if (d < maxDist) {
+      _toObj.subVectors(b.position, pp).normalize();
+      const dot = _camDir.dot(_toObj);
+      if (dot > minDot && d < closestDist) { closestDist = d; closest = b; }
+    }
+  }
+  nearbyBag = closest;
+  if (nearbyBag && nearbyBag.userData.bagType) {
+    const meta = bagMetadata[nearbyBag.userData.bagType];
+    if (meta) { bagLabel.textContent = meta.label; bagLabel.classList.add('visible'); }
+  } else {
+    bagLabel.classList.remove('visible');
+  }
+}
+
+const _labelPos = new THREE.Vector3();
+function updateBagLabelPosition() {
+  if (!nearbyBag) return;
+  const c = document.getElementById('putty-game-container');
+  _labelPos.copy(nearbyBag.position);
+  _labelPos.y += 0.8;
+  _labelPos.project(camera);
+  bagLabel.style.left = (_labelPos.x * 0.5 + 0.5) * c.clientWidth + 'px';
+  bagLabel.style.top = (-_labelPos.y * 0.5 + 0.5) * c.clientHeight + 'px';
+}
+
+// ── Pause / resume ──
+let prevTime = performance.now();
+let roomUpdateTimer = 0;
+let puttyCheckTimer = 0;
+let gamePaused = false;
+let animFrameId = null;
+
+const pauseObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) {
+      gamePaused = true;
+      // Exit game fully when scrolled away (desktop and mobile)
+      if (gameStarted) exitGame();
+    } else if (gamePaused) {
+      gamePaused = false;
+      prevTime = performance.now();
+      if (!animFrameId) animate();
+    }
+  });
+}, { threshold: 0.05 });
+pauseObserver.observe(document.getElementById('putty-game-container'));
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { gamePaused = true; }
+  else { gamePaused = false; prevTime = performance.now(); if (!animFrameId) animate(); }
+});
+
+// ── Render loop ──
+// Reusable vector for avatar (avoid per-frame alloc)
+const _avatarDir = new THREE.Vector3();
+
+function animate() {
+  if (gamePaused) { animFrameId = null; return; }
+  animFrameId = requestAnimationFrame(animate);
+
+  const time = performance.now();
+  const delta = Math.min((time - prevTime) / 1000, 0.1); // cap delta to avoid huge jumps
+  prevTime = time;
+
+  const isPlaying = gameStarted && (controls.isLocked || isMobile);
+
+  if (isPlaying) {
+    velocity.x -= velocity.x * 10.0 * delta;
+    velocity.z -= velocity.z * 10.0 * delta;
+    direction.z = Number(moveForward) - Number(moveBackward);
+    direction.x = Number(moveRight) - Number(moveLeft);
+    direction.normalize();
+    if (moveForward || moveBackward) velocity.z -= direction.z * MOVE_SPEED * delta;
+    if (moveLeft || moveRight) velocity.x -= direction.x * MOVE_SPEED * delta;
+    controls.moveRight(-velocity.x * delta);
+    controls.moveForward(-velocity.z * delta);
+    controls.getObject().position.y = PLAYER_HEIGHT;
+
+    roomUpdateTimer += delta;
+    if (roomUpdateTimer > 0.5) { updateRooms(); roomUpdateTimer = 0; }
+
+    puttyCheckTimer += delta;
+    if (puttyCheckTimer > 0.1) { checkNearbyPutty(); checkNearbyBag(); puttyCheckTimer = 0; }
+
+    updateBagLabelPosition();
+
+    if (!isSquishing && leftHandContainer && rightHandContainer) {
+      const moving = moveForward || moveBackward || moveLeft || moveRight;
+      if (moving) {
+        const bob = Math.sin(time * 0.01) * 0.006, sway = Math.sin(time * 0.005) * 0.002;
+        leftHandContainer.position.y = LEFT_HAND_POS.y + bob;
+        leftHandContainer.position.x = LEFT_HAND_POS.x + sway;
+        rightHandContainer.position.y = RIGHT_HAND_POS.y + bob;
+        rightHandContainer.position.x = RIGHT_HAND_POS.x - sway;
+      } else {
+        leftHandContainer.position.y = LEFT_HAND_POS.y;
+        leftHandContainer.position.x = LEFT_HAND_POS.x;
+        rightHandContainer.position.y = RIGHT_HAND_POS.y;
+        rightHandContainer.position.x = RIGHT_HAND_POS.x;
+      }
+    }
+  }
+
+  if (leftMixer) leftMixer.update(delta);
+  if (rightMixer) rightMixer.update(delta);
+
+  for (let i = 0; i < puttyBalls.length; i++) {
+    const p = puttyBalls[i];
+    if (p.visible && !isSquishing) p.position.y = 1.8 + Math.sin(time * 0.002 + i * 0.5) * 0.01;
+  }
+  for (let i = 0; i < spawnedDrawers.length; i++) spawnedDrawers[i].rotation.y += 0.008;
+
+  if (playerAvatar) {
+    const pp = controls.getObject().position;
+    camera.getWorldDirection(_avatarDir);
+    playerAvatar.position.set(pp.x + _avatarDir.x * 0.3, pp.y - 0.8, pp.z + _avatarDir.z * 0.3);
+    playerAvatar.rotation.y = Math.atan2(_avatarDir.x, _avatarDir.z);
+  }
+
+  if (mirrors.length > 0) {
+    const pp = controls.getObject().position;
+    let closest = null, closestDist = Infinity;
+    for (let i = 0; i < mirrors.length; i++) {
+      const d = pp.distanceTo(mirrors[i].position);
+      if (d < closestDist) { closestDist = d; closest = mirrors[i]; }
+      mirrors[i].visible = false;
+    }
+    if (closest && closestDist < roomDepth * 2) closest.visible = true;
+  }
+
+  renderer.render(scene, camera);
+}
+</script>
+
+{% schema %}
+{
+  "name": "Putty Squish Game",
+  "tag": "section",
+  "class": "putty-game-section",
+  "settings": [
+    {
+      "type": "range",
+      "id": "game_height",
+      "min": 50,
+      "max": 100,
+      "step": 5,
+      "unit": "vh",
+      "label": "Game Height",
+      "default": 75
+    }
+  ],
+  "presets": [
+    {
+      "name": "Putty Squish Game"
+    }
+  ]
+}
+{% endschema %}

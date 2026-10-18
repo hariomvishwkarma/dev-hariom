@@ -1,0 +1,385 @@
+{% for block in section.blocks %}
+    {% capture desktop_css %}{{ desktop_css }}
+        .sbs-media-item-{{ block.id }}{
+            width:{{  block.settings.width }}%;
+        }
+    {% endcapture %}
+    {% capture mobile_css %}{{ mobile_css }}
+         .sbs-media-item-{{ block.id }}{
+            width:{{  block.settings.width_m }}%;
+        }     
+    {% endcapture %}
+{% endfor %}
+<style>
+    .sbs-media-item{
+        display:flex;
+        justify-content: space-between;
+        height:100%;
+        position: relative;
+    }
+    .sbs-media-item img, .sbs-media-item video{
+        max-width:100%;
+        width:100%;
+        object-fit:cover;
+        height:auto;
+    }
+    .{{ section.id }} .sbs-heading{
+        margin:0;
+        line-height:normal;
+        color:{{ section.settings.text_color }};
+        margin-bottom: 5px;
+        font-family: "Neue Haas Grotesk Text Pro";
+        font-weight: 700;
+    } 
+    .{{ section.id }} .sbs-content{
+        margin:0;
+        color:{{ section.settings.text_color }};
+    }
+    .{{ section.id }} .sbs-wrapper {
+        padding: 22px 0px 0px;
+        {% comment %} padding: 22px 18px 93px; {% endcomment %}
+    }
+    .{{ section.id }} .sbs-header{
+        padding: 0px 18px;
+    }
+    .{{ section.id }} .sbs-media {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        justify-content: center;
+        padding-top: 15px;
+    }
+
+    @media (min-width:768px){
+        {{ desktop_css }}
+        .{{ section.id }} .sbs-heading{
+            font-size:{{ section.settings.heading_size }};
+        }
+        .{{ section.id }} .sbs-content{
+            font-size:{{ section.settings.content_size }};
+        }
+        .sbs-mobile-video, .sbs-mobile-img{
+            display:none;
+        }
+        .{{ section.id }} .sbs-wrapper {
+            {% comment %} padding: 22px 18px 93px; {% endcomment %}
+            padding: 22px 0px 0px;
+        }
+        .{{ section.id }} .sbs-header{
+            padding: 0px 18px;
+        }
+    }
+    @media (max-width:767px){
+        {{ mobile_css }}
+        .{{ section.id }} .sbs-heading{
+            font-size:{{ section.settings.heading_size_m }};
+        }
+        .{{ section.id }} .sbs-content{
+            font-size:{{ section.settings.content_size_m }};
+        }
+        .sbs-desktop-video, .sbs-desktop-img{
+            display:none;
+        }
+        .{{ section.id }} .sbs-wrapper {
+            {% comment %} padding: 24px 12px 53px; {% endcomment %}
+            padding: 24px 0px 0px;
+        }
+        .{{ section.id }} .sbs-header{
+            padding: 0px 12px;
+        }
+        .{{ section.id }} .sbs-media {
+            padding-top: 10px;
+        }
+    }
+</style>
+
+<div class="split--block-main {{ section.id }}" style="background:{{ section.settings.bg_color }};">
+    <div class="sbs-wrapper">
+        <div class="sbs-header">
+            {% if section.settings.heading != blank %}
+                <h2 class="sbs-heading">{{ section.settings.heading }}</h2>
+            {% endif %}
+            {% if section.settings.content != blank %}
+                <div class="sbs-content">{{ section.settings.content }}</div>
+            {% endif %}
+        </div>
+        <div class="sbs-media">
+            {% for block in section.blocks %}
+                <div class="sbs-media-item sbs-media-item-{{ block.id }}">
+                    {% if block.settings.link != blank %}
+                        <a href="{{ block.settings.link }}" class="overlay-link"></a>
+                    {% endif %}
+                    {% if block.settings.image != blank %}
+                        {% assign image_height = block.settings.image.width | divided_by: block.settings.image.aspect_ratio | round %}
+                        {{ block.settings.image
+                        | image_url: width: 3840
+                        | image_tag:
+                            width: block.settings.image.width,
+                            height: image_height,
+                            class: 'desktop_img',
+                            sizes: '100vw',
+                            widths: '170, 320, 375, 414, 550, 750, 1100, 1500, 1780, 2000, 3000, 3840',
+                            alt: block.settings.image.alt
+                        }}
+
+                        {% if block.settings.image_m != blank %}
+                            {% assign mobile_height = block.settings.image_m.width | divided_by: block.settings.image_m.aspect_ratio | round %}
+                            {{ block.settings.image_m
+                                | image_url: width: 750
+                                | image_tag:
+                                width: block.settings.image_m.width,
+                                height: mobile_height,
+                                class: 'mobile_img',
+                                sizes: '100vw',
+                                widths: '320, 375, 414, 550, 750',
+                                alt: block.settings.image_m.alt
+                            }}
+                        {% else %}
+                            {% assign mobile_height = block.settings.image.width | divided_by: block.settings.image.aspect_ratio | round %}
+                            {{
+                                block.settings.image
+                                | image_url: width: 750
+                                | image_tag:
+                                width: block.settings.image.width,
+                                height: mobile_height,
+                                class: 'mobile_img',
+                                sizes: '100vw',
+                                widths: '320, 375, 414, 550, 750',
+                                alt: block.settings.image.alt
+                            }}
+                        {% endif %}
+                    {% elsif block.settings.video != blank %}
+                        {{ block.settings.video | video_tag:autoplay:true, loop:true, controls: false, muted:true,class:'desktop_video' }}
+                        {% if block.settings.video_m != blank %}
+                            {{ block.settings.video_m | video_tag:autoplay:true, loop:true, controls: false, muted:true,class:'mobile_video' }}
+                        {% else %}
+                            {{ block.settings.video | video_tag:autoplay:true, loop:true, controls: false, muted:true,class:'mobile_video' }}
+                        {% endif %}
+                    {% else %}
+                        {{ 'detailed-apparel-1' | placeholder_svg_tag: 'placeholder-svg' }}
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% schema %}
+{
+  "name": "Split Block Section",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    {
+        "type": "color",
+        "id": "bg_color",
+        "label":"Background",
+        "default":"#000"
+    },
+    {
+        "type": "color",
+        "id": "text_color",
+        "label":"Text Color",
+        "default":"#fff"
+    },
+    {
+        "type": "header",
+        "content": "Heading",
+    },
+    {
+        "type": "textarea",
+        "id": "heading",
+        "label": "Heading",
+        "default":"Brace Brace Brace:The Crème De La Crème of Messenger Bags."
+    },
+    {
+        "type": "select",
+        "id": "heading_size",
+        "label": "Font Size",
+        "options": [
+            {
+                "label": "S",
+                "value": "13px"
+            },
+            {
+                "label": "M",
+                "value": "26px"
+            },
+            {
+                "label": "L",
+                "value": "36px"
+            },
+            {
+                "label": "XL",
+                "value": "50px"
+            },
+            {
+                "label": "XXL",
+                "value": "134px"
+            }
+        ],
+        "default":"26px"
+    },
+    {
+        "type": "select",
+        "id": "heading_size_m",
+        "label": "Font Size (Mobile)",
+        "options": [
+            {
+                "label": "S",
+                "value": "13px"
+            },
+            {
+                "label": "M",
+                "value": "26px"
+            },
+            {
+                "label": "L",
+                "value": "36px"
+            },
+            {
+                "label": "XL",
+                "value": "50px"
+            },
+            {
+                "label": "XXL",
+                "value": "134px"
+            }
+        ],
+        "default":"26px"
+    },
+    {
+        "type": "header",
+        "content": "Content"
+    },
+    {
+        "type": "textarea",
+        "id": "content",
+        "label": "Content",
+        "default":"Ontion of Yyur informatio please be aware that no security measures are perfect or impenetrable, and we cannot guarantee “perfect sec. Ontion of Yyur informatio please be aware that no security measures are perfect."
+    },
+    {
+        "type": "select",
+        "id": "content_size",
+        "label": "Font Size",
+        "options": [
+            {
+                "label": "S",
+                "value": "13px"
+            },
+            {
+                "label": "M",
+                "value": "26px"
+            },
+            {
+                "label": "L",
+                "value": "36px"
+            },
+            {
+                "label": "XL",
+                "value": "50px"
+            },
+            {
+                "label": "XXL",
+                "value": "134px"
+            }
+        ],
+        "default":"13px"
+    },
+    {
+        "type": "select",
+        "id": "content_size_m",
+        "label": "Font Size (Mobile)",
+        "options": [
+            {
+                "label": "S",
+                "value": "13px"
+            },
+            {
+                "label": "M",
+                "value": "26px"
+            },
+            {
+                "label": "L",
+                "value": "36px"
+            },
+            {
+                "label": "XL",
+                "value": "50px"
+            },
+            {
+                "label": "XXL",
+                "value": "134px"
+            }
+        ],
+        "default":"13px"
+    }
+  ], 
+  "blocks": [
+    {
+        "type": "image",
+        "name":"Image",
+        "settings": [
+            {
+                "type": "image_picker",
+                "id":"image",
+                "label": "Image"
+            },
+            {
+                "type": "image_picker",
+                "id":"image_m",
+                "label": "Image - Mobile"
+            },
+            {
+                "type": "video",
+                "id":"video",
+                "label": "Video"
+            },
+            {
+                "type": "video",
+                "id":"video_m",
+                "label": "Video - Mobile"
+            },
+            {
+                "type": "url",
+                "id": "link",
+                "label": "Media link"
+            },
+            {
+                "type": "range",
+                "id":"width",
+                "label": "Width",
+                "min": 1,
+                "max": 100,
+                "step": 1,
+                "default":50,
+                "unit": "%"
+            },
+            {
+                "type": "range",
+                "id":"width_m",
+                "label": "Width (Mobile)",
+                "min": 1,
+                "max": 100,
+                "step": 1,
+                "default":50,
+                "unit": "%"
+            }
+        ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Split Block Section",
+      "blocks": [
+        {
+            "type": "image"
+        },
+        {
+            "type": "image"
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}
