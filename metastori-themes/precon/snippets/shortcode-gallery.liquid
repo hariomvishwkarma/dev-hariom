@@ -1,0 +1,80 @@
+{%- comment -%}
+Render content_grid
+Usage:
+  [[cta-gallery interval="5" images="https://image1,https://image2,...." custom_links="https://link1,https://link2,...."]]
+  parameters:
+    interval: time in seconds between slides (default: 5)
+    images: comma-separated list of image URLs
+    custom_links: comma-separated list of URLs to link each image - base64decoded
+{%- endcomment -%}
+{%- capture interval -%}{%- render 'shortcode-param', keys: keys, values: values, param: 'interval' -%}{%- endcapture -%}
+{%- capture images -%}{%- render 'shortcode-param', keys: keys, values: values, param: 'images' -%}{%- endcapture -%}
+{%- capture custom_links -%}{%- render 'shortcode-param', keys: keys, values: values, param: 'custom_links' -%}{%- endcapture -%}
+
+{%- assign image_list = images | split: ',' -%}
+{%- assign link_list = custom_links | url_decode | split: ',' -%}
+{%- assign slide_interval = interval | default: 5 | times: 1000 -%}
+
+{%- capture flickity_config -%}
+{
+  "adaptiveHeight": true,
+  "dragThreshold": 10,
+  "fade": true,
+  "autoPlay": {{ slide_interval }},
+  "wrapAround": true,
+  "contain": true,
+  "percentPosition": false,
+  "pageDots": false,
+  "prevNextButtons": false
+}
+{%- endcapture -%}
+
+{% if image_list != blank  %}
+ <div class="cta-gallery shortcode shortcode-cta">
+    <div class="cta-gallery-wrapper">
+      <flickity-carousel flickity-config="{{ flickity_config | escape }}" id="cta-gallery-{{ section.id }}-placeholder-media-list" class="cta-gallery__media-list">
+        {% for item in image_list %}
+          <div id="cta-gallery-{{ section.id }}-media-{{ forloop.index }}" class="cta-gallery-item" data-media-type="image" data-media-id="media-{{ forloop.index }}">
+            {% if link_list[forloop.index0] != blank %}
+              <a href="{{ link_list[forloop.index0] }}">
+            {% endif %}
+              <div class="cta-gallery__image-wrapper aspect-ratio">
+                <img
+                  src="{{ item }}"
+                  class="cta-gallery-image "
+                  alt="{{ 'bso_shortcode.cta_gallery.alt_text' | t }} {{ forloop.index }}"
+                  loading="lazy"
+                >
+              </div>
+            {% if link_list[forloop.index0] != blank %}
+              </a>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </flickity-carousel>
+    </div>
+    {% assign image_count = image_list.size %}
+    {% if image_count > 1 %}
+      <div class="cta-gallery-controls">
+        <flickity-controls controls="cta-gallery-{{ section.id }}-placeholder-media-list" class="cta-gallery__media-nav">
+          <button class="cta-gallery__media-prev-next tap-area tap-area--large" aria-label="{{ 'general.accessibility.previous' | t }}" data-action="prev">
+            {%- render 'icon' with 'nav-arrow-left' -%}
+          </button>
+          
+          <div class="dots-nav dots-nav--centered">
+            {%- for i in (1..image_count) -%}
+              <button type="button" tabindex="-1" class="dots-nav__item tap-area" {% if forloop.first %}aria-current="true"{% endif %} aria-controls="cta-gallery-{{ section.id }}-media-{{ forloop.index }}" data-media-id="media-{{ forloop.index }}" data-action="select">
+                <span class="visually-hidden">{{ 'general.accessibility.go_to_slide' | t: num: forloop.index }}</span>
+              </button>
+            {%- endfor -%}
+          </div>
+
+          <button class="cta-gallery__media-prev-next tap-area tap-area--large" aria-label="{{ 'general.accessibility.next' | t }}" data-action="next">
+            {%- render 'icon' with 'nav-arrow-right' -%}
+          </button>
+        </flickity-controls>
+      </div>
+    {% endif %}
+
+ </div>
+{% endif %}

@@ -1,0 +1,112 @@
+<!-- snippets/klaviyo-flyout-fullscreen.liquid -->
+
+{%- doc -%}
+  Stretches the Klaviyo flyout to the full viewport on mobile.
+
+  Klaviyo renders the flyout itself, with generated class names and a nesting depth
+  that changes between form versions, so CSS selectors cannot reach every wrapper.
+  The open event carries the form id, which resolves the one container Klaviyo
+  injected for it; sizing runs from there. `transform` is never touched, so the
+  slide-in animation still plays.
+{%- enddoc -%}
+
+<script>
+  (function () {
+    var BREAKPOINT = 767;
+    var POPUP = '[data-kl-scroll-locking-modal="true"], [data-testid="POPUP"]';
+    var FILL = {
+      width: '100vw',
+      'min-width': '0',
+      'max-width': 'none',
+      height: '100dvh',
+      'max-height': 'none',
+      margin: '0',
+      'border-radius': '0',
+      'box-sizing': 'border-box'
+    };
+
+    var open_form_id = null;
+
+    function fill(element) {
+      for (var property in FILL) {
+        element.style.setProperty(property, FILL[property], 'important');
+      }
+    }
+
+    function apply() {
+      if (!open_form_id || window.innerWidth > BREAKPOINT) return;
+
+      // Klaviyo injects one container per form, classed with the form's id.
+      var root = document.querySelector('.klaviyo-form-' + open_form_id);
+
+      // Should the class ever be named differently, fall back to the overlay-style
+      // container. Embedded forms sit in normal flow, so they are never picked up.
+      if (!root) {
+        var containers = document.querySelectorAll('[class*="klaviyo-form-"]');
+
+        for (var i = containers.length - 1; i >= 0; i--) {
+          if (getComputedStyle(containers[i]).position === 'fixed') {
+            root = containers[i];
+            break;
+          }
+        }
+      }
+
+      if (!root) return;
+
+      // The open event fires for every form type, and the fallback above matches
+      // any overlay container, so step aside for the popup: CSS gives that one a
+      // fixed box, which inline styles from here would beat. Anything not clearly
+      // a popup is still stretched — a flyout left unstretched keeps Klaviyo's
+      // transform on the root, and the CSS `inset: 0` inside then resolves against
+      // that box instead of the viewport, which puts the flyout off screen.
+      if (root.matches(POPUP) || root.querySelector(POPUP)) return;
+
+      // Pinning the root keeps the viewport-sized box out of the document flow.
+      root.style.setProperty('position', 'fixed', 'important');
+      root.style.setProperty('inset', '0', 'important');
+      fill(root);
+
+      // Every wrapper between the root and the form carries its own width from the
+      // form builder, so walk the chain rather than guessing at selectors.
+      var form = root.querySelector('.klaviyo-form');
+      var node = form;
+
+      while (node && node !== root) {
+        fill(node);
+        node = node.parentElement;
+      }
+
+      if (form) {
+        form.style.setProperty('min-height', '100dvh', 'important');
+
+        var content = form.firstElementChild;
+        if (content) {
+          content.style.setProperty('min-height', '0', 'important');
+          content.style.setProperty('height', '100%', 'important');
+        }
+      }
+    }
+
+    window.addEventListener('klaviyoForms', function (event) {
+      var detail = event.detail;
+      if (!detail || !detail.formId) return;
+
+      if (detail.type === 'close') {
+        open_form_id = null;
+        return;
+      }
+
+      if (detail.type !== 'open') return;
+
+      open_form_id = detail.formId;
+
+      // Klaviyo writes its own inline sizing after the open event, so run behind it.
+      requestAnimationFrame(apply);
+      setTimeout(apply, 150);
+      setTimeout(apply, 600);
+    });
+
+    window.addEventListener('resize', apply);
+  })();
+</script>

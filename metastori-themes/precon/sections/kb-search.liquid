@@ -1,0 +1,184 @@
+{%- comment -%}
+  Knowledge Base search — recreates HubSpot's KB search box.
+
+  Reusable section: drop it into any KB template (home page hero, or compact on
+  category / FAQ metaobject pages). Client-side predictive search over a JSON
+  index of every `knowledgebase_faq` entry — Shopify's native storefront search
+  does not index metaobjects, so we build our own. No backend required.
+
+  Matching is diacritic-folded (so "diat" matches "Diät") over question text +
+  keywords. Progressive: with JS off the box simply does nothing.
+{%- endcomment -%}
+
+{{ 'knowledgebase.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'kb-search.js' | asset_url }}" defer="defer"></script>
+
+{%- assign results_id = 'kb-search-results-' | append: section.id -%}
+
+<div class="kb-search{% if section.settings.show_hero %} kb-search--hero{% endif %}">
+  <div class="container">
+    {%- if section.settings.show_hero and section.settings.heading != blank -%}
+      {% if section.settings.heading != blank %}<{{ section.settings.heading_html_tag }} class="heading {{ section.settings.heading_html_style }} kb-search__heading" style="font-size: 1.7rem; line-height: 2.5rem; margin-bottom: unset;">{{ section.settings.heading }}</{{- section.settings.heading_html_tag -}}>{% endif %}
+      <span class="heading {{ section.settings.hero_heading_html_style }} kb-search__heading">{{ section.settings.hero_heading }}</span>
+    {%- endif -%}
+
+    <div
+      class="kb-search__box"
+      data-kb-search
+      data-limit="{{ section.settings.results_limit }}"
+      data-min="{{ section.settings.min_chars }}">
+
+      <form class="kb-search__form" role="search">
+        <input
+          type="search"
+          class="kb-search__input"
+          placeholder="{{ section.settings.placeholder | escape }}"
+          aria-label="{{ section.settings.placeholder | escape }}"
+          result-for-label="{{ 'bso.general.results_for' | t}}"
+          autocomplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded="false"
+          aria-controls="{{ results_id }}"
+          data-kb-search-input>
+        <button type="submit" class="kb-search__button" aria-label="{{ 'bso.general.search' | t }}">
+          {%- render 'icon' with 'header-search' -%}
+        </button>
+      </form>
+
+      <ul class="kb-search__results" id="{{ results_id }}" role="listbox" hidden data-kb-search-results></ul>
+      <p class="kb-search__empty" hidden data-kb-search-empty>{{ section.settings.no_results }}</p>
+
+      {%- comment -%}
+        Build the index from the category tree so each FAQ carries its path
+        (Category › Subcategory), mirroring the reference results. Deduped by
+        URL client-side. `first` controls JSON commas.
+      {%- endcomment -%}
+      {%- liquid
+        assign kb_cats = shop.metafields.custom.knowledge_base_category_order.value
+        if kb_cats == blank
+          assign kb_cats = shop.metaobjects.knowledgebase_categories.values
+        endif
+      -%}
+      <script type="application/json" data-kb-search-index>
+        [
+        {%- assign first = true -%}
+        {%- for cat in kb_cats -%}
+          {%- for faq in cat.questions.value -%}
+            {%- unless first %},{% endunless %}{%- assign first = false -%}
+            {"t":{{ faq.question | json }},"u":{{ faq.system.url | json }},"k":{{ faq.keywords.value | join: " " | json }},"a":{{ faq.answer | metafield_tag | strip_html | strip_newlines | strip | json }},"c":{{ cat.title | json }}}
+          {%- endfor -%}
+          {%- for sub in cat.subcategories.value -%}
+            {%- assign sub_path = cat.title | append: " › " | append: sub.title -%}
+            {%- for faq in sub.faqs.value -%}
+              {%- unless first %},{% endunless %}{%- assign first = false -%}
+              {"t":{{ faq.question | json }},"u":{{ faq.system.url | json }},"k":{{ faq.keywords.value | join: " " | json }},"a":{{ faq.answer | metafield_tag | strip_html | strip_newlines | strip | json }},"c":{{ sub_path | json }}}
+            {%- endfor -%}
+          {%- endfor -%}
+        {%- endfor -%}
+        {%- comment -%}
+          Uncategorised FAQs: iterate an explicit list metafield (not
+          shop.metaobjects.*.values, which Liquid caps at 50). Deduped by URL
+          in JS, so any that are already categorised keep their path.
+        {%- endcomment -%}
+        {%- for faq in shop.metafields.custom.knowledge_base_uncategorized_faqs.value -%}
+          {%- unless first %},{% endunless %}{%- assign first = false -%}
+          {"t":{{ faq.question | json }},"u":{{ faq.system.url | json }},"k":{{ faq.keywords.value | join: " " | json }},"a":{{ faq.answer | metafield_tag | strip_html | strip_newlines | strip | json }},"c":""}
+        {%- endfor -%}
+        ]
+      </script>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "KB Search",
+  "tag": "section",
+  "class": "shopify-section--kb-search",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_hero",
+      "label": "Show as hero band",
+      "info": "Tinted band with a large heading (use on the KB home). Turn off for a compact search bar on category/article pages.",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Fragen zu Precon"
+    },
+    {
+      "type": "select",
+      "id": "heading_html_tag",
+      "label": "Actual heading HTML tag",
+      "options": [
+        { "value": "h1", "label": "H1" },
+        { "value": "h2", "label": "H2" },
+        { "value": "h3", "label": "H3" },
+        { "value": "h4", "label": "H4" },
+        { "value": "h5", "label": "H5" },
+        { "value": "p", "label": "Paragraph" },
+        { "value": "span", "label": "Span" }
+      ],
+      "default": "h1"
+    },
+    {
+      "type": "text",
+      "id": "hero_heading",
+      "label": "Hero heading",
+      "default": "Wie können wir Dir helfen?"
+    },    
+    {
+      "type": "select",
+      "id": "hero_heading_html_style",
+      "label": "Hero heading HTML style",
+      "options": [
+        { "value": "h1", "label": "H1" },
+        { "value": "h2", "label": "H2" },
+        { "value": "h3", "label": "H3" },
+        { "value": "h4", "label": "H4" },
+        { "value": "h5", "label": "H5" },
+        { "value": "p", "label": "Paragraph" },
+        { "value": "span", "label": "Span" }
+      ],
+      "default": "h2"
+    },
+    {
+      "type": "text",
+      "id": "placeholder",
+      "label": "Input placeholder",
+      "default": "Antworten suchen"
+    },
+    {
+      "type": "text",
+      "id": "no_results",
+      "label": "No-results text",
+      "default": "Keine Ergebnisse gefunden."
+    },
+    {
+      "type": "range",
+      "id": "results_limit",
+      "label": "Max suggestions",
+      "min": 3,
+      "max": 12,
+      "step": 1,
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "min_chars",
+      "label": "Minimum characters before searching",
+      "min": 1,
+      "max": 4,
+      "step": 1,
+      "default": 2
+    }
+  ],
+  "presets": [
+    { "name": "KB Search" }
+  ]
+}
+{% endschema %}

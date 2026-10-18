@@ -1,0 +1,1519 @@
+{%- comment -%}
+BSO Blog post template
+This template is used to render the blog post content with shortcode, optional sidebar and table of contents.
+Template version: 1.0.2
+{%- endcomment -%}
+{{ 'component-shortcode-grid.css' | asset_url | stylesheet_tag }}
+{{ 'component-shortcode.css' | asset_url | stylesheet_tag }}
+{{ 'component-shortcode-cta.css' | asset_url | stylesheet_tag }}
+<link href="{{'typicons.css' | asset_url }}" media="print" onload="this.media='all'" rel="stylesheet">
+{% assign content_to_process = article.content %}
+{%- if section.settings.show_subtitle_content_header and article.metafields.bso.subtitle != blank -%}
+{% capture subtitle %}
+<div class="bso-row">
+<div class="bso-column">
+<h2 style="margin:0;">{{- article.metafields.bso.subtitle | metafield_tag -}}</h2>
+</div>
+</div>
+{%- endcapture -%}
+{% assign content_to_process = content_to_process | prepend: subtitle %}
+{%- endif -%}
+{%- capture preprocessed -%}
+{%- render 'article-preprocessor', content: content_to_process -%}
+{%- endcapture -%}
+{%- assign preprocessed = preprocessed | split: '%SPLIT%' -%}
+{%- assign preprocessed_content = preprocessed[0] -%}
+{%- assign table_of_contents = preprocessed[1] -%}
+{%- assign toc_enabled_and_exist = false -%}
+{%- assign toc_block = false -%}
+{%- assign toc_sticky = false -%}
+{%- assign toc_style = 'collapsible' -%}
+{%- assign toc_position_mobile = 'below_article_banner' -%}
+{%- assign toc_open_desktop = true -%}
+{%- assign toc_open_mobile= false -%}
+{%- assign toc_show_numbering = true -%}
+{% for block in section.blocks %}
+{% if block.type == 'bso-toc' %}
+{%- assign toc_block = true -%}
+{%- assign toc_sticky = block.settings.toc_sticky -%}
+{%- assign toc_style = block.settings.toc_style -%}
+{%- assign toc_position_mobile = block.settings.toc_position_mobile -%}
+{%- assign toc_open_desktop = block.settings.toc_open_desktop -%}
+{%- assign toc_open_mobile = block.settings.toc_open_mobile -%}
+{%- assign toc_background_color = block.settings.toc_background_color -%}
+{%- assign toc_text_color = block.settings.toc_text_color -%}
+{%- assign toc_show_numbering = block.settings.toc_show_numbering -%}
+{% endif %}
+{% endfor %}
+{%- if toc_block and table_of_contents != 'None' -%}
+{%- assign toc_enabled_and_exist = true -%}
+{%- endif -%}
+<style>
+#shopify-section-{{ section.id }} {
+overflow: unset;
+  }
+#shopify-section-{{ section.id }} .module-inner {
+margin: 30px auto;
+  }
+#shopify-section-{{ section.id }} .article .section {
+margin: 30px auto;
+display: grid;
+position: relative;
+margin-block-end: 0;
+margin-block-start: 0;
+padding-block-start: 3rem;
+padding-block-end: 0;
+  }
+@media screen and (min-width: 768px) {
+#shopify-section-{{ section.id }} .article .section {
+padding-block-end: 3rem;
+    }
+  }
+#shopify-section-{{ section.id }} .page-layout-section--sidebar .article__tableofcontents,
+#shopify-section-{{ section.id }} .page-layout-section--sidebar.toc-collapsible .article__tableofcontents,
+#shopify-section-{{ section.id }} toc-collapsible .toc--content {
+background-color: {{ toc_background_color | default: '#ffffff' }};
+  }
+{% if toc_block %}
+#shopify-section-{{ section.id }} table-of-content {
+--toc-bg-color: {{ toc_background_color }};
+--toc-text-color: {{ toc_text_color }};
+    }
+{% endif %}
+{% if section.settings.enable_custom_heading_size %}
+.article__body h1,
+.article__body .h1 {
+font-size: {{ section.settings.h1_mobile }}rem;
+    }
+.article__body h2,
+.article__body .h2 {
+font-size: {{ section.settings.h2_mobile }}rem;
+    }
+.article__body h3,
+.article__body .h3 {
+font-size: {{ section.settings.h3_mobile }}rem;
+    }
+.article__body h4,
+.article__body .h4 {
+font-size: {{ section.settings.h4_mobile }}rem;
+    }
+.article__body h5,
+.article__body .h5 {
+font-size: {{ section.settings.h5_mobile }}rem;
+    }
+@media (min-width: 750px) {
+.article__body h1,
+.article__body .h1 {
+font-size: {{ section.settings.h1_desktop }}rem;
+      }
+.article__body h2,
+.article__body .h2 {
+font-size: {{ section.settings.h2_desktop }}rem;
+      }
+.article__body h3,
+.article__body .h3 {
+font-size: {{ section.settings.h3_desktop }}rem;
+      }
+.article__body h4,
+.article__body .h4 {
+font-size: {{ section.settings.h4_desktop }}rem;
+      }
+.article__body h5,
+.article__body .h5 {
+font-size: {{ section.settings.h5_desktop }}rem;
+      }
+    }
+{% endif %}
+
+/* ── Weniger Abstand links/rechts ── */
+#shopify-section-{{ section.id }} .container {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  box-sizing: border-box;
+}
+#shopify-section-{{ section.id }} .article-content {
+  max-width: 780px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+@media (min-width: 768px) {
+  #shopify-section-{{ section.id }} .container {
+    padding-left: 32px !important;
+    padding-right: 32px !important;
+  }
+}
+</style>
+{%- assign has_marketing_box = false -%}
+{%- for block in section.blocks -%}
+{%- if block.type == 'marketing-text-icon' or block.type == 'marketing-square-image' or block.type == 'marketing-image-banner' -%}
+{%- assign has_marketing_box = true -%}
+{%- break -%}
+{%- endif-%}
+{%- endfor -%}
+{%- if has_marketing_box -%}
+{{ 'component-marketing-block.css' | asset_url | stylesheet_tag }}
+{%- endif -%}
+<div class="article" bso-blog="1.0.2">
+{%- if toc_enabled_and_exist or section.settings.show_sidebar -%}
+<div class="container page-with-tableofcontents {% if toc_position_mobile == 'below_article_banner' %}toc-below-article-banner{% endif %} module-inner">
+<div class="page-layout sidebar--{{ section.settings.sidebar_position}}">
+<div class="page-layout-section page-content">
+{%- endif -%}
+{%- unless toc_enabled_and_exist and section.settings.show_sidebar -%}
+<div class="container">
+<div class="article-content">
+{%- endunless -%}
+{% if toc_enabled_and_exist and settings.render_shortcodes %}
+{%- capture shortcodes -%}
+{%- render 'shortcode', text: preprocessed_content, breakRte: false -%}
+{%- endcapture -%}
+{%- assign shortcodes = shortcodes | replace: '%BS%', '[' | replace: '%BE%', ']' -%}
+{%- render 'shortcode-styling', section: section -%}
+<div class="article-template__content article__body rte prose" itemprop="articleBody" bso-shortcode="1.0.2">
+<div class="shortcode-rte">
+{{ shortcodes }}
+</div>
+</div>
+{% else %}
+<div class="article__body rte prose">
+{%- if section.settings.show_subtitle_content_header and article.metafields.bso.subtitle != blank -%}
+<h2>{{ article.metafields.bso.subtitle }}</h2>
+{%- endif -%}
+{{ article.content }}
+</div>
+{% endif %}
+{%- unless toc_enabled_and_exist and section.settings.show_sidebar -%}
+</div>{%- comment -%}Closing tag for article-content{%- endcomment -%}
+{% endunless %}
+{%- for block in section.blocks -%}
+{%- case block.type -%}
+{%- when 'author-block' -%}
+{%- if block.settings.block_position == 'content' or block.settings.block_position == 'content_sidebar' -%}
+<div
+class="article-template__author-block {% if section.settings.show_sidebar %}sidebar-enabled{% endif %} block--position--{{ block.settings.block_position }} page-width {% if block.settings.hide_on_mobile %}mobile-hide{% endif %}"
+{{ block.shopify_attributes }}
+>
+{% render 'bso-author-block', section: section, block: block, article: article %}
+</div>
+{%- endif -%}
+{%- when 'marketing-text-icon' -%}
+{% render 'bso-marketing-text-icon', section: section, block: block, article: article %}
+{%- when 'marketing-square-image' -%}
+{% render 'bso-marketing-square-image', section: section, block: block, article: article %}
+{%- when 'marketing-image-banner' -%}
+{% render 'bso-marketing-image-banner', section: section, block: block, article: article %}
+{%- when 'bso-share' -%}
+{%- render 'bso-share', section: section, block: block, article: article -%}
+{%- endcase -%}
+{%- endfor -%}
+{%- unless toc_enabled_and_exist and section.settings.show_sidebar -%}
+</div>{%- comment -%}Closing tag for container{%- endcomment -%}
+{%- endunless -%}
+{%- if toc_enabled_and_exist and section.settings.show_sidebar -%}
+</div>{%- comment -%}Closing tag of page-content{%- endcomment -%}
+<div class="page-layout-section page-layout-section--sidebar toc-{{ toc_style }} {% unless toc_show_numbering %}no-numbering standard-no-number{% endunless %}">
+{%- for block in section.blocks -%}
+{%- case block.type -%}
+{%- when 'bso-toc' -%}
+{% unless toc_sticky %}
+<table-of-content>
+<aside class="page-tableofcontents article__tableofcontents article__tableofcontents--sidebar">
+{%- if toc_style != 'collapsible' -%}
+<header class="tableofcontents__header">
+<div class="header header--label u-h5">
+{%- render 'icon' with 'hamburger' -%}
+{{ 'bso.blog.table_of_contents' | t }}
+</div>
+</header>
+<div class="separator"></div>
+{%- endif -%}
+{%- render 'shortcode-contents', contents: table_of_contents, class: toc_style, section_id: section.id, position: toc_position_mobile, desktop-expanded: toc_open_desktop, mobile-expanded: toc_open_mobile -%}
+</aside>
+</table-of-content>
+{% endunless %}
+{%- when 'author-block' -%}
+{%- if block.settings.block_position == 'sidebar' or block.settings.block_position == 'content_sidebar' -%}
+{% if block.settings.enable_sidebar_sticky != true  %}
+<div class="sidebar--author sidebar-block">
+{% render 'bso-author-block', section: section, block: block, article: article %}
+</div>
+{% endif %}
+{%- endif -%}
+{%- when 'marketing-text-icon' -%}
+{%- if block.settings.block_position == 'sidebar' and block.settings.enable_sidebar_sticky != true -%}
+<div class="sidebar--marketing-text-icon sidebar-block">
+{% render 'bso-marketing-text-icon', section: section, block: block, article: article %}
+</div>
+{%- endif -%}
+{%- when 'marketing-square-image' -%}
+{%- if block.settings.block_position == 'sidebar' and block.settings.enable_sidebar_sticky != true -%}
+<div class="sidebar--marketing-square-image sidebar-block">
+{% render 'bso-marketing-square-image', section: section, block: block, article: article %}
+</div>
+{%- endif -%}
+{%- when 'marketing-image-banner' -%}
+{%- if block.settings.block_position == 'sidebar' and block.settings.enable_sidebar_sticky != true -%}
+<div class="sidebar--marketing-image-banner sidebar-block">
+{% render 'bso-marketing-image-banner', section: section, block: block, article: article %}
+</div>
+{%- endif -%}
+{%- when 'bso-share' -%}
+{%- if block.settings.block_position == 'sidebar' and block.settings.enable_sidebar_sticky != true -%}
+<div class="sidebar--bso-share sidebar-block">
+{% render 'bso-share', section: section, block: block, article: article %}
+</div>
+{%- endif -%}
+{% endcase %}
+{%- endfor -%}
+<div class="sidebar-sticky">
+{% if toc_enabled_and_exist and toc_sticky %}
+<table-of-content>
+<aside class="page-tableofcontents article__tableofcontents article__tableofcontents--sidebar">
+{%- if toc_style != 'collapsible' -%}
+<header class="tableofcontents__header">
+<div class="header header--label u-h5">
+{%- render 'icon' with 'hamburger' -%}
+{{ 'bso.blog.table_of_contents' | t }}
+</div>
+</header>
+{%- endif -%}
+{%- render 'shortcode-contents', contents: table_of_contents, class: toc_style, section_id: section.id, position: toc_position_mobile, desktop-expanded: toc_open_desktop, mobile-expanded: toc_open_mobile -%}
+</aside>
+</table-of-content>
+{% endif %}
+{% if section.settings.show_sidebar %}
+{%- for block in section.blocks -%}
+{%- case block.type -%}
+{%- when 'author-block' -%}
+{%- if block.settings.block_position == 'sidebar' or block.settings.block_position == 'content_sidebar' -%}
+{% if block.settings.enable_sidebar_sticky %}
+<div class="sidebar--author sidebar-block {% if block.settings.hide_on_mobile %}mobile-hide{% endif %}">
+{% render 'bso-author-block', section: section, block: block, article: article %}
+</div>
+{% endif %}
+{%- endif -%}
+{%- when 'marketing-text-icon' -%}
+{%- if block.settings.block_position == 'sidebar' and block.settings.enable_sidebar_sticky -%}
+<div class="sidebar--marketing-box sidebar-block {% if block.settings.hide_on_mobile %}mobile-hide{% endif %}">
+{% render 'bso-marketing-text-icon', section: section, block: block, article: article %}
+</div>
+{%- endif -%}
+{%- when 'marketing-square-image' -%}
+{%- if block.settings.block_position == 'sidebar' and block.settings.enable_sidebar_sticky -%}
+<div class="sidebar--marketing-square-image sidebar-block {% if block.settings.hide_on_mobile %}mobile-hide{% endif %}">
+{% render 'bso-marketing-square-image', section: section, block: block, article: article %}
+</div>
+{%- endif -%}
+{%- when 'marketing-image-banner' -%}
+{%- if block.settings.block_position == 'sidebar' and block.settings.enable_sidebar_sticky -%}
+<div class="sidebar--marketing-image-banner sidebar-block {% if block.settings.hide_on_mobile %}mobile-hide{% endif %}">
+{% render 'bso-marketing-image-banner', section: section, block: block, article: article %}
+</div>
+{%- endif -%}
+{%- when 'bso-share' -%}
+{%- if block.settings.block_position == 'sidebar' and block.settings.enable_sidebar_sticky -%}
+<div class="sidebar--bso-share sidebar-block {% if block.settings.hide_on_mobile %}mobile-hide{% endif %}">
+{% render 'bso-share', section: section, block: block, article: article %}
+</div>
+{%- endif -%}
+{% endcase %}
+{%- endfor -%}
+{% endif %}
+</div>
+</div>
+</div>{%- comment -%}Closing tag for page-layout{%- endcomment -%}
+</div>{%- comment -%}Closing tag for page-with-tableofcontents{%- endcomment -%}
+{%- endif -%}
+</div>
+{%- if toc_enabled_and_exist and toc_position_mobile == 'bottom_sticky' -%}
+{% if toc_style != 'collapsible' %}
+<content-drawer>
+<div class="shortcodetoolbar shortcodetoolbar--bottom shortcodetoolbar--reverse d-lg-none">
+<div class="shortcodetoolbar__group shortcodetoolbar_group--article">
+<button class="shortcodetoolbar__item shortcodetoolbar__item--sort"
+aria-label="{{ 'bso.blog.table_of_contents' | t }}"
+aria-haspopup="true"
+aria-expanded="false"
+aria-controls="tableofcontents-popup">
+<div class="popup__title">
+{%- render 'icon' with 'hamburger' -%}
+{{ 'bso.blog.table_of_contents' | t }}
+</div>
+</button>
+</div>
+</div>
+<div id="tableofcontents-popup" class="popup popup--article article__tableofcontents" aria-hidden="true">
+<header class="popup__header">
+<div class="popup__title heading heading--label u-h5">
+{%- render 'icon' with 'nav' -%}
+{{ 'bso.blog.table_of_contents' | t }}
+</div>
+<button class="popup__close icon-wrapper--clickable" data-action="close-popup">{% render 'icon' with 'close' %}</button>
+</header>
+<div class="popup_content">
+<div class="popover__valueList" data-scrollable>
+{%- render 'shortcode-contents', contents: table_of_contents, class: toc_style -%}
+</div>
+</div>
+</div>
+</content-drawer>
+{% else %}
+<div class="toc-collapsible-container shortcodetoolbar shortcodetoolbar--bottom shortcodetoolbar--reverse d-lg-none fixed">
+{%- render 'shortcode-contents', contents: table_of_contents, class: toc_style, position: toc_position_mobile -%}
+</div>
+{% endif %}
+{%- endif -%}
+{% schema %}
+{
+"name": "BSO Article content",
+"class": "shopify-section--main-article",
+"tag": "section",
+"settings": [
+    {
+"type": "checkbox",
+"id": "show_subtitle_content_header",
+"label": "Show subtitle as content header",
+"default": false
+    },
+    {
+"type": "header",
+"content": "Sidebar"
+    },
+    {
+"type": "checkbox",
+"id": "show_sidebar",
+"label": "Enable sidebar",
+"default": false
+    },
+    {
+"type": "select",
+"id": "sidebar_position",
+"label": "Sidebar position",
+"info": "This setting only applies on desktop",
+"options": [
+        {
+"value": "left",
+"label": "Left"
+        },
+        {
+"value": "right",
+"label": "Right"
+        }
+      ],
+"default": "left"
+    },
+    {
+"type": "header",
+"content": "Heading settings"
+    },
+    {
+"type": "checkbox",
+"id": "enable_custom_heading_size",
+"label": "Enable custom heading size",
+"default": true
+    },
+    {
+"type": "range",
+"id": "h1_desktop",
+"label": "H1 - Desktop font size (rem)",
+"min": 1,
+"max": 6,
+"step": 0.1,
+"default": 2.5,
+"unit": "rem"
+    },
+    {
+"type": "range",
+"id": "h1_mobile",
+"label": "H1 - Mobile font size (rem)",
+"min": 1,
+"max": 6,
+"step": 0.1,
+"default": 2.0,
+"unit": "rem"
+    },
+    {
+"type": "range",
+"id": "h2_desktop",
+"label": "H2 - Desktop font size (rem)",
+"min": 1,
+"max": 5,
+"step": 0.1,
+"default": 2.0,
+"unit": "rem"
+    },
+    {
+"type": "range",
+"id": "h2_mobile",
+"label": "H2 - Mobile font size (rem)",
+"min": 1,
+"max": 5,
+"step": 0.1,
+"default": 1.8,
+"unit": "rem"
+    },
+    {
+"type": "range",
+"id": "h3_desktop",
+"label": "H3 - Desktop font size (rem)",
+"min": 0.5,
+"max": 4,
+"step": 0.1,
+"default": 1.6,
+"unit": "rem"
+    },
+    {
+"type": "range",
+"id": "h3_mobile",
+"label": "H3 - Mobile font size (rem)",
+"min": 0.5,
+"max": 4,
+"step": 0.1,
+"default": 1.4,
+"unit": "rem"
+    },
+    {
+"type": "range",
+"id": "h4_desktop",
+"label": "H4 - Desktop font size (rem)",
+"min": 0.5,
+"max": 3,
+"step": 0.1,
+"default": 1.4,
+"unit": "rem"
+    },
+    {
+"type": "range",
+"id": "h4_mobile",
+"label": "H4 - Mobile font size (rem)",
+"min": 0.5,
+"max": 3,
+"step": 0.1,
+"default": 1.2,
+"unit": "rem"
+    },
+    {
+"type": "range",
+"id": "h5_desktop",
+"label": "H5 - Desktop font size (rem)",
+"min": 0.5,
+"max": 2.5,
+"step": 0.1,
+"default": 1.2,
+"unit": "rem"
+    },
+    {
+"type": "range",
+"id": "h5_mobile",
+"label": "H5 - Mobile font size (rem)",
+"min": 0.5,
+"max": 2.5,
+"step": 0.1,
+"default": 1.0,
+"unit": "rem"
+    }
+  ],
+"blocks": [
+    {
+"type": "author-block",
+"name": "BSO Author block",
+"settings": [
+        {
+"type": "select",
+"id": "block_position",
+"label": "Block position",
+"info": "This will work only if sidebar is enabled on section settings",
+"options": [
+            {
+"value": "content",
+"label": "Content"
+            },
+            {
+"value": "sidebar",
+"label": "Sidebar"
+            },
+            {
+"value": "content_sidebar",
+"label": "Content and Sidebar"
+            }
+          ],
+"default": "content"
+        },
+        {
+"type": "checkbox",
+"id": "enable_sidebar_sticky",
+"label": "Enable sticky sidebar",
+"info": "This setting only applies on desktop",
+"default": false
+        },
+        {
+"type": "checkbox",
+"id": "hide_on_mobile",
+"label": "Hide on mobile",
+"default": false
+        },
+        {
+"type": "text",
+"id": "header_text",
+"label": "Header"
+        },
+        {
+"type": "color",
+"id": "header_text_color",
+"label": "Header text color",
+"default": "#F7F2E5"
+        },
+        {
+"type": "header",
+"content": "Section padding"
+        },
+        {
+"type": "range",
+"id": "sec_padding_top",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Top padding",
+"default": 0
+        },
+        {
+"type": "range",
+"id": "sec_padding_bottom",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Bottom padding",
+"default": 20
+        },
+        {
+"type": "header",
+"content": "Author image column"
+        },
+        {
+"type": "color",
+"id": "author_img_bg",
+"label": "Author Image background color",
+"default": "#F2F2F2"
+        },
+        {
+"type": "header",
+"content": "Author Info Column"
+        },
+        {
+"type": "color",
+"id": "author_img_font_color",
+"label": "Author font color",
+"default": "#000"
+        },
+        {
+"type": "color",
+"id": "author_description_bg",
+"label": "Author Description background color",
+"default": "#F2F2F2"
+        },
+        {
+"type": "color",
+"id": "author_description_font_color",
+"label": "Author Description color",
+"default": "#272727"
+        },
+        {
+"type": "range",
+"id": "ad_side_padding",
+"min": 0,
+"max": 50,
+"step": 1,
+"unit": "px",
+"label": "Author description column side padding",
+"default": 5
+        },
+        {
+"type": "color",
+"id": "author_social_links_color",
+"label": "Author social links color",
+"default": "#000"
+        },
+        {
+"type": "range",
+"id": "a_padding_top",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Top padding",
+"default": 0
+        },
+        {
+"type": "range",
+"id": "a_padding_bottom",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Bottom padding",
+"default": 20
+        },
+        {
+"type": "header",
+"content": "Author button settings"
+        },
+        {
+"type": "checkbox",
+"id": "show_author_link_button",
+"default": true,
+"label": "Show author link button"
+        },
+        {
+"type": "text",
+"id": "author_button_text",
+"label": "Author button text"
+        },
+        {
+"type": "color",
+"id": "author_button_text_color",
+"label": "Author button text color",
+"default": "#ffffff"
+        },
+        {
+"type": "color",
+"id": "author_button_color",
+"label": "Author button color",
+"default": "#CA0928"
+        },
+        {
+"type": "range",
+"id": "ab_padding_top_bottom",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Author button Top and Bottom padding",
+"default": 10
+        },
+        {
+"type": "header",
+"content": "Co-Author settings"
+        },
+        {
+"type": "text",
+"id": "co_author_header",
+"label": "Co-Author"
+        },
+        {
+"type": "color",
+"id": "coauthor_text_color",
+"label": "Co-Author text color",
+"default": "#000000"
+        },
+        {
+"type": "color",
+"id": "coauthor_bg_color",
+"label": "Co-Author background color",
+"default": "#F2F2F2"
+        },
+        {
+"type": "range",
+"id": "ca_padding_top",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Top padding",
+"default": 0
+        },
+        {
+"type": "range",
+"id": "ca_padding_bottom",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Bottom padding",
+"default": 20
+        }
+      ]
+    },
+    {
+"type": "bso-toc",
+"name": "BSO Table of contents",
+"settings": [
+        {
+"type": "header",
+"content": "Table of contents"
+        },
+        {
+"type": "checkbox",
+"id": "toc_sticky",
+"label": "Enable table of contents sticky on sidebar",
+"info": "This setting only applies on desktop",
+"default": false
+        },
+        {
+"type": "select",
+"id": "toc_style",
+"label": "Table of content Style",
+"options": [
+            {
+"value": "collapsible",
+"label": "Collapsible"
+            },
+            {
+"value": "standard",
+"label": "Standard"
+            }
+          ],
+"default": "collapsible"
+        },
+        {
+"type": "checkbox",
+"id": "toc_show_numbering",
+"label": "Show numbering from table of contents",
+"default": false
+        },
+        {
+"type": "select",
+"id": "toc_position_mobile",
+"label": "Table of content position on mobile",
+"options": [
+            {
+"value": "bottom_sticky",
+"label": "Sticky bottom"
+            },
+            {
+"value": "below_article_banner",
+"label": "Below article banner"
+            }
+          ],
+"default": "below_article_banner"
+        },
+        {
+"type": "checkbox",
+"id": "toc_open_desktop",
+"label": "Set collapsible table of contents open by default on desktop",
+"info": "This setting only applies to the collapsible table of contents.",
+"default": true
+        },
+        {
+"type": "checkbox",
+"id": "toc_open_mobile",
+"label": "Set collapsible table of contents open by default on mobile",
+"info": "This setting only applies to the collapsible table of contents.",
+"default": false
+        },
+        {
+"type": "header",
+"content": "Table of contents settings"
+        },
+        {
+"type": "color",
+"id": "toc_background_color",
+"label": "Background color",
+"default": "#f2f2f2"
+        },
+        {
+"type": "color",
+"id": "toc_text_color",
+"label": "Text/Link color"
+        }
+      ]
+    },
+    {
+"type": "bso-share",
+"name": "BSO Share buttons",
+"settings": [
+        {
+"type": "select",
+"id": "block_position",
+"label": "Block position",
+"info": "This will work only if sidebar is enabled on section settings",
+"options": [
+            {
+"value": "content",
+"label": "Content"
+            },
+            {
+"value": "sidebar",
+"label": "Sidebar"
+            }
+          ],
+"default": "content"
+        },
+        {
+"type": "checkbox",
+"id": "enable_sidebar_sticky",
+"label": "Enable sticky sidebar",
+"info": "This setting only applies on desktop",
+"default": false
+        },
+        {
+"type": "checkbox",
+"id": "hide_on_mobile",
+"label": "Hide on mobile",
+"default": false
+        },
+        {
+"type": "text",
+"id": "share_title",
+"label": "Share title",
+"default": "Stay up to date"
+        },
+        {
+"type": "richtext",
+"id": "share_content",
+"label": "Content",
+"default": "<p>Morbi leo risus, porta ac consectetur ac, vestibulum at eros. Nulla vitae elit libero, a pharetra augue.</p>"
+        },
+        {
+"type": "color",
+"id": "share_bg_color",
+"label": "Share background color",
+"default": "#F3F3F3"
+        },
+        {
+"type": "color",
+"id": "share_text_color",
+"label": "Share text color",
+"default": "#000000"
+        },
+        {
+"type": "color",
+"id": "share_link_color",
+"label": "Share link color",
+"default": "#000"
+        },
+        {
+"type": "header",
+"content": "Share block padding"
+        },
+        {
+"type": "range",
+"id": "share_padding_top",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Top padding",
+"default": 30
+        },
+        {
+"type": "range",
+"id": "share_padding_bottom",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Bottom padding",
+"default": 30
+        },
+        {
+"type": "header",
+"content": "Share block margin"
+        },
+        {
+"type": "range",
+"id": "share_margin_top",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Top margin",
+"default": 0
+        },
+        {
+"type": "range",
+"id": "share_margin_bottom",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Bottom margin",
+"default": 0
+        }
+      ]
+    },
+    {
+"type": "marketing-text-icon",
+"name": "Marketing Text & Icon",
+"settings": [
+        {
+"type": "select",
+"id": "block_position",
+"label": "Block position",
+"info": "This will work only if sidebar is enabled on section settings",
+"options": [
+            {
+"value": "content",
+"label": "Content"
+            },
+            {
+"value": "sidebar",
+"label": "Sidebar"
+            }
+          ],
+"default": "content"
+        },
+        {
+"type": "checkbox",
+"id": "enable_sidebar_sticky",
+"label": "Enable sticky sidebar",
+"info": "This setting only applies on desktop",
+"default": true
+        },
+        {
+"type": "checkbox",
+"id": "hide_on_mobile",
+"label": "Hide on mobile",
+"default": false
+        },
+        {
+"type": "paragraph",
+"content": "This block is used to show marketing box from metaobject assigned to blog post. You can add metaobject [Marketing box](https://admin.shopify.com/store/scentamor-store/content/metaobjects/entries/marketing_box) and assign it to blog post."
+        },
+        {
+"type": "text",
+"id": "title",
+"label": "Block title"
+        },
+        {
+"type": "header",
+"content": "Marketing box"
+        },
+        {
+"type": "paragraph",
+"content": "By default, the block will render metaobject assigned to blog post. If you want to use this block without metaobject, you can add custom content here."
+        },
+        {
+"type": "image_picker",
+"id": "image_1",
+"label": "Marketing image 1"
+        },
+        {
+"type": "text",
+"id": "name_1",
+"label": "Name 1"
+        },
+        {
+"type": "richtext",
+"id": "content_1",
+"label": "Content 1"
+        },
+        {
+"type": "url",
+"id": "link_1",
+"label": "Link 1"
+        },
+        {
+"type": "image_picker",
+"id": "image_2",
+"label": "Marketing image 2"
+        },
+        {
+"type": "text",
+"id": "name_2",
+"label": "Name 2"
+        },
+        {
+"type": "richtext",
+"id": "content_2",
+"label": "Content 1"
+        },
+        {
+"type": "url",
+"id": "link_2",
+"label": "Link 2"
+        },
+        {
+"type": "image_picker",
+"id": "image_3",
+"label": "Marketing image 3"
+        },
+        {
+"type": "text",
+"id": "name_3",
+"label": "Name 3"
+        },
+        {
+"type": "richtext",
+"id": "content_3",
+"label": "Content 3"
+        },
+        {
+"type": "url",
+"id": "link_3",
+"label": "Link 3"
+        },
+        {
+"type": "header",
+"content": "Block settings"
+        },
+        {
+"type": "range",
+"id": "marketing_block_image_size",
+"min": 10,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Image size",
+"default": 32
+        },
+        {
+"type": "range",
+"id": "marketing_block_name_size",
+"min": 12,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Name size",
+"default": 18
+        },
+        {
+"type": "range",
+"id": "marketing_block_content_size",
+"min": 12,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Content size",
+"default": 16
+        },
+        {
+"type": "range",
+"id": "marketing_block_space_between_size",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Space between Marketing boxes",
+"default": 15
+        },
+        {
+"type": "range",
+"id": "marketing_block_inner_padding_left",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Box inner left padding",
+"default": 15
+        },
+        {
+"type": "range",
+"id": "marketing_block_inner_padding_top",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Box inner top padding",
+"default": 15
+        },
+        {
+"type": "range",
+"id": "marketing_block_inner_padding_bottom",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Box inner bottom padding",
+"default": 15
+        },
+        {
+"type": "range",
+"id": "marketing_block_inner_padding_right",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Box inner right padding",
+"default": 15
+        },
+        {
+"type": "color",
+"id": "marketing_block_background_color",
+"label": "Background color",
+"default": "#F3F3F3"
+        },
+        {
+"type": "color",
+"id": "marketing_block_text_color",
+"label": "Text color",
+"default": "#000000"
+        },
+        {
+"type": "range",
+"id": "marketing_block_padding_top",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Top padding",
+"default": 20
+        },
+        {
+"type": "range",
+"id": "marketing_block_padding_bottom",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Bottom padding",
+"default": 20
+        }
+      ]
+    },
+    {
+"type": "marketing-square-image",
+"name": "Marketing Square Image",
+"settings": [
+        {
+"type": "select",
+"id": "block_position",
+"label": "Block position",
+"info": "This will work only if sidebar is enabled on section settings",
+"options": [
+            {
+"value": "content",
+"label": "Content"
+            },
+            {
+"value": "sidebar",
+"label": "Sidebar"
+            }
+          ],
+"default": "content"
+        },
+        {
+"type": "checkbox",
+"id": "enable_sidebar_sticky",
+"label": "Enable sticky sidebar",
+"info": "This setting only applies on desktop",
+"default": true
+        },
+        {
+"type": "checkbox",
+"id": "hide_on_mobile",
+"label": "Hide on mobile",
+"default": false
+        },
+        {
+"type": "paragraph",
+"content": "This block is used to show marketing box from metaobject assigned to blog post. You can add metaobject [Marketing box](https://admin.shopify.com/store/scentamor-store/content/metaobjects/entries/marketing_box) and assign it to blog post."
+        },
+        {
+"type": "text",
+"id": "title",
+"label": "Block title"
+        },
+        {
+"type": "header",
+"content": "Marketing box"
+        },
+        {
+"type": "paragraph",
+"content": "By default, the block will render metaobject assigned to blog post. If you want to use this block without metaobject, you can add custom content here."
+        },
+        {
+"type": "image_picker",
+"id": "image_1",
+"label": "Marketing image 1"
+        },
+        {
+"type": "text",
+"id": "subheadline_1",
+"label": "Subheadline 1"
+        },
+        {
+"type": "text",
+"id": "name_1",
+"label": "Name 1"
+        },
+        {
+"type": "url",
+"id": "link_1",
+"label": "Link 1"
+        },
+        {
+"type": "image_picker",
+"id": "image_2",
+"label": "Marketing image 2"
+        },
+        {
+"type": "text",
+"id": "subheadline_2",
+"label": "Subheadline 2"
+        },
+        {
+"type": "text",
+"id": "name_2",
+"label": "Name 2"
+        },
+        {
+"type": "url",
+"id": "link_2",
+"label": "Link 2"
+        },
+        {
+"type": "image_picker",
+"id": "image_3",
+"label": "Marketing image 3"
+        },
+        {
+"type": "text",
+"id": "subheadline_3",
+"label": "Subheadline 3"
+        },
+        {
+"type": "text",
+"id": "name_3",
+"label": "Name 3"
+        },
+        {
+"type": "url",
+"id": "link_3",
+"label": "Link 3"
+        },
+        {
+"type": "header",
+"content": "Block settings"
+        },
+        {
+"type": "range",
+"id": "marketing_block_square_image_size",
+"min": 50,
+"max": 500,
+"step": 5,
+"unit": "px",
+"label": "Image size",
+"default": 120
+        },
+        {
+"type": "range",
+"id": "marketing_block_square_name_size",
+"min": 12,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Name size",
+"default": 18
+        },
+        {
+"type": "range",
+"id": "marketing_block_square_subtitle_size",
+"min": 12,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Subtitle size",
+"default": 14
+        },
+        {
+"type": "range",
+"id": "marketing_block_square_space_between_size",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Space between Marketing boxes",
+"default": 15
+        },
+        {
+"type": "range",
+"id": "marketing_block_inner_padding_top",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Box inner top padding",
+"default": 15
+        },
+        {
+"type": "range",
+"id": "marketing_block_inner_padding_bottom",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Box inner bottom padding",
+"default": 15
+        },
+        {
+"type": "range",
+"id": "marketing_block_inner_padding_left",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Box inner left padding",
+"default": 15
+        },
+        {
+"type": "range",
+"id": "marketing_block_inner_padding_right",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Box inner right padding",
+"default": 15
+        },
+        {
+"type": "color",
+"id": "marketing_block_square_background_color",
+"label": "Background color",
+"default": "#F3F3F3"
+        },
+        {
+"type": "color",
+"id": "marketing_block_square_text_color",
+"label": "Text color",
+"default": "#000000"
+        },
+        {
+"type": "range",
+"id": "marketing_block_square_padding_top",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Top padding",
+"default": 20
+        },
+        {
+"type": "range",
+"id": "marketing_block_square_padding_bottom",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Bottom padding",
+"default": 20
+        }
+      ]
+    },
+    {
+"type": "marketing-image-banner",
+"name": "Marketing Image Banner",
+"settings": [
+        {
+"type": "select",
+"id": "block_position",
+"label": "Block position",
+"info": "This will work only if sidebar is enabled on section settings",
+"options": [
+            {
+"value": "content",
+"label": "Content"
+            },
+            {
+"value": "sidebar",
+"label": "Sidebar"
+            }
+          ],
+"default": "content"
+        },
+        {
+"type": "checkbox",
+"id": "enable_sidebar_sticky",
+"label": "Enable sticky sidebar",
+"info": "This setting only applies on desktop",
+"default": true
+        },
+        {
+"type": "checkbox",
+"id": "hide_on_mobile",
+"label": "Hide on mobile",
+"default": false
+        },
+        {
+"type": "paragraph",
+"content": "This block is used to show marketing box from metaobject assigned to blog post. You can add metaobject [Marketing box](https://admin.shopify.com/store/scentamor-store/content/metaobjects/entries/marketing_box) and assign it to blog post."
+        },
+        {
+"type": "text",
+"id": "title",
+"label": "Block title"
+        },
+        {
+"type": "header",
+"content": "Marketing box"
+        },
+        {
+"type": "paragraph",
+"content": "By default, the block will render metaobject assigned to blog post. If you want to use this block without metaobject, you can add custom content here."
+        },
+        {
+"type": "image_picker",
+"id": "image_1",
+"label": "Marketing icon 1"
+        },
+        {
+"type": "url",
+"id": "link_1",
+"label": "Link 1"
+        },
+        {
+"type": "image_picker",
+"id": "image_2",
+"label": "Marketing icon 2"
+        },
+        {
+"type": "url",
+"id": "link_2",
+"label": "Link 2"
+        },
+        {
+"type": "image_picker",
+"id": "image_3",
+"label": "Marketing icon 3"
+        },
+        {
+"type": "url",
+"id": "link_3",
+"label": "Link 3"
+        },
+        {
+"type": "header",
+"content": "Block settings"
+        },
+        {
+"type": "range",
+"id": "marketing_block_space_between_size",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Space between Marketing boxes",
+"default": 15
+        },
+        {
+"type": "range",
+"id": "marketing_box_banner_padding_top",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Top padding",
+"default": 20
+        },
+        {
+"type": "range",
+"id": "marketing_box_banner_padding_bottom",
+"min": 0,
+"max": 100,
+"step": 1,
+"unit": "px",
+"label": "Bottom padding",
+"default": 20
+        }
+      ]
+    }
+  ],
+"presets": [
+    {
+"name": "BSO Article content"
+    }
+  ]
+}
+{% endschema %}

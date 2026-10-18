@@ -1,0 +1,140 @@
+{% comment %}
+  Renders Marketing Box
+  Accepts:
+  - section: {Object} passes in the section information.
+  - block: {Object} passes in the block information.
+  - article: {Object} of the current blog/article
+
+  Usage:
+  {% render 'bso-marketing-text-icon',
+    section: section,
+    block: block,
+    article: article
+  %}
+{% endcomment %}
+
+{%  style  %}
+  #shopify-section-{{ section.id }} #marketing-block-{{ block.id }}.bso-marketing-block {
+    --marketing-block-background-color: {{ block.settings.marketing_block_background_color }};
+    --marketing-block-text-color: {{ block.settings.marketing_block_text_color }};
+    --marketing-block-name-size: {{ block.settings.marketing_block_name_size }}px;
+    --marketing-block-content-size: {{ block.settings.marketing_block_content_size }}px;
+    --marketing-block-spacing: {{ block.settings.marketing_block_space_between_size }}px;
+    padding-top: {{ block.settings.marketing_block_padding_top }}px;
+    padding-bottom: {{ block.settings.marketing_block_padding_bottom }}px;
+    --image-max-width: {{ block.settings.marketing_block_image_size }}px;
+  }
+
+  #shopify-section-{{ section.id }} .sidebar--blocks #marketing-block-{{ block.id }}.bso-marketing-block {
+    display: none;
+  }
+
+  #shopify-section-{{ section.id }} #marketing-block-{{ block.id }}.bso-marketing-text-icon .marketing-block--item {
+    padding-top: {{ block.settings.marketing_block_inner_padding_top }}px;
+    padding-bottom: {{ block.settings.marketing_block_inner_padding_bottom }}px;
+    padding-left: {{ block.settings.marketing_block_inner_padding_left }}px;
+    padding-right: {{ block.settings.marketing_block_inner_padding_right }}px;
+  }
+
+  @media screen and (min-width: 990px) {
+    #shopify-section-{{ section.id }} .sidebar--blocks #marketing-block-{{ block.id }}.bso-marketing-block {
+      display: block;
+    }
+
+    #shopify-section-{{ section.id }} .page-content .sidebar-enabled.block--position--sidebar {
+      display: none;
+    }
+  }
+{% endstyle %}
+
+{%- assign has_custom_block = false -%}
+{%- assign marketing_item_count = 3 -%}
+{%- for count in (1..marketing_item_count) -%}
+  {%- assign name_field = 'name_' |  append: count -%}
+  {%- assign name = block | map: 'settings' | map: name_field -%}
+  {%- assign content_field = 'content_' |  append: count -%}
+  {%- assign content = block | map: 'settings' | map: content_field -%}
+  {% if name[0] != blank or content[0] != blank %}
+    {%- assign has_custom_block = true -%}
+    {% break %}
+  {% endif %}
+{%- endfor -%}
+
+<div id="marketing-block-{{ block.id }}" class="bso-marketing-block bso-marketing-text-icon {% if section.settings.show_sidebar %}sidebar-enabled{% endif %} block--position--{{ block.settings.block_position }} {% if block.settings.hide_on_mobile %}mobile-hide{% endif %}" {{ block.shopify_attributes }}>
+  {%- if block.settings.title != blank -%}
+    <div class="marketing-block--title h3">{{- block.settings.title -}}</div>
+  {%- endif -%}
+  <div class="marketing-block--content">
+    {% if has_custom_block %}
+      {%- for marketing_block in (1..marketing_item_count) -%}
+        {%- assign image_field = 'image_' |  append: marketing_block -%}
+        {%- assign image = block | map: 'settings' | map: image_field -%}
+        {%- assign name_field = 'name_' |  append: marketing_block -%}
+        {%- assign name = block | map: 'settings' | map: name_field -%}
+        {%- assign content_field = 'content_' |  append: marketing_block -%}
+        {%- assign content = block | map: 'settings' | map: content_field -%}
+        {%- assign link_field = 'link_' |  append: marketing_block -%}
+        {%- assign link = block | map: 'settings' | map: link_field -%}
+        {% if name[0] != blank or content[0] != blank or image[0] != blank %}
+          {%- if link != blank -%}
+          <a class="marketing-block--link" href="{{ link }}">
+          {%- endif -%}
+            <div class="marketing-block--item">
+              {% if image[0] != blank %}
+                <div class="marketing-block--item-icon">
+                  {{-
+                    image[0]
+                    | image_url: width: image[0].width
+                    | image_tag:
+                    loading: 'lazy',
+                    sizes: '100vw',
+                    widths: '60,120,240'
+                  -}}
+                </div>
+              {% endif %}
+              {% if name[0] != blank %}
+                <div class="marketing-block--item-name">{{ name[0] }}</div>
+              {% endif %}
+              {% if content[0] != blank %}
+                <div class="marketing-block--item-content">{{ content[0] }}</div>
+              {% endif %}
+            </div>
+          {%- if link != blank  -%}
+          </a>
+          {%- endif -%}
+        {% endif %}
+      {%- endfor -%}
+    {% else %}
+      {% if article.metafields.bso.marketing_box != blank %}
+        {% for marketing_block in article.metafields.bso.marketing_box.value %}
+          {%- if marketing_block.link.value != blank -%}
+          <a class="marketing-block--link" href="{{ marketing_block.link .value.url }}">
+          {%- endif -%}
+            <div class="marketing-block--item">
+              {% if marketing_block.image != blank %}
+                <div class="marketing-block--item-icon">
+                  {{-
+                    marketing_block.image
+                    | image_url: width: marketing_block.image.width
+                    | image_tag:
+                    loading: 'lazy',
+                    sizes: '100vw',
+                    widths: '60,120,240'
+                  -}}
+                </div>
+              {% endif %}
+              {% if marketing_block.name != blank %}
+                <div class="marketing-block--item-name">{{ marketing_block.name.value }}</div>
+              {% endif %}
+              {% if marketing_block.content != blank %}
+                <div class="marketing-block--item-content">{{ marketing_block.content | metafield_tag }}</div>
+              {% endif %}
+            </div>
+          {%- if marketing_block.link.value != blank  -%}
+          </a>
+          {%- endif -%}
+        {% endfor %}
+      {% endif %}
+    {% endif %}
+  </div>
+</div>

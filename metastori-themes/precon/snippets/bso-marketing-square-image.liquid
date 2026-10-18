@@ -1,0 +1,149 @@
+{% comment %}
+  Renders Marketing Square Image
+  Accepts:
+  - section: {Object} passes in the section information.
+  - block: {Object} passes in the block information.
+  - article: {Object} of the current blog/article
+
+  Usage:
+  {% render 'bso-marketing-square-image',
+    section: section,
+    block: block,
+    article: article
+  %}
+{% endcomment %}
+
+{%  style  %}
+  #shopify-section-{{ section.id }} #marketing-block-{{ block.id }}.bso-marketing-block {
+    --marketing-block-background-color: {{ block.settings.marketing_block_square_background_color }};
+    --marketing-block-text-color: {{ block.settings.marketing_block_square_text_color }};
+    --marketing-block-name-size: {{ block.settings.marketing_block_square_name_size }}px;
+    --marketing-block-subtitle-size: {{ block.settings.marketing_block_square_subtitle_size }}px;
+    --marketing-block-spacing: {{ block.settings.marketing_block_square_space_between_size }}px;
+    --image-max-width: 100%;
+    --image-square-size: {{ block.settings.marketing_block_square_image_size }}px;
+    padding-top: {{ block.settings.marketing_block_square_padding_top }}px;
+    padding-bottom: {{ block.settings.marketing_block_square_padding_bottom }}px;
+  }
+
+  #shopify-section-{{ section.id }} .sidebar--blocks .bso-marketing-block {
+    display: none;
+  }
+
+  #shopify-section-{{ section.id }} #marketing-block-{{ block.id }}.bso-marketing-square-image .marketing-block--item {
+    padding-top: {{ block.settings.marketing_block_inner_padding_top }}px;
+    padding-bottom: {{ block.settings.marketing_block_inner_padding_bottom }}px;
+    padding-left: {{ block.settings.marketing_block_inner_padding_left }}px;
+    padding-right: {{ block.settings.marketing_block_inner_padding_right }}px;
+  }
+
+  @media screen and (min-width: 990px) {
+    #shopify-section-{{ section.id }} .sidebar--blocks .bso-marketing-block {
+      display: block;
+    }
+
+    #shopify-section-{{ section.id }} .page-content .sidebar-enabled.block--position--sidebar {
+      display: none;
+    }
+  }
+{% endstyle %}
+
+{%- assign has_custom_block = false -%}
+{%- assign marketing_block_count = 3 -%}
+{%- for count in (1..marketing_block_count) -%}
+  {%- assign name_field = 'name_' |  append: count -%}
+  {%- assign name = block | map: 'settings' | map: name_field -%}
+  {%- assign content_field = 'content_' |  append: count -%}
+  {%- assign content = block | map: 'settings' | map: content_field -%}
+  {% if name[0] != blank or content[0] != blank %}
+    {%- assign has_custom_block = true -%}
+    {% break %}
+  {% endif %}
+{%- endfor -%}
+
+<div id="marketing-block-{{ block.id }}" class="bso-marketing-block bso-marketing-square-image {% if section.settings.show_sidebar %}sidebar-enabled{% endif %} block--position--{{ block.settings.block_position }} {% if block.settings.hide_on_mobile %}mobile-hide{% endif %}" {{ block.shopify_attributes }}>
+  {%- if block.settings.title != blank -%}
+    <div class="marketing-block--title h3">{{- block.settings.title -}}</div>
+  {%- endif -%}
+  <div class="marketing-block--content">
+    {% if has_custom_block %}
+      {%- for marketing_block in (1..marketing_block_count) -%}
+        {%- assign image_field = 'image_' |  append: marketing_block -%}
+        {%- assign image = block | map: 'settings' | map: image_field -%}
+        {%- assign name_field = 'name_' |  append: marketing_block -%}
+        {%- assign name = block | map: 'settings' | map: name_field -%}
+        {%- assign subheadline_field = 'subheadline_' |  append: marketing_block -%}
+        {%- assign subheadline = block | map: 'settings' | map: subheadline_field -%}
+        {%- assign link_field = 'link_' |  append: marketing_block -%}
+        {%- assign link_url = block | map: 'settings' | map: link_field -%}
+        {% if name[0] != blank or content[0] != blank or icon[0] != blank %}
+          {%- if link_url[0] != blank -%}
+          <a class="marketing-block--link" href="{{ link_url }}">
+          {%- endif -%}
+            <div class="marketing-block--item">
+              {% if image[0] != blank %}
+                <div class="marketing-block--item-icon">
+                  <div class="aspect-ratio">
+                    {{-
+                      image[0]
+                      | image_url: width: image[0].width
+                      | image_tag:
+                      loading: 'lazy',
+                      sizes: '100vw',
+                      widths: '60,120,240,400,480,600,800'
+                    -}}
+                  </div>
+                </div>
+              {% endif %}
+              {% if name[0] != blank %}
+                <div class="marketing-block--item-name">
+                  {% if subheadline[0] != blank %}
+                    <p class="subheadline">{{ subheadline[0] }}</p>
+                  {% endif %}
+                  <p class="name">{{ name[0] }}</p>
+                </div>
+              {% endif %}
+            </div>
+          {%- if link_url[0] != blank  -%}
+          </a>
+          {%- endif -%}
+        {% endif %}
+      {%- endfor -%}
+    {% else %}
+      {% if article.metafields.bso.marketing_box != blank %}
+        {% for marketing_block in article.metafields.bso.marketing_box.value %}
+          {%- if marketing_block.link.value != blank -%}
+          <a class="marketing-block--link" href="{{ marketing_block.link .value.url }}">
+          {%- endif -%}
+            <div class="marketing-block--item">
+              {% if marketing_block.image != blank %}
+                <div class="marketing-block--item-icon">
+                  <div class="aspect-ratio">
+                    {{-
+                      marketing_block.image
+                      | image_url: width: marketing_block.image.width
+                      | image_tag:
+                      loading: 'lazy',
+                      sizes: '100vw',
+                      widths: '60,120,240,400,480,600,800'
+                    -}}
+                  </div>
+                </div>
+              {% endif %}
+              {% if marketing_block.name != blank %}
+                <div class="marketing-block--item-name">
+                  {% if marketing_block.subheadline != blank %}
+                    <p class="subheadline">{{ marketing_block.subheadline }}</p>
+                  {% endif %}
+                  <p class="name">{{ marketing_block.name.value }}</p>
+                </div>
+              {% endif %}
+            </div>
+          {%- if marketing_block.link.value != blank  -%}
+          </a>
+          {%- endif -%}
+        {% endfor %}
+      {% endif %}
+    {% endif %}
+  </div>
+</div>

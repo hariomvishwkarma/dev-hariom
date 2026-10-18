@@ -1,0 +1,320 @@
+{% doc %}
+  @prompt
+    An image, separately for mobile and desktop. For each screen, we should be able to select between original image size, small, medium und large. In all cases, the image should be made to fit, and not be cut off, I want to be able, separately for mobile and desktop, to add padding to the left and right hand side, The padding should go up to 400, I want to be able to hide the image for certain subfolders or languages
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% liquid
+  assign should_hide = false
+  
+  if block.settings.hide_on_paths != blank
+    assign hide_paths = block.settings.hide_on_paths | split: ','
+    for path in hide_paths
+      assign trimmed_path = path | strip
+      if request.path contains trimmed_path
+        assign should_hide = true
+        break
+      endif
+    endfor
+  endif
+  
+  if block.settings.hide_on_locales != blank and should_hide == false
+    assign hide_locales = block.settings.hide_on_locales | split: ','
+    for locale in hide_locales
+      assign trimmed_locale = locale | strip
+      if request.locale.iso_code == trimmed_locale
+        assign should_hide = true
+        break
+      endif
+    endfor
+  endif
+%}
+
+{% unless should_hide %}
+  {% style %}
+    .ai-responsive-image-{{ ai_gen_id }} {
+      width: 100%;
+      display: block;
+      padding-left: {{ block.settings.mobile_padding_left }}px;
+      padding-right: {{ block.settings.mobile_padding_right }}px;
+    }
+
+    .ai-responsive-image__wrapper-{{ ai_gen_id }} {
+      width: 100%;
+      position: relative;
+    }
+
+    .ai-responsive-image__desktop-{{ ai_gen_id }} {
+      display: none;
+    }
+
+    .ai-responsive-image__mobile-{{ ai_gen_id }} {
+      display: block;
+    }
+
+    .ai-responsive-image__img-{{ ai_gen_id }} {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: contain;
+    }
+
+    .ai-responsive-image__placeholder-{{ ai_gen_id }} {
+      background-color: #f4f4f4;
+      width: 100%;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .ai-responsive-image__placeholder-{{ ai_gen_id }} svg {
+      width: 100%;
+      height: 100%;
+      max-width: 500px;
+      max-height: 500px;
+    }
+
+    .ai-responsive-image__empty-state-{{ ai_gen_id }} {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 20px;
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    {% if block.settings.mobile_size == 'small' %}
+      .ai-responsive-image__mobile-{{ ai_gen_id }} .ai-responsive-image__img-{{ ai_gen_id }} {
+        max-width: 300px;
+        margin: 0 auto;
+      }
+    {% elsif block.settings.mobile_size == 'medium' %}
+      .ai-responsive-image__mobile-{{ ai_gen_id }} .ai-responsive-image__img-{{ ai_gen_id }} {
+        max-width: 500px;
+        margin: 0 auto;
+      }
+    {% elsif block.settings.mobile_size == 'large' %}
+      .ai-responsive-image__mobile-{{ ai_gen_id }} .ai-responsive-image__img-{{ ai_gen_id }} {
+        max-width: 700px;
+        margin: 0 auto;
+      }
+    {% endif %}
+
+    @media screen and (min-width: 750px) {
+      .ai-responsive-image-{{ ai_gen_id }} {
+        padding-left: {{ block.settings.desktop_padding_left }}px;
+        padding-right: {{ block.settings.desktop_padding_right }}px;
+      }
+
+      .ai-responsive-image__desktop-{{ ai_gen_id }} {
+        display: block;
+      }
+
+      .ai-responsive-image__mobile-{{ ai_gen_id }} {
+        display: none;
+      }
+
+      {% if block.settings.desktop_size == 'small' %}
+        .ai-responsive-image__desktop-{{ ai_gen_id }} .ai-responsive-image__img-{{ ai_gen_id }} {
+          max-width: 400px;
+          margin: 0 auto;
+        }
+      {% elsif block.settings.desktop_size == 'medium' %}
+        .ai-responsive-image__desktop-{{ ai_gen_id }} .ai-responsive-image__img-{{ ai_gen_id }} {
+          max-width: 800px;
+          margin: 0 auto;
+        }
+      {% elsif block.settings.desktop_size == 'large' %}
+        .ai-responsive-image__desktop-{{ ai_gen_id }} .ai-responsive-image__img-{{ ai_gen_id }} {
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+      {% endif %}
+    }
+  {% endstyle %}
+
+  <div class="ai-responsive-image-{{ ai_gen_id }}" {{ block.shopify_attributes }}>
+    <div class="ai-responsive-image__wrapper-{{ ai_gen_id }}">
+      <div class="ai-responsive-image__mobile-{{ ai_gen_id }}">
+        {% if block.settings.mobile_image %}
+          <img
+            src="{{ block.settings.mobile_image | image_url: width: 1400 }}"
+            alt="{{ block.settings.mobile_image.alt | escape }}"
+            loading="lazy"
+            width="{{ block.settings.mobile_image.width }}"
+            height="{{ block.settings.mobile_image.height }}"
+            class="ai-responsive-image__img-{{ ai_gen_id }}"
+          >
+        {% else %}
+          <div class="ai-responsive-image__placeholder-{{ ai_gen_id }}">
+            {{ 'image' | placeholder_svg_tag }}
+            <div class="ai-responsive-image__empty-state-{{ ai_gen_id }}">
+              Add a mobile image
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="ai-responsive-image__desktop-{{ ai_gen_id }}">
+        {% if block.settings.desktop_image %}
+          <img
+            src="{{ block.settings.desktop_image | image_url: width: 2400 }}"
+            alt="{{ block.settings.desktop_image.alt | escape }}"
+            loading="lazy"
+            width="{{ block.settings.desktop_image.width }}"
+            height="{{ block.settings.desktop_image.height }}"
+            class="ai-responsive-image__img-{{ ai_gen_id }}"
+          >
+        {% else %}
+          <div class="ai-responsive-image__placeholder-{{ ai_gen_id }}">
+            {{ 'image' | placeholder_svg_tag }}
+            <div class="ai-responsive-image__empty-state-{{ ai_gen_id }}">
+              Add a desktop image
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endunless %}
+
+{% schema %}
+{
+  "name": "Responsive image",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Mobile"
+    },
+    {
+      "type": "image_picker",
+      "id": "mobile_image",
+      "label": "Image"
+    },
+    {
+      "type": "select",
+      "id": "mobile_size",
+      "label": "Size",
+      "options": [
+        {
+          "value": "original",
+          "label": "Original"
+        },
+        {
+          "value": "small",
+          "label": "Small"
+        },
+        {
+          "value": "medium",
+          "label": "Medium"
+        },
+        {
+          "value": "large",
+          "label": "Large"
+        }
+      ],
+      "default": "original"
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_left",
+      "min": 0,
+      "max": 400,
+      "step": 10,
+      "unit": "px",
+      "label": "Left padding",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_right",
+      "min": 0,
+      "max": 400,
+      "step": 10,
+      "unit": "px",
+      "label": "Right padding",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Desktop"
+    },
+    {
+      "type": "image_picker",
+      "id": "desktop_image",
+      "label": "Image"
+    },
+    {
+      "type": "select",
+      "id": "desktop_size",
+      "label": "Size",
+      "options": [
+        {
+          "value": "original",
+          "label": "Original"
+        },
+        {
+          "value": "small",
+          "label": "Small"
+        },
+        {
+          "value": "medium",
+          "label": "Medium"
+        },
+        {
+          "value": "large",
+          "label": "Large"
+        }
+      ],
+      "default": "original"
+    },
+    {
+      "type": "range",
+      "id": "desktop_padding_left",
+      "min": 0,
+      "max": 400,
+      "step": 10,
+      "unit": "px",
+      "label": "Left padding",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "desktop_padding_right",
+      "min": 0,
+      "max": 400,
+      "step": 10,
+      "unit": "px",
+      "label": "Right padding",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Visibility"
+    },
+    {
+      "type": "textarea",
+      "id": "hide_on_paths",
+      "label": "Hide on URL paths",
+      "info": "Enter URL paths separated by commas. Example: /collections/sale, /pages/about"
+    },
+    {
+      "type": "textarea",
+      "id": "hide_on_locales",
+      "label": "Hide on languages",
+      "info": "Enter language codes separated by commas. Example: de, fr, it"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Responsive image"
+    }
+  ]
+}
+{% endschema %}

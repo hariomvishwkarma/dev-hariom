@@ -1,0 +1,168 @@
+{%- comment -%}
+Input: 
+  -product_handle
+  -break_point (optional) (default: 'none')
+
+  With the break_point parameter the desktop view can be activated.
+  If left blank, the "mobile" view is displayed on all screen sizes. (E.g. used in the recipes sidebar)
+{%- endcomment -%}
+
+{%- unless break_point -%}
+  {%- assign break_point = 'none' -%}
+{%- endunless -%}
+{%- assign product_object = all_products[product_handle] -%}
+
+{%- comment -%}
+--------------------
+Image (& variable) assignments
+--------------------
+{%- endcomment -%}
+
+{% if product_object %}
+  {%- assign image_to_show = product_object.featured_media -%}
+{% endif %}
+
+{%- if product_object -%}
+  <div class="product-feature__wrapper product-feature__wrapper--{{ break_point }} position-relative">
+    <div class="product-feature d-flex align-items-center">
+      <a class="product-feature__image-wrapper flex-grow-1 align-self-{{ break_point }}-center align-self-start" href="{{ product_object.url }}">
+        <div class="aspect-ratio" style="--aspect-ratio: {{ image_to_show.aspect_ratio }}">
+          {{-
+            image_to_show
+            | image_url: width: image_to_show.width
+            | image_tag:
+            loading: 'eager',
+            sizes: '100vw',
+            widths: '30,40,60,80,120,200,400,600,700',
+            class: 'product-feature__image'
+          -}}
+        </div>
+      </a>
+      <div class="product-feature__content-wrapper flex-grow-1">
+        <div class="d-{{ break_point }}-flex justify-content-between align-items-center">
+          <div class="product-feature__content">
+            <div class="product-meta__title">
+              <a class="heading u-h3 line-height-normal d-block" href="{{ product_object.url }}">{{ product_object.title }}{{ specific_size }}</a>
+            </div>
+            {% if product_object.metafields.descriptors.subtitle.value != blank %}
+              <div class="product-meta__subtitle">
+                {{ product_object.metafields.descriptors.subtitle.value }}
+              </div>
+              {% endif %}
+            {% if product_object.description != blank %}
+              <div class="product-feature__except">
+                {{ product_object.description | strip_html | slice: 0, 100 }}..
+              </div>
+            {% endif %}
+            <div class="product-feature__price">
+              <div class="price-list price-list--centered prodct-page ">
+                {%- if product_object.price_varies and product_object.compare_at_price -%}
+                  {%- assign cheapest_variant = related_product.variants | sort: 'price' | first -%}
+                  {%- capture price_min -%}
+                    {%- if settings.currency_code_enabled -%}
+                      {{- cheapest_variant.price | money_with_currency -}}
+                    {%- else -%}
+                      {{- cheapest_variant.price | money -}}
+                    {%- endif -%}
+                  {%- endcapture -%}
+
+                  {%- if cheapest_variant.price < cheapest_variant.compare_at_price -%}
+                      <span class="price price--compare">
+                      {%- if settings.currency_code_enabled -%}
+                        {{- cheapest_variant.compare_at_price | money_with_currency -}}
+                      {%- else -%}
+                        {{- cheapest_variant.compare_at_price | money -}}
+                      {%- endif -%}
+                    </span>
+                    
+                    <span>
+                    
+                    <span class="price price--highlight">
+                      {{- 'collection.product.from_price_html' | t: price_min: price_min -}}
+                      
+                    </span>
+
+                    {%- assign discount = cheapest_variant.compare_at_price | minus: cheapest_variant.price | times: 100 | divided_by: cheapest_variant.compare_at_price -%}
+                      <span class="discount-percent">{{ discount | round }}%</span>
+                    </span>
+                  {%- else -%}
+                    <span class="price">
+                      {{- 'collection.product.from_price_html' | t: price_min: price_min -}}
+                    </span>
+                  {%- endif -%}
+
+                {%- elsif product_object.price < product_object.compare_at_price -%}
+                  <span class="price price--compare">
+                    {%- if settings.currency_code_enabled -%}
+                      {{- product_object.compare_at_price | money_with_currency -}}
+                    {%- else -%}
+                      {{- product_object.compare_at_price | money -}}
+                    {%- endif -%}
+                  </span>
+
+                  <span class="price price--highlight">
+                    {%- if settings.currency_code_enabled -%}
+                      {{- product_object.price | money_with_currency -}}
+                    {%- else -%}
+                      {{- product_object.price | money -}}
+                    {%- endif -%}
+
+                    {%- assign discount = product_object.compare_at_price | minus: product_object.price | times: 100 | divided_by: product_object.compare_at_price -%}
+                    <span class="discount-percent">{{ discount | round }}%</span>
+                  </span>
+
+                {%- elsif product_object.price_varies -%}
+                  {%- capture price_min -%}
+                    {%- if settings.currency_code_enabled -%}
+                      {{ product_object.price_min | money_with_currency }}
+                    {%- else -%}
+                      {{ product_object.price_min | money }}
+                    {%- endif -%}
+                  {%- endcapture -%}
+
+                  {%- capture price_max -%}
+                    {%- if settings.currency_code_enabled -%}
+                      {{- product_object.price_max | money_with_currency -}}
+                    {%- else -%}
+                      {{- product_object.price_max | money -}}
+                    {%- endif -%}
+                  {%- endcapture -%}
+
+                  <span class="price">
+                    {{- 'collection.product.from_price_html' | t: price_min: price_min, price_max: price_max -}}
+                  </span>
+
+                {%- else -%}
+                  <span class="price">
+                    {%- if settings.currency_code_enabled -%}
+                      {{- product_object.price | money_with_currency -}}
+                    {%- else -%}
+                      {{- product_object.price | money -}}
+                    {%- endif -%}
+                  </span>
+                {%- endif -%}
+
+                {%- if product_object.selected_or_first_available_variant.unit_price_measurement -%}
+                  <div class="price price--block text--xsmall text--subdued">
+                    <div class="unit-price-measurement">
+                      <span class="unit-price-measurement__price">{{ product_object.selected_or_first_available_variant.unit_price | money }}</span>
+                      <span class="unit-price-measurement__separator">/</span>
+                      {%- if product_object.selected_or_first_available_variant.unit_price_measurement.reference_value != 1 -%}
+                        <span class="unit-price-measurement__reference-value">{{ product_object.selected_or_first_available_variant.unit_price_measurement.reference_value }}</span>
+                      {%- endif -%}
+                      <span class="unit-price-measurement__reference-unit">{{ product_object.selected_or_first_available_variant.unit_price_measurement.reference_unit }}</span>
+                    </div>
+                  </div>
+                {%- endif -%}
+              </div>
+            </div>
+          </div>
+          <a class="button {{ settings.ps_button_style }} flex-shrink-0 button-desktop" href="{{ product_object.url }}">{{ 'bso.general.learn_more' | t }}</a>
+        </div>
+      </div>
+    </div>
+    <a class="button {{ settings.ps_button_style }} button--full button-mobile" href="{{ product_object.url }}">{{ 'bso.general.learn_more' | t }}</a>
+  </div>
+{%- else -%}
+  ERROR: Product not found, check handle or status of product
+{%- endif -%}

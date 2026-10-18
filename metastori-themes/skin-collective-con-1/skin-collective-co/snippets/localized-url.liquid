@@ -1,0 +1,79 @@
+{%- doc -%}
+  Echoes `url` rewritten so it stays inside the shopper's current locale/market
+  subfolder (e.g. `/pt/collections/all` while browsing `/pt`).
+
+  Shopify localizes the URLs it builds itself (`routes.*`, `collection.url`,
+  `link.url`), which is why menus and product cards already follow the language.
+  It does NOT localize the values stored in `url`-type theme settings — those come
+  back as the bare path the merchant picked in the editor (`/collections/all`), so
+  following one drops the shopper back onto the default language. Pipe those
+  settings through this snippet to get the same automatic behaviour.
+
+  Left untouched: blank values, `#`, `mailto:`/`tel:`, protocol-relative `//host`,
+  and absolute URLs pointing at another host. Absolute URLs pointing back at this
+  storefront are reduced to a path first, so they localize too.
+
+  Idempotent — a value that already carries the locale prefix is returned as-is,
+  and on the primary locale every input is returned unchanged.
+
+  @param {string} url - URL or path to localize.
+
+  @example
+    {%- capture button_link -%}
+      {%- render 'localized-url', url: section.settings.button-link -%}
+    {%- endcapture -%}
+{%- enddoc -%}
+
+{%- liquid
+  assign lu_url = url | default: '' | strip
+  assign lu_out = lu_url
+  assign lu_path = ''
+
+  # Locale/market root: '' on the primary locale, '/pt' elsewhere.
+  assign lu_root = routes.root_url | default: '/'
+  if lu_root == '/'
+    assign lu_root = ''
+  else
+    assign lu_tail = lu_root | slice: -1, 1
+    if lu_tail == '/'
+      assign lu_cut = lu_root.size | minus: 1
+      assign lu_root = lu_root | slice: 0, lu_cut
+    endif
+  endif
+
+  if lu_url != blank and lu_root != blank
+    if lu_url contains '://'
+      assign lu_after = lu_url | split: '://' | last
+      assign lu_host = lu_after | split: '/' | first
+
+      if lu_host == request.host or lu_host == shop.domain or lu_host == shop.permanent_domain
+        assign lu_path = lu_after | remove_first: lu_host
+        if lu_path == blank
+          assign lu_path = '/'
+        endif
+      endif
+    else
+      assign lu_head1 = lu_url | slice: 0, 1
+      assign lu_head2 = lu_url | slice: 0, 2
+
+      # Paths only — `//host` is protocol-relative, i.e. an absolute URL.
+      if lu_head1 == '/' and lu_head2 != '//'
+        assign lu_path = lu_url
+      endif
+    endif
+  endif
+
+  if lu_path != blank
+    assign lu_out = lu_root | append: lu_path
+
+    # Already prefixed (merchant pasted a localized link) — leave it alone.
+    assign lu_probe = lu_root | append: '/'
+    assign lu_probe_size = lu_probe.size
+    assign lu_probe_head = lu_path | slice: 0, lu_probe_size
+    if lu_path == lu_root or lu_probe_head == lu_probe
+      assign lu_out = lu_path
+    endif
+  endif
+
+  echo lu_out
+-%}

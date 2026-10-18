@@ -1,0 +1,64 @@
+{%- comment -%}
+    This preprocessor is used to gather some information from the article content that is needed globally, because the usage of render tags makes this hard.
+    Current purposes:
+        - Finding <h2> tags to build the table of contents, starting at [contents] shortcode
+        - Finding reference shortcode to build the bibliography
+        - Replacing image tags to enable lazy loading
+    Input:
+        - content: article_content
+    Output:
+        <preprocessed_content>%SPLIT%<table_of_contents>%SPLIT%<bibliography>
+        <table_of_contents> = <h2_text>||<h2_text>|| ...
+        <bibliography> = <bib_entry>||<bib_entry>|| ...
+        <bib_entry> = number>title>source
+{%- endcomment -%}
+
+{%- comment -%}Table of contents{%- endcomment -%}
+{%- assign to_clean = 'data-mce-fragment="1",dir="ltr"' -%}
+{%- assign list_to_clean = to_clean | split: ',' -%}
+
+{%- assign table_of_contents = 'None' -%}
+{%- if content contains '[no-contents]' or article.metafields.settings.disable_contents.value -%}
+    {%- assign preprocessed_content = content | remove: '[no-contents]' -%}
+{%- else -%}
+    {%- assign preprocessed_content = '' -%}
+    {%- assign temp_content = content | remove: '[contents]' -%}
+    {%- assign temp_content = temp_content | replace: '<h2', '<h2%H2%' | split: '<h2' -%}
+    {%- for h2_part in temp_content -%}
+      {%- if h2_part contains '%H2%' -%}
+        {% for remove_this in list_to_clean %}
+          {%- assign h2_part = h2_part | remove: remove_this | strip -%}
+        {% endfor %}
+        {%- assign h2_text = h2_part | remove: '<span class="metafield-multi_line_text_field">' | remove: '<span class="tx">' | remove: '<span style="color: #870064;">' | remove: '<span>' | remove: '</span>' | remove: '<p>' | remove: '</p>' | remove: '<div>' | remove: '</div>' |  remove: '<strong>' |  remove: '</strong>' | remove: '<!--nextpage-->' | replace_first: '>', '%END%' | split: '%END%' | last | replace_first: '<', '%START%' | split: '%START%' | first -%}
+        {%- assign h2_handle = h2_text | handle | prepend: 's-' -%}
+        {%- assign h2_opening = '<div id="' | append: h2_handle | append: '" class="anchor"></div><h2' -%}
+        {%- assign temp_h2 = h2_part | replace_first: '%H2%', h2_opening -%}
+        {%- if table_of_contents == 'None' -%}
+          {%- assign table_of_contents = '' -%}
+        {%- else -%}
+          {%- assign table_of_contents = table_of_contents | append: '||' -%}
+        {%- endif -%}
+        {%- assign table_of_contents = table_of_contents | append: h2_text -%}
+
+        {%- assign temp_h3_content = temp_h2 | replace: '<h3', '<h3%H3%' | split: '<h3' -%}
+        {%- for h3_part in temp_h3_content -%}
+          {% for remove_this in list_to_clean %}
+            {%- assign h3_part = h3_part | remove: remove_this | strip -%}
+          {% endfor %}
+          {%- assign h3_text = h3_part | remove: '<span class="tx">' | remove: '<span style="color: #870064;">' | remove: '<span>' | remove: '</span>' | remove: '<p>' | remove: '</p>' | remove: '<div>' | remove: '</div>' |  remove: '<strong>' |  remove: '</strong>' | remove: '<!--nextpage-->' | replace_first: '>', '%END%' | split: '%END%' | last | replace_first: '<', '%START%' | split: '%START%' | first -%}
+          {%- unless forloop.last -%}
+            {%- assign h3_text = h3_text | append: '>>' -%}
+          {%- endunless -%}
+          {%- assign h3_handle = h3_text | handle | prepend: 's-' -%}
+          {%- assign h3_opening = '<div id="' | append: h3_handle | append: '" class="anchor"></div><h3' -%}
+          {%- assign temp_h3 = h3_part | replace_first: '%H3%', h3_opening -%}
+          {%- assign table_of_contents = table_of_contents | append: h3_text -%}
+          {%- assign preprocessed_content = preprocessed_content | append: temp_h3 -%}
+        {%- endfor -%}
+      {%- else -%}
+        {%- assign preprocessed_content = preprocessed_content | append: h2_part -%}
+      {%- endif -%}
+    {%- endfor -%}
+{%- endif -%}
+
+{{ preprocessed_content }} %SPLIT%{{ table_of_contents }}%SPLIT%{{ bibliography }}

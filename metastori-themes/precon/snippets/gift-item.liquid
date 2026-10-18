@@ -1,0 +1,125 @@
+<product-item
+	id='{{id}}'
+	class='product-item gift-item {% if is_selected %}active{% endif %}'
+	{% if reveal %}
+		reveal
+	{% endif %}>
+	<div class='product-item__image-wrapper gift-item__image-wrapper {% if settings.show_secondary_image and product.media.size > 1 and hide_secondary_image != true %}product-item__image-wrapper--multiple{% endif %}'>
+		<div
+			data-instant
+			class='product-item__aspect-ratio aspect-ratio {% if settings.product_image_size != 'natural' %}aspect-ratio--{{ settings.product_image_size }}{% endif %}'
+			style='padding-bottom: {{ 100.0 | divided_by: product.featured_media.preview_image.aspect_ratio }}%; --aspect-ratio: {{ product.featured_media.preview_image.aspect_ratio }}'>
+			<span class='gift-item__loader' hidden>
+				<span class='gift-item__loader-spinner spinner' hidden>
+					{%- render 'icon' with 'spinner', width: 16, height: 16, stroke_width: 6 -%}
+				</span>
+				<span class='gift-item__loader-mark' hidden>
+					{%- render 'icon' with 'check', width: 20, height: 20 -%}
+				</span>
+			</span>
+
+			{%- if product.featured_media -%}
+				{{
+					product.featured_media
+					| image_url: width: product.featured_media.width
+					| image_tag:
+						loading: 'lazy',
+						sizes: sizes_attribute,
+						widths: '200,300,400,500,600,700,800,900,1000,1100,1200',
+						class: 'product-item__primary-image',
+						data-media-id: product.featured_media.id
+				}}
+			{%- endif -%}
+
+			{%- if settings.show_secondary_image and product.media.size > 1 and hide_secondary_image != true -%}
+				{%- assign next_media = product.media[product.featured_media.position] | default: product.media[1] -%}
+				{{-
+					next_media
+					| image_url: width: next_media.width
+					| image_tag:
+						loading: 'lazy',
+						sizes: sizes_attribute,
+						widths: '200,300,400,500,600,700,800,900,1000,1100,1200',
+						class: 'product-item__secondary-image'
+				-}}
+			{%- endif -%}
+		</div>
+	</div>
+
+	<div class='product-item__info {% if show_cta %}product-item__info--with-button{% endif %} {% if reduced_font_size %}text--small{% endif %}'>
+		<div class='product-item-meta'>
+			<span data-instant class='product-item-meta__title'>{{ product.title }}</span>
+
+			{% comment %}
+				<div class='product-item-meta__price-list-container'>
+					<div class='price-list price-list--centered'>
+						<span class='price'>
+							<span class='visually-hidden'>{{ 'product.general.sale_price' | t }}</span>
+
+							{%- if settings.currency_code_enabled -%}
+								{{- product.price | money_with_currency -}}
+							{%- else -%}
+								{{- product.price | money -}}
+							{%- endif -%}
+						</span>
+						{%- if product.selected_or_first_available_variant.unit_price_measurement -%}
+							<div class='price price--block text--xsmall text--subdued'>
+								<div class='unit-price-measurement'>
+									<span class='unit-price-measurement__price'>
+										{{- product.selected_or_first_available_variant.unit_price | money -}}
+									</span>
+									<span class='unit-price-measurement__separator'>/</span>
+
+									{%- if product.selected_or_first_available_variant.unit_price_measurement.reference_value != 1 -%}
+										<span class='unit-price-measurement__reference-value'>
+											{{- product.selected_or_first_available_variant.unit_price_measurement.reference_value -}}
+										</span>
+									{%- endif -%}
+
+									<span class='unit-price-measurement__reference-unit'>
+										{{- product.selected_or_first_available_variant.unit_price_measurement.reference_unit -}}
+									</span>
+								</div>
+							</div>
+						{%- endif -%}
+					</div>
+				</div>
+			{% endcomment %}
+		</div>
+
+		{%- if product.available -%}
+			<div class='product-item__cta-wrapper'>
+				{%- capture form_id -%}product_form_{{ section.id }}_{{ block.id }}_{{ product.id }}_{% increment product_form_index %}{%- endcapture -%}
+				{%- form 'product', product, is: 'gift-form', id: form_id -%}
+					{% if is_selected %}
+						<input type='hidden' name='to_remove' value='{{ product.first_available_variant.id }}'>
+					{% elsif gift_already_in_cart %}
+						<input type='hidden' name='to_remove' value='{{ selected_gift.first_available_variant.id }}'>
+						<input type='hidden' name='to_add' value='{{ product.first_available_variant.id }}'>
+					{% else %}
+						<input type='hidden' name='to_add' value='{{ product.first_available_variant.id }}'>
+					{% endif %}
+					<input type='hidden' name='id' value='{{ product.first_available_variant.id }}'>
+					<button
+						type='submit'
+						{% if show_cta %}
+							is='loader-button'
+						{% endif %}
+						class='product-item__cta button button--secondary button--small'>
+						{% if is_selected %}
+							entfernen
+						{% elsif gift_already_in_cart %}
+							ersetzen
+						{% else %}
+							auswählen
+						{% endif %}
+					</button>
+				{%- endform -%}
+			</div>
+		{%- else -%}
+			<div class='product-item__cta-wrapper'>
+				<span class='product-item__link text--subdued'>{{ 'collection.product.sold_out' | t }}</span>
+			</div>
+		{%- endif -%}
+	</div>
+</product-item>

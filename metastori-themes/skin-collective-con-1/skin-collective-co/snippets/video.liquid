@@ -1,0 +1,135 @@
+<!-- snippets/video.liquid -->
+
+{%- doc -%}
+  Renders a minimal autoplay video card with no text overlay or controls.
+  @param {string} [aspect_ratio] - Desktop aspect ratio.
+  @param {string} [display_type] - Desktop media display type.
+  @param {boolean} [full_width] - Enable full-width layout. Defaults to `false`.
+  @param {string} [id] - Unique block identifier.
+  @param {string} [mobile_aspect_ratio] - Mobile aspect ratio. Defaults to `aspect_ratio`.
+  @param {string} [mobile_display_type] - Mobile media display type. Defaults to `display_type`.
+  @param {boolean} [mobile_full_width] - Enable mobile full-width layout. Defaults to `false`.
+  @param {string} [loading] - Loading strategy (`lazy` or `eager`). Defaults to `lazy`.
+  @param {string} [overlay_style] - Overlay style token.
+  @param {object} [video_url] - External video object with `type` and `id`.
+  @param {media} [video_upload] - Uploaded video file.
+{%- enddoc -%}
+
+{%- liquid
+  assign video_id = '_9VUPq3SxOc'
+  assign video_type = 'youtube'
+  if video_upload != blank
+    assign video_type = 'plyr'
+    assign video_id = false
+  elsif video_url
+    assign video_type = video_url.type
+    assign video_id = video_url.id
+  endif
+
+  assign natural_aspect_ratio = 'calc(16 / 9)'
+  if video_upload
+    assign natural_aspect_ratio = video_upload.aspect_ratio
+  endif
+
+  assign aspect_ratio = aspect_ratio | default: natural_aspect_ratio
+  assign display_type = display_type | default: 'aspect-ratio'
+  assign full_width = full_width | default: false
+  assign mobile_aspect_ratio = mobile_aspect_ratio | default: aspect_ratio
+  assign mobile_display_type = mobile_display_type | default: display_type
+  assign loading = loading | default: 'lazy'
+  assign mobile_full_width = mobile_full_width | default: false
+
+  capture css_vars
+    echo '--video-aspect-ratio:' | append: aspect_ratio | append: ';'
+    echo '--video-mobile-aspect-ratio:' | append: mobile_aspect_ratio | append: ';'
+    echo '--natural-aspect-ratio:' | append: natural_aspect_ratio | append: ';'
+  endcapture
+-%}
+
+<video-element
+  class="video--root"
+  data-api="{{ video_type }}"
+  data-autoplay="true"
+  data-overlay-style="{{ overlay_style }}"
+  data-display-type="{{ display_type }}"
+  data-full-width="{{ full_width }}"
+  data-id="{{ id }}"
+  data-mobile-display-type="{{ mobile_display_type }}"
+  data-mobile-full-width="{{ mobile_full_width }}"
+  data-video-id="{{ video_id }}"
+  style="{{ css_vars }}"
+>
+  <div class="video--wrapper">
+    <div class="video--container" tabindex="-1">
+      {%- if video_upload -%}
+        {%- liquid
+          assign video = video_upload | video_tag: autoplay: true, muted: true, loop: true, loading: loading
+          assign video = video | replace: '<img', '<img loading="' | append: loading | append: '"'
+          # Attributes are prepended, so they win over the ones `video_tag` emits later
+          # in the tag. `preload="auto"` overrides its `preload="metadata"`, because iOS
+          # will not start an autoplay video it has no buffered data for yet.
+          assign video = video | replace_first: '<video', '<video muted playsinline webkit-playsinline disableremoteplayback preload="auto"'
+          echo video
+        -%}
+      {%- else -%}
+        <div id="{{ id }}-player"></div>
+      {%- endif -%}
+    </div>
+  </div>
+</video-element>
+
+<script>
+  // Uploaded videos rely on native autoplay only, which mobile browsers block under
+  // Low Power Mode / Data Saver. Re-issue play() and fall back to the first tap.
+  (function () {
+    if (window.themeVideoAutoplay) return;
+    window.themeVideoAutoplay = true;
+
+    const selector = 'video-element[data-autoplay="true"] video';
+    let gesture_bound = false;
+
+    const bindGesture = () => {
+      if (gesture_bound) return;
+      gesture_bound = true;
+      const retry = () => {
+        gesture_bound = false;
+        kickAll();
+      };
+      // iOS grants activation on touchend rather than touchstart in some contexts.
+      document.addEventListener('touchstart', retry, { once: true, passive: true });
+      document.addEventListener('touchend', retry, { once: true, passive: true });
+      document.addEventListener('click', retry, { once: true });
+    };
+
+    const kick = (video) => {
+      if (!video.paused) return;
+      video.muted = true;
+      video.playsInline = true;
+      // iOS rejects play() outright while the element still has no data, and with
+      // preload deferred it may never request any on its own.
+      if (video.readyState === 0) video.load();
+      const attempt = video.play();
+      if (attempt && attempt.catch) attempt.catch(bindGesture);
+    };
+
+    const kickAll = () => {
+      document.querySelectorAll(selector).forEach((video) => {
+        kick(video);
+        if (!video.themeAutoplayBound) {
+          video.themeAutoplayBound = true;
+          // Safari settles on a different one of these than Chrome does, so listen
+          // for all of them and let the paused check drop the duplicates.
+          ['loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough'].forEach((event) => {
+            video.addEventListener(event, () => kick(video));
+          });
+        }
+      });
+    };
+
+    document.addEventListener('DOMContentLoaded', kickAll);
+    window.addEventListener('load', kickAll);
+    document.addEventListener('visibilitychange', () => !document.hidden && kickAll());
+    document.addEventListener('shopify:section:load', kickAll);
+    kickAll();
+  })();
+</script>

@@ -1,0 +1,633 @@
+{% doc %}
+  @prompt
+    A timeline of the company across 6 stages, each with square image, year, title and text. Ideally in a carroussel. It should also have a title at the top.
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-timeline-carousel-{{ ai_gen_id }} {
+    padding: 40px 20px;
+    background-color: {{ block.settings.background_color }};
+  }
+
+  .ai-timeline-carousel__title-{{ ai_gen_id }} {
+    text-align: center;
+    margin: 0 0 40px;
+    color: {{ block.settings.title_color }};
+    font-size: {{ block.settings.title_size }}px;
+  }
+
+  .ai-timeline-carousel__container-{{ ai_gen_id }} {
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .ai-timeline-carousel__track-{{ ai_gen_id }} {
+    display: flex;
+    gap: 30px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 20px 0;
+  }
+
+  .ai-timeline-carousel__track-{{ ai_gen_id }}::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ai-timeline-carousel__item-{{ ai_gen_id }} {
+    flex: 0 0 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .ai-timeline-carousel__image-wrapper-{{ ai_gen_id }} {
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: {{ block.settings.image_border_radius }}px;
+  }
+
+  .ai-timeline-carousel__image-{{ ai_gen_id }} {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ai-timeline-carousel__image-placeholder-{{ ai_gen_id }} {
+    width: 100%;
+    height: 100%;
+    background-color: #f4f4f4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ai-timeline-carousel__image-placeholder-{{ ai_gen_id }} svg {
+    width: 60%;
+    height: 60%;
+  }
+
+  .ai-timeline-carousel__year-{{ ai_gen_id }} {
+    font-size: {{ block.settings.year_size }}px;
+    font-weight: 700;
+    color: {{ block.settings.year_color }};
+    margin: 0;
+  }
+
+  .ai-timeline-carousel__item-title-{{ ai_gen_id }} {
+    font-size: {{ block.settings.item_title_size }}px;
+    font-weight: 600;
+    color: {{ block.settings.item_title_color }};
+    margin: 0;
+  }
+
+  .ai-timeline-carousel__text-{{ ai_gen_id }} {
+    font-size: {{ block.settings.text_size }}px;
+    color: {{ block.settings.text_color }};
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .ai-timeline-carousel__nav-{{ ai_gen_id }} {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 30px;
+  }
+
+  .ai-timeline-carousel__nav-button-{{ ai_gen_id }} {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background-color: {{ block.settings.nav_button_color }};
+    color: {{ block.settings.nav_button_icon_color }};
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease;
+  }
+
+  .ai-timeline-carousel__nav-button-{{ ai_gen_id }}:hover {
+    background-color: {{ block.settings.nav_button_hover_color }};
+  }
+
+  .ai-timeline-carousel__nav-button-{{ ai_gen_id }}:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .ai-timeline-carousel__nav-button-{{ ai_gen_id }} svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .ai-timeline-carousel__dots-{{ ai_gen_id }} {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+  }
+
+  .ai-timeline-carousel__dot-{{ ai_gen_id }} {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: none;
+    background-color: {{ block.settings.dot_color }};
+    cursor: pointer;
+    padding: 0;
+    transition: background-color 0.3s ease;
+  }
+
+  .ai-timeline-carousel__dot-{{ ai_gen_id }}.active {
+    background-color: {{ block.settings.dot_active_color }};
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-timeline-carousel__item-{{ ai_gen_id }} {
+      flex: 0 0 250px;
+    }
+
+    .ai-timeline-carousel__title-{{ ai_gen_id }} {
+      font-size: calc({{ block.settings.title_size }}px * 0.8);
+    }
+  }
+{% endstyle %}
+
+<timeline-carousel-{{ ai_gen_id }} class="ai-timeline-carousel-{{ ai_gen_id }}" {{ block.shopify_attributes }}>
+  {% if block.settings.main_title != blank %}
+    <h2 class="ai-timeline-carousel__title-{{ ai_gen_id }}">{{ block.settings.main_title }}</h2>
+  {% endif %}
+
+  <div class="ai-timeline-carousel__container-{{ ai_gen_id }}">
+    <div class="ai-timeline-carousel__track-{{ ai_gen_id }}" data-track>
+      {% for i in (1..6) %}
+        {% liquid
+          assign image_key = 'stage_' | append: i | append: '_image'
+          assign year_key = 'stage_' | append: i | append: '_year'
+          assign title_key = 'stage_' | append: i | append: '_title'
+          assign text_key = 'stage_' | append: i | append: '_text'
+
+          assign stage_image = block.settings[image_key]
+          assign stage_year = block.settings[year_key]
+          assign stage_title = block.settings[title_key]
+          assign stage_text = block.settings[text_key]
+        %}
+
+        <div class="ai-timeline-carousel__item-{{ ai_gen_id }}">
+          <div class="ai-timeline-carousel__image-wrapper-{{ ai_gen_id }}">
+            {% if stage_image %}
+              <img
+                src="{{ stage_image | image_url: width: 600 }}"
+                alt="{{ stage_image.alt | escape }}"
+                class="ai-timeline-carousel__image-{{ ai_gen_id }}"
+                loading="lazy"
+                width="600"
+                height="600"
+              >
+            {% else %}
+              <div class="ai-timeline-carousel__image-placeholder-{{ ai_gen_id }}">
+                {{ 'image' | placeholder_svg_tag }}
+              </div>
+            {% endif %}
+          </div>
+
+          {% if stage_year != blank %}
+            <p class="ai-timeline-carousel__year-{{ ai_gen_id }}">{{ stage_year }}</p>
+          {% endif %}
+
+          {% if stage_title != blank %}
+            <h3 class="ai-timeline-carousel__item-title-{{ ai_gen_id }}">{{ stage_title }}</h3>
+          {% endif %}
+
+          {% if stage_text != blank %}
+            <p class="ai-timeline-carousel__text-{{ ai_gen_id }}">{{ stage_text }}</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="ai-timeline-carousel__nav-{{ ai_gen_id }}">
+      <button
+        class="ai-timeline-carousel__nav-button-{{ ai_gen_id }}"
+        data-prev
+        aria-label="Previous"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+      <button
+        class="ai-timeline-carousel__nav-button-{{ ai_gen_id }}"
+        data-next
+        aria-label="Next"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+
+    <div class="ai-timeline-carousel__dots-{{ ai_gen_id }}" data-dots></div>
+  </div>
+</timeline-carousel-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class TimelineCarousel{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+        this.track = this.querySelector('[data-track]');
+        this.prevButton = this.querySelector('[data-prev]');
+        this.nextButton = this.querySelector('[data-next]');
+        this.dotsContainer = this.querySelector('[data-dots]');
+        this.items = this.querySelectorAll('.ai-timeline-carousel__item-{{ ai_gen_id }}');
+        this.currentIndex = 0;
+      }
+
+      connectedCallback() {
+        this.createDots();
+        this.updateButtons();
+        this.setupEventListeners();
+      }
+
+      createDots() {
+        this.items.forEach((item, index) => {
+          const dot = document.createElement('button');
+          dot.classList.add('ai-timeline-carousel__dot-{{ ai_gen_id }}');
+          dot.setAttribute('aria-label', 'Go to stage ' + (index + 1));
+          if (index === 0) {
+            dot.classList.add('active');
+          }
+          dot.addEventListener('click', () => this.goToSlide(index));
+          this.dotsContainer.appendChild(dot);
+        });
+      }
+
+      setupEventListeners() {
+        this.prevButton.addEventListener('click', () => this.prev());
+        this.nextButton.addEventListener('click', () => this.next());
+
+        this.track.addEventListener('scroll', () => {
+          this.updateCurrentIndex();
+        });
+      }
+
+      updateCurrentIndex() {
+        const scrollLeft = this.track.scrollLeft;
+        const itemWidth = this.items[0].offsetWidth + 30;
+        this.currentIndex = Math.round(scrollLeft / itemWidth);
+        this.updateDots();
+        this.updateButtons();
+      }
+
+      prev() {
+        if (this.currentIndex > 0) {
+          this.goToSlide(this.currentIndex - 1);
+        }
+      }
+
+      next() {
+        if (this.currentIndex < this.items.length - 1) {
+          this.goToSlide(this.currentIndex + 1);
+        }
+      }
+
+      goToSlide(index) {
+        const itemWidth = this.items[0].offsetWidth + 30;
+        this.track.scrollLeft = index * itemWidth;
+        this.currentIndex = index;
+        this.updateDots();
+        this.updateButtons();
+      }
+
+      updateDots() {
+        const dots = this.dotsContainer.querySelectorAll('.ai-timeline-carousel__dot-{{ ai_gen_id }}');
+        dots.forEach((dot, index) => {
+          if (index === this.currentIndex) {
+            dot.classList.add('active');
+          } else {
+            dot.classList.remove('active');
+          }
+        });
+      }
+
+      updateButtons() {
+        this.prevButton.disabled = this.currentIndex === 0;
+        this.nextButton.disabled = this.currentIndex === this.items.length - 1;
+      }
+    }
+
+    customElements.define('timeline-carousel-{{ ai_gen_id }}', TimelineCarousel{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Company timeline",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Main title"
+    },
+    {
+      "type": "text",
+      "id": "main_title",
+      "label": "Title",
+      "default": "Our Journey"
+    },
+    {
+      "type": "range",
+      "id": "title_size",
+      "min": 20,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "label": "Title size",
+      "default": 36
+    },
+    {
+      "type": "color",
+      "id": "title_color",
+      "label": "Title color",
+      "default": "#56473a"
+    },
+    {
+      "type": "header",
+      "content": "Stage 1"
+    },
+    {
+      "type": "image_picker",
+      "id": "stage_1_image",
+      "label": "Image"
+    },
+    {
+      "type": "text",
+      "id": "stage_1_year",
+      "label": "Year",
+      "default": "2015"
+    },
+    {
+      "type": "text",
+      "id": "stage_1_title",
+      "label": "Title",
+      "default": "Foundation"
+    },
+    {
+      "type": "textarea",
+      "id": "stage_1_text",
+      "label": "Text",
+      "default": "Our company was founded with a vision to transform the industry."
+    },
+    {
+      "type": "header",
+      "content": "Stage 2"
+    },
+    {
+      "type": "image_picker",
+      "id": "stage_2_image",
+      "label": "Image"
+    },
+    {
+      "type": "text",
+      "id": "stage_2_year",
+      "label": "Year",
+      "default": "2017"
+    },
+    {
+      "type": "text",
+      "id": "stage_2_title",
+      "label": "Title",
+      "default": "First milestone"
+    },
+    {
+      "type": "textarea",
+      "id": "stage_2_text",
+      "label": "Text",
+      "default": "We reached our first major milestone and expanded our team."
+    },
+    {
+      "type": "header",
+      "content": "Stage 3"
+    },
+    {
+      "type": "image_picker",
+      "id": "stage_3_image",
+      "label": "Image"
+    },
+    {
+      "type": "text",
+      "id": "stage_3_year",
+      "label": "Year",
+      "default": "2019"
+    },
+    {
+      "type": "text",
+      "id": "stage_3_title",
+      "label": "Title",
+      "default": "Global expansion"
+    },
+    {
+      "type": "textarea",
+      "id": "stage_3_text",
+      "label": "Text",
+      "default": "We expanded our operations to serve customers worldwide."
+    },
+    {
+      "type": "header",
+      "content": "Stage 4"
+    },
+    {
+      "type": "image_picker",
+      "id": "stage_4_image",
+      "label": "Image"
+    },
+    {
+      "type": "text",
+      "id": "stage_4_year",
+      "label": "Year",
+      "default": "2021"
+    },
+    {
+      "type": "text",
+      "id": "stage_4_title",
+      "label": "Title",
+      "default": "Innovation award"
+    },
+    {
+      "type": "textarea",
+      "id": "stage_4_text",
+      "label": "Text",
+      "default": "Our innovative approach was recognized with industry awards."
+    },
+    {
+      "type": "header",
+      "content": "Stage 5"
+    },
+    {
+      "type": "image_picker",
+      "id": "stage_5_image",
+      "label": "Image"
+    },
+    {
+      "type": "text",
+      "id": "stage_5_year",
+      "label": "Year",
+      "default": "2023"
+    },
+    {
+      "type": "text",
+      "id": "stage_5_title",
+      "label": "Title",
+      "default": "Sustainability focus"
+    },
+    {
+      "type": "textarea",
+      "id": "stage_5_text",
+      "label": "Text",
+      "default": "We committed to sustainable practices across all operations."
+    },
+    {
+      "type": "header",
+      "content": "Stage 6"
+    },
+    {
+      "type": "image_picker",
+      "id": "stage_6_image",
+      "label": "Image"
+    },
+    {
+      "type": "text",
+      "id": "stage_6_year",
+      "label": "Year",
+      "default": "2025"
+    },
+    {
+      "type": "text",
+      "id": "stage_6_title",
+      "label": "Title",
+      "default": "Future vision"
+    },
+    {
+      "type": "textarea",
+      "id": "stage_6_text",
+      "label": "Text",
+      "default": "Looking ahead to new innovations and continued growth."
+    },
+    {
+      "type": "header",
+      "content": "Style"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "image_border_radius",
+      "min": 0,
+      "max": 30,
+      "step": 2,
+      "unit": "px",
+      "label": "Image border radius",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "year_size",
+      "min": 14,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "label": "Year size",
+      "default": 24
+    },
+    {
+      "type": "color",
+      "id": "year_color",
+      "label": "Year color",
+      "default": "#3DADBB"
+    },
+    {
+      "type": "range",
+      "id": "item_title_size",
+      "min": 14,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "label": "Stage title size",
+      "default": 20
+    },
+    {
+      "type": "color",
+      "id": "item_title_color",
+      "label": "Stage title color",
+      "default": "#56473a"
+    },
+    {
+      "type": "range",
+      "id": "text_size",
+      "min": 12,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "label": "Text size",
+      "default": 16
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#56473A"
+    },
+    {
+      "type": "header",
+      "content": "Navigation"
+    },
+    {
+      "type": "color",
+      "id": "nav_button_color",
+      "label": "Button background",
+      "default": "#3DADBB"
+    },
+    {
+      "type": "color",
+      "id": "nav_button_hover_color",
+      "label": "Button hover background",
+      "default": "#56473a"
+    },
+    {
+      "type": "color",
+      "id": "nav_button_icon_color",
+      "label": "Button icon color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "dot_color",
+      "label": "Dot color",
+      "default": "#cccccc"
+    },
+    {
+      "type": "color",
+      "id": "dot_active_color",
+      "label": "Active dot color",
+      "default": "#3DADBB"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Company timeline"
+    }
+  ]
+}
+{% endschema %}

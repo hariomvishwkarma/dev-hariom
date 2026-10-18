@@ -1,0 +1,89 @@
+<!-- V3 Script Tag -->    
+<script id="usercentrics-cmp" src="https://web.cmp.usercentrics.eu/ui/loader.js" data-settings-id="ynLra3Xl8LO-EQ" async></script> 
+
+
+
+<script>
+window.Shopify.loadFeatures(
+  [{ name: 'consent-tracking-api', version: '0.1' }],
+  (error) => {
+
+    if (error) {
+      console.error('Shopify Consent API failed', error);
+      return;
+    }
+
+    console.log('✅ Shopify Consent API loaded');
+
+    // HARD DEFAULT DENY immediately
+    window.Shopify.customerPrivacy.setTrackingConsent({
+      analytics: false,
+      marketing: false,
+      preferences: false,
+      sale_of_data: false
+    });
+
+    console.log('✅ Default deny applied');
+
+    // V3 EVENT
+    window.addEventListener("UC_CONSENT", function(event) {
+
+      console.log('✅ UC_CONSENT received');
+      console.log(event.detail);
+
+      // Ignore initialization events
+      const updatedBy = event.detail?.consent?.updatedBy;
+
+      if (!updatedBy || updatedBy === 'INITIAL') {
+        console.log('⛔ Ignoring initialization event');
+        return;
+      }
+
+      const services = Object.values(event.detail.services || {});
+
+      const getConsent = (serviceName) => {
+
+        const service = services.find(
+          s =>
+            s.name &&
+            s.name.toLowerCase() === serviceName.toLowerCase()
+        );
+
+        return service ? !!service.consent.given : false;
+      };
+
+      const analytics = getConsent('Shopify Analytics');
+      const marketing = getConsent('Shopify Marketing');
+      const preferences = getConsent('Shopify Preferences');
+
+      console.log('✅ Final mapped consent:', {
+        analytics,
+        marketing,
+        preferences
+      });
+
+      window.Shopify.customerPrivacy.setTrackingConsent({
+        analytics: analytics,
+        marketing: marketing,
+        preferences: preferences,
+        sale_of_data: marketing
+      }, () => {
+
+        console.log('✅ Shopify consent synced');
+
+        console.log(
+          window.Shopify.customerPrivacy.currentVisitorConsent()
+        );
+
+        console.log(
+          'marketingAllowed:',
+          window.Shopify.customerPrivacy.marketingAllowed()
+        );
+
+      });
+
+    });
+
+  }
+);
+</script>

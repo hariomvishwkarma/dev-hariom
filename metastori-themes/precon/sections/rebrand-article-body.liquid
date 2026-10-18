@@ -1,0 +1,1083 @@
+{%- comment -%}
+  sections/rebrand-article-body.liquid
+  Precon Article Body – zweispaltiges Layout
+  Links: Fließtext + Tags + Zurück-Link
+  Rechts: Sticky Sidebar – Autoren-Karte (mit Bio) + Social Share
+  CSS-Prefix: .art-body
+{%- endcomment -%}
+
+{{- 'component-shortcode-grid.css' | asset_url | stylesheet_tag -}}
+{{- 'component-shortcode.css'      | asset_url | stylesheet_tag -}}
+{{- 'component-shortcode-cta.css'  | asset_url | stylesheet_tag -}}
+<link href="{{ 'typicons.css' | asset_url }}" media="print" onload="this.media='all'" rel="stylesheet">
+
+{%- liquid
+  assign c_bg         = section.settings.color_bg
+  assign c_ink        = section.settings.color_ink
+  assign c_mid        = section.settings.color_mid
+  assign c_accent     = section.settings.color_accent
+  assign c_tag_bg     = section.settings.color_tag_bg
+  assign c_tag_text   = section.settings.color_tag_text
+  assign c_divider    = section.settings.color_divider
+  assign c_related_bg = section.settings.color_related_bg
+  assign share_url    = shop.url | append: article.url
+  assign share_title  = article.title | url_encode
+-%}
+
+{%- liquid
+  assign author_mo    = article.metafields.bso.author.value | first
+  assign author_name  = author_mo.name.value | default: article.author
+  assign author_links = author_mo.linklist.value
+-%}
+
+<section class="art-body" id="art-body-{{ section.id }}">
+
+  <div class="art-body__layout">
+
+    <!-- ── Linke Spalte: Artikeltext ── -->
+    <div class="art-body__main">
+
+      {%- comment -%} ── BSO Shortcode Preprocessing ── {%- endcomment -%}
+      {%- assign _raw = article.content
+        | replace: '<p><br></p>', ''
+        | replace: '<p><br/></p>', ''
+        | replace: '<p>&nbsp;</p>', ''
+        | replace: '<p> </p>', ''
+        | replace: '<p></p>', ''
+      -%}
+      {%- capture _preprocessed -%}
+        {%- render 'article-preprocessor', content: _raw -%}
+      {%- endcapture -%}
+      {%- assign _preprocessed_parts    = _preprocessed | split: '%SPLIT%' -%}
+      {%- assign _preprocessed_content  = _preprocessed_parts[0] -%}
+      {%- capture _shortcodes -%}
+        {%- render 'shortcode', text: _preprocessed_content, breakRte: false -%}
+      {%- endcapture -%}
+      {%- assign _shortcodes = _shortcodes | replace: '%BS%', '[' | replace: '%BE%', ']' -%}
+      {%- render 'shortcode-styling', section: section -%}
+
+      <div class="art-body__prose rte">
+        <div class="shortcode-rte">
+          {{ _shortcodes }}
+        </div>
+      </div>
+
+      {%- comment -%} ── Tags ── {%- endcomment -%}
+      {%- if article.tags.size > 0 and section.settings.show_tags -%}
+        <div class="art-body__tags">
+          <span class="art-body__tags-label">Themen:</span>
+          {%- for tag in article.tags -%}
+            <a href="{{ blog.url }}/tagged/{{ tag | handle }}" class="art-body__tag">{{ tag }}</a>
+          {%- endfor -%}
+        </div>
+      {%- endif -%}
+
+
+    </div><!-- /.art-body__main -->
+
+    <!-- ── Rechte Spalte: Sidebar ── -->
+    <aside class="art-body__sidebar">
+
+      {%- comment -%} ── Autoren-Karte ── {%- endcomment -%}
+      <div class="art-body__author-card" style="border-color:{{ c_divider }};">
+
+        <div class="art-body__author-photo">
+          {%- if author_mo.image.value != blank -%}
+            {{ author_mo.image.value | image_url: width: 160 | image_tag:
+              class: 'art-body__author-img',
+              alt: author_name,
+              width: 68, height: 68,
+              loading: 'lazy'
+            }}
+          {%- elsif article.user.image != blank -%}
+            <img
+              src="{{ article.user.image | img_url: '160x160', crop: 'center' }}"
+              alt="{{ author_name }}"
+              class="art-body__author-img"
+              width="68" height="68"
+              loading="lazy"
+            >
+          {%- elsif section.settings.author_image != blank -%}
+            {{ section.settings.author_image | image_url: width: 160 | image_tag:
+              class: 'art-body__author-img',
+              alt: author_name,
+              loading: 'lazy'
+            }}
+          {%- else -%}
+            <div class="art-body__author-initial" style="background:{{ c_accent }};color:#fff;">
+              {{ author_name | slice: 0 | upcase }}
+            </div>
+          {%- endif -%}
+        </div>
+
+        <div class="art-body__author-meta">
+          <span class="art-body__author-label" style="color:{{ c_accent }};">{{ section.settings.author_label | default: 'Autorin' }}</span>
+          <span class="art-body__author-name" style="color:{{ c_ink }};">{{ author_name }}</span>
+
+          {%- if author_mo != blank -%}
+            <a href="{{ author_mo.system.url }}" class="art-body__author-link-page" style="color:{{ c_accent }};">
+              {{ section.settings.author_link_label | default: 'Mehr über die Autorin →' }}
+            </a>
+          {%- endif -%}
+
+          {%- if author_links.size > 0 -%}
+            <div class="art-body__author-links">
+              {%- for link in author_links -%}
+                {%- if link contains 'linkedin' -%}
+                  <a href="{{ link }}" target="_blank" rel="noopener noreferrer" class="art-body__author-link" aria-label="LinkedIn" style="color:{{ c_accent }};">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+                  </a>
+                {%- elsif link contains 'instagram' -%}
+                  <a href="{{ link }}" target="_blank" rel="noopener noreferrer" class="art-body__author-link" aria-label="Instagram" style="color:{{ c_accent }};">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                  </a>
+                {%- elsif link contains 'tiktok' -%}
+                  <a href="{{ link }}" target="_blank" rel="noopener noreferrer" class="art-body__author-link" aria-label="TikTok" style="color:{{ c_accent }};">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.27 8.27 0 0 0 4.83 1.55V6.79a4.85 4.85 0 0 1-1.06-.1z"/></svg>
+                  </a>
+                {%- elsif link contains 'twitter' or link contains 'x.com' -%}
+                  <a href="{{ link }}" target="_blank" rel="noopener noreferrer" class="art-body__author-link" aria-label="X / Twitter" style="color:{{ c_accent }};">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                  </a>
+                {%- elsif link contains 'mailto' -%}
+                  <a href="{{ link }}" class="art-body__author-link" aria-label="E-Mail" style="color:{{ c_accent }};">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  </a>
+                {%- elsif link contains 'tel' -%}
+                  <a href="{{ link }}" class="art-body__author-link" aria-label="Telefon" style="color:{{ c_accent }};">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.06 6.06l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  </a>
+                {%- endif -%}
+              {%- endfor -%}
+            </div>
+          {%- endif -%}
+
+        </div>
+
+      </div>
+
+      {%- comment -%} ── Social Share ── {%- endcomment -%}
+      {%- if section.settings.show_share -%}
+      <div class="art-body__social-card" style="border-color:{{ c_divider }};">
+
+        {%- if section.settings.share_heading != blank -%}
+          <h3 class="art-body__social-heading" style="color:{{ c_ink }};">{{ section.settings.share_heading }}</h3>
+        {%- endif -%}
+        {%- if section.settings.share_subtext != blank -%}
+          <p class="art-body__social-sub" style="color:{{ c_mid }};">{{ section.settings.share_subtext }}</p>
+        {%- endif -%}
+
+        <div class="art-body__social-btns">
+
+          <!-- Facebook -->
+          <a href="https://www.facebook.com/sharer/sharer.php?u={{ share_url | url_encode }}"
+             target="_blank" rel="noopener noreferrer"
+             class="art-body__social-btn" aria-label="Auf Facebook teilen"
+             style="background:{{ section.settings.share_icon_bg }};">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+            </svg>
+          </a>
+
+          <!-- Pinterest -->
+          <a href="https://pinterest.com/pin/create/button/?url={{ share_url | url_encode }}&description={{ share_title }}"
+             target="_blank" rel="noopener noreferrer"
+             class="art-body__social-btn" aria-label="Auf Pinterest teilen"
+             style="background:{{ section.settings.share_icon_bg }};">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/>
+            </svg>
+          </a>
+
+          <!-- X / Twitter -->
+          <a href="https://twitter.com/intent/tweet?url={{ share_url | url_encode }}&text={{ share_title }}"
+             target="_blank" rel="noopener noreferrer"
+             class="art-body__social-btn" aria-label="Auf X teilen"
+             style="background:{{ section.settings.share_icon_bg }};">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          </a>
+
+          <!-- Telegram -->
+          <a href="https://t.me/share/url?url={{ share_url | url_encode }}&text={{ share_title }}"
+             target="_blank" rel="noopener noreferrer"
+             class="art-body__social-btn" aria-label="Per Telegram teilen"
+             style="background:{{ section.settings.share_icon_bg }};">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+            </svg>
+          </a>
+
+        </div>
+      </div>
+      {%- endif -%}
+
+    </aside><!-- /.art-body__sidebar -->
+
+  </div><!-- /.art-body__layout -->
+
+  {%- comment -%} ── Quick Nav Stats ── {%- endcomment -%}
+  {%- assign nav_blocks = section.blocks | where: "type", "nav_card" -%}
+  {%- if nav_blocks.size > 0 -%}
+  <section class="quick-nav-stats" id="quick-nav-stats-{{ section.id }}" style="background:{{ section.settings.section_bg_color }};">
+    <div class="quick-nav page-width">
+      {%- if section.settings.nav_eyebrow != blank -%}
+        <p class="quick-nav__eyebrow" style="color:{{ section.settings.eyebrow_color }};">{{ section.settings.nav_eyebrow }}</p>
+      {%- endif -%}
+      <div class="quick-nav__grid">
+        {%- for block in nav_blocks -%}
+          <a
+            href="{{ block.settings.link_url }}"
+            class="quick-nav__card"
+            style="background:{{ block.settings.card_bg }}; border-color:{{ block.settings.card_border }};"
+            {{ block.shopify_attributes }}
+          >
+            <div class="quick-nav__card-text">
+              <span class="quick-nav__card-title" style="color:{{ block.settings.title_color }};">{{ block.settings.title }}</span>
+              {%- if block.settings.subtitle != blank -%}
+                <span class="quick-nav__card-subtitle" style="color:{{ block.settings.subtitle_color }};">{{ block.settings.subtitle }}</span>
+              {%- endif -%}
+            </div>
+            <span class="quick-nav__card-arrow" style="color:{{ block.settings.arrow_color }};">&#8594;</span>
+          </a>
+        {%- endfor -%}
+      </div>
+    </div>
+  </section>
+  {%- endif -%}
+
+  {%- comment -%} ── Verwandte Artikel ── {%- endcomment -%}
+  {%- if section.settings.show_related -%}
+    {%- assign shown = 0 -%}
+    {%- for a in blog.articles -%}
+      {%- unless a.id == article.id -%}
+        {%- if shown == 0 -%}
+          <div class="art-body__related">
+            <div class="art-body__related-inner">
+              {%- if section.settings.related_heading != blank -%}
+                <h2 class="art-body__related-title">{{ section.settings.related_heading }}</h2>
+              {%- endif -%}
+              <div class="art-body__related-grid">
+        {%- endif -%}
+
+        {%- if shown < 3 -%}
+          <a href="{{ a.url }}" class="art-body__rel-card">
+            {%- if a.image -%}
+              <div class="art-body__rel-img">
+                {{- a.image | image_url: width: 600 | image_tag: loading: 'lazy', widths: '300,400,600', alt: a.title -}}
+              </div>
+            {%- else -%}
+              <div class="art-body__rel-img art-body__rel-img--placeholder"></div>
+            {%- endif -%}
+            <div class="art-body__rel-text">
+              <span class="art-body__rel-blog">{{ blog.title }}</span>
+              <span class="art-body__rel-name">{{ a.title }}</span>
+              <span class="art-body__rel-date">{{ a.published_at | date: '%d. %B %Y' }}</span>
+            </div>
+          </a>
+          {%- assign shown = shown | plus: 1 -%}
+        {%- endif -%}
+      {%- endunless -%}
+    {%- endfor -%}
+
+    {%- if shown > 0 -%}
+              </div>{%- comment -%}/.art-body__related-grid{%- endcomment -%}
+            </div>{%- comment -%}/.art-body__related-inner{%- endcomment -%}
+          </div>{%- comment -%}/.art-body__related{%- endcomment -%}
+    {%- endif -%}
+  {%- endif -%}
+
+</section>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;600&family=Playfair+Display:ital,wght@1,500&display=swap');
+
+/* ── CSS-Variablen ── */
+#art-body-{{ section.id }} {
+  --bg:         {{ c_bg }};
+  --ink:        {{ c_ink }};
+  --mid:        {{ c_mid }};
+  --accent:     {{ c_accent }};
+  --tag-bg:     {{ c_tag_bg }};
+  --tag-text:   {{ c_tag_text }};
+  --divider:    {{ c_divider }};
+  --related-bg: {{ c_related_bg }};
+}
+
+/* ── Reset ── */
+#art-body-{{ section.id }},
+#art-body-{{ section.id }} * { box-sizing: border-box; }
+
+/* ── Wrapper ── */
+#art-body-{{ section.id }} {
+  background: var(--bg);
+  font-family: 'Figtree', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ────────────────────────────────────────
+   ZWEISPALTIGES LAYOUT
+   ──────────────────────────────────────── */
+#art-body-{{ section.id }} .art-body__layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 48px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 3rem max(24px, 4rem);
+  align-items: start;
+}
+
+/* ── Linke Spalte ── */
+#art-body-{{ section.id }} .art-body__main {
+  min-width: 0;
+}
+
+/* ── Rechte Spalte: Sticky Sidebar ── */
+#art-body-{{ section.id }} .art-body__sidebar {
+  position: sticky;
+  top: 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ────────────────────────────────────────
+   PROSE / RTE-TYPOGRAFIE
+   ──────────────────────────────────────── */
+#art-body-{{ section.id }} .art-body__prose {
+  color: var(--ink);
+  font-size: clamp(15px, 1.1vw, 17px);
+  line-height: 1.8;
+}
+#art-body-{{ section.id }} .art-body__prose h2,
+#art-body-{{ section.id }} .art-body__prose h3,
+#art-body-{{ section.id }} .art-body__prose h4,
+#art-body-{{ section.id }} .art-body__prose h5,
+#art-body-{{ section.id }} .art-body__prose h6 {
+  color: var(--ink);
+  font-family: 'Figtree', sans-serif;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 2.4em 0 0.7em !important;
+}
+#art-body-{{ section.id }} .art-body__prose h2 { font-size: clamp(20px, 2vw, 25px); }
+#art-body-{{ section.id }} .art-body__prose h3 { font-size: clamp(17px, 1.65vw, 21px); }
+#art-body-{{ section.id }} .art-body__prose h4 { font-size: clamp(15px, 1.4vw, 18px); }
+#art-body-{{ section.id }} .art-body__prose h5,
+#art-body-{{ section.id }} .art-body__prose h6 { font-size: clamp(14px, 1.2vw, 16px); }
+#art-body-{{ section.id }} .art-body__prose p { margin: 0 0 1.4em; }
+#art-body-{{ section.id }} .art-body__prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: opacity 0.18s;
+}
+#art-body-{{ section.id }} .art-body__prose a:hover { opacity: 0.72; }
+#art-body-{{ section.id }} .art-body__prose strong { font-weight: 600; color: var(--ink); }
+#art-body-{{ section.id }} .art-body__prose em {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+}
+#art-body-{{ section.id }} .art-body__prose ul,
+#art-body-{{ section.id }} .art-body__prose ol { margin: 0 0 1.4em; padding-left: 1.4em; }
+#art-body-{{ section.id }} .art-body__prose li { margin-bottom: 0.45em; }
+#art-body-{{ section.id }} .art-body__prose li::marker { color: var(--accent); }
+#art-body-{{ section.id }} .art-body__prose blockquote {
+  margin: 2em 0;
+  padding: 1.25em 1.5em 1.25em 1.75em;
+  border-left: 3px solid var(--accent);
+  background: var(--related-bg);
+  border-radius: 0 12px 12px 0;
+  font-size: 1.04em;
+  color: var(--mid);
+}
+#art-body-{{ section.id }} .art-body__prose blockquote p:last-child { margin-bottom: 0; }
+#art-body-{{ section.id }} .art-body__prose hr {
+  border: none;
+  border-top: 1px solid var(--divider);
+  margin: 3em 0;
+}
+#art-body-{{ section.id }} .art-body__prose img {
+  max-width: 100%;
+  border-radius: 14px;
+  height: auto;
+  display: block;
+  margin: 2em auto;
+}
+#art-body-{{ section.id }} .art-body__prose code {
+  background: var(--tag-bg);
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 0.875em;
+  font-family: 'Courier New', monospace;
+}
+#art-body-{{ section.id }} .art-body__prose pre {
+  background: var(--tag-bg);
+  padding: 1.25em 1.5em;
+  border-radius: 12px;
+  overflow-x: auto;
+  margin: 1.5em 0;
+}
+#art-body-{{ section.id }} .art-body__prose pre code { background: none; padding: 0; }
+#art-body-{{ section.id }} .art-body__prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5em 0;
+  font-size: 0.94em;
+}
+#art-body-{{ section.id }} .art-body__prose th,
+#art-body-{{ section.id }} .art-body__prose td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--divider);
+}
+#art-body-{{ section.id }} .art-body__prose th {
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--related-bg);
+}
+
+/* ── Tags ── */
+#art-body-{{ section.id }} .art-body__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--divider);
+}
+#art-body-{{ section.id }} .art-body__tags-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mid);
+  margin-right: 4px;
+}
+#art-body-{{ section.id }} .art-body__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.18s;
+}
+#art-body-{{ section.id }} .art-body__tag:hover { opacity: 0.72; }
+
+/* ── Zurück-Link (entfernt) ── */
+#art-body-{{ section.id }} .art-body__back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  transition: gap 0.2s ease;
+}
+#art-body-{{ section.id }} .art-body__back-arrow { transition: transform 0.2s ease; }
+#art-body-{{ section.id }} .art-body__back-link:hover { gap: 13px; }
+#art-body-{{ section.id }} .art-body__back-link:hover .art-body__back-arrow { transform: translateX(-4px); }
+
+/* ────────────────────────────────────────
+   SIDEBAR: AUTOREN-KARTE
+   ──────────────────────────────────────── */
+#art-body-{{ section.id }} .art-body__author-card {
+  border: 1px solid;
+  border-radius: 16px;
+  padding: 20px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+#art-body-{{ section.id }} .art-body__author-photo {
+  flex-shrink: 0;
+}
+
+#art-body-{{ section.id }} .art-body__author-img {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  border: 2px solid var(--divider);
+}
+
+#art-body-{{ section.id }} .art-body__author-initial {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+#art-body-{{ section.id }} .art-body__author-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+}
+
+#art-body-{{ section.id }} .art-body__author-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+#art-body-{{ section.id }} .art-body__author-name {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+#art-body-{{ section.id }} .art-body__author-link-page {
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: 10px;
+  display: inline-block;
+  transition: opacity 0.2s;
+}
+#art-body-{{ section.id }} .art-body__author-link-page:hover { opacity: 0.7; }
+
+#art-body-{{ section.id }} .art-body__author-links {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+#art-body-{{ section.id }} .art-body__author-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--divider);
+  text-decoration: none;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+#art-body-{{ section.id }} .art-body__author-link:hover {
+  border-color: currentColor;
+  transform: translateY(-2px);
+}
+
+/* ────────────────────────────────────────
+   SIDEBAR: SOCIAL SHARE
+   ──────────────────────────────────────── */
+#art-body-{{ section.id }} .art-body__social-card {
+  border: 1px solid;
+  border-radius: 16px;
+  padding: 20px;
+  background: var(--bg);
+}
+
+#art-body-{{ section.id }} .art-body__social-heading {
+  font-size: clamp(15px, 1.4vw, 17px);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  margin: 0 0 10px;
+}
+
+#art-body-{{ section.id }} .art-body__social-sub {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+
+#art-body-{{ section.id }} .art-body__social-btns {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#art-body-{{ section.id }} .art-body__social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  color: #ffffff;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#art-body-{{ section.id }} .art-body__social-btn:hover {
+  opacity: 0.82;
+  transform: translateY(-2px);
+}
+
+#art-body-{{ section.id }} .art-body__social-btn svg { flex-shrink: 0; }
+
+/* ── Verwandte Artikel ── */
+#art-body-{{ section.id }} .art-body__related {
+  background: var(--related-bg);
+  border-top: 1px solid var(--divider);
+  padding: 4rem 0 4.5rem;
+}
+#art-body-{{ section.id }} .art-body__related-inner {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 max(24px, 4rem);
+}
+#art-body-{{ section.id }} .art-body__related-title {
+  font-size: clamp(18px, 1.8vw, 22px);
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 1.75rem;
+}
+#art-body-{{ section.id }} .art-body__related-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+#art-body-{{ section.id }} .art-body__rel-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid var(--divider);
+  text-decoration: none;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+#art-body-{{ section.id }} .art-body__rel-card:hover {
+  box-shadow: 0 6px 24px rgba(0,0,0,0.09);
+  transform: translateY(-3px);
+}
+#art-body-{{ section.id }} .art-body__rel-img {
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  background: var(--tag-bg);
+}
+#art-body-{{ section.id }} .art-body__rel-img img {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+  transition: transform 0.35s ease;
+}
+#art-body-{{ section.id }} .art-body__rel-card:hover .art-body__rel-img img { transform: scale(1.04); }
+#art-body-{{ section.id }} .art-body__rel-text {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 18px 20px 22px; flex: 1;
+}
+#art-body-{{ section.id }} .art-body__rel-blog {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--accent);
+}
+#art-body-{{ section.id }} .art-body__rel-name {
+  font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35;
+}
+#art-body-{{ section.id }} .art-body__rel-date {
+  font-size: 12px; color: var(--mid); margin-top: auto; padding-top: 8px;
+}
+
+/* ── Quick Nav Stats ── */
+.quick-nav-stats { padding: 48px 0; }
+.quick-nav-stats .page-width {
+  padding-left: max(24px, 5rem);
+  padding-right: max(24px, 5rem);
+}
+.quick-nav__eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; margin: 0 0 16px;
+}
+.quick-nav__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.quick-nav__card {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 22px 24px; border: 1px solid; border-radius: 16px;
+  text-decoration: none; transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.quick-nav__card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.07); transform: translateY(-2px); }
+.quick-nav__card-text { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.quick-nav__card-title { font-size: 16px; font-weight: 700; line-height: 1.2; }
+.quick-nav__card-subtitle { font-size: 13px; line-height: 1.45; }
+.quick-nav__card-arrow { font-size: 18px; flex-shrink: 0; transition: transform 0.2s ease; }
+.quick-nav__card:hover .quick-nav__card-arrow { transform: translateX(4px); }
+
+/* ────────────────────────────────────────
+   BSO SHORTCODE DESIGN-OVERRIDES
+   Erzwingt Precon-Styling über BSO-Standard
+   ──────────────────────────────────────── */
+
+/* Font durchgängig auf Figtree */
+#art-body-{{ section.id }} .shortcode-rte,
+#art-body-{{ section.id }} .shortcode-rte * {
+  font-family: 'Figtree', sans-serif;
+}
+
+/* Alle Shortcode-CTA-Buttons → Precon Akzentfarbe */
+#art-body-{{ section.id }} .shortcode-rte .bso-btn,
+#art-body-{{ section.id }} .shortcode-rte .bso-cta__btn,
+#art-body-{{ section.id }} .shortcode-rte .shortcode-cta__btn,
+#art-body-{{ section.id }} .shortcode-rte [class*="btn--primary"],
+#art-body-{{ section.id }} .shortcode-rte .bso-button {
+  background-color: var(--accent) !important;
+  border-color:     var(--accent) !important;
+  color:            #fff          !important;
+  font-family:      'Figtree', sans-serif !important;
+  border-radius:    8px !important;
+}
+#art-body-{{ section.id }} .shortcode-rte .bso-btn:hover,
+#art-body-{{ section.id }} .shortcode-rte .bso-cta__btn:hover,
+#art-body-{{ section.id }} .shortcode-rte .shortcode-cta__btn:hover,
+#art-body-{{ section.id }} .shortcode-rte .bso-button:hover {
+  opacity: 0.85 !important;
+}
+
+/* Links ohne Button-Klassen → Akzentfarbe */
+#art-body-{{ section.id }} .shortcode-rte a:not([class*="btn"]):not([class*="button"]):not([class*="bso-btn"]) {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+/* Shortcode-Boxen: Textfarbe + Hintergrund neutral */
+#art-body-{{ section.id }} .shortcode-rte .bso-row {
+  color: var(--ink);
+}
+#art-body-{{ section.id }} .shortcode-rte .bso-column {
+  color: var(--ink);
+}
+
+/* Highlight / Info-Boxen: leicht getönt in Precon-Farben */
+#art-body-{{ section.id }} .shortcode-rte [class*="shortcode-box"],
+#art-body-{{ section.id }} .shortcode-rte [class*="bso-box"] {
+  border-radius: 12px;
+  border-color: var(--divider) !important;
+}
+
+/* Shortcode-Überschriften erben unsere H2-Styles */
+#art-body-{{ section.id }} .shortcode-rte h2,
+#art-body-{{ section.id }} .shortcode-rte h3,
+#art-body-{{ section.id }} .shortcode-rte h4 {
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 2.4em 0 0.7em !important;
+}
+#art-body-{{ section.id }} .shortcode-rte h2 { font-size: clamp(20px, 2vw, 25px); }
+#art-body-{{ section.id }} .shortcode-rte h3 { font-size: clamp(17px, 1.65vw, 21px); }
+#art-body-{{ section.id }} .shortcode-rte h4 { font-size: clamp(15px, 1.4vw, 18px); }
+
+/* ── Responsive ── */
+@media (max-width: 960px) {
+  #art-body-{{ section.id }} .art-body__layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 2rem max(24px, 3rem) 3rem;
+  }
+  #art-body-{{ section.id }} .art-body__sidebar {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  #art-body-{{ section.id }} .art-body__author-card,
+  #art-body-{{ section.id }} .art-body__social-card {
+    flex: 1;
+    min-width: 260px;
+  }
+  #art-body-{{ section.id }} .art-body__author-card {
+    flex-direction: row;
+    text-align: left;
+    align-items: flex-start;
+  }
+  #art-body-{{ section.id }} .art-body__author-meta {
+    align-items: flex-start;
+  }
+  .quick-nav__grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  #art-body-{{ section.id }} .art-body__layout { padding: 2rem 16px 2.5rem; }
+  /* p + h2 Ausnahme entfernt – Leerzeilen-Unterdrückung übernimmt das */
+  #art-body-{{ section.id }} .art-body__sidebar { flex-direction: column; }
+  #art-body-{{ section.id }} .art-body__author-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  #art-body-{{ section.id }} .art-body__author-meta { align-items: center; }
+  #art-body-{{ section.id }} .art-body__related-inner { padding-left: 16px; padding-right: 16px; }
+  #art-body-{{ section.id }} .art-body__related { padding: 2.5rem 0 3rem; }
+  #art-body-{{ section.id }} .art-body__related-grid { grid-template-columns: repeat(2, 1fr); }
+  .quick-nav-stats { padding: 28px 0; }
+  .quick-nav-stats .page-width { padding-left: 16px; padding-right: 16px; }
+  .quick-nav__grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .quick-nav__card { padding: 14px; border-radius: 12px; gap: 8px; }
+  .quick-nav__card-title { font-size: 13px; }
+  .quick-nav__card-subtitle { font-size: 11px; line-height: 1.35; }
+  .quick-nav__card-arrow { font-size: 14px; }
+}
+
+@media (max-width: 480px) {
+  #art-body-{{ section.id }} .art-body__related-grid { grid-template-columns: 1fr; }
+  #art-body-{{ section.id }} .art-body__prose { font-size: 15px; }
+}
+</style>
+
+
+{% schema %}
+{
+  "name": "Artikel Inhalt",
+  "tag": "section",
+  "class": "section-article-body",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Farben"
+    },
+    {
+      "type": "color",
+      "id": "color_bg",
+      "label": "Hintergrund",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "color_ink",
+      "label": "Haupttext",
+      "default": "#56473A"
+    },
+    {
+      "type": "color",
+      "id": "color_mid",
+      "label": "Gedimmter Text",
+      "default": "#8C7C70"
+    },
+    {
+      "type": "color",
+      "id": "color_accent",
+      "label": "Akzentfarbe (Links, Tags)",
+      "default": "#3DADBB"
+    },
+    {
+      "type": "color",
+      "id": "color_tag_bg",
+      "label": "Tag Hintergrund",
+      "default": "#EAF6F8"
+    },
+    {
+      "type": "color",
+      "id": "color_tag_text",
+      "label": "Tag Text",
+      "default": "#1a5c57"
+    },
+    {
+      "type": "color",
+      "id": "color_divider",
+      "label": "Trennlinie",
+      "default": "#e0dfd8"
+    },
+    {
+      "type": "color",
+      "id": "color_related_bg",
+      "label": "\"Weitere Artikel\" Hintergrund",
+      "default": "#FAF9F5"
+    },
+    {
+      "type": "header",
+      "content": "Autor-Karte (Sidebar)"
+    },
+    {
+      "type": "text",
+      "id": "author_label",
+      "label": "Bezeichnung (Eyebrow)",
+      "default": "Autorin",
+      "info": "Kleiner Text über dem Autorennamen, z.B. \"Autorin\" oder \"Über mich\"."
+    },
+    {
+      "type": "image_picker",
+      "id": "author_image",
+      "label": "Autor-Foto (Fallback)",
+      "info": "Nur als Notfall-Fallback. Vorrang hat das Foto aus dem Author-Metaobject (image.value), dann das Shopify-Mitarbeiterkonto."
+    },
+    {
+      "type": "text",
+      "id": "author_link_label",
+      "label": "Link-Text zur Autorenseite",
+      "default": "Mehr über die Autorin →"
+    },
+    {
+      "type": "header",
+      "content": "Social Share"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_share",
+      "label": "Social Share anzeigen",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "share_icon_bg",
+      "label": "Icon Hintergrundfarbe",
+      "default": "#56473A"
+    },
+    {
+      "type": "text",
+      "id": "share_heading",
+      "label": "Überschrift",
+      "default": "Gemeinsam geht's leichter."
+    },
+    {
+      "type": "textarea",
+      "id": "share_subtext",
+      "label": "Text",
+      "default": "Wenn Dir der Artikel weitergeholfen hat, kann er auch anderen helfen, die gerade vor denselben Fragen stehen. Geht zusammen den ersten Schritt in eine Richtung, die sich besser anfühlt."
+    },
+    {
+      "type": "header",
+      "content": "Tags"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_tags",
+      "label": "Tags anzeigen",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Zurück-Link"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_back_link",
+      "label": "Zurück-Link anzeigen",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "back_label",
+      "label": "Zurück-Link Text",
+      "default": "Zurück zum Blog"
+    },
+    {
+      "type": "header",
+      "content": "Weitere Artikel"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_related",
+      "label": "Weitere Artikel anzeigen",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "related_heading",
+      "label": "Überschrift",
+      "default": "Weitere Artikel"
+    },
+    {
+      "type": "header",
+      "content": "Quick Nav"
+    },
+    {
+      "type": "color",
+      "id": "section_bg_color",
+      "label": "Quick Nav Hintergrund",
+      "default": "#f5f4f0"
+    },
+    {
+      "type": "text",
+      "id": "nav_eyebrow",
+      "label": "Quick Nav Eyebrow Text",
+      "default": "SCHNELL-NAVIGATION"
+    },
+    {
+      "type": "color",
+      "id": "eyebrow_color",
+      "label": "Quick Nav Eyebrow Farbe",
+      "default": "#888888"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "nav_card",
+      "name": "Nav Card",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Titel",
+          "default": "Wechseljahre & Hormone"
+        },
+        {
+          "type": "color",
+          "id": "title_color",
+          "label": "Titel Farbe",
+          "default": "#56473A"
+        },
+        {
+          "type": "text",
+          "id": "subtitle",
+          "label": "Untertext",
+          "default": "Warum Dein Körper ab 50 andere Regeln hat"
+        },
+        {
+          "type": "color",
+          "id": "subtitle_color",
+          "label": "Untertext Farbe",
+          "default": "#8C7C70"
+        },
+        {
+          "type": "color",
+          "id": "arrow_color",
+          "label": "Pfeil Farbe",
+          "default": "#8C7C70"
+        },
+        {
+          "type": "url",
+          "id": "link_url",
+          "label": "Link"
+        },
+        {
+          "type": "color",
+          "id": "card_bg",
+          "label": "Karten Hintergrund",
+          "default": "#ffffff"
+        },
+        {
+          "type": "color",
+          "id": "card_border",
+          "label": "Karten Rahmen",
+          "default": "#e0dfd8"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Artikel Inhalt",
+      "blocks": [
+        { "type": "nav_card", "settings": { "title": "Diät Tipps", "subtitle": "So gestaltest Du Deine Abnehmreise erfolgreich" } },
+        { "type": "nav_card", "settings": { "title": "Essen & Trinken", "subtitle": "Lerne wie Essen & Trinken Dich gesund machen kann" } },
+        { "type": "nav_card", "settings": { "title": "Lebensstil", "subtitle": "So hältst Du Dich dauerhaft in Balance" } },
+        { "type": "nav_card", "settings": { "title": "Erfahrungsberichte", "subtitle": "Echte Geschichten von echten Menschen" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

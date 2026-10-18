@@ -1,0 +1,180 @@
+<style>
+  .countdown-banner {
+    background-color: {{ section.settings.bg_color }};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    width: 100%;
+  }
+  .countdown-banner .lightning { font-size: 20px; }
+  .countdown-banner .countdown {
+    background-color: rgba(255, 255, 255, 0.18);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-variant-numeric: tabular-nums;
+    font-size: 19px;
+    letter-spacing: 2px;
+    min-width: 110px;
+    text-align: center;
+  }
+  .countdown-banner .divider {
+    margin: 0 6px;
+    opacity: 0.6;
+    font-weight: 300;
+  }
+  .countdown-banner--hidden { display: none; }
+
+  @media (max-width: 600px) {
+    .countdown-banner {
+      padding: 6px 10px;
+      font-size: 11px;
+      gap: 5px;
+      letter-spacing: 0.8px;
+      white-space: nowrap;
+    }
+    .countdown-banner .lightning { font-size: 13px; }
+    .countdown-banner .countdown {
+      padding: 3px 8px;
+      font-size: 12px;
+      min-width: auto;
+      letter-spacing: 1px;
+      border-radius: 4px;
+    }
+    .countdown-banner .divider {
+      margin: 0 3px;
+    }
+  }
+</style>
+
+{% assign end_date = section.settings.end_date %}
+{% assign end_hour = section.settings.end_hour %}
+{% assign end_minute = section.settings.end_minute %}
+
+<div class="countdown-banner" id="countdown-banner-{{ section.id }}">
+  <span class="lightning">⚡</span>
+  <span>{{ section.settings.text_left }}</span>
+  <span class="countdown" id="countdown-timer-{{ section.id }}">00:00:00</span>
+  <span class="divider">|</span>
+  <span>{{ section.settings.text_right }}</span>
+</div>
+
+<script>
+  (function() {
+    var endDateStr = '{{ end_date }}';
+    var endHour = {{ end_hour }};
+    var endMinute = {{ end_minute }};
+
+    if (!endDateStr || endDateStr === '') return;
+
+    /* Build the target date — Shopify date picker gives YYYY-MM-DD */
+    var parts = endDateStr.split('-');
+    var endTime = new Date(
+      parseInt(parts[0]),
+      parseInt(parts[1]) - 1,
+      parseInt(parts[2]),
+      endHour,
+      endMinute,
+      0
+    ).getTime();
+
+    var bannerId = 'countdown-banner-{{ section.id }}';
+    var timerId  = 'countdown-timer-{{ section.id }}';
+
+    function update() {
+      var remaining = endTime - Date.now();
+      var banner = document.getElementById(bannerId);
+      var el = document.getElementById(timerId);
+
+      if (remaining <= 0) {
+        {% if section.settings.hide_when_expired %}
+          banner.style.display = 'none';
+        {% else %}
+          el.textContent = '00:00:00';
+        {% endif %}
+        return;
+      }
+
+      var h = Math.floor(remaining / 3600000);
+      var m = Math.floor((remaining % 3600000) / 60000);
+      var s = Math.floor((remaining % 60000) / 1000);
+
+      el.textContent =
+        String(h).padStart(2, '0') + ':' +
+        String(m).padStart(2, '0') + ':' +
+        String(s).padStart(2, '0');
+    }
+
+    update();
+    setInterval(update, 1000);
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Countdown Banner",
+  "settings": [
+    {
+      "type": "color",
+      "id": "bg_color",
+      "label": "Background Color",
+      "default": "#2e8b57"
+    },
+    {
+      "type": "text",
+      "id": "text_left",
+      "label": "Left Text",
+      "default": "Aktion endet in"
+    },
+    {
+      "type": "text",
+      "id": "text_right",
+      "label": "Right Text",
+      "default": "Gratis Versand"
+    },
+    {
+      "type": "text",
+      "id": "end_date",
+      "label": "End Date (YYYY-MM-DD)",
+      "default": "2026-05-31",
+      "info": "Enter the date the countdown should end, e.g. 2026-05-31"
+    },
+    {
+      "type": "range",
+      "id": "end_hour",
+      "label": "End Hour (0–23)",
+      "min": 0,
+      "max": 23,
+      "step": 1,
+      "default": 23
+    },
+    {
+      "type": "range",
+      "id": "end_minute",
+      "label": "End Minute (0–59)",
+      "min": 0,
+      "max": 59,
+      "step": 1,
+      "default": 59
+    },
+    {
+      "type": "checkbox",
+      "id": "hide_when_expired",
+      "label": "Hide banner when expired",
+      "default": true
+    }
+  ],
+  "presets": [
+    {
+      "name": "Countdown Banner"
+    }
+  ]
+}
+{% endschema %}

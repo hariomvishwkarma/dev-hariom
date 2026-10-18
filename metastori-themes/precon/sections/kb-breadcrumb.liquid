@@ -1,0 +1,86 @@
+{%- comment -%}
+  Knowledge Base breadcrumb section.
+
+  Smart wrapper: reads the current `metaobject` (available on any metaobject
+  template), resolves the trail based on the entry's type, then delegates
+  markup to the `kb-breadcrumb` snippet. Drop this section into the `order`
+  of any KB metaobject template.
+
+  Supported types:
+    knowledgebase_categories -> [Home] > Wissensdatenbank > Category
+    knowledgebase_faq         -> [Home] > Wissensdatenbank > Category > Article
+{%- endcomment -%}
+
+{%- liquid
+  assign kb_type = metaobject.system.type
+
+  assign current_label = blank
+  assign current_url = metaobject.system.url
+  assign parent_label = blank
+  assign parent_url = blank
+
+  case kb_type
+    when 'knowledgebase_categories'
+      assign current_label = metaobject.title
+    when 'knowledgebase_faq'
+      assign current_label = metaobject.question
+      # parent_category reference to be added to the FAQ definition (Gap 2).
+      assign parent = metaobject.parent_category.value
+      if parent != blank
+        assign parent_label = parent.title
+        assign parent_url = parent.system.url
+      endif
+  endcase
+-%}
+
+<div class="container">
+  {%- render 'kb-breadcrumb',
+    show_home_crumb: section.settings.show_home_crumb,
+    home_label: section.settings.home_label,
+    root_label: section.settings.root_label,
+    root_url: section.settings.home_page.url,
+    current_label: current_label,
+    current_url: current_url,
+    parent_label: parent_label,
+    parent_url: parent_url
+  -%}
+</div>
+
+{% schema %}
+{
+  "name": "KB Breadcrumb",
+  "tag": "section",
+  "class": "shopify-section--kb-breadcrumb",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_home_crumb",
+      "label": "Show site Home crumb",
+      "info": "Prepend the storefront Home link before the Knowledge Base root, matching the theme's other breadcrumbs.",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "home_label",
+      "label": "Home crumb label",
+      "info": "Optional: override the default label for the Home crumb."
+    },
+    {
+      "type": "text",
+      "id": "root_label",
+      "label": "Knowledge Base root label",
+      "info": "Optional: override the default label for the Knowledge Base root (Wissensdatenbank).",
+      "default": "Wissensdatenbank"
+    },
+    {
+      "type": "page",
+      "id": "home_page",
+      "label": "Knowledge Base home page",
+      "info": "Optional: override the default KB root URL (/pages/knowledge)."
+    }
+  ],
+  "presets": [
+    { "name": "KB Breadcrumb" }
+  ]
+}
+{% endschema %}

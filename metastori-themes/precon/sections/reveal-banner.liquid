@@ -1,0 +1,462 @@
+<section class="rvb" id="rvb-{{ section.id }}" data-reveal="false">
+
+  <!-- ── Background image (desktop) ── -->
+  {%- if section.settings.background_image != blank -%}
+    <div class="rvb__bg rvb__bg--desktop">
+      {{ section.settings.background_image | image_url: width: 2600 | image_tag:
+        class: 'rvb__img',
+        loading: 'eager',
+        fetchpriority: 'high',
+        sizes: '100vw',
+        widths: '375, 750, 1100, 1500, 2000, 2600'
+      }}
+    </div>
+  {%- endif -%}
+
+  <!-- ── Background image (mobile) ── -->
+  {%- assign mobile_img = section.settings.mobile_image -%}
+  {%- if mobile_img != blank -%}
+    <div class="rvb__bg rvb__bg--mobile">
+      {{ mobile_img | image_url: width: 1100 | image_tag:
+        class: 'rvb__img',
+        loading: 'eager',
+        fetchpriority: 'high',
+        sizes: '100vw',
+        widths: '375, 750, 1100'
+      }}
+    </div>
+  {%- endif -%}
+
+  <!-- ── Light wash over blurred image (desktop) ── -->
+  <div class="rvb__wash"></div>
+
+  <!-- ── Mobile: backdrop-filter veil covers entire section ── -->
+  <div class="rvb__blur-veil"></div>
+
+  <!-- ── Click trigger (visible before reveal) ── -->
+  <button class="rvb__trigger" aria-label="{{ section.settings.trigger_label }}">
+    <span class="rvb__trigger-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+    </span>
+    <span class="rvb__trigger-label">{{ section.settings.trigger_label }}</span>
+  </button>
+
+  <!-- ── Revealed content: card on the right ── -->
+  <div class="rvb__content page-width">
+    <div class="rvb__card" style="background: {{ section.settings.card_bg }};">
+
+      {%- if section.settings.card_title != blank -%}
+        <h3 class="rvb__card-title">{{ section.settings.card_title }}</h3>
+      {%- endif -%}
+
+      {%- if section.blocks.size > 0 -%}
+        <ul class="rvb__bullets">
+          {%- for block in section.blocks -%}
+            {%- if block.type == 'bullet' -%}
+              <li class="rvb__bullet" {{ block.shopify_attributes }}>{{ block.settings.text }}</li>
+            {%- endif -%}
+          {%- endfor -%}
+        </ul>
+      {%- endif -%}
+
+      {%- if section.settings.card_accent != blank -%}
+        <p class="rvb__card-accent" style="color: {{ section.settings.accent_color }};">
+          <em>{{ section.settings.card_accent }}</em>
+        </p>
+      {%- endif -%}
+
+    </div>
+  </div>
+
+</section>
+
+<style>
+  /* ── Gate: blur all sections after the reveal-banner until revealed ── */
+  body.rvb-gate-active .section-reveal-banner ~ .shopify-section {
+    filter: blur(20px);
+    pointer-events: none;
+    user-select: none;
+    transition: filter 0.7s ease;
+  }
+
+  body:not(.rvb-gate-active) .section-reveal-banner ~ .shopify-section {
+    filter: blur(0);
+    transition: filter 0.7s ease;
+  }
+
+  /* ── Wrapper ── */
+  .rvb {
+    position: relative;
+    width: 100%;
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    font-family: var(--accent-font-family);
+    font-style: var(--accent-font-style);
+  }
+
+  /* ── Background images ── */
+  .rvb__bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    transition: filter 0.7s ease, transform 0.7s ease;
+  }
+
+  .rvb__bg--mobile { display: none; }
+
+  .rvb__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  /* Blur state: image blurred + slightly scaled to hide blur edges */
+  .rvb[data-reveal="false"] .rvb__bg {
+    filter: blur(22px);
+    transform: scale(1.06);
+  }
+
+  /* Revealed state: sharp */
+  .rvb[data-reveal="true"] .rvb__bg {
+    filter: blur(0);
+    transform: scale(1);
+  }
+
+  /* ── Light wash (softens blur, hides edges) ── */
+  .rvb__wash {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.3);
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+  }
+
+  .rvb[data-reveal="true"] .rvb__wash {
+    opacity: 0;
+  }
+
+  /* ── Trigger button ── */
+  .rvb__trigger {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: opacity 0.4s ease;
+  }
+
+  .rvb[data-reveal="true"] .rvb__trigger {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .rvb__trigger-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: {{ section.settings.accent_color }};
+    color: #ffffff;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+  }
+
+  .rvb__trigger:hover .rvb__trigger-icon {
+    transform: scale(1.08);
+  }
+
+  .rvb__trigger-label {
+    font-family: 'Figtree', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: {{ section.settings.text_color }};
+    letter-spacing: 0.01em;
+  }
+
+  /* ── Content (revealed state) ── */
+  .rvb__content {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    padding: 48px max(24px, 4rem);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease 0.35s;
+  }
+
+  .rvb[data-reveal="true"] .rvb__content {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* ── Card ── */
+  .rvb__card {
+    width: 340px;
+    max-width: 100%;
+    border-radius: 16px;
+    padding: 28px 28px 24px;
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.10);
+  }
+
+  /* Card title: Figtree Semi-Bold */
+  .rvb__card-title {
+    font-family: 'Figtree', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: {{ section.settings.text_color }};
+    line-height: 1.3;
+    margin: 0 0 18px;
+  }
+
+  /* Bullet list */
+  .rvb__bullets {
+    list-style: none;
+    margin: 0 0 18px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .rvb__bullet {
+    font-family: 'Figtree', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: {{ section.settings.text_color }};
+    line-height: 1.55;
+    padding-left: 22px;
+    position: relative;
+  }
+
+  .rvb__bullet::before {
+    content: '—';
+    position: absolute;
+    left: 0;
+    color: {{ section.settings.text_color }};
+    opacity: 0.4;
+    font-weight: 300;
+  }
+
+  /* Accent line: Playfair Display Medium Italic */
+  .rvb__card-accent {
+    font-family: var(--accent-font-family);
+    font-style: var(--accent-font-style);
+    font-size: 15px;
+    font-weight: 500;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  /* ── blur-veil: hidden on desktop ── */
+  .rvb__blur-veil { display: none; }
+
+  /* ── Mobile ── */
+  @media (max-width: 768px) {
+
+    /* Section: column stack, background fills area below the image */
+    .rvb {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      align-items: stretch;
+      background: {{ section.settings.card_bg }};
+      padding-bottom: 32px;
+    }
+
+    /* ── Image: in-flow block at the top ── */
+    .rvb__bg {
+      position: relative;
+      inset: auto;
+      height: 320px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* Disable image-level blur on mobile — veil handles it */
+    .rvb[data-reveal="false"] .rvb__bg,
+    .rvb[data-reveal="true"] .rvb__bg {
+      filter: none;
+      transform: none;
+    }
+
+    {%- if mobile_img != blank -%}
+      .rvb__bg--desktop { display: none; }
+    {%- endif -%}
+    .rvb__bg--mobile { display: block; }
+
+    /* Desktop wash not needed — veil replaces it */
+    .rvb__wash { display: none; }
+
+    /* ── Full-section blur veil via backdrop-filter ── */
+    .rvb__blur-veil {
+      display: block;
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      background: rgba(255, 255, 255, 0.2);
+      transition: opacity 0.6s ease;
+    }
+
+    .rvb[data-reveal="true"] .rvb__blur-veil {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Trigger above the veil */
+    .rvb__trigger { z-index: 9; }
+
+    /* ── Card: floats up over the bottom of the image ── */
+    .rvb__content {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      justify-content: center;
+      padding: 0 20px;
+      margin-top: -56px; /* overlap the image */
+    }
+
+    .rvb__card {
+      width: 100%;
+      max-width: 340px;
+      border-radius: 16px;
+      box-shadow: 0 4px 28px rgba(0, 0, 0, 0.13);
+      padding: 24px 22px 20px;
+    }
+  }
+</style>
+
+<script>
+  (function () {
+    var section = document.getElementById('rvb-{{ section.id }}');
+    if (!section) return;
+    var trigger = section.querySelector('.rvb__trigger');
+
+    /* ── Gate: CSS sibling selector handles the blur ──
+         Adding 'rvb-gate-active' to <body> activates:
+         body.rvb-gate-active .section-reveal-banner ~ .shopify-section { filter: blur(...) }
+         This targets every .shopify-section that follows the reveal-banner wrapper. ── */
+    document.body.classList.add('rvb-gate-active');
+
+    trigger.addEventListener('click', function () {
+      section.setAttribute('data-reveal', 'true');
+      document.body.classList.remove('rvb-gate-active');
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Reveal Banner",
+  "tag": "section",
+  "class": "section-reveal-banner",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Images"
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Background image"
+    },
+    {
+      "type": "image_picker",
+      "id": "mobile_image",
+      "label": "Mobile background image",
+      "info": "Falls back to the desktop image if left empty."
+    },
+    {
+      "type": "header",
+      "content": "Trigger"
+    },
+    {
+      "type": "text",
+      "id": "trigger_label",
+      "label": "Trigger label",
+      "default": "Hier klicken zum Enthüllen"
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent color (icon + card accent text)",
+      "default": "#4FBFBE"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#2c2c2c"
+    },
+    {
+      "type": "header",
+      "content": "Card"
+    },
+    {
+      "type": "color",
+      "id": "card_bg",
+      "label": "Card background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "text",
+      "id": "card_title",
+      "label": "Card title",
+      "default": "Complete Shake Cocos"
+    },
+    {
+      "type": "text",
+      "id": "card_accent",
+      "label": "Accent line (italic, Playfair)",
+      "default": "So wird Abnehmen erfrischender."
+    }
+  ],
+  "blocks": [
+    {
+      "type": "bullet",
+      "name": "Bullet point",
+      "settings": [
+        {
+          "type": "text",
+          "id": "text",
+          "label": "Text",
+          "default": "Neue, verbesserte Rezeptur"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Reveal Banner",
+      "blocks": [
+        { "type": "bullet", "settings": { "text": "Neue, verbesserte Rezeptur" } },
+        { "type": "bullet", "settings": { "text": "Noch cremiger für Deinen perfekten Sommermoment" } },
+        { "type": "bullet", "settings": { "text": "Wie gewohnt mit allen Precon Nährwerten" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,350 @@
+<!-- snippets/newsletter-popup.liquid -->
+
+{%- doc -%}
+  Renders the newsletter popup block.
+  @param {block} block - Popup block context.
+{%- enddoc -%}
+
+{%- liquid
+  assign email_t = 'general.mailing_list.email' | t
+  assign shopify_disclaimer_t = 'shopify.online_store.spam_detection.disclaimer_html' | t
+
+  assign bg_color = block.settings.background-color
+  assign days_range = block.settings.days-range
+  assign delay = block.settings.delay
+  assign description = block.settings.description
+  assign heading = block.settings.heading
+  assign image = block.settings.image
+  assign image_enabled = block.settings.image-enabled
+  assign image_position = block.settings.image-position
+  assign page_enabled = block.settings.page-enabled
+  assign page_url = block.settings.page-url
+  assign popup_width = block.settings.popup-width
+  assign referrer_enabled = block.settings.referrer-enabled
+  assign referrer_url = block.settings.referrer-url
+  assign show_at_bottom = block.settings.show-at-bottom
+  assign size = block.type | split: '-' | last
+  assign social_enabled = block.settings.social-enabled
+  assign social_title = block.settings.social-title | escape
+  assign text_alignment = block.settings.text-alignment
+  assign text_color = block.settings.text-color
+  assign translucent = block.settings.translucent
+
+  assign close_icon_color = text_color
+  assign image_display_width = blank
+  if image_enabled
+    if size == 'small' and image_position == 'top'
+      assign close_icon_color = 'white'
+    elsif size == 'large' and image_position == 'right'
+      assign close_icon_color = 'white'
+    endif
+
+    assign image_display_width = popup_width
+    if size == 'large'
+      assign image_display_width = popup_width | divided_by: 2
+    elsif size == 'small' and image_position == 'left'
+      assign image_display_width = popup_width | divided_by: 3
+    endif
+
+    if image != blank and image_display_width > image.width
+      assign image_display_width = image.width
+    endif
+
+    assign sizes = image_display_width | append: 'px'
+    assign image_render_width = image_display_width | times: 2 | append: ''
+  endif
+-%}
+
+{%- unless page_enabled and page_url != request.path -%}
+  <popup-block
+    class="newsletter-popup--root"
+    data-block-id="{{ block.id | camelize }}"
+    data-background-color="{{ bg_color }}"
+    data-delay="{{ delay }}"
+    data-image-enabled="{{ image_enabled }}"
+    data-image-position="{{ image_position }}"
+    data-size="{{ size }}"
+    data-show-again-after="{{ days_range }}"
+    data-show-at-bottom="{{ show_at_bottom }}"
+    data-referrer-enabled="{{ referrer_enabled }}"
+    data-referrer-url="{{ referrer_url }}"
+    data-translucent="{{ translucent }}"
+    data-x-alignment="{{ text_alignment }}"
+    aria-hidden="true"
+    style="--max-width:{{ popup_width }}px;"
+    {{ block.shopify_attributes }}
+  >
+    <div class="newsletter-popup--container">
+      {%- if image_enabled -%}
+        <div class="newsletter-popup--image" data-mq="medium-large">
+          {%- if image == blank -%}
+            {%-
+              render 'placeholder',
+              type: 'lifestyle',
+              placeholder_index: 1,
+              display_type: 'fill-available',
+              overlay_style: 'darken-top'
+            -%}
+          {%- else -%}
+            {%-
+              render 'image',
+              display_type: 'fill-available',
+              image: image,
+              sizes: sizes,
+              widths: image_render_width
+            -%}
+          {%- endif -%}
+        </div>
+      {%- endif -%}
+
+      <div
+        class="newsletter-popup--content"
+        data-container="block"
+        data-text-color="{{ text_color }}"
+      >
+        {%- unless heading == blank -%}
+          <h3 class="newsletter-popup--heading" data-item="block-heading">
+            {{- heading -}}
+          </h3>
+        {%- endunless -%}
+
+        {%- unless description == blank -%}
+          <div class="newsletter-popup--description" data-item="rte-content">
+            {{- description -}}
+          </div>
+        {%- endunless -%}
+
+        {%- liquid
+          assign subscribe_layout = blank
+          if size == 'large' and image_enabled and popup_width < 850
+            assign subscribe_layout = 'column'
+          elsif size == 'small' and image_enabled and image_position == 'left'
+            assign subscribe_layout = 'column'
+          elsif size == 'small' and popup_width < 400
+            assign subscribe_layout = 'column'
+          endif
+        -%}
+
+        {%-
+          render 'subscribe-form',
+          id: block.id,
+          alignment: text_alignment,
+          layout: subscribe_layout
+        -%}
+
+        {%- liquid
+          if social_enabled
+            render 'social-media', type: 'follow', heading: social_title, alignment: text_alignment, mobile_alignment: 'center'
+          endif
+        -%}
+      </div>
+    </div>
+
+    <button
+      class="layout--close"
+      data-text-color="{{ close_icon_color }}"
+      aria-label="{{ 'general.a11y.close' | t }}"
+    ></button>
+  </popup-block>
+{%- endunless -%}
+
+{% stylesheet %}
+  .newsletter-popup--root {
+    --border-radius: var(--image--radius);
+    border-radius: var(--border-radius);
+
+    .layout--close {
+      position: absolute;
+    }
+
+    &[data-size='large'] .layout--close {
+      --cross-size: 20px;
+      right: var(--spacing--2);
+      top: var(--spacing--2);
+    }
+
+    &[data-size='small'] .layout--close {
+      --cross-size: 14px;
+      right: var(--spacing--1);
+      top: var(--spacing--1);
+    }
+
+    .social-media--root:empty {
+      display: none;
+    }
+
+    @media (min-width: 768px) {
+      &[data-size='large'] {
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        transform-origin: center center;
+        min-height: 500px;
+        max-width: var(--max-width, 500px);
+        width: calc(100% - 2 * var(--spacing--block));
+      }
+
+      &[data-size='small'] {
+        bottom: var(--spacing--block);
+        right: var(--spacing--block);
+        transform-origin: bottom right;
+        width: fit-content;
+        max-width: min(var(--max-width, 400px), calc(100% - 2 * var(--spacing--block)));
+
+        &[data-image-position='left'],
+        &[data-image-position='top'] {
+          width: min(var(--max-width, 400px), calc(100% - 2 * var(--spacing--block)));
+        }
+      }
+    }
+
+    @media (max-width: 767px) {
+      bottom: var(--spacing--item);
+
+      &[data-size='large'] {
+        left: var(--spacing--item);
+        width: calc(100% - 2 * var(--spacing--item));
+      }
+
+      &[data-size='small'] {
+        right: var(--spacing--item);
+        width: fit-content;
+        max-width: calc(100% - 2 * var(--spacing--item));
+      }
+    }
+  }
+
+  .newsletter-popup--container {
+    display: grid;
+    align-items: center;
+    text-align: var(--text-alignment);
+    width: 100%;
+
+    .newsletter-popup--root[data-size='small'] & {
+      width: fit-content;
+    }
+
+    @media (max-width: 767px) {
+      width: 100%;
+
+      .newsletter-popup--root[data-image-enabled='true'] & {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (min-width: 768px) {
+      .newsletter-popup--root[data-size='large'][data-image-enabled='true'] & {
+        grid-template-columns: 1fr 1fr;
+        align-items: stretch;
+        height: fill-available;
+        height: -webkit-fill-available;
+      }
+
+      .newsletter-popup--root[data-size='small'][data-image-position='top'] &,
+      .newsletter-popup--root[data-size='small'][data-image-position='left'] & {
+        width: 100%;
+      }
+
+      .newsletter-popup--root[data-size='small'][data-image-enabled='true'][data-image-position='top'] & {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+        align-items: stretch;
+        max-height: calc(100vh - 2 * var(--spacing--block));
+      }
+
+      .newsletter-popup--root[data-size='small'][data-image-enabled='true'][data-image-position='left'] & {
+        grid-template-columns: 1fr 2fr;
+        align-items: stretch;
+      }
+    }
+  }
+
+  .newsletter-popup--content {
+    min-width: 0;
+    padding: var(--spacing--block);
+
+    .newsletter-popup--root[data-size='large'] & {
+      align-self: center;
+    }
+
+    .newsletter-popup--root[data-size='large'][data-image-enabled='true'][data-image-position='right'] & {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .newsletter-popup--root[data-size='small'] & {
+      width: auto;
+      padding: var(--spacing--item);
+    }
+
+    &:only-child {
+      grid-column: 1 / -1;
+    }
+
+     @media (max-width: 767px) {
+      .newsletter-popup--root[data-image-enabled='true'] & {
+        grid-column: 1;
+      }
+    }
+  }
+
+  .newsletter-popup--root[data-size='small'] .subscribe-form--root {
+    --subscribe-form--max-width: 100%;
+  }
+
+  .newsletter-popup--image {
+    min-width: 0;
+    overflow: hidden;
+
+    .newsletter-popup--root[data-size='large'] & {
+      --image--height: fill-available;
+      --image--height: -webkit-fill-available;
+    }
+
+    .newsletter-popup--root[data-size='large'][data-image-position='left'] & {
+      --image--radius-top-right: 0;
+      --image--radius-bottom-right: 0;
+
+      .layout--viewport[data-drop-shadows='false'] & {
+        --image--radius-top-left: calc(var(--border-radius) - var(--border--thickness));
+        --image--radius-bottom-left: calc(var(--border-radius) - var(--border--thickness));
+      }
+    }
+
+    .newsletter-popup--root[data-size='large'][data-image-position='right'] & {
+      --image--radius-top-left: 0;
+      --image--radius-bottom-left: 0;
+      grid-column: 2;
+      grid-row: 1;
+
+      .layout--viewport[data-drop-shadows='false'] & {
+        --image--radius-top-right: calc(var(--border-radius) - var(--border--thickness));
+        --image--radius-bottom-right: calc(var(--border-radius) - var(--border--thickness));
+      }
+    }
+
+    .newsletter-popup--root[data-size='small'][data-image-position='top'] & {
+      --image--radius-bottom-right: 0;
+      --image--radius-bottom-left: 0;
+
+      .layout--viewport[data-drop-shadows='false'] & {
+        --image--radius-top-right: calc(var(--border-radius) - var(--border--thickness));
+        --image--radius-top-left: calc(var(--border-radius) - var(--border--thickness));
+      }
+
+      @media (min-width: 768px) {
+        width: 100%;
+      }
+    }
+
+    .newsletter-popup--root[data-size='small'][data-image-position='left'] & {
+      --image--radius-top-right: 0;
+      --image--radius-bottom-right: 0;
+
+      .layout--viewport[data-drop-shadows='false'] & {
+        --image--radius-top-left: calc(var(--border-radius) - var(--border--thickness));
+        --image--radius-bottom-left: calc(var(--border-radius) - var(--border--thickness));
+      }
+    }
+  }
+{% endstylesheet %}

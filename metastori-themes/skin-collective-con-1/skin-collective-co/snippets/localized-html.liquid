@@ -1,0 +1,49 @@
+{%- doc -%}
+  Echoes `html` with internal `href="/…"` links rewritten into the shopper's
+  current locale/market subfolder (e.g. `/pt/pages/faqs` while browsing `/pt`).
+
+  Rich-text settings are stored as raw HTML, so a link a merchant inserted is a
+  bare path Shopify will not localize — following one drops the shopper back onto
+  the default language. This is the rich-text counterpart to
+  `snippets/localized-url.liquid`; use that one for `url`-type settings.
+
+  Left untouched: absolute URLs, protocol-relative `//host`, `#`, `mailto:`/`tel:`,
+  and links already carrying the current locale prefix. Matches double-quoted
+  `href` attributes, which is what Shopify's rich-text editor emits.
+
+  @param {string} html - Rich text / HTML string to localize.
+
+  @example
+    {%- render 'localized-html', html: block.settings.description -%}
+{%- enddoc -%}
+
+{%- liquid
+  assign lh_out = html
+
+  # Locale/market root: '' on the primary locale, '/pt' elsewhere.
+  assign lh_root = routes.root_url | default: '/'
+  if lh_root == '/'
+    assign lh_root = ''
+  else
+    assign lh_tail = lh_root | slice: -1, 1
+    if lh_tail == '/'
+      assign lh_cut = lh_root.size | minus: 1
+      assign lh_root = lh_root | slice: 0, lh_cut
+    endif
+  endif
+
+  if lh_root != blank and lh_out contains 'href="/'
+    assign lh_prefixed = 'href="' | append: lh_root | append: '/'
+    assign lh_out = lh_out | replace: 'href="/', lh_prefixed
+
+    # `href="//host"` is protocol-relative — an absolute URL, not a path.
+    assign lh_scheme = 'href="' | append: lh_root | append: '//'
+    assign lh_out = lh_out | replace: lh_scheme, 'href="//'
+
+    # A link the merchant already localized would otherwise be prefixed twice.
+    assign lh_double = 'href="' | append: lh_root | append: lh_root | append: '/'
+    assign lh_out = lh_out | replace: lh_double, lh_prefixed
+  endif
+
+  echo lh_out
+-%}

@@ -1,0 +1,405 @@
+{% comment %}
+  Hero Banner Section
+  — Full-width image with headline, subheading, CTA button
+  — Adjustable text-shadow/glow strength
+  — Optional colour overlay with adjustable opacity
+{% endcomment %}
+
+{%- liquid
+  assign text_shadow_strength = section.settings.text_shadow_strength | default: 70
+  assign shadow_alpha = text_shadow_strength | divided_by: 100.0
+  assign overlay_enabled = section.settings.overlay_enabled
+  assign overlay_color = section.settings.overlay_color | default: '#000000'
+  assign overlay_opacity = section.settings.overlay_opacity | default: 30
+  assign overlay_alpha = overlay_opacity | divided_by: 100.0
+  assign content_align = section.settings.content_alignment | default: 'left'
+-%}
+
+{%- style -%}
+  #hero-{{ section.id }} {
+    position: relative;
+    width: 100%;
+    min-height: {{ section.settings.section_height }}px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+  }
+
+  #hero-{{ section.id }} .hero__bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: {{ section.settings.image_focal_point }};
+    z-index: 0;
+  }
+
+  /* Overlay */
+  #hero-{{ section.id }} .hero__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    {% if overlay_enabled %}
+      background-color: {{ overlay_color }};
+      opacity: {{ overlay_alpha }};
+    {% else %}
+      display: none;
+    {% endif %}
+  }
+
+  /* Content */
+  #hero-{{ section.id }} .hero__content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    padding: 60px clamp(24px, 5vw, 80px);
+    text-align: {{ content_align }};
+    {% if content_align == 'center' %}
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    {% elsif content_align == 'right' %}
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    {% else %}
+      max-width: 600px;
+    {% endif %}
+  }
+
+  /* Typography — shared shadow variable */
+  #hero-{{ section.id }} .hero__heading,
+  #hero-{{ section.id }} .hero__subheading {
+    --shadow-alpha: {{ shadow_alpha }};
+    --shadow-blur: {{ section.settings.text_shadow_blur }}px;
+    --shadow-spread: {{ section.settings.text_shadow_spread }}px;
+    text-shadow:
+      0 2px var(--shadow-blur) rgba(0,0,0,var(--shadow-alpha)),
+      0 0 var(--shadow-spread) rgba(0,0,0,calc(var(--shadow-alpha) * 0.5));
+  }
+
+  #hero-{{ section.id }} .hero__heading {
+    margin: 0 0 12px;
+    font-size: clamp(28px, 4.5vw, 58px);
+    font-weight: 700;
+    line-height: 1.15;
+    color: {{ section.settings.heading_color }};
+    letter-spacing: -0.02em;
+  }
+
+  #hero-{{ section.id }} .hero__subheading {
+    margin: 0 0 32px;
+    font-size: clamp(14px, 1.6vw, 20px);
+    font-weight: 400;
+    line-height: 1.5;
+    color: {{ section.settings.subheading_color }};
+  }
+
+  /* CTA Button */
+  #hero-{{ section.id }} .hero__cta {
+    display: inline-block;
+    padding: 14px 32px;
+    border-radius: {{ section.settings.button_border_radius }}px;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.15s ease;
+    {% if section.settings.button_style == 'filled' %}
+      background-color: {{ section.settings.button_bg_color }};
+      color: {{ section.settings.button_text_color }};
+      border: 2px solid transparent;
+    {% elsif section.settings.button_style == 'outline' %}
+      background-color: transparent;
+      color: {{ section.settings.button_text_color }};
+      border: 2px solid {{ section.settings.button_text_color }};
+    {% endif %}
+  }
+
+  #hero-{{ section.id }} .hero__cta:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+  }
+
+  /* Mobile */
+  @media (max-width: 749px) {
+    #hero-{{ section.id }} {
+      min-height: {{ section.settings.section_height_mobile }}px;
+    }
+    #hero-{{ section.id }} .hero__content {
+      max-width: 100%;
+      text-align: {{ section.settings.content_alignment_mobile }};
+      {% if section.settings.content_alignment_mobile == 'center' %}
+        align-items: center;
+      {% endif %}
+    }
+  }
+{%- endstyle -%}
+
+<section id="hero-{{ section.id }}" class="hero-banner">
+
+  {%- if section.settings.image != blank -%}
+    {{
+      section.settings.image
+      | image_url: width: 2400
+      | image_tag:
+        loading: 'eager',
+        fetchpriority: 'high',
+        class: 'hero__bg',
+        sizes: '100vw',
+        widths: '375,750,1100,1500,1800,2400'
+    }}
+  {%- else -%}
+    {{ 'lifestyle-1' | placeholder_svg_tag: 'hero__bg placeholder-svg' }}
+  {%- endif -%}
+
+  <div class="hero__overlay" aria-hidden="true"></div>
+
+  <div class="hero__content">
+
+    {%- unless section.settings.heading == blank -%}
+      <h2 class="hero__heading">{{ section.settings.heading | newline_to_br }}</h2>
+    {%- endunless -%}
+
+    {%- unless section.settings.subheading == blank -%}
+      <p class="hero__subheading">{{ section.settings.subheading }}</p>
+    {%- endunless -%}
+
+    {%- if section.settings.button_label != blank -%}
+      <a
+        class="hero__cta"
+        href="{{ section.settings.button_url }}"
+        {% if section.settings.button_open_new_tab %}target="_blank" rel="noopener"{% endif %}
+      >
+        {{ section.settings.button_label }}
+      </a>
+    {%- endif -%}
+
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Hero Banner",
+  "tag": "section",
+  "class": "hero-banner-section",
+  "settings": [
+
+    {
+      "type": "header",
+      "content": "Image"
+    },
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "Background image"
+    },
+    {
+      "type": "select",
+      "id": "image_focal_point",
+      "label": "Image focal point",
+      "options": [
+        { "value": "top left",    "label": "Top left" },
+        { "value": "top center",  "label": "Top centre" },
+        { "value": "top right",   "label": "Top right" },
+        { "value": "center left", "label": "Middle left" },
+        { "value": "center",      "label": "Middle centre" },
+        { "value": "center right","label": "Middle right" },
+        { "value": "bottom left", "label": "Bottom left" },
+        { "value": "bottom center","label": "Bottom centre" },
+        { "value": "bottom right","label": "Bottom right" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "range",
+      "id": "section_height",
+      "label": "Desktop height (px)",
+      "min": 300,
+      "max": 900,
+      "step": 10,
+      "default": 520
+    },
+    {
+      "type": "range",
+      "id": "section_height_mobile",
+      "label": "Mobile height (px)",
+      "min": 200,
+      "max": 700,
+      "step": 10,
+      "default": 380
+    },
+
+    {
+      "type": "header",
+      "content": "Overlay"
+    },
+    {
+      "type": "checkbox",
+      "id": "overlay_enabled",
+      "label": "Enable overlay",
+      "default": false
+    },
+    {
+      "type": "color",
+      "id": "overlay_color",
+      "label": "Overlay colour",
+      "default": "#000000"
+    },
+    {
+      "type": "range",
+      "id": "overlay_opacity",
+      "label": "Overlay opacity (%)",
+      "min": 0,
+      "max": 90,
+      "step": 5,
+      "default": 30
+    },
+
+    {
+      "type": "header",
+      "content": "Text shadow / glow"
+    },
+    {
+      "type": "range",
+      "id": "text_shadow_strength",
+      "label": "Shadow strength (opacity %)",
+      "info": "0 = no shadow · 100 = fully opaque shadow",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "default": 70
+    },
+    {
+      "type": "range",
+      "id": "text_shadow_blur",
+      "label": "Shadow blur radius (px)",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "text_shadow_spread",
+      "label": "Glow spread radius (px)",
+      "info": "Adds a soft glow around the text in addition to the directional shadow",
+      "min": 0,
+      "max": 60,
+      "step": 4,
+      "default": 20
+    },
+
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "select",
+      "id": "content_alignment",
+      "label": "Alignment (desktop)",
+      "options": [
+        { "value": "left",   "label": "Left" },
+        { "value": "center", "label": "Centre" },
+        { "value": "right",  "label": "Right" }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "select",
+      "id": "content_alignment_mobile",
+      "label": "Alignment (mobile)",
+      "options": [
+        { "value": "left",   "label": "Left" },
+        { "value": "center", "label": "Centre" },
+        { "value": "right",  "label": "Right" }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "textarea",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Dein Weg zurück zu Dir."
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading colour",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Ohne Verbote, ohne schlechtes Gewissen."
+    },
+    {
+      "type": "color",
+      "id": "subheading_color",
+      "label": "Subheading colour",
+      "default": "#3a3a3a"
+    },
+
+    {
+      "type": "header",
+      "content": "Button"
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button label",
+      "default": "Jetzt entdecken"
+    },
+    {
+      "type": "url",
+      "id": "button_url",
+      "label": "Button URL"
+    },
+    {
+      "type": "checkbox",
+      "id": "button_open_new_tab",
+      "label": "Open in new tab",
+      "default": false
+    },
+    {
+      "type": "select",
+      "id": "button_style",
+      "label": "Button style",
+      "options": [
+        { "value": "filled",  "label": "Filled" },
+        { "value": "outline", "label": "Outline" }
+      ],
+      "default": "filled"
+    },
+    {
+      "type": "color",
+      "id": "button_bg_color",
+      "label": "Button background",
+      "default": "#3bbfbf"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button text / outline colour",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "button_border_radius",
+      "label": "Button border radius (px)",
+      "min": 0,
+      "max": 50,
+      "step": 2,
+      "default": 30
+    }
+
+  ],
+  "presets": [
+    {
+      "name": "Hero Banner"
+    }
+  ]
+}
+{% endschema %}

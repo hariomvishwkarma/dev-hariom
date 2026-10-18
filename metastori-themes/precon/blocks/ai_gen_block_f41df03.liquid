@@ -1,0 +1,614 @@
+{% doc %}
+  @prompt
+    block with several elements on the left hand side, image on the right hand side. In the block, I want a title and subtitle, and body text, and 3 benefits, each with an icon. Then I want an button. For each of these elements, I want to be able to decide the text/element colour. I want all text to be rich text. I want to decide text sizes for each elements. I want to decide the background colour of the whole section. For the image, I want to option to fill or to adjust., the button should be centered in the left block. I want to be able to determine horizontal padding on desktop and mobile separately. On mobile, I want the image to appear below the subtitle, On mobile, move the image into the block in between the subtitle and body text, I want to reduce the size between title and subtitle with a slider, I want to reduce the default spacing between title and subtitle a lot, so it looks like 1 sentence, Reduce padding between title and subtitle
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-content-image-block-{{ ai_gen_id }} {
+    display: block;
+    background-color: {{ block.settings.background_color }};
+    width: 100%;
+  }
+
+  .ai-content-image-wrapper-{{ ai_gen_id }} {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 60px {{ block.settings.desktop_padding }}px;
+  }
+
+  .ai-content-image-left-{{ ai_gen_id }} {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .ai-content-image-title-{{ ai_gen_id }} {
+    color: {{ block.settings.title_color }};
+    font-size: {{ block.settings.title_size }}px;
+    margin: 0;
+    line-height: 1.2;
+    margin-bottom: {{ block.settings.title_subtitle_spacing }}px;
+  }
+
+  .ai-content-image-subtitle-{{ ai_gen_id }} {
+    color: {{ block.settings.subtitle_color }};
+    font-size: {{ block.settings.subtitle_size }}px;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .ai-content-image-body-{{ ai_gen_id }} {
+    color: {{ block.settings.body_color }};
+    font-size: {{ block.settings.body_size }}px;
+    line-height: 1.6;
+  }
+
+  .ai-content-image-benefits-{{ ai_gen_id }} {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .ai-content-image-benefit-{{ ai_gen_id }} {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .ai-content-image-benefit-icon-{{ ai_gen_id }} {
+    flex-shrink: 0;
+    width: {{ block.settings.icon_size }}px;
+    height: {{ block.settings.icon_size }}px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ai-content-image-benefit-icon-{{ ai_gen_id }} svg {
+    width: 100%;
+    height: 100%;
+    stroke: {{ block.settings.icon_color }};
+  }
+
+  .ai-content-image-benefit-text-{{ ai_gen_id }} {
+    flex: 1;
+    color: {{ block.settings.benefit_color }};
+    font-size: {{ block.settings.benefit_size }}px;
+    line-height: 1.5;
+  }
+
+  .ai-content-image-button-wrapper-{{ ai_gen_id }} {
+    display: flex;
+    justify-content: center;
+  }
+
+  .ai-content-image-button-{{ ai_gen_id }} {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 32px;
+    background-color: {{ block.settings.button_bg_color }};
+    color: {{ block.settings.button_text_color }};
+    text-decoration: none;
+    border-radius: {{ block.settings.button_border_radius }}px;
+    font-size: {{ block.settings.button_size }}px;
+    transition: background-color 0.3s ease;
+    border: none;
+    cursor: pointer;
+  }
+
+  .ai-content-image-button-{{ ai_gen_id }}:hover {
+    background-color: {{ block.settings.button_hover_color }};
+  }
+
+  .ai-content-image-right-{{ ai_gen_id }} {
+    flex: 1;
+    position: relative;
+  }
+
+  .ai-content-image-img-wrapper-{{ ai_gen_id }} {
+    width: 100%;
+    height: 100%;
+    {% if block.settings.image_fit == 'cover' %}
+      min-height: 400px;
+    {% endif %}
+  }
+
+  .ai-content-image-img-wrapper-{{ ai_gen_id }} img {
+    width: 100%;
+    height: 100%;
+    {% if block.settings.image_fit == 'cover' %}
+      object-fit: cover;
+    {% else %}
+      object-fit: contain;
+    {% endif %}
+    border-radius: {{ block.settings.image_border_radius }}px;
+  }
+
+  .ai-content-image-placeholder-{{ ai_gen_id }} {
+    width: 100%;
+    min-height: 400px;
+    background-color: #f4f4f4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: {{ block.settings.image_border_radius }}px;
+    position: relative;
+  }
+
+  .ai-content-image-placeholder-{{ ai_gen_id }} svg {
+    width: 100%;
+    height: 100%;
+    max-width: 300px;
+    max-height: 300px;
+  }
+
+  .ai-content-image-empty-state-{{ ai_gen_id }} {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 20px;
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  @media screen and (max-width: 768px) {
+    .ai-content-image-wrapper-{{ ai_gen_id }} {
+      flex-direction: column;
+      padding: 40px {{ block.settings.mobile_padding }}px;
+    }
+
+    .ai-content-image-left-{{ ai_gen_id }} {
+      width: 100%;
+    }
+
+    .ai-content-image-right-{{ ai_gen_id }} {
+      width: 100%;
+    }
+
+    .ai-content-image-title-{{ ai_gen_id }} {
+      order: 1;
+      font-size: calc({{ block.settings.title_size }}px * 0.8);
+    }
+
+    .ai-content-image-subtitle-{{ ai_gen_id }} {
+      order: 2;
+      font-size: calc({{ block.settings.subtitle_size }}px * 0.9);
+    }
+
+    .ai-content-image-right-{{ ai_gen_id }} {
+      order: 3;
+    }
+
+    .ai-content-image-body-{{ ai_gen_id }} {
+      order: 4;
+      font-size: calc({{ block.settings.body_size }}px * 0.95);
+    }
+
+    .ai-content-image-benefits-{{ ai_gen_id }} {
+      order: 5;
+    }
+
+    .ai-content-image-button-wrapper-{{ ai_gen_id }} {
+      order: 6;
+    }
+
+    .ai-content-image-benefit-text-{{ ai_gen_id }} {
+      font-size: calc({{ block.settings.benefit_size }}px * 0.95);
+    }
+
+    .ai-content-image-button-{{ ai_gen_id }} {
+      font-size: calc({{ block.settings.button_size }}px * 0.95);
+      width: 100%;
+    }
+
+    .ai-content-image-img-wrapper-{{ ai_gen_id }} {
+      min-height: 250px;
+    }
+
+    .ai-content-image-placeholder-{{ ai_gen_id }} {
+      min-height: 250px;
+    }
+  }
+{% endstyle %}
+
+<content-image-block-{{ ai_gen_id }}
+  class="ai-content-image-block-{{ ai_gen_id }}"
+  {{ block.shopify_attributes }}
+>
+  <div class="ai-content-image-wrapper-{{ ai_gen_id }}">
+    <div class="ai-content-image-left-{{ ai_gen_id }}">
+      {% if block.settings.title != blank %}
+        <div class="ai-content-image-title-{{ ai_gen_id }}">
+          {{ block.settings.title }}
+        </div>
+      {% endif %}
+
+      {% if block.settings.subtitle != blank %}
+        <div class="ai-content-image-subtitle-{{ ai_gen_id }}">
+          {{ block.settings.subtitle }}
+        </div>
+      {% endif %}
+
+      {% if block.settings.body != blank %}
+        <div class="ai-content-image-body-{{ ai_gen_id }}">
+          {{ block.settings.body }}
+        </div>
+      {% endif %}
+
+      <div class="ai-content-image-benefits-{{ ai_gen_id }}">
+        {% if block.settings.benefit_1 != blank %}
+          <div class="ai-content-image-benefit-{{ ai_gen_id }}">
+            <div class="ai-content-image-benefit-icon-{{ ai_gen_id }}">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div class="ai-content-image-benefit-text-{{ ai_gen_id }}">
+              {{ block.settings.benefit_1 }}
+            </div>
+          </div>
+        {% endif %}
+
+        {% if block.settings.benefit_2 != blank %}
+          <div class="ai-content-image-benefit-{{ ai_gen_id }}">
+            <div class="ai-content-image-benefit-icon-{{ ai_gen_id }}">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div class="ai-content-image-benefit-text-{{ ai_gen_id }}">
+              {{ block.settings.benefit_2 }}
+            </div>
+          </div>
+        {% endif %}
+
+        {% if block.settings.benefit_3 != blank %}
+          <div class="ai-content-image-benefit-{{ ai_gen_id }}">
+            <div class="ai-content-image-benefit-icon-{{ ai_gen_id }}">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div class="ai-content-image-benefit-text-{{ ai_gen_id }}">
+              {{ block.settings.benefit_3 }}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      {% if block.settings.button_text != blank %}
+        <div class="ai-content-image-button-wrapper-{{ ai_gen_id }}">
+          <a
+            href="{{ block.settings.button_link }}"
+            class="ai-content-image-button-{{ ai_gen_id }}"
+          >
+            {{ block.settings.button_text }}
+          </a>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="ai-content-image-right-{{ ai_gen_id }}">
+      <div class="ai-content-image-img-wrapper-{{ ai_gen_id }}">
+        {% if block.settings.image %}
+          <img
+            src="{{ block.settings.image | image_url: width: 1200 }}"
+            alt="{{ block.settings.image.alt | escape }}"
+            loading="lazy"
+            width="{{ block.settings.image.width }}"
+            height="{{ block.settings.image.height }}"
+          >
+        {% else %}
+          <div class="ai-content-image-placeholder-{{ ai_gen_id }}">
+            {{ 'image' | placeholder_svg_tag }}
+            <div class="ai-content-image-empty-state-{{ ai_gen_id }}">
+              Next, add an image
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</content-image-block-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class ContentImageBlock{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+      }
+
+      connectedCallback() {
+      }
+    }
+
+    customElements.define('content-image-block-{{ ai_gen_id }}', ContentImageBlock{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Content with image",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "desktop_padding",
+      "min": 0,
+      "max": 200,
+      "step": 10,
+      "unit": "px",
+      "label": "Desktop horizontal padding",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "label": "Mobile horizontal padding",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "title_subtitle_spacing",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "label": "Title to subtitle spacing",
+      "default": 2
+    },
+    {
+      "type": "header",
+      "content": "Background"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "header",
+      "content": "Title"
+    },
+    {
+      "type": "richtext",
+      "id": "title",
+      "label": "Title",
+      "default": "<p>Transform Your Business</p>"
+    },
+    {
+      "type": "color",
+      "id": "title_color",
+      "label": "Title color",
+      "default": "#000000"
+    },
+    {
+      "type": "range",
+      "id": "title_size",
+      "min": 16,
+      "max": 72,
+      "step": 2,
+      "unit": "px",
+      "label": "Title size",
+      "default": 40
+    },
+    {
+      "type": "header",
+      "content": "Subtitle"
+    },
+    {
+      "type": "richtext",
+      "id": "subtitle",
+      "label": "Subtitle",
+      "default": "<p>Discover the power of innovation</p>"
+    },
+    {
+      "type": "color",
+      "id": "subtitle_color",
+      "label": "Subtitle color",
+      "default": "#666666"
+    },
+    {
+      "type": "range",
+      "id": "subtitle_size",
+      "min": 12,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "label": "Subtitle size",
+      "default": 24
+    },
+    {
+      "type": "header",
+      "content": "Body text"
+    },
+    {
+      "type": "richtext",
+      "id": "body",
+      "label": "Body text",
+      "default": "<p>Our comprehensive solution helps you achieve your goals faster and more efficiently than ever before.</p>"
+    },
+    {
+      "type": "color",
+      "id": "body_color",
+      "label": "Body color",
+      "default": "#333333"
+    },
+    {
+      "type": "range",
+      "id": "body_size",
+      "min": 12,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "label": "Body size",
+      "default": 16
+    },
+    {
+      "type": "header",
+      "content": "Benefits"
+    },
+    {
+      "type": "richtext",
+      "id": "benefit_1",
+      "label": "Benefit 1",
+      "default": "<p>Increase productivity by 50%</p>"
+    },
+    {
+      "type": "richtext",
+      "id": "benefit_2",
+      "label": "Benefit 2",
+      "default": "<p>Save time with automation</p>"
+    },
+    {
+      "type": "richtext",
+      "id": "benefit_3",
+      "label": "Benefit 3",
+      "default": "<p>24/7 customer support</p>"
+    },
+    {
+      "type": "color",
+      "id": "benefit_color",
+      "label": "Benefit text color",
+      "default": "#333333"
+    },
+    {
+      "type": "range",
+      "id": "benefit_size",
+      "min": 12,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "label": "Benefit text size",
+      "default": 16
+    },
+    {
+      "type": "color",
+      "id": "icon_color",
+      "label": "Icon color",
+      "default": "#3dadbb"
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "min": 16,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "label": "Icon size",
+      "default": 24
+    },
+    {
+      "type": "header",
+      "content": "Button"
+    },
+    {
+      "type": "richtext",
+      "id": "button_text",
+      "label": "Button text",
+      "default": "<p>Get started</p>"
+    },
+    {
+      "type": "url",
+      "id": "button_link",
+      "label": "Button link"
+    },
+    {
+      "type": "color",
+      "id": "button_bg_color",
+      "label": "Button background color",
+      "default": "#3dadbb"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "button_hover_color",
+      "label": "Button hover color",
+      "default": "#2c8a96"
+    },
+    {
+      "type": "range",
+      "id": "button_size",
+      "min": 12,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "label": "Button text size",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "button_border_radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Button border radius",
+      "default": 4
+    },
+    {
+      "type": "header",
+      "content": "Image"
+    },
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "Image"
+    },
+    {
+      "type": "select",
+      "id": "image_fit",
+      "label": "Image fit",
+      "options": [
+        {
+          "value": "cover",
+          "label": "Fill"
+        },
+        {
+          "value": "contain",
+          "label": "Adjust"
+        }
+      ],
+      "default": "cover"
+    },
+    {
+      "type": "range",
+      "id": "image_border_radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Image border radius",
+      "default": 8
+    }
+  ],
+  "presets": [
+    {
+      "name": "Content with image"
+    }
+  ]
+}
+{% endschema %}

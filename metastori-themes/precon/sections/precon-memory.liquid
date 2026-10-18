@@ -1,0 +1,718 @@
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;600&family=Playfair+Display:ital,wght@1,500&display=swap" rel="stylesheet">
+
+<style>
+
+    /* ── Shopify wrapper ── */
+    .precon-game-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      padding: 24px 16px 48px;
+      box-sizing: border-box;
+    }
+    /* ── Customizer color overrides ── */
+    .precon-game-wrap {
+      --brown:      {{ section.settings.color_brown }};
+      --cream:      {{ section.settings.color_cream }};
+      --cream-mid:  {{ section.settings.color_cream_mid }};
+      --cream-dark: {{ section.settings.color_cream_dark }};
+      --brown-dark: {{ section.settings.color_brown }};
+    }
+    .challenge-banner {
+      background: {{ section.settings.color_banner }} !important;
+    }
+
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brown:       #56473A;
+      --brown-dark:  #2D2416;
+      --brown-mid:   #8A7060;
+      --brown-light: #C8B8A8;
+      --cream:       #EFECE4;
+      --cream-mid:   #E5E1D8;
+      --cream-dark:  #D8D3C8;
+      --green:       #4A7C59;
+      --red:         #C04040;
+    }
+    body {
+      font-family: 'Figtree', sans-serif;
+      background: #ffffff;
+      color: var(--brown-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+    }
+    .header { text-align: center; margin-bottom: 18px; }
+    .header-logo {
+      height: 28px; width: auto; margin-bottom: 10px; display: block; margin-inline: auto;
+    }
+    h1 {
+      font-family: 'Playfair Display', serif; font-style: italic;
+      font-size: 1.9rem; font-weight: 500; color: var(--brown);
+      letter-spacing: 1px; margin-bottom: 4px;
+    }
+    .header-sub {
+      font-size: 0.75rem; font-weight: 300; color: var(--brown-mid);
+      letter-spacing: 1px; margin-bottom: 6px;
+    }
+    .tagline {
+      font-size: 0.72rem; font-weight: 600; color: var(--brown-mid);
+      letter-spacing: 2px; text-transform: uppercase;
+    }
+    .challenge-banner {
+      background: #3DADBB; color: #ffffff;
+      border-radius: 8px; padding: 8px 18px;
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 1px;
+      margin-bottom: 18px; text-transform: uppercase;
+    }
+    .stats {
+      display: flex; gap: 2px; background: var(--cream-dark);
+      border-radius: 10px; overflow: hidden; margin-bottom: 10px;
+      width: 100%; max-width: 580px;
+    }
+    .stat { flex: 1; background: var(--cream-mid); padding: 8px 12px; text-align: center; }
+    .stat-label {
+      font-size: 0.58rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1.5px; color: var(--brown-mid);
+    }
+    .stat-value { font-size: 1.1rem; font-weight: 300; color: var(--brown); }
+    .timer-bar-wrap {
+      width: 100%; max-width: 580px; height: 4px;
+      background: var(--cream-dark); border-radius: 2px;
+      margin-bottom: 14px; overflow: hidden;
+    }
+    .timer-bar {
+      height: 100%; background: var(--brown); border-radius: 2px;
+      transition: width 1s linear, background 0.5s; width: 100%;
+    }
+    .timer-bar.urgent { background: var(--red); }
+    .controls { display: flex; gap: 8px; margin-bottom: 18px; }
+    .btn {
+      padding: 7px 18px; border: 1px solid var(--brown-light);
+      border-radius: 20px; cursor: pointer;
+      font-family: 'Figtree', sans-serif; font-size: 0.78rem; font-weight: 600;
+      background: transparent; color: var(--brown-mid);
+      transition: all 0.2s; letter-spacing: 0.5px;
+    }
+    .btn:hover { background: var(--brown); color: var(--cream); border-color: var(--brown); }
+
+    /* 4×4 grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 9px;
+      width: 100%;
+      max-width: 580px;
+      background: #FAF9F5;
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .card { aspect-ratio: 3/4; perspective: 700px; cursor: pointer; }
+    .card-inner {
+      width: 100%; height: 100%; position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.42s cubic-bezier(0.4,0,0.2,1);
+      border-radius: 10px;
+    }
+    .card.flipped .card-inner, .card.matched .card-inner { transform: rotateY(180deg); }
+    .card-face {
+      position: absolute; inset: 0; border-radius: 10px;
+      backface-visibility: hidden; overflow: hidden;
+    }
+    .card-back {
+      background: var(--cream-mid); border: 1.5px solid var(--cream-dark);
+      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px;
+    }
+    .card-back img {
+      width: 65%; height: auto; opacity: 0.35;
+    }
+    .card:not(.flipped):not(.matched):hover .card-inner {
+      box-shadow: 0 4px 20px rgba(86,71,58,0.15);
+      transform: translateY(-2px) rotateY(5deg);
+    }
+    .card-front {
+      transform: rotateY(180deg); border: 1.5px solid var(--cream-dark);
+      background: white; display: flex; flex-direction: column;
+    }
+    .card.matched .card-front { border-color: var(--green); }
+    .card.matched .card-front::after {
+      content: '✓'; position: absolute; top: 5px; right: 7px;
+      font-size: 0.65rem; font-weight: 600; color: var(--green);
+    }
+    .product-img-wrap {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      overflow: hidden; background: white; padding: 5px;
+    }
+    .product-img-wrap img {
+      width: 100%; height: 100%; object-fit: contain;
+    }
+
+    /* Overlays */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(245,240,234,0.88); backdrop-filter: blur(8px);
+      align-items: center; justify-content: center; z-index: 100; padding: 24px;
+    }
+    .overlay.show { display: flex; }
+    .overlay-box {
+      background: white; border: 1px solid var(--cream-dark);
+      border-radius: 16px; padding: 30px 34px; text-align: center;
+      max-width: 360px; width: 100%;
+      box-shadow: 0 8px 48px rgba(86,71,58,0.12);
+      animation: popIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes popIn {
+      from { transform: scale(0.85) translateY(10px); opacity: 0; }
+      to   { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .overlay-logo { height: 22px; width: auto; margin-bottom: 14px; }
+    .overlay-box h2 {
+      font-family: 'Playfair Display', serif; font-style: italic;
+      font-size: 1.55rem; font-weight: 500; color: var(--brown); margin-bottom: 6px;
+    }
+    .overlay-box .subtitle {
+      font-size: 0.8rem; font-weight: 300; color: var(--brown-mid); margin-bottom: 18px;
+    }
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+    .result-item { background: var(--cream-mid); border-radius: 8px; padding: 9px; }
+    .result-item span {
+      display: block; font-size: 0.58rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px; color: var(--brown-mid); margin-bottom: 2px;
+    }
+    .result-item strong { font-size: 1.15rem; font-weight: 300; color: var(--brown); }
+    .discount-section {
+      background: var(--cream); border: 1px solid var(--cream-dark);
+      border-radius: 10px; padding: 14px 16px; margin-bottom: 18px;
+    }
+    .discount-section .label {
+      font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1.5px; color: var(--brown-mid); margin-bottom: 10px;
+    }
+    .code-display {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      background: white; border: 1.5px dashed var(--brown-light);
+      border-radius: 8px; padding: 9px 12px; margin-bottom: 8px;
+    }
+    .code-text { font-size: 1.35rem; font-weight: 600; letter-spacing: 4px; color: var(--brown); }
+    .copy-btn {
+      background: var(--brown); color: var(--cream); border: none;
+      border-radius: 6px; padding: 5px 10px;
+      font-family: 'Figtree', sans-serif; font-size: 0.66rem; font-weight: 600;
+      cursor: pointer; letter-spacing: 0.5px; transition: background 0.2s; flex-shrink: 0;
+    }
+    .copy-btn:hover { background: var(--brown-dark); }
+    .copy-btn.copied { background: var(--green); }
+    .discount-note { font-size: 0.68rem; color: var(--brown-mid); font-weight: 300; }
+    .no-discount {
+      background: var(--cream); border-radius: 10px; padding: 12px 14px;
+      margin-bottom: 18px; font-size: 0.78rem; color: var(--brown-mid); font-weight: 300;
+    }
+    .btn-primary {
+      display: block; width: 100%; background: var(--brown); color: var(--cream);
+      border: none; border-radius: 24px; padding: 11px;
+      font-family: 'Figtree', sans-serif; font-size: 0.86rem; font-weight: 600;
+      cursor: pointer; letter-spacing: 0.5px; transition: background 0.2s;
+    }
+    .btn-primary:hover { background: var(--brown-dark); }
+
+
+    /* ── Welcome screen ── */
+    .welcome-overlay {
+      display: flex; position: fixed; inset: 0;
+      background: rgba(245,240,234,0.95); backdrop-filter: blur(8px);
+      align-items: center; justify-content: center;
+      z-index: 200; padding: 24px;
+    }
+    .welcome-box {
+      background: white; border: 1px solid var(--cream-dark);
+      border-radius: 20px; padding: 36px 32px; text-align: center;
+      max-width: 380px; width: 100%;
+      box-shadow: 0 8px 48px rgba(86,71,58,0.12);
+      animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .welcome-logo { height: 24px; width: auto; margin-bottom: 20px; }
+    .welcome-box h2 {
+      font-family: 'Playfair Display', serif; font-style: italic;
+      font-size: 1.5rem; font-weight: 500; color: var(--brown); margin-bottom: 6px;
+    }
+    .welcome-box .welcome-sub {
+      font-size: 0.8rem; color: #888; margin-bottom: 22px; font-weight: 300;
+    }
+    .welcome-steps {
+      display: flex; flex-direction: column; gap: 10px;
+      margin-bottom: 22px; text-align: left;
+    }
+    .welcome-step {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: var(--cream); border-radius: 10px; padding: 11px 14px;
+    }
+    .welcome-step-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .welcome-step-text { font-size: 0.78rem; color: var(--brown); line-height: 1.4; font-weight: 300; }
+    .welcome-step-text strong { font-weight: 600; display: block; margin-bottom: 1px; }
+    .welcome-prize {
+      background: #FFF8E7; border: 1px solid #F0D080;
+      border-radius: 10px; padding: 11px 14px; margin-bottom: 22px;
+      font-size: 0.78rem; color: var(--brown); line-height: 1.5; font-weight: 300;
+    }
+    .welcome-prize strong { font-weight: 600; }
+    .btn-start {
+      display: block; width: 100%; background: #3DADBB; color: #ffffff;
+      border: none; border-radius: 24px; padding: 13px;
+      font-family: 'Figtree', sans-serif; font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; letter-spacing: 0.5px; transition: background 0.2s;
+    }
+    .btn-start:hover { background: #359fac; }
+    /* ── Win overlay: scrollable + button spacing ── */
+    .overlay { align-items: flex-start; overflow-y: auto; }
+    .overlay-box {
+      margin: auto;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+    }
+    #winRestartBtn { margin-top: 10px; }
+    .times-up-box h2 { color: var(--red); }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+    .stat-value.pulsing { animation: pulse 0.8s ease-in-out infinite; color: var(--red); }
+
+
+    /* ── Desktop: compact centered layout ── */
+    @media (min-width: 769px) {
+      .precon-game-wrap { padding: 12px 16px 24px; }
+      .header { margin-bottom: 10px; }
+      .header-logo { height: 22px; margin-bottom: 6px; }
+      h1 { font-size: 1.6rem; }
+      .header-sub { font-size: 0.7rem; margin-bottom: 2px; }
+      .tagline { font-size: 0.62rem; margin-bottom: 0; }
+      .challenge-banner { font-size: 0.7rem; padding: 7px 18px; margin-bottom: 10px; }
+      .stats { margin-bottom: 6px; }
+      .stat { padding: 6px 12px; }
+      .stat-value { font-size: 0.95rem; }
+      .controls { margin-bottom: 10px; }
+      .grid {
+        gap: 6px;
+        padding: 10px;
+        max-width: min(500px, calc(100vh - 280px));
+        width: min(500px, calc(100vh - 280px));
+      }
+      .card { aspect-ratio: 1; }
+    }
+    @media (max-width: 500px) {
+      body { padding: 16px 10px 32px; }
+      .header-logo { height: 22px; }
+      h1 { font-size: 1.5rem; }
+      .header-sub { font-size: 0.68rem; }
+      .tagline { font-size: 0.62rem; letter-spacing: 1.5px; }
+      .challenge-banner { font-size: 0.64rem; padding: 7px 14px; margin-bottom: 14px; }
+      .stats { max-width: 100%; }
+      .stat { padding: 7px 8px; }
+      .stat-label { font-size: 0.52rem; }
+      .stat-value { font-size: 1rem; }
+      .timer-bar-wrap { max-width: 100%; }
+      .grid { max-width: 100%; gap: 6px; padding: 10px; }
+      .card-back img { width: 60%; }
+      .product-img-wrap { padding: 2px; }
+      .overlay-box { padding: 24px 20px; }
+      .overlay-box h2 { font-size: 1.3rem; }
+      .code-text { font-size: 1.15rem; letter-spacing: 3px; }
+    }
+
+
+    /* ── Consent checkbox ── */
+    .consent-row { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0; font-size: 0.75rem; color: #666; line-height: 1.4; }
+    .consent-row input[type=checkbox] { margin-top: 2px; flex-shrink: 0; accent-color: var(--brown); width: 14px; height: 14px; cursor: pointer; }
+    .consent-row a { color: var(--brown); text-decoration: underline; }
+    .consent-row a:hover { opacity: .75; }
+    /* ── Leaderboard & email form ── */
+    .submit-section { margin: 14px 0 0; text-align: left; }
+    .submit-headline { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--brown); font-weight: 700; margin-bottom: 3px; }
+    .submit-sub { font-size: 0.78rem; color: #888; margin-bottom: 10px; }
+    .form-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .form-row input { flex: 1; min-width: 120px; padding: 9px 12px; border: 1.5px solid var(--cream-dark); border-radius: 8px; font-size: 0.85rem; font-family: 'Figtree', sans-serif; background: #fff; color: var(--brown); outline: none; }
+    .form-row input:focus { border-color: var(--brown); }
+    .btn-submit { width: 100%; padding: 10px; background: #3DADBB; color: #ffffff; border: none; border-radius: 8px; font-family: 'Figtree', sans-serif; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: opacity .2s; }
+    .btn-submit:hover { opacity: .85; }
+    .btn-submit:disabled { opacity: .5; cursor: default; }
+    .submit-msg { font-size: 0.8rem; margin-top: 6px; text-align: center; }
+    .submit-msg.ok { color: #4A7C59; }
+    .submit-msg.err { color: #C04040; }
+    .lb-section { margin: 14px 0 0; }
+    .lb-title { font-family: 'Playfair Display', serif; font-size: 1rem; color: var(--brown); margin-bottom: 8px; text-align: center; }
+    .lb-list { display: flex; flex-direction: column; gap: 4px; }
+    .lb-row { display: flex; align-items: center; gap: 8px; background: var(--cream); border-radius: 8px; padding: 7px 12px; font-size: 0.82rem; }
+    .lb-row.lb-first { background: #f5e9c4; border: 1.5px solid #d4a833; }
+    .lb-rank { font-weight: 700; color: var(--brown); width: 20px; flex-shrink: 0; }
+    .lb-name { flex: 1; color: var(--brown); font-weight: 600; }
+    .lb-time { font-variant-numeric: tabular-nums; color: #666; font-size: 0.8rem; }
+    .lb-you { font-size: 0.65rem; background: var(--brown); color: var(--cream); padding: 1px 5px; border-radius: 10px; margin-left: 4px; }
+  
+</style>
+
+<div class="precon-game-wrap">
+<div class="header">
+    <img class="header-logo" src="https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Precon-logo_56473a_3x-8.png?v=1781691851" alt="Precon">
+    <p class="header-sub">{{ section.settings.text_sub }}</p>
+    <h1>{{ section.settings.text_title }}</h1>
+    <p class="tagline">{{ section.settings.text_tagline }}</p>
+  </div>
+
+  <div class="challenge-banner">{{ section.settings.text_banner }}</div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Züge</div><div class="stat-value" id="moves">0</div></div>
+    <div class="stat"><div class="stat-label">Paare</div><div class="stat-value" id="matches">0 / 8</div></div>
+    <div class="stat"><div class="stat-label">Zeit</div><div class="stat-value" id="timer">1:30</div></div>
+  </div>
+  <div class="timer-bar-wrap"><div class="timer-bar" id="timerBar"></div></div>
+
+  <div class="controls">
+    <button class="btn" id="restartBtn">↺ Neu starten</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <!-- Welcome overlay -->
+  <div class="welcome-overlay" id="welcomeOverlay">
+    <div class="welcome-box">
+      <img class="welcome-logo" src="https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Precon-logo_56473a_3x-8.png?v=1781691851" alt="Precon">
+      <h2>Memory Game</h2>
+      <p class="welcome-sub">ALT TRIFFT NEU — FINDE ALLE PAARE</p>
+      <div class="welcome-steps">
+        <div class="welcome-step">
+          
+          <div class="welcome-step-text">
+            <strong>So geht's</strong>
+            Klicke auf die Karten um sie umzudrehen und finde alle 8 Paare. Jedes Paar besteht aus einem Produkt im alten und einem im neuen Design.
+          </div>
+        </div>
+        <div class="welcome-step">
+          
+          <div class="welcome-step-text">
+            <strong>Rabattcode sichern</strong>
+            Schaffst Du es in 60 Sekunden? Dann bekommst Du einen exklusiven Rabattcode für Deinen nächsten Einkauf.
+          </div>
+        </div>
+      </div>
+      <div class="welcome-prize">
+        <strong>Die 3 schnellsten Zeiten gewinnen ein Geschenk im neuen Precon Glanz.</strong><br>
+        Trage Deinen Namen nach dem Spiel in unsere Bestenliste ein um teilzunehmen.
+      </div>
+      <button class="btn-start" id="startGameBtn">Los geht's! →</button>
+    </div>
+  </div>
+
+  <!-- Win overlay -->
+  <div class="overlay" id="winOverlay">
+    <div class="overlay-box">
+      <img class="overlay-logo" src="https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Precon-logo_56473a_3x-8.png?v=1781691851" alt="Precon">
+      <h2 id="winTitle">Glückwunsch!</h2>
+      <p class="subtitle" id="winSubtitle">Du hast alle Paare gefunden!</p>
+      <div class="result-grid">
+        <div class="result-item"><span>Züge</span><strong id="finalMoves">0</strong></div>
+        <div class="result-item"><span>Zeit</span><strong id="finalTime">0:00</strong></div>
+      </div>
+      <div class="discount-section" id="discountSection" style="display:none">
+        <div class="label">Dein Rabattcode</div>
+        <div class="code-display">
+          <span class="code-text">{{ section.settings.discount_code }}</span>
+          <button class="copy-btn" id="copyBtn">Kopieren</button>
+        </div>
+        <div class="discount-note">Gib den Code beim nächsten Einkauf im Precon-Shop ein.</div>
+      </div>
+      <div class="no-discount" id="noDiscountSection" style="display:none">
+        Knapp vorbei! Du hast die 60 Sekunden um <span id="overBy">0</span> Sek. überschritten.<br>
+        Versuche es nochmal und sichere deinen Rabattcode! 🍀
+      </div>
+      <div id="submitSection" class="submit-section">
+        <p class="submit-headline">Reiche Deine Bestzeit ein!</p>
+        <p class="submit-sub">{{ section.settings.text_submit_sub }}</p>
+        <div class="form-row">
+          <input type="text"  id="playerName"  placeholder="Vorname"       maxlength="30">
+          <input type="email" id="playerEmail" placeholder="E-Mail-Adresse">
+        </div>
+        <label class="consent-row">
+          <input type="checkbox" id="consentCheck">
+          <span>Ich stimme zu, dass Precon meine Daten (Name, E-Mail, Spielzeit) speichert und mich per E-Mail über Aktionen informiert. Die Teilnahme am Gewinnspiel erfolgt gemäß den <a href="/pages/teilnahmebedingungen" target="_blank">Teilnahmebedingungen</a>. Weitere Infos in der <a href="/pages/datenschutz" target="_blank">Datenschutzerklärung</a>.</span>
+        </label>
+        <button class="btn-submit" id="submitScoreBtn">Bestzeit einreichen</button>
+        <p id="submitMsg" class="submit-msg" style="display:none"></p>
+      </div>
+      <div id="leaderboardSection" class="lb-section" style="display:none">
+        <h3 class="lb-title">🏆 Top 10 — schnellste Zeiten</h3>
+        <div id="leaderboardList" class="lb-list"><p style="text-align:center;color:#aaa;font-size:.8rem">Wird geladen…</p></div>
+      </div>
+      <button class="btn-primary" id="winRestartBtn">Nochmal spielen</button>
+    </div>
+  </div>
+
+  <!-- Time's up overlay -->
+  <div class="overlay" id="timesUpOverlay">
+    <div class="overlay-box times-up-box">
+      <img class="overlay-logo" src="https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Precon-logo_56473a_3x-8.png?v=1781691851" alt="Precon">
+      <h2>Zeit abgelaufen!</h2>
+      <p class="subtitle">Du hast <span id="timesUpMatches">0</span> von 8 Paaren gefunden.<br>Beim nächsten Mal klappt's bestimmt!</p>
+      <br>
+      <button class="btn-primary" id="timesUpRestartBtn">Nochmal versuchen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+    const LOGO = 'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Precon-logo_56473a_3x-8.png?v=1781691851';
+    const PRODUCTS = [
+      { id:1, name:'Caramel Bar',          imgNeu:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/caramelbarneu.png?v=1781691857',   imgAlt:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Caramelbar_old.png?v=1781691857' },
+      { id:2, name:'Himbeer-Joghurt',      imgNeu:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Himbeershake_neu.png?v=1781691858',   imgAlt:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Himbeershake_alt.png?v=1781691858' },
+      { id:3, name:'Sattbrühe Kräuter',    imgNeu:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/sattbruhe_neu.png?v=1781691859',  imgAlt:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Satt_Bruhe_alt.png?v=1781691860' },
+      { id:4, name:'Tomatensuppe',         imgNeu:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Tomatensuppe_neu.png?v=1781691861',    imgAlt:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Tomatensuppe_alt.png?v=1781691860' },
+      { id:5, name:'Cappuccino Shake',     imgNeu:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Cappucinoshake_neu.png?v=1781691859',    imgAlt:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/cappucinoshake_alt.png?v=1781691859' },
+      { id:6, name:'Cranberry Bar',        imgNeu:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/cranberrybar_neu.png?v=1781691859', imgAlt:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Cranberry_alt.png?v=1781691859' },
+      { id:7, name:'Lemon-Joghurt Shake',  imgNeu:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/lemonjighuertshakeneu.png?v=1781691859',     imgAlt:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/lemonjighurtsahkeale.png?v=1781691858' },
+      { id:8, name:'Schoko Shake',         imgNeu:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/schokoshakeneu.png?v=1781691859',    imgAlt:'https://cdn.shopify.com/s/files/1/0904/4639/7774/files/schokoshake_alt.png?v=1781691859' },
+    ];
+
+    const TOTAL_PAIRS = PRODUCTS.length;
+    const TIME_LIMIT  = {{ section.settings.time_limit }};
+
+    let firstCard=null, secondCard=null, lockBoard=false;
+    let moves=0, matched=0, seconds=0, timerInterval=null, started=false;
+
+    const shuffle = arr => [...arr].sort(()=>Math.random()-0.5);
+    const fmt = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+
+    function startTimer() {
+      if (timerInterval) return;
+      timerInterval = setInterval(()=>{
+        seconds++;
+        updateTimerUI();
+        if (seconds>=TIME_LIMIT) { stopTimer(); showTimesUp(); }
+      }, 1000);
+    }
+    function stopTimer() { clearInterval(timerInterval); timerInterval=null; }
+    function updateTimerUI() {
+      const rem = TIME_LIMIT - seconds;
+      document.getElementById('timer').textContent = fmt(Math.max(0,rem));
+      document.getElementById('timerBar').style.width = Math.max(0,rem/TIME_LIMIT*100)+'%';
+      const urgent = rem<=15;
+      document.getElementById('timerBar').classList.toggle('urgent', urgent);
+      document.getElementById('timer').classList.toggle('pulsing', urgent);
+    }
+
+    function buildGrid() {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+      firstCard=null; secondCard=null; lockBoard=false;
+      moves=0; matched=0; seconds=0; started=false;
+      stopTimer(); updateTimerUI();
+      document.getElementById('moves').textContent='0';
+      document.getElementById('matches').textContent=`0 / ${TOTAL_PAIRS}`;
+      document.getElementById('timer').textContent=fmt(TIME_LIMIT);
+      document.getElementById('timer').classList.remove('pulsing');
+      document.getElementById('timerBar').style.width='100%';
+      document.getElementById('timerBar').classList.remove('urgent');
+
+      const deck = shuffle(PRODUCTS.flatMap(p=>[
+        {id:p.id, img:p.imgNeu, label:p.name},
+        {id:p.id, img:p.imgAlt, label:p.name},
+      ]));
+
+      deck.forEach(d=>{
+        const card = document.createElement('div');
+        card.className='card';
+        card.dataset.id=d.id;
+        card.innerHTML=`
+          <div class="card-inner">
+            <div class="card-face card-back">
+              <img src="${LOGO}" alt="Precon">
+            </div>
+            <div class="card-face card-front">
+              <div class="product-img-wrap">
+                <img src="${d.img}" alt="${d.label}" loading="lazy">
+              </div>
+            </div>
+          </div>`;
+        card.addEventListener('click', onCardClick);
+        grid.appendChild(card);
+      });
+    }
+
+    function onCardClick(e) {
+      const card=e.currentTarget;
+      if (lockBoard||card===firstCard||card.classList.contains('matched')||card.classList.contains('flipped')) return;
+      if (!started) { startTimer(); started=true; }
+      card.classList.add('flipped');
+      if (!firstCard) { firstCard=card; return; }
+      secondCard=card; lockBoard=true; moves++;
+      document.getElementById('moves').textContent=moves;
+      if (firstCard.dataset.id===secondCard.dataset.id) {
+        firstCard.classList.add('matched'); secondCard.classList.add('matched');
+        matched++;
+        document.getElementById('matches').textContent=`${matched} / ${TOTAL_PAIRS}`;
+        firstCard=null; secondCard=null; lockBoard=false;
+        if (matched===TOTAL_PAIRS) { stopTimer(); setTimeout(showWin,400); }
+      } else {
+        setTimeout(()=>{
+          firstCard.classList.remove('flipped'); secondCard.classList.remove('flipped');
+          firstCard=null; secondCard=null; lockBoard=false;
+        }, 900);
+      }
+    }
+
+    function showWin() {
+      myTimeSeconds = seconds;
+      document.getElementById('submitSection').style.display = seconds<=TIME_LIMIT ? 'block' : 'none';
+      document.getElementById('leaderboardSection').style.display = 'none';
+      document.getElementById('submitScoreBtn').disabled = false;
+      document.getElementById('submitScoreBtn').textContent = 'Bestzeit einreichen';
+      document.getElementById('submitMsg').style.display = 'none';
+      document.getElementById('playerName').value = '';
+      document.getElementById('playerEmail').value = '';
+      document.getElementById('consentCheck').checked = false;
+      document.getElementById('finalMoves').textContent=moves;
+      document.getElementById('finalTime').textContent=fmt(seconds);
+      const inTime = seconds<=TIME_LIMIT;
+      document.getElementById('winTitle').textContent   = inTime ? 'Glückwunsch! 🎉' : 'Geschafft!';
+      document.getElementById('winSubtitle').textContent= inTime ? 'Du hast alle Paare rechtzeitig gefunden!' : 'Du hast alle Paare gefunden!';
+      document.getElementById('discountSection').style.display  = inTime ? 'block' : 'none';
+      document.getElementById('noDiscountSection').style.display= inTime ? 'none'  : 'block';
+      if (!inTime) document.getElementById('overBy').textContent = seconds-TIME_LIMIT;
+      document.getElementById('winOverlay').classList.add('show');
+    }
+    function showTimesUp() {
+      document.getElementById('timesUpMatches').textContent=matched;
+      document.getElementById('timesUpOverlay').classList.add('show');
+    }
+    function closeOverlays() {
+      document.getElementById('winOverlay').classList.remove('show');
+      document.getElementById('timesUpOverlay').classList.remove('show');
+    }
+    document.getElementById('copyBtn').addEventListener('click',()=>{
+      navigator.clipboard.writeText('MEMORY').then(()=>{
+        const btn=document.getElementById('copyBtn');
+        btn.textContent='✓ Kopiert'; btn.classList.add('copied');
+        setTimeout(()=>{btn.textContent='Kopieren'; btn.classList.remove('copied');},2000);
+      });
+    });
+    ['restartBtn','winRestartBtn','timesUpRestartBtn'].forEach(id=>
+      document.getElementById(id).addEventListener('click',()=>{closeOverlays();buildGrid();})
+    );
+    buildGrid();
+
+    // ── Welcome screen ──────────────────────────────────────────────────────
+    document.getElementById('startGameBtn').addEventListener('click', () => {
+      document.getElementById('welcomeOverlay').style.display = 'none';
+    });
+
+    // ── Render API + Klaviyo ────────────────────────────────────────────────
+    const API_URL = 'https://precon-memory-api.onrender.com';
+    const KL_KEY = 'SYDzQj';
+    let myTimeSeconds = 0;
+
+    async function fetchLeaderboard() {
+      try {
+        const r = await fetch(`${API_URL}/leaderboard`);
+        return r.ok ? await r.json() : [];
+      } catch(e) { return []; }
+    }
+
+    async function submitToSupabase(firstName, email, ts) {
+      const r = await fetch(`${API_URL}/scores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ first_name: firstName, email: email, time_seconds: ts })
+      });
+      return r.ok;
+    }
+
+    async function submitToKlaviyo(firstName, email, ts) {
+      try {
+        await fetch(`https://a.klaviyo.com/client/events/?company_id=${KL_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'revision': '2023-12-15' },
+          body: JSON.stringify({ data: { type: 'event', attributes: {
+            metric: { data: { type: 'metric', attributes: { name: 'Precon Memory Gewonnen' } } },
+            profile: { data: { type: 'profile', attributes: { email: email, first_name: firstName } } },
+            properties: { time_seconds: ts, time_formatted: fmt(ts), discount_code: 'MEMORY' }
+          }}})
+        });
+      } catch(e) {}
+    }
+
+    function renderLeaderboard(data, myName) {
+      const list = document.getElementById('leaderboardList');
+      if (!data || data.length === 0) {
+        list.innerHTML = '<p style="text-align:center;color:#aaa;font-size:.8rem">Noch keine Einträge</p>';
+        return;
+      }
+      list.innerHTML = data.map((row, i) => {
+        const isYou = myName && row.first_name.toLowerCase() === myName.toLowerCase();
+        return `<div class="lb-row ${i===0?'lb-first':''}">
+          <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+          <span class="lb-name">${row.first_name}${isYou?'<span class="lb-you">Du</span>':''}</span>
+          <span class="lb-time">${fmt(row.time_seconds)}</span>
+        </div>`;
+      }).join('');
+    }
+
+    document.getElementById('submitScoreBtn').addEventListener('click', async () => {
+      const name  = document.getElementById('playerName').value.trim();
+      const email = document.getElementById('playerEmail').value.trim();
+      const msg   = document.getElementById('submitMsg');
+      const consent = document.getElementById('consentCheck').checked;
+      if (!name || !email || !email.includes('@') || !consent) {
+        msg.textContent = !consent ? 'Bitte stimme den Datenschutzbestimmungen zu.' : 'Bitte Vorname und gültige E-Mail eingeben.';
+        msg.textContent = 'Bitte Vorname und gültige E-Mail eingeben.';
+        msg.className = 'submit-msg err';
+        msg.style.display = 'block';
+        return;
+      }
+      const btn = document.getElementById('submitScoreBtn');
+      btn.disabled = true;
+      btn.textContent = 'Wird eingereicht…';
+      const ok = await submitToSupabase(name, email, myTimeSeconds);
+      submitToKlaviyo(name, email, myTimeSeconds);
+      if (ok) {
+        document.getElementById('submitSection').style.display = 'none';
+        document.getElementById('leaderboardSection').style.display = 'block';
+        const data = await fetchLeaderboard();
+        renderLeaderboard(data, name);
+      } else {
+        msg.textContent = 'Fehler beim Einreichen – bitte nochmal versuchen.';
+        msg.className = 'submit-msg err';
+        msg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Bestzeit einreichen';
+      }
+    });
+  
+</script>
+
+{% schema %}
+{
+  "name": "Precon Memory Game",
+  "tag": "section",
+  "class": "precon-memory-game",
+  "settings": [
+    {"type":"header","content":"Texte"},
+    {"type":"text","id":"text_sub","label":"Unterzeile (unter Logo)","default":"Neues Design - Gleicher Geschmack"},
+    {"type":"text","id":"text_title","label":"Titel","default":"Memory Game"},
+    {"type":"text","id":"text_tagline","label":"Tagline","default":"ALT TRIFFT NEU — FINDE ALLE PAARE"},
+    {"type":"text","id":"text_banner","label":"Challenge-Banner","default":"⏱ Alle Paare in 60 Sekunden → Rabattcode sichern"},
+    {"type":"textarea","id":"text_submit_sub","label":"Leaderboard Subtext","default":"Trage Deinen Namen ein. Die 3 schnellsten Zeiten erhalten ein Geschenk im neuen Precon Glanz."},
+    {"type":"header","content":"Spiel"},
+    {"type":"number","id":"time_limit","label":"Zeitlimit (Sekunden)","default":60},
+    {"type":"text","id":"discount_code","label":"Rabattcode","default":"MEMORY"},
+    {"type":"header","content":"Farben"},
+    {"type":"color","id":"color_brown","label":"Hauptfarbe (Braun)","default":"#56473A"},
+    {"type":"color","id":"color_cream","label":"Hintergrund Creme","default":"#EFECE4"},
+    {"type":"color","id":"color_cream_mid","label":"Mittleres Creme","default":"#E5E1D8"},
+    {"type":"color","id":"color_cream_dark","label":"Dunkles Creme","default":"#D8D3C8"},
+    {"type":"color","id":"color_banner","label":"Banner-Farbe","default":"#3DADBB"}
+  ],
+  "presets": [{"name":"Precon Memory Game"}]
+}
+{% endschema %}

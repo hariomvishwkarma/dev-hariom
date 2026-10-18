@@ -1,0 +1,209 @@
+{%- style -%}
+
+  #shopify-section-{{ section.id }} {
+    --blog-posts-per-row: 3;
+    --blog-posts-grid: auto / auto-flow 52vw;
+  }
+
+  #shopify-section-{{ section.id }} .article-list {
+    margin: 0;
+  }
+
+  @media screen and (min-width: 1000px) {
+    #shopify-section-{{ section.id }} {
+      --blog-posts-grid: auto / repeat(var(--blog-posts-per-row), minmax(0, 1fr));
+    }
+  }
+
+  #shopify-section-{{ section.id }}.section {
+   padding-block-start: {{ section.settings.padding_top | times: 0.75 | round: 0 }}px;
+   padding-block-end: {{ section.settings.padding_bottom | times: 0.75 | round: 0 }}px;
+ }
+
+ .section-{{ section.id }} .section__title {
+   margin-bottom: 15px;
+ }
+
+{%- endstyle -%}
+
+<div class="container section-{{ section.id }} section-{{ section.id }}">
+ {% if section.settings.title %}
+   <{{ section.settings.block_heading_parameter }} id="header-{{ section.id }}" class="section__title heading section-id--{{ section.id }} {{ section.settings.block_heading_styling }}">
+     {{- section.settings.title | escape -}}
+   </{{- section.settings.block_heading_parameter -}}>
+ {% endif %}
+ <div class="section-author-posts section-stack">
+   <article-list {% if settings.stagger_blog_posts_apparition %}stagger-apparition{% endif %}  class="article-list article-list--stacked blog-posts">
+    {% assign article_to_show = 0 %}
+    {% for link in linklists.bloglist.links %}
+      {% assign blog = link.object %}
+      {% for article in blog.articles %}
+        {% assign bso_author = article.metafields.bso.author %}
+        {% for author in bso_author.value %}
+          {% if section.settings.author_name != blank %}
+            {% assign assigned_author = section.settings.author_name | downcase %}
+          {% else %}
+            {% assign assigned_author = metaobject.name.value | downcase %}
+          {% endif %}
+          {% assign author_name = author.name.value | downcase %}
+          {% if assigned_author == author_name %}
+            {% assign article_to_show = article_to_show | plus: 1 %}
+            {%- liquid
+              assign loading_strategy = 'lazy'
+              assign fetching_strategy = 'low'
+
+              if article_to_show <= 3
+                assign loading_strategy = 'eager'
+                assign fetching_strategy = 'high'
+              endif
+            -%}
+            {%- render 'blog-post-card', article: article, heading_size: 'h3', loading_strategy: loading_strategy, fetching_strategy: fetching_strategy -%}
+            {% break %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %} 
+    {% endfor %}
+   </article-list>
+ </div>
+</div>
+
+{% schema %}
+{
+ "name": "BSO Author blogposts",
+ "tag": "section",
+ "class": "section",
+ "settings": [
+  {
+    "type": "text",
+    "id": "author_name",
+    "label": "Handle of the author",
+    "info": "leave empty if you are on the author page, fill the handle if you want to show his\/her posts"
+  },
+  {
+    "type": "header",
+    "content": "Section Settings"
+  },
+  {
+    "type": "text",
+    "id": "title",
+    "label": "Heading",
+    "default": "Blog posts"
+  },
+  {
+    "type": "select",
+    "id": "block_heading_parameter",
+    "label": "Heading H-Tag (h1 - h6 or Span)",
+    "default": "h2",
+    "options": [
+      {
+        "value": "h1",
+        "label": "H1"
+      },
+      {
+        "value": "h2",
+        "label": "H2"
+      },
+      {
+        "value": "h3",
+        "label": "H3"
+      },
+      {
+        "value": "h4",
+        "label": "H4"
+      },
+      {
+        "value": "h5",
+        "label": "H5"
+      },
+      {
+        "value": "h6",
+        "label": "H6"
+      },
+      {
+        "value": "span",
+        "label": "SPAN"
+      }
+    ]
+  },
+  {
+    "type": "select",
+    "id": "block_heading_styling",
+    "label": "Heading Styling (h1 - h6)",
+    "default": "h1",
+    "options": [
+      {
+        "value": "h1",
+        "label": "H1"
+      },
+      {
+        "value": "h2",
+        "label": "H2"
+      },
+      {
+        "value": "h3",
+        "label": "H3"
+      },
+      {
+        "value": "h4",
+        "label": "H4"
+      },
+      {
+        "value": "h5",
+        "label": "H5"
+      },
+      {
+        "value": "h6",
+        "label": "H6"
+      }
+    ],
+    "info": "Only changes the appearance, not the HTML tag as such"
+  },
+  {
+    "type": "range",
+    "id": "padding_top",
+    "min": 0,
+    "max": 100,
+    "step": 4,
+    "unit": "px",
+    "label": "Top padding",
+    "default": 20
+  },
+  {
+    "type": "range",
+    "id": "padding_bottom",
+    "min": 0,
+    "max": 100,
+    "step": 4,
+    "unit": "px",
+    "label": "Bottom padding",
+    "default": 20
+  },
+  {
+    "type": "header",
+    "content": "Blog card settings"
+  },
+  {
+    "type": "checkbox",
+    "id": "show_excerpt",
+    "default": true,
+    "label": "Show Excerpt"
+  },
+  {
+    "type": "checkbox",
+    "id": "show_date",
+    "label": "Show date",
+    "default": false
+  }
+ ],
+ "blocks": [],
+ "disabled_on": {
+  "templates": ["cart", "collection", "search", "article", "blog", "page", "product", "customers/account", "customers/addresses", "customers/login", "customers/order", "customers/register", "customers/reset_password", "index"],
+  "groups": ["header", "footer"]
+ },
+ "presets": [
+  {
+    "name": "BSO Author blogposts"
+  }
+ ]
+}
+{% endschema %}

@@ -1,0 +1,225 @@
+{{ 'tabs-slider-card.css' | asset_url | stylesheet_tag }}
+
+<div class="tabs-slider-card-wrapper" style="background:{{ section.settings.bg_color }};">
+    <div class="{% if section.settings.include_horizontal_margins %}container{% endif %} {% if section.settings.include_vertical_margins %}vertical-breather{% endif %}">
+        <div class="tabs-slider-flex">
+            {% if section.settings.heading != blank %}
+                <h2 class="tabs-slider-heading">{{ section.settings.heading }}</h2>
+            {% endif %}
+            <div class="ts-tabs">
+                {% for block in section.blocks %}
+                    {% if block.type == 'tab' %}
+                        <button class="ts-tab-item {% if forloop.first %}active_tab{% endif %}" data-tab="{{ block.settings.tab | handleize }}">{{ block.settings.tab }}</button>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% assign forloop_count = 1 %}
+            <div class="ts-tabs-wrapper">
+                {% for block in section.blocks %}
+                    {% if block.type == 'tab' %}
+                        {% assign tab_handle = block.settings.tab | handleize %}
+                        <div class="ts-tabs-wrap-slider {% if forloop_count == 1 %}active_tab{% endif %}" data-tab="{{ tab_handle }}">
+                            <div class="swiper ts-swiper-{{ block.id }}">
+                                <div class="swiper-wrapper">
+                                    {% for card_block in section.blocks %}
+                                        {% if card_block.type == 'card' %}
+                                            {% assign tab_child = card_block.settings.tab | handleize %}
+                                            {% if tab_handle == tab_child %}
+                                                <div class="swiper-slide">
+                                                    <div class="ts-card-item">
+                                                        <div class="ts-card-media">
+                                                        {% if card_block.settings.image != blank %}
+                                                            <img src="{{ card_block.settings.image | image_url }}" alt="{{ card_block.settings.heading }}" width="auto" height="auto"/>
+                                                        {% endif %}
+                                                        </div>
+                                                        <div class="ts-card-content">
+                                                            {% if card_block.settings.heading != blank %}
+                                                                <h3 class="ts-card-heading">{{ card_block.settings.heading }}</h3>
+                                                            {% endif %}
+                                                            {% if card_block.settings.tags != blank %}
+                                                                {% assign tags = card_block.settings.tags | split:',' %}
+                                                                <div class="ts-card-tags">
+                                                                    {% for tag in tags %}
+                                                                        {% if tag != blank %}<span class="ts-card-tag">{{ tag }}</span>{% endif %}
+                                                                    {% endfor %}
+                                                                </div>
+                                                            {% endif %}
+                                                            {% if card_block.settings.content != blank %}
+                                                                <div class="ts-card-info">{{ card_block.settings.content }}</div>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <div class="swiper-pagination"></div>
+                                <div class="ts-arrow-navigation">
+                                    <button class="ts-prev-slide ts-slider-btn">
+                                        <img src="https://cdn.shopify.com/s/files/1/0904/4639/7774/files/arrow-left.svg?v=1755089155" alt="Prev">
+                                    </button>
+                                    <button class="ts-next-slide ts-slider-btn">
+                                        <img src="https://cdn.shopify.com/s/files/1/0904/4639/7774/files/arrow-right.svg?v=1755089155" alt="Next">
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% assign forloop_count = forloop_count | plus:1 %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const swipers = [];
+
+  document.querySelectorAll('.ts-tabs-wrap-slider .swiper').forEach((slider) => {
+    const swiper = new Swiper(slider, {
+      slidesPerView: 1.2,
+      spaceBetween: 8,
+      speed: 500,
+      pagination: {
+        el: slider.querySelector('.swiper-pagination'),
+        clickable: true,
+      },
+
+      navigation: {
+        nextEl: slider.querySelector('.ts-next-slide'),
+        prevEl: slider.querySelector('.ts-prev-slide'),
+      },
+
+      breakpoints: {
+        768: {
+          slidesPerView: 2,
+          spaceBetween: 20,
+        },
+        1024: {
+          slidesPerView: 3,
+          spaceBetween: 24,
+        },
+      },
+    });
+
+    swipers.push(swiper);
+  });
+
+  const tabs = document.querySelectorAll('.ts-tab-item');
+  const panels = document.querySelectorAll('.ts-tabs-wrap-slider');
+
+  function activateTab(tab) {
+    const handle = tab.dataset.tab;
+
+    tabs.forEach(t => t.classList.remove('active_tab'));
+    panels.forEach(p => p.classList.remove('active_tab'));
+
+    tab.classList.add('active_tab');
+
+    const panel = document.querySelector(
+      `.ts-tabs-wrap-slider[data-tab="${handle}"]`
+    );
+
+    if (panel) {
+      panel.classList.add('active_tab');
+
+      {% comment %} const swiper = panel.querySelector('.swiper').swiper;
+
+      if (swiper) {
+        swiper.update();
+      } {% endcomment %}
+    }
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => activateTab(tab));
+  });
+
+});
+</script>
+
+{% schema %}
+{
+  "name": "Tabs Slider Card",
+  "class": "tabs-slider-card-main",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default":"Erfahrungsberichte, die zu Deiner Lebenssituation passen"
+    },
+    {
+      "type": "color",
+      "id": "bg_color",
+      "label": "Background",
+      "default":"#EFECE4"
+    },
+    {
+      "type": "checkbox",
+      "id": "include_horizontal_margins",
+      "label": "Include horizontal margins",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "include_vertical_margins",
+      "label": "Include vertical margins",
+      "default": true
+    }
+  ],
+  "blocks": [
+    {
+      "type": "tab",
+      "name":"Tab",
+      "settings": [
+        {
+            "type": "text",
+            "id": "tab",
+            "label": "Tab"
+        },
+      ]
+    },
+    {
+      "type": "card",
+      "name":"Content card",
+      "settings": [
+        {
+            "type": "text",
+            "id": "tab",
+            "label": "Tab",
+            "info":"Enter Tab name in which tab you want to display this card block."
+        },
+        {
+            "type": "image_picker",
+            "id": "image",
+            "label": "Image"
+        },
+        {
+            "type": "text",
+            "id": "heading",
+            "label": "Heading"
+        },
+        {
+            "type": "text",
+            "id": "tags",
+            "label": "Tags",
+            "info": "Seperate tags with comma ',' example: Ü50,Heißhunger"
+        },
+        {
+            "type": "richtext",
+            "id": "content",
+            "label": "Content"
+        },
+      ]
+    },
+  ],
+  "presets": [
+    {
+      "name": "Tabs Slider Card"
+    }
+  ]
+}
+{% endschema %}

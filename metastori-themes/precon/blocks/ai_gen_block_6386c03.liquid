@@ -1,0 +1,230 @@
+{% doc %}
+  @prompt
+    A call-to-action-button which scrolls down to a specific section or anchor point. I should be able to change the button text, colour, and corner roundings. I also want to manage the vertical padding. , I want to change the sections background colour, the scroll offset function doesn't seem to work. Can you fix it?
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-scroll-button-wrapper-{{ ai_gen_id }} {
+    display: block;
+    width: 100%;
+    padding: {{ block.settings.vertical_padding }}px 0;
+    background-color: {{ block.settings.section_background_color }};
+  }
+
+  .ai-scroll-button-{{ ai_gen_id }} {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 32px;
+    background-color: {{ block.settings.button_background_color }};
+    color: {{ block.settings.button_text_color }};
+    border: none;
+    border-radius: {{ block.settings.border_radius }}px;
+    font-size: 16px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+  }
+
+  .ai-scroll-button-{{ ai_gen_id }}:hover {
+    background-color: {{ block.settings.button_hover_color }};
+    color: {{ block.settings.button_hover_text_color }};
+  }
+
+  .ai-scroll-button-container-{{ ai_gen_id }} {
+    text-align: {{ block.settings.button_alignment }};
+  }
+{% endstyle %}
+
+<scroll-button-{{ ai_gen_id }}
+  class="ai-scroll-button-wrapper-{{ ai_gen_id }}"
+  {{ block.shopify_attributes }}
+>
+  <div class="ai-scroll-button-container-{{ ai_gen_id }}">
+    <button
+      class="ai-scroll-button-{{ ai_gen_id }}"
+      data-target="{{ block.settings.scroll_target }}"
+      data-offset="{{ block.settings.scroll_offset }}"
+      aria-label="{{ block.settings.button_text }}"
+    >
+      {{ block.settings.button_text }}
+    </button>
+  </div>
+</scroll-button-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class ScrollButton{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+      }
+
+      connectedCallback() {
+        this.button = this.querySelector('.ai-scroll-button-{{ ai_gen_id }}');
+        this.setupEventListeners();
+      }
+
+      setupEventListeners() {
+        this.button.addEventListener('click', () => {
+          const targetId = this.button.getAttribute('data-target');
+          const offset = parseInt(this.button.getAttribute('data-offset')) || 0;
+          
+          if (!targetId) {
+            return;
+          }
+
+          const targetElement = document.querySelector(targetId);
+          
+          if (targetElement) {
+            const elementPosition = targetElement.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - offset;
+            
+            window.scrollTo({
+              top: offsetPosition,
+              behavior: 'smooth'
+            });
+          }
+        });
+      }
+    }
+
+    customElements.define('scroll-button-{{ ai_gen_id }}', ScrollButton{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Scroll to section button",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Button content"
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button text",
+      "default": "Scroll down"
+    },
+    {
+      "type": "text",
+      "id": "scroll_target",
+      "label": "Target section ID",
+      "info": "Enter the CSS selector (e.g., #section-id or .class-name)",
+      "default": "#shopify-section-template--25488094691662__main"
+    },
+    {
+      "type": "range",
+      "id": "scroll_offset",
+      "min": 0,
+      "max": 200,
+      "step": 10,
+      "unit": "px",
+      "label": "Scroll offset",
+      "info": "Space from top when scrolling to target",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Section style"
+    },
+    {
+      "type": "color",
+      "id": "section_background_color",
+      "label": "Background color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "header",
+      "content": "Button style"
+    },
+    {
+      "type": "select",
+      "id": "button_alignment",
+      "label": "Button alignment",
+      "options": [
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "center",
+          "label": "Center"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "color",
+      "id": "button_background_color",
+      "label": "Background color",
+      "default": "#3dadbb"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "button_hover_color",
+      "label": "Hover background color",
+      "default": "#2d8d9b"
+    },
+    {
+      "type": "color",
+      "id": "button_hover_text_color",
+      "label": "Hover text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "min": 0,
+      "max": 50,
+      "step": 2,
+      "unit": "px",
+      "label": "Corner radius",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Spacing"
+    },
+    {
+      "type": "range",
+      "id": "vertical_padding",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "label": "Vertical padding",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "desktop_width_percent",
+      "label": "Desktop width",
+      "min": 50,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 100
+    }
+  ],
+  "presets": [
+    {
+      "name": "Scroll to section button"
+    }
+  ]
+}
+{% endschema %}

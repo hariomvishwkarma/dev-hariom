@@ -1,0 +1,544 @@
+{% unless product.metafields.custom.is_hidden == 1 %}
+  <div class="product-item related-product-item newlistproduct product-item-new">
+    {% assign product = related_product %}
+    {%- capture product_labels -%}
+    {%- if product.metafields.custom.badges != blank -%}
+      {%- for custom_badge in product.metafields.custom.badges.value -%}
+        <span class="label {% if forloop.index == 1 %}label--custom{% else %}label--custom2{% endif %}">{{ custom_badge }}</span>
+      {%- endfor -%}
+    {%- else -%}
+      {%- for tag in product.tags -%}
+        {%- if tag contains '__label' -%}
+          <span class="label label--custom{% if tag contains '__label2' %}2{% endif %}">{{ tag | split: ':' | last }}</span>
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+
+    {%- unless product.available -%}
+      <span class="label label--subdued">{{ 'collection.product.sold_out' | t }}</span>
+    {%- endunless -%}
+
+    {%- assign cheapest_variant = product.variants | sort: 'price' | first -%}
+
+    {%- if settings.show_discount and product.available and product.price < product.compare_at_price and cheapest_variant.compare_at_price != blank -%}
+      {%- if settings.discount_mode == 'percentage' -%}
+        {%- assign savings = product.compare_at_price | minus: product.price | times: 100.0 | divided_by: product.compare_at_price | round | append: '%' -%}
+      {%- else -%}
+        {%- capture savings -%}{{ product.compare_at_price | minus: product.price | money }}{%- endcapture -%}
+      {%- endif -%}
+
+      {% comment %}
+      <span class="label label--highlight">{{ 'collection.product.discount_html' | t: savings: savings }}</span>
+      {% endcomment %}
+    {%- endif -%}
+  {%- endcapture -%}
+
+    <a href="{{ related_product.url }}" class="product-item__link">
+      <div class="product-item__image-container">
+        {%- if product_labels != blank and reduced_content != true -%}
+          <div class="product-item__label-list label-list">
+            {{- product_labels -}}
+          </div>
+        {%- endif -%}
+        {% if related_product.tags contains 'Bestseller' %}
+          <span class="bestsell">
+            <img src="https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Fire.svg?v=1753786560">
+            Bestseller
+          </span>
+
+        {% elsif related_product.tags contains 'Limited Edition' %}
+          <span class="bestsell">
+            <img src="https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Fire.svg?v=1753786560">
+            Limited Edition
+          </span>
+
+        {% elsif related_product.tags contains 'Neuheit' %}
+          <span class="bestsell">
+            <img src="https://cdn.shopify.com/s/files/1/0904/4639/7774/files/Fire.svg?v=1753786560">
+            Neuheit
+          </span>
+        {% endif %}
+
+        {% comment %} {% assign custom_image = related_product.metafields.custom.spotlight_banner %} {% endcomment %}
+        <img
+          src="{{ related_product.featured_image | image_url: width: 400 }}"
+          alt="{{ related_product.title | escape }}"
+          class="product-item__image"
+        >
+   <span class="iconimage clp-custom-icon-data"> {% render 'realated-icon'product:related_product %}</span>
+      </div>
+
+      <div class="product-item__info">
+        <div class="product-item__title">{{ related_product.title }}</div>
+
+        {% comment %} {% if related_product.metafields.custom.product_description_hp_cp != blank %} {% endcomment %}
+        <div class="product_short_cnt">
+          {{ related_product.metafields.custom.product_description_hp_cp | metafield_tag }}
+        </div>
+        {% comment %} {% endif %} {% endcomment %}
+
+        {% comment %} <span class="ssstar">
+          <div class="jdgm-widget jdgm-preview-badge" data-id="{{ product.id }}">
+            {{ product.metafields.judgeme.badge }}
+          </div>
+        </span> {% endcomment %}
+
+        <div class="collection-page-review-widget">
+          {% if request.origin == 'https://www.precon.ch' %}
+            <!-- Begin eTrusted widget tag -->
+            <etrusted-widget data-etrusted-widget-id="wdg-43a32878-df2a-48af-8822-4f88408327fc" data-sku="{{ product.selected_or_first_available_variant.sku }}"></etrusted-widget>
+            <!-- End eTrusted widget tag -->
+          {% else %}
+            <!-- Begin eTrusted widget tag -->
+            <etrusted-widget data-etrusted-widget-id="wdg-ebb4bb75-48ce-456e-8cd2-f8f0b7e3432b" data-sku="{{ product.selected_or_first_available_variant.sku }}"></etrusted-widget>
+            <!-- End eTrusted widget tag -->
+          {% endif %}
+        </div>
+
+        <div class="product-item-meta__price-list-container pricesectionnew">
+          {%- comment -%} Price logic copied from your original code {%- endcomment -%}
+
+{%if product.metafields.custom.chf_discount_price != blank  and  cart.currency.iso_code == 'CHF'  %}
+
+{% assign first_variant = product.selected_or_first_available_variant %}
+{% assign original_price = first_variant.price %}
+
+{% assign discount_raw = product.metafields.custom.chf_discount_price | default: "" %}
+{% assign discount_number = discount_raw | replace: '%', '' | plus: 0 %}
+
+{% if discount_raw contains '%' %}
+
+  {%- comment -%} Percentage Discount Case {%- endcomment -%}
+  {% assign discount_amount = original_price | times: discount_number | divided_by: 100 %}
+  {% assign custom_main_price = original_price | minus: discount_amount %}
+  {% assign custom_compare_price = original_price %}
+
+{% else %}
+
+  {%- comment -%} Normal Discount Case {%- endcomment -%}
+  {% assign discount_amount = discount_number | times: 100 %}
+  {% assign custom_main_price = original_price | minus: discount_amount %}
+  {% assign custom_compare_price = original_price %}
+
+{% endif %}
+
+  <div class="price-list price-list--centered prodct-page">
+            
+                <span class="price price--highlight">
+                     {%- if settings.currency_code_enabled -%}
+                 {{custom_main_price | money_with_currency }}
+                 {%else %}
+                    {{custom_main_price | money }}
+                     {% endif %}
+                </span>
+
+                {%if custom_compare_price > custom_main_price  %}
+                  <span>
+                  <span class="price price--compare">
+                    {%- if settings.currency_code_enabled -%}
+                      {{- custom_compare_price | money_with_currency -}}
+                    {%- else -%}
+                      {{- custom_compare_price | money -}}
+                    {%- endif -%}
+                        
+                  </span>
+
+                      {%- if settings.show_discount
+                    and custom_compare_price > custom_main_price
+                  -%}
+                    {%- if settings.discount_mode == 'percentage' -%}
+                      {%- assign savings = custom_compare_price
+                        | minus: custom_main_price
+                        | times: 100.0
+                        | divided_by: custom_compare_price
+                        | round
+                        | append: '%'
+                      -%}
+                    {%- else -%}
+                      {%- capture savings -%}{{ custom_compare_price | minus: custom_main_price | money }}{%- endcapture -%}
+                    {%- endif -%}
+
+                    <span class="discount-percent">
+                      {{- 'collection.product.discount_html' | t: savings: savings -}}
+                    </span>
+                  {%- endif -%}
+                </span>
+
+                {%endif %}
+                  
+                
+          </div>
+
+      {% elsif  product.metafields.custom.eur_discount_price != blank  and  cart.currency.iso_code == 'EUR'   %}
+
+{% assign first_variant = product.selected_or_first_available_variant %}
+{% assign original_price = first_variant.price %}
+
+{% assign discount_raw = product.metafields.custom.eur_discount_price | default: "" %}
+{% assign discount_number = discount_raw | replace: '%', '' | plus: 0 %}
+
+{% if discount_raw contains '%' %}
+
+  {%- comment -%} Percentage Discount Case {%- endcomment -%}
+  {% assign discount_amount = original_price | times: discount_number | divided_by: 100 %}
+  {% assign custom_main_price = original_price | minus: discount_amount %}
+  {% assign custom_compare_price = original_price %}
+
+{% else %}
+
+  {%- comment -%} Normal Discount Case {%- endcomment -%}
+  {% assign discount_amount = discount_number | times: 100 %}
+  {% assign custom_main_price = original_price | minus: discount_amount %}
+  {% assign custom_compare_price = original_price %}
+
+{% endif %}
+
+  <div class="price-list price-list--centered prodct-page">
+            
+                <span class="price price--highlight">
+                     {%- if settings.currency_code_enabled -%}
+                 {{custom_main_price | money_with_currency }}
+                 {%else %}
+                    {{custom_main_price | money }}
+                     {% endif %}
+                </span>
+
+                
+                  {%if custom_compare_price > custom_main_price  %}
+                  <span>
+                  <span class="price price--compare">
+                    {%- if settings.currency_code_enabled -%}
+                      {{- custom_compare_price | money_with_currency -}}
+                    {%- else -%}
+                      {{- custom_compare_price | money -}}
+                    {%- endif -%}
+                        
+                  </span>
+
+                      {%- if settings.show_discount
+                    and custom_compare_price > custom_main_price
+                  -%}
+                    {%- if settings.discount_mode == 'percentage' -%}
+                      {%- assign savings = custom_compare_price
+                        | minus: custom_main_price
+                        | times: 100.0
+                        | divided_by: custom_compare_price
+                        | round
+                        | append: '%'
+                      -%}
+                    {%- else -%}
+                      {%- capture savings -%}{{ custom_compare_price | minus: custom_main_price | money }}{%- endcapture -%}
+                    {%- endif -%}
+
+                    <span class="discount-percent">
+                      {{- 'collection.product.discount_html' | t: savings: savings -}}
+                    </span>
+                  {%- endif -%}
+                </span>
+
+                {%endif %}
+              
+                  
+                
+          </div>
+
+
+{% else %}
+
+          <div class="price-list price-list--centered prodct-page">
+            {%- if related_product.price_varies and related_product.compare_at_price -%}
+              {%- assign cheapest_variant = related_product.variants | sort: 'price' | first -%}
+              {%- capture price_min -%}
+                            {%- if settings.currency_code_enabled -%}
+                              {{- cheapest_variant.price | money_with_currency -}}
+                            {%- else -%}
+                              {{- cheapest_variant.price | money -}}
+                            {%- endif -%}
+                          {%- endcapture -%}
+
+              {%- if cheapest_variant.price < cheapest_variant.compare_at_price -%}
+                <span class="price price--highlight">
+                  {{- 'collection.product.from_price_html' | t: price_min: price_min -}}
+                </span>
+
+                <span>
+                  <span class="price price--compare">
+                    {%- if settings.currency_code_enabled -%}
+                      {{- related_product.compare_at_price | money_with_currency -}}
+                    {%- else -%}
+                      {{- related_product.compare_at_price | money -}}
+                    {%- endif -%}
+                  </span>
+                  {% comment %}
+                    {%- assign discount = related_product.compare_at_price | minus: related_product.price | times: 100 | divided_by: related_product.compare_at_price -%}
+                    <span class="discount-percent">{{ discount | round }}%</span>
+                  {% endcomment %}
+
+                  {%- if settings.show_discount
+                    and related_product.price < related_product.compare_at_price
+                    and cheapest_variant.compare_at_price != blank
+                  -%}
+                    {%- if settings.discount_mode == 'percentage' -%}
+                      {%- assign savings = related_product.compare_at_price
+                        | minus: related_product.price
+                        | times: 100.0
+                        | divided_by: related_product.compare_at_price
+                        | round
+                        | append: '%'
+                      -%}
+                    {%- else -%}
+                      {%- capture savings -%}{{ related_product.compare_at_price | minus: related_product.price | money }}{%- endcapture -%}
+                    {%- endif -%}
+
+                    <span class="discount-percent">
+                      {{- 'collection.product.discount_html' | t: savings: savings -}}
+                    </span>
+                  {%- endif -%}
+                </span>
+
+              {%- else -%}
+                <span class="price">
+                  {{- 'collection.product.from_price_html' | t: price_min: price_min -}}
+                </span>
+              {%- endif -%}
+
+            {%- elsif related_product.price < related_product.compare_at_price -%}
+              <span class="price price--highlight">
+                {%- if settings.currency_code_enabled -%}
+                  {{- related_product.price | money_with_currency -}}
+                {%- else -%}
+                  {{- related_product.price | money -}}
+                {%- endif -%}
+              </span>
+
+              <span>
+                <span class="price price--compare">
+                  {%- if settings.currency_code_enabled -%}
+                    {{- related_product.compare_at_price | money_with_currency -}}
+                  {%- else -%}
+                    {{- related_product.compare_at_price | money -}}
+                  {%- endif -%}
+                </span>
+                {% comment %}
+                  {%- assign discount = related_product.compare_at_price | minus: related_product.price | times: 100 | divided_by: related_product.compare_at_price -%}
+                  <span class="discount-percent">{{ discount | round }}%</span>
+                {% endcomment %}
+                {%- if settings.show_discount
+                  and related_product.price < related_product.compare_at_price
+                  and cheapest_variant.compare_at_price != blank
+                -%}
+                  {%- if settings.discount_mode == 'percentage' -%}
+                    {%- assign savings = related_product.compare_at_price
+                      | minus: related_product.price
+                      | times: 100.0
+                      | divided_by: related_product.compare_at_price
+                      | round
+                      | append: '%'
+                    -%}
+                  {%- else -%}
+                    {%- capture savings -%}{{ related_product.compare_at_price | minus: related_product.price | money }}{%- endcapture -%}
+                  {%- endif -%}
+
+                  <span class="discount-percent">
+                    {{- 'collection.product.discount_html' | t: savings: savings -}}
+                  </span>
+                {%- endif -%}
+              </span>
+            {%- elsif related_product.price_varies -%}
+              {%- capture price_min -%}
+                            {%- if settings.currency_code_enabled -%}
+                              {{ related_product.price_min | money_with_currency }}
+                            {%- else -%}
+                              {{ related_product.price_min | money }}
+                            {%- endif -%}
+                          {%- endcapture -%}
+              {%- capture price_max -%}
+                            {%- if settings.currency_code_enabled -%}
+                              {{- related_product.price_max | money_with_currency -}}
+                            {%- else -%}
+                              {{- related_product.price_max | money -}}
+                            {%- endif -%}
+                          {%- endcapture -%}
+              <span class="price">
+                {{- 'collection.product.from_price_html' | t: price_min: price_min, price_max: price_max -}}
+              </span>
+
+            {%- else -%}
+              <span class="price">
+                {%- if settings.currency_code_enabled -%}
+                  {{- related_product.price | money_with_currency -}}
+                {%- else -%}
+                  {{- related_product.price | money -}}
+                {%- endif -%}
+              </span>
+            {%- endif -%}
+          </div>
+        {% endif %}
+          {% comment %}
+            {% if related_product.metafields.custom.product_weight_info != blank %}
+              <div class="product_weight_info">
+                <span> {{ related_product.metafields.custom.product_weight_info | metafield_tag }} </span>
+              </div>
+            {% endif %}
+          {% endcomment %}
+        </div>
+
+        {% if related_product.metafields.custom.product_weight_info != blank %}
+          <div class="product_weight_info">
+            <span> {{ related_product.metafields.custom.product_weight_info | metafield_tag }} </span>
+          </div>
+        {% endif %}
+      </div>
+    </a>
+
+    <div class="product-item__cta-wrapper {% unless product.available %} product-item__cta-wrapper-soldout {% endunless %}">
+      {% if product.metafields.custom.bundle != blank %}
+         {% if product.available %}
+
+
+{% if product.metafields.custom.bundle != blank %}
+  {% assign all_single_options = true %}
+  {% assign variant_data_string = '' %}
+  
+  {% comment %} First check if all options have only 1 product {% endcomment %}
+  {% for i in (1..14) %}
+    {% if i == 1 %}
+      {% assign key_products = 'products' %}
+    {% else %}
+      {% assign key_products = 'products' | append: i %}
+    {% endif %}
+    
+    {% assign products = product.metafields.custom.bundle.value[key_products] %}
+    
+    {% if products != blank and products.value.count > 1 %}
+      {% assign all_single_options = false %}
+    {% endif %}
+  {% endfor %}
+  
+  {% comment %} If all options have only 1 product, collect variant data {% endcomment %}
+  {% if all_single_options %}
+    {% for i in (1..14) %}
+      {% if i == 1 %}
+        {% assign key_name = 'name' %}
+        {% assign key_products = 'products' %}
+      {% else %}
+        {% assign key_name = 'name' | append: i %}
+        {% assign key_products = 'products' | append: i %}
+      {% endif %}
+      
+      {% assign name_with_qty = product.metafields.custom.bundle.value[key_name] %}
+      {% assign products = product.metafields.custom.bundle.value[key_products] %}
+      
+      {% if products != blank %}
+        {% assign name_parts = name_with_qty | split: '|' %}
+        {% assign quantity = name_parts[1] | default: 1 %}
+        
+        {% for p in products.value %}
+          {% if p.available %}
+            {% assign variant_id = p.selected_or_first_available_variant.id %}
+            {% assign variant_data_string = variant_data_string | append: variant_id | append: ':' | append: quantity | append: ',' %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    {% endfor %}
+    
+    {% comment %} Remove the last comma if exists {% endcomment %}
+    {% assign variant_data_string = variant_data_string | remove_last: ',' %}
+    
+    {% comment %} Create button with data attributes {% endcomment %}
+    <button 
+      type="button" 
+      class="custom-non-dropdown-button single-button product-item__cta button button--primary"
+      data-variant-ids="{{ variant_data_string }}"
+          onclick="addNonDropdownBundleToCart(this)"
+      data-bundle-type="no-section"
+      data-product-id="{{ product.selected_or_first_available_variant.id }}"
+    >
+     {{- 'product.form.add_to_cart' | t -}}
+    </button>
+    
+  {% else %}
+  <a href="{{ product.url }}" class="product-item__cta button button--primary">
+          {{settings.make-my-selection}}
+        </a>
+  {% endif %}
+{% endif %}
+
+
+
+
+
+
+
+      
+        {%else %}
+            <button disabled href="{{ product.url }}" class="product-item__cta button button--primary">
+           {{- 'product.form.sold_out' | t -}}
+            </button>
+           
+          {%endif %}
+      {% else %}
+        {%- if related_product.variants.size == 1 -%}
+          {%- capture form_id -%}product_form_{{ section.id }}_{{ related_product.id }}_{% increment product_form_index %}{%- endcapture -%}
+          {%- form 'product', related_product, is: 'product-form', id: form_id -%}
+            <input type="hidden" name="quantity" value="1">
+            <input type="hidden" name="id" value="{{ related_product.first_available_variant.id }}">
+            <button type="submit" class="product-item__cta button button--primary">
+              {% if product.available %}
+                {% comment %}
+                  {{ 'collection.product.add_to_cart_short' | t }}
+                {% endcomment %}
+                {{- 'product.form.add_to_cart' | t -}}
+              {% else %}
+                {{- 'product.form.sold_out' | t -}}
+              {% endif %}
+            </button>
+          {%- endform -%}
+        {%- else -%}
+          <button
+            type="button"
+            is="toggle-button"
+            aria-controls="product-{{ section.id }}-{{ related_product.id }}-drawer"
+            aria-expanded="false"
+            class="product-item__cta button button--primary hidden-phone"
+          >
+            {% if product.available %}
+              {% comment %}
+                Varianten auswählen
+              {% endcomment %}
+              {{- 'product.form.add_to_cart' | t -}}
+            {% else %}
+              {{- 'product.form.sold_out' | t -}}
+            {% endif %}
+          </button>
+          <button
+            type="button"
+            is="toggle-button"
+            aria-controls="product-{{ section.id }}-{{ related_product.id }}-popover"
+            aria-expanded="false"
+            class="product-item__cta button button--primary hidden-tablet-and-up"
+          >
+            {% if product.available %}
+              {% comment %}
+                Varianten auswählen
+              {% endcomment %}
+              {{- 'product.form.add_to_cart' | t -}}
+            {% else %}
+              {{- 'product.form.sold_out' | t -}}
+            {% endif %}
+          </button>
+          <quick-buy-popover
+            id="product-{{ section.id }}-{{ related_product.id }}-popover"
+            href="{{ related_product.url }}"
+            class="popover popover--quick-buy hidden-tablet-and-up"
+          ></quick-buy-popover>
+          <quick-buy-drawer
+            id="product-{{ section.id }}-{{ related_product.id }}-drawer"
+            href="{{ related_product.url }}"
+            class="drawer drawer--large drawer--quick-buy hidden-phone"
+          ></quick-buy-drawer>
+        {%- endif -%}
+      {% endif %}
+    </div>
+  </div>
+{% endunless %}

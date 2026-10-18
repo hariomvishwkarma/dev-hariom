@@ -1,0 +1,120 @@
+{%- capture flickity_config -%}
+{
+  "prevNextButtons": false,
+  "pageDots": false,
+  "percentPosition": false,
+  "contain": true,
+  "adaptiveHeight": false,
+  "contain": true,
+  "cellAlign": "left",
+  "dragThreshold": 8,
+  "groupCells": true
+}
+{%- endcapture -%}
+{%- liquid
+	assign gifts = block.settings.gifts
+	assign gift_already_in_cart = false
+	assign selected_gift = null
+	for line_item in cart.items
+		for gift in gifts
+			if gift.id == line_item.product_id
+				assign gift_already_in_cart = true
+				assign selected_gift = gift
+				break
+			endif
+		endfor
+	endfor
+-%}
+
+<div
+	class='gift-level__wrapper'
+	{% if gift_already_in_cart %}
+		gift-already-in-cart
+	{% endif %}>
+	<button
+		is='toggle-button'
+		class='heading heading--xsmall text--subdued gift-level__heading'
+		aria-controls='gift-level-collapsible-{{ block.id }}'
+		{% if gift_already_in_cart %}
+			aria-expanded='false'
+		{% else %}
+			aria-expanded='true'
+		{% endif %}>
+		{% if block.settings.title != '' %}
+			{{ block.settings.title }}
+		{% else %}
+			Wähle ein Geschenk aus
+		{% endif -%}
+		{% if gift_already_in_cart %}
+			{%- render 'icon' with 'check', width: 20, height: 20 -%}
+		{% endif %}
+		<span class='animated-plus'></span>
+	</button>
+	<collapsible-content
+		id='gift-level-collapsible-{{ block.id }}'
+		class='collapsible'
+		{% unless gift_already_in_cart %}
+			open='true'
+		{% endunless %}>
+		<flickity-carousel
+			class='gifts__wrapper'
+			flickity-config='{{ flickity_config | escape }}'
+			id='gift-level-{{ block.id }}'>
+			{% for gift in gifts %}
+				{%- liquid
+					assign is_selected = false
+					if gift.id == selected_gift.id
+						assign is_selected = true
+					endif
+					assign id = 'gift-level-' | append: block.id | append: '-' | append: forloop.index
+				-%}
+				{%-
+					render 'gift-item',
+					id: id,
+					product: gift,
+					reduced_content: true,
+					reduced_font_size: true,
+					hide_secondary_image: true,
+					sizes_attribute: '(max-width: 740px) 65px, 92px',
+					gift_already_in_cart: gift_already_in_cart,
+					selected_gift: selected_gift,
+					is_selected: is_selected,
+				-%}
+			{% endfor %}
+		</flickity-carousel>
+	</collapsible-content>
+
+	{% comment %}
+		<flickity-controls controls='gift-level-{{ block.id }}'>
+			<button
+				class='hidden-lap-and-up tap-area tap-area--large'
+				aria-label='{{ 'general.accessibility.previous' | t }}'
+				data-action='prev'>
+				{%- render 'icon' with 'nav-arrow-left' -%}
+			</button>
+
+			<div class='dots-nav dots-nav--centered hidden-lap-and-up'>
+				{% for gift in gifts %}
+					<button
+						type='button'
+						tabindex='-1'
+						class='dots-nav__item tap-area'
+						{% if forloop.first %}
+							aria-current='true'
+						{% endif %}
+						aria-controls='gift-level-{{ block.id }}-{{ forloop.index }}'
+						data-action='select'>
+						<span class='visually-hidden'>{{ 'general.accessibility.go_to_slide' | t: num: forloop.index }}</span>
+					</button>
+				{%- endfor -%}
+			</div>
+
+			<button
+				class='product__media-prev-next hidden-lap-and-up tap-area tap-area--large'
+				aria-label='{{ 'general.accessibility.next' | t }}'
+				data-action='next'>
+				{%- render 'icon' with 'nav-arrow-right' -%}
+			</button>
+		</flickity-controls>
+	{% endcomment %}
+</div>

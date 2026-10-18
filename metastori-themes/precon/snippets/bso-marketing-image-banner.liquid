@@ -1,0 +1,117 @@
+{% comment %}
+  Renders Marketing block - Image
+  Accepts:
+  - section: {Object} passes in the section information.
+  - block: {Object} passes in the block information.
+  - article: {Object} of the current blog/article
+
+  Usage:
+  {% render 'bso-marketing-image-banner',
+    section: section,
+    block: block,
+    article: article
+  %}
+{% endcomment %}
+
+{%  style  %}
+  #shopify-section-{{ section.id }} #marketing-block-{{ block.id }}.bso-marketing-block {
+    --marketing-block-spacing: {{ block.settings.marketing_block_space_between_size }}px;
+    --image-max-width: 100%;
+    padding-top: {{ block.settings.marketing_box_banner_padding_top }}px;
+    padding-bottom: {{ block.settings.marketing_box_banner_padding_bottom }}px;
+  }
+
+  #shopify-section-{{ section.id }} .sidebar--blocks .bso-marketing-block {
+    display: none;
+  }
+
+  @media screen and (min-width: 990px) {
+    #shopify-section-{{ section.id }} .sidebar--blocks .bso-marketing-block {
+      display: block;
+    }
+
+    #shopify-section-{{ section.id }} .page-content .sidebar-enabled.block--position--sidebar {
+      display: none;
+    }
+  }
+{% endstyle %}
+
+{%- assign has_custom_block = false -%}
+{%- assign marketing_block_count = 3 -%}
+{%- for count in (1..marketing_block_count) -%}
+  {%- assign image_field = 'image_' |  append: count -%}
+  {%- assign image = block | map: 'settings' | map: image_field -%}
+  {% if image[0] != blank %}
+    {%- assign has_custom_block = true -%}
+    {% break %}
+  {% endif %}
+{%- endfor -%}
+
+<div id="marketing-block-{{ block.id }}" class="bso-marketing-block bso-marketing-image-banner {% if section.settings.show_sidebar %}sidebar-enabled{% endif %} block--position--{{ block.settings.block_position }} {% if block.settings.hide_on_mobile %}mobile-hide{% endif %}" {{ block.shopify_attributes }}>
+  {%- if block.settings.title != blank -%}
+    <div class="marketing-block--title h3">{{- block.settings.title -}}</div>
+  {%- endif -%}
+  <div class="marketing-block--content">
+    {% if has_custom_block %}
+
+      {%- for marketing_block in (1..marketing_block_count) -%}
+        {%- assign image_field = 'image_' |  append: marketing_block -%}
+        {%- assign image = block | map: 'settings' | map: image_field -%}
+        {%- assign link_field = 'link_' |  append: marketing_block -%}
+        {%- assign link = block | map: 'settings' | map: link_field -%}
+        {% if image[0] != blank %}
+          {%- if link[0] != blank -%}
+          <a class="marketing-block--link" href="{{ link[0] }}">
+          {%- endif -%}
+            <div class="marketing-block--item">
+              {% if image[0] != blank %}
+                <div class="marketing-block--item-icon">
+                  {{-
+                    image[0]
+                    | image_url: width: image[0].width
+                    | image_tag:
+                    loading: 'lazy',
+                    sizes: '100vw',
+                    widths: '60,120,240,400,480,600,800,1000,1200'
+                  -}}
+                </div>
+              {% endif %}
+            </div>
+          {%- if link[0] != blank  -%}
+          </a>
+          {%- endif -%}
+        {% endif %}
+      {%- endfor -%}
+
+    {% else %}
+    
+      {% if article.metafields.bso.marketing_box != blank %}
+        {% for marketing_block in article.metafields.bso.marketing_box.value %}
+          {%- if marketing_block.link.value != blank -%}
+          <a class="marketing-block--link" href="{{ marketing_block.link .value.url }}">
+          {%- endif -%}
+            <div class="marketing-block--item">
+              {% if marketing_block.image != blank %}
+                <div class="marketing-block--item-icon">
+                  <div class="aspect-ratio">
+                    {{-
+                      marketing_block.image
+                      | image_url: width: marketing_block.image.width
+                      | image_tag:
+                      loading: 'lazy',
+                      sizes: '100vw',
+                      widths: '60,120,240,400,480,600,800,1000,1200'
+                    -}}
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+          {%- if marketing_block.link.value != blank  -%}
+          </a>
+          {%- endif -%}
+        {% endfor %}
+      {% endif %}
+
+    {% endif %}
+  </div>
+</div>

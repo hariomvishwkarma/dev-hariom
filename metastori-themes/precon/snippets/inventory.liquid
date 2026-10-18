@@ -1,0 +1,311 @@
+{% assign text_before_in_stock = block.settings.text_before_in_stock %}
+{% assign text_in_stock = block.settings.text_in_stock %}
+{% assign oversell_stock = block.settings.oversell_stock %}
+{% assign empty_stock = block.settings.empty_stock %}
+{% assign low_stock_with_quantity_count = block.settings.low_stock_with_quantity_count %}
+{% assign incoming_stock = block.settings.incoming_stock %}
+
+<div class="left_info_mobile">
+  {{ product.metafields.custom.product_gallery_text | metafield_tag }}
+  {% render 'product_icon_info' %}
+  {% if product.metafields.custom.product_tool_tip_text %}
+    <div class="tooltip-box">{{ product.metafields.custom.product_tool_tip_text | metafield_tag }}</div>
+  {% endif %}
+</div>
+
+{%- if product.template_suffix != 'pre-order'
+  and product.available
+  or product.selected_or_first_available_variant.incoming
+-%}
+  <product-inventory
+    form-id="{{ product_form_id }}"
+    class="product-form__inventory-wrapper"
+    {{ block.shopify_attributes }}
+  >
+    {%- if product.selected_or_first_available_variant.available -%}
+      {%- if product.selected_or_first_available_variant.inventory_management
+        and product.selected_or_first_available_variant.inventory_policy == 'deny'
+        and product.selected_or_first_available_variant.inventory_quantity <= block.settings.low_inventory_threshold
+        and block.settings.low_inventory_threshold > 0
+      -%}
+        <span class="inventory--low">
+          <div class="ed-delivery-wrapper">
+            <p class="text_container">
+              <span class="inventory--low">
+                {{
+                  low_stock_with_quantity_count
+                  | replace: '[count]', product.selected_or_first_available_variant.inventory_quantity
+                }}
+              </span>
+            </p>
+          </div>
+        </span>
+      {%- else -%}
+        {%- if product.selected_or_first_available_variant.inventory_policy == 'continue'
+          and product.selected_or_first_available_variant.inventory_quantity <= 0
+          and product.selected_or_first_available_variant.requires_shipping
+        -%}
+          {%- if product.selected_or_first_available_variant.incoming
+            and product.selected_or_first_available_variant.next_incoming_date
+          -%}
+            {%- capture next_incoming_date -%}{{ product.selected_or_first_available_variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+            <span class="inventory--low">
+              <div class="ed-delivery-wrapper">
+                <p class="text_container">
+                  <span class="inventory--low">
+                    {{ incoming_stock | replace: '[next_incoming_date]', next_incoming_date }}
+                  </span>
+                </p>
+              </div>
+            </span>
+          {%- else -%}
+            <span class="inventory--low oversell_stock">
+              <div class="ed-delivery-wrapper">
+                <p class="text_container">
+                  <span class="inventory--low">{{ oversell_stock }}</span>
+                </p>
+              </div>
+            </span>
+          {%- endif -%}
+        {%- else -%}
+          <span class="inventory inventory--high">
+            <div class="ed-delivery-wrapper">
+              <p class="text_container">
+                <span class="inventory inventory--high">
+                  {{ text_before_in_stock }}
+                </span>
+                -
+                <span class="colorfont-black">{{ text_in_stock }}</span>
+              </p>
+            </div>
+          </span>
+        {%- endif -%}
+      {%- endif -%}
+    {%- elsif product.selected_or_first_available_variant.incoming -%}
+      {%- if product.selected_or_first_available_variant.next_incoming_date -%}
+        {%- capture next_incoming_date -%}{{ product.selected_or_first_available_variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+        <span class="inventory--low">
+          <div class="ed-delivery-wrapper">
+            <p class="text_container">
+              <span class="inventory--low">
+                {{ incoming_stock | replace: '[next_incoming_date]', next_incoming_date }}
+              </span>
+            </p>
+          </div>
+        </span>
+      {%- else -%}
+        <span class="inventory--low oversell_stock">
+          <div class="ed-delivery-wrapper">
+            <p class="text_container">
+              <span class="inventory--low">{{ oversell_stock }}</span>
+            </p>
+          </div>
+        </span>
+      {%- endif -%}
+    {%- else -%}
+      <span class="inventory--empty">
+        <div class="ed-delivery-wrapper">
+          <p class="text_container">
+            <span class="inventory--empty">{{ empty_stock }}</span>
+          </p>
+        </div>
+      </span>
+    {%- endif -%}
+
+    <script type="application/json">
+      {
+        {%- for variant in product.variants -%}
+          {%- capture inventory_message -%}
+            {%- if variant.available -%}
+              {%- if variant.inventory_management and variant.inventory_policy == 'deny' and variant.inventory_quantity <= block.settings.low_inventory_threshold and block.settings.low_inventory_threshold > 0 -%}
+                <span class="inventory--low"><div class="ed-delivery-wrapper"> <p class="text_container"><span class="inventory--low">{{ low_stock_with_quantity_count | replace: '[count]', variant.inventory_quantity }}</span></p></div></span>
+              {%- else -%}
+                {%- if variant.inventory_policy == 'continue' and variant.inventory_quantity <= 0 and variant.requires_shipping -%}
+                  {%- if variant.incoming and variant.next_incoming_date -%}
+                    {%- capture next_incoming_date -%}{{ variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+                    <span class="inventory--low"><div class="ed-delivery-wrapper"> <p class="text_container"><span class="inventory--low">{{ incoming_stock | replace: '[next_incoming_date]', next_incoming_date }}</span></p></div></span>
+                  {%- else -%}
+                    <span class="inventory--low oversell_stock"><div class="ed-delivery-wrapper"> <p class="text_container"><span class="inventory--low">{{ oversell_stock }}</span></p></div></span>
+                  {%- endif -%}
+                {%- else -%}
+                  <span class="inventory inventory--high"><div class="ed-delivery-wrapper"> <p class="text_container"> <span class="inventory inventory--high"> {{ text_before_in_stock }} </span> - <span class="colorfont-black">{{ text_in_stock }}</span></p> </div></span>
+                {%- endif -%}
+              {%- endif -%}
+            {%- elsif variant.incoming -%}
+              {%- if variant.next_incoming_date -%}
+                {%- capture next_incoming_date -%}{{ variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+                <span class="inventory--low"><div class="ed-delivery-wrapper"><p class="text_container"><span class="inventory--low">{{ incoming_stock | replace: '[next_incoming_date]', next_incoming_date }}</span></p></div></span>
+              {%- else -%}
+                <span class="inventory--low oversell_stock"><div class="ed-delivery-wrapper"><p class="text_container"><span class="inventory--low">{{ oversell_stock }}</span></p></div></span>
+              {%- endif -%}
+            {%- else -%}
+                <span class="inventory--empty"><div class="ed-delivery-wrapper"> <p class="text_container"><span class="inventory--empty">{{ empty_stock }}</span></p></div></span>
+            {%- endif -%}
+          {%- endcapture -%}
+
+          "{{ variant.id }}": {{ inventory_message | json }}{% unless forloop.last %},{% endunless %}
+        {%- endfor -%}
+      }
+    </script>
+  </product-inventory>
+{% else %}
+  <product-inventory
+    form-id="{{ product_form_id }}"
+    class="product-form__inventory-wrapper"
+    {{ block.shopify_attributes }}
+  >
+    {%- unless product.selected_or_first_available_variant.available -%}
+      <span class="inventory--empty">
+        <div class="ed-delivery-wrapper">
+          <p class="text_container">
+            <span class="inventory--empty">{{ empty_stock }}</span>
+          </p>
+        </div>
+      </span>
+    {%- endunless -%}
+
+    <script type="application/json">
+        {
+          {%- for variant in product.variants -%}
+        {%- capture inventory_message -%}
+      {%- unless variant.available -%}
+      {%- elsif variant.incoming -%}
+      {%- if variant.next_incoming_date -%}
+      {%- capture next_incoming_date -%}{{ variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+            <span class="inventory inventory--low">{{ incoming_stock | replace: '[next_incoming_date]', next_incoming_date }}</span>
+          {%- else -%}
+            <span class="inventory inventory--low oversell_stock">{{ oversell_stock }}</span>
+          {%- endif -%}
+      {%- else -%}
+           <span class="inventory--empty"><div class="ed-delivery-wrapper"> <p class="text_container"><span class="inventory--empty">{{ empty_stock }}</span></p></div></span>
+      {%- endunless -%}
+      {%- endcapture -%}
+
+            "{{ variant.id }}": {{ inventory_message | json }}{% unless forloop.last %},{% endunless %}
+        {%- endfor -%}
+        }
+    </script>
+  </product-inventory>
+{%- endif -%}
+
+<style>
+    .inventory--high .ed-delivery-wrapper {
+    display: flex;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    background-color: {{block.settings.instock_bg_color}};
+  }
+  .inventory--high .ed-delivery-wrapper .text_container {
+    font-size: 14px;
+    line-height: 20px;
+    letter-spacing: 0px;
+    color: #000;
+    font-weight: 400;
+    font-style: normal;
+    margin: 0;
+    display: flex;
+    align-items: center;
+  }
+  .inventory--high .ed-delivery-wrapper .text_container:before {
+    content: "";
+    display: inline-block;
+    position: relative;
+    top: 0;
+    width: 10px;
+    height: 10px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background-color: {{block.settings.instock_label_color}};
+  }
+  .inventory--high .ed-delivery-wrapper .text_container .inventory.inventory--high {
+    margin-right: 5px;
+    color: {{block.settings.instock_label_color}};
+    font-size: 14px;
+  }
+  .inventory--high .ed-delivery-wrapper .text_container .colorfont-black {
+    color: {{block.settings.instock_color}};
+    margin-left: 5px;
+  }
+
+  .inventory--low .ed-delivery-wrapper {
+    display: flex;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    background-color: {{block.settings.low_stock_bg_color}};
+  }
+  .inventory--low .ed-delivery-wrapper .text_container {
+    font-size: 14px;
+    line-height: 20px;
+    letter-spacing: 0px;
+    color: #138a36;
+    font-weight: 400;
+    font-style: normal;
+    margin: 0;
+    display: flex;
+    align-items: center;
+  }
+  .inventory--low .ed-delivery-wrapper .text_container:before {
+    content: "";
+    display: inline-block;
+    position: relative;
+    top: 0;
+    width: 10px;
+    height: 10px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background-color: {{block.settings.low_stock_color}};
+  }
+  .inventory--low .ed-delivery-wrapper .text_container .inventory--low {
+    margin-right: 5px;
+    color: {{block.settings.low_stock_color}};
+    font-size: 14px;
+  }
+  .inventory--low .ed-delivery-wrapper .text_container .colorfont-black {
+    color: red;
+    margin-left: 5px;
+  }
+
+  .inventory--empty .ed-delivery-wrapper {
+    display: flex;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    background-color: {{block.settings.empty_stock_bg_color}};
+  }
+  .inventory--empty .ed-delivery-wrapper .text_container {
+    font-size: 14px;
+    line-height: 20px;
+    letter-spacing: 0px;
+    color: #138a36;
+    font-weight: 400;
+    font-style: normal;
+    margin: 0;
+    display: flex;
+    align-items: center;
+  }
+  .inventory--empty .ed-delivery-wrapper .text_container:before {
+    content: "";
+    display: inline-block;
+    position: relative;
+    top: 0;
+    width: 10px;
+    height: 10px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background-color: {{block.settings.empty_stock_color}};
+  }
+  .inventory--empty .ed-delivery-wrapper .text_container .inventory--empty {
+    margin-right: 5px;
+    color: {{block.settings.empty_stock_color}};
+    font-size: 14px;
+  }
+  .inventory--empty .ed-delivery-wrapper .text_container .colorfont-black {
+    color: #000;
+    margin-left: 5px;
+  }
+  .inventory--low.oversell_stock .ed-delivery-wrapper .text_container .inventory--low{
+    color: {{block.settings.oversell_stock_color}};
+  }
+  .inventory--low.oversell_stock .ed-delivery-wrapper .text_container:before{
+    background-color: {{block.settings.oversell_stock_color}};
+  }
+</style>

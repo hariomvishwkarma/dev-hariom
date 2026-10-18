@@ -1,0 +1,298 @@
+{% comment %}
+  Collection Page Banner
+  – Je ein Desktop- & Mobile-Bild pro Sprache (de, nl, fr, it, es)
+  – Fallback: Deutsch, falls für aktuelle Sprache kein Bild hinterlegt
+  – Ein-/Ausblendbar pro Shopify Market (localization.market.handle)
+  – Ausschliessbar für bestimmte Collections (collection.handle)
+{% endcomment %}
+
+{% comment %} ── Markt-Check ──────────────────────────────────────────────── {% endcomment %}
+{% assign current_market = localization.market.handle | downcase %}
+{% assign allowed_raw    = section.settings.allowed_markets | downcase | strip %}
+
+{% if allowed_raw == blank %}
+  {% assign show_banner = true %}
+{% else %}
+  {% assign allowed_markets = allowed_raw | split: ',' %}
+  {% assign show_banner = false %}
+  {% for m in allowed_markets %}
+    {% assign m_clean = m | strip %}
+    {% if m_clean == current_market %}
+      {% assign show_banner = true %}
+      {% break %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+{% comment %} ── Collection-Ausschluss (Blacklist) ─────────────────────────── {% endcomment %}
+{% if show_banner and collection != blank %}
+  {% assign excluded_raw = section.settings.excluded_collections | downcase | strip %}
+  {% if excluded_raw != blank %}
+    {% assign excluded_cols = excluded_raw | split: ',' %}
+    {% for c in excluded_cols %}
+      {% assign c_clean = c | strip %}
+      {% if c_clean == collection.handle %}
+        {% assign show_banner = false %}
+        {% break %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+{% endif %}
+
+{% comment %} ── Collection-Whitelist (nur diese Collections zeigen) ────────── {% endcomment %}
+{% if show_banner and collection != blank %}
+  {% assign only_raw = section.settings.only_collections | downcase | strip %}
+  {% if only_raw != blank %}
+    {% assign only_cols = only_raw | split: ',' %}
+    {% assign col_match = false %}
+    {% for c in only_cols %}
+      {% assign c_clean = c | strip %}
+      {% if c_clean == collection.handle %}
+        {% assign col_match = true %}
+        {% break %}
+      {% endif %}
+    {% endfor %}
+    {% unless col_match %}
+      {% assign show_banner = false %}
+    {% endunless %}
+  {% endif %}
+{% endif %}
+
+{% comment %} ── Sprach-spezifische Bilder auswählen ───────────────────────── {% endcomment %}
+{% assign lang = localization.language.iso_code | downcase | slice: 0, 2 %}
+
+{% case lang %}
+  {% when 'nl' %}
+    {% assign img_desktop = section.settings.image_desktop_nl %}
+    {% assign img_mobile  = section.settings.image_mobile_nl %}
+  {% when 'fr' %}
+    {% assign img_desktop = section.settings.image_desktop_fr %}
+    {% assign img_mobile  = section.settings.image_mobile_fr %}
+  {% when 'it' %}
+    {% assign img_desktop = section.settings.image_desktop_it %}
+    {% assign img_mobile  = section.settings.image_mobile_it %}
+  {% when 'es' %}
+    {% assign img_desktop = section.settings.image_desktop_es %}
+    {% assign img_mobile  = section.settings.image_mobile_es %}
+  {% else %}
+    {% comment %} Deutsch als Standard {% endcomment %}
+    {% assign img_desktop = section.settings.image_desktop_de %}
+    {% assign img_mobile  = section.settings.image_mobile_de %}
+{% endcase %}
+
+{% comment %} Fallback auf Deutsch, falls für die Sprache kein Bild hochgeladen {% endcomment %}
+{% if img_desktop == blank %}
+  {% assign img_desktop = section.settings.image_desktop_de %}
+{% endif %}
+{% if img_mobile == blank %}
+  {% assign img_mobile = section.settings.image_mobile_de %}
+{% endif %}
+
+{% comment %} ── Ausgabe ───────────────────────────────────────────────────── {% endcomment %}
+{% if show_banner and img_desktop != blank or show_banner and img_mobile != blank %}
+<div class="collection-banner">
+
+  {% comment %} Desktop {% endcomment %}
+  {% if img_desktop != blank %}
+  <a
+    {% if section.settings.link != blank %}href="{{ section.settings.link }}"{% endif %}
+    class="collection-banner__link collection-banner__desktop"
+    aria-label="{{ section.settings.alt_text | escape }}"
+  >
+    {{
+      img_desktop
+      | image_url: width: 2400
+      | image_tag:
+        loading: 'lazy',
+        alt: section.settings.alt_text,
+        sizes: '100vw',
+        widths: '600, 900, 1200, 1600, 1920, 2400',
+        class: 'collection-banner__img'
+    }}
+  </a>
+  {% endif %}
+
+  {% comment %} Mobile {% endcomment %}
+  {% if img_mobile != blank %}
+  <a
+    {% if section.settings.link != blank %}href="{{ section.settings.link }}"{% endif %}
+    class="collection-banner__link collection-banner__mobile"
+    aria-label="{{ section.settings.alt_text | escape }}"
+  >
+    {{
+      img_mobile
+      | image_url: width: 1000
+      | image_tag:
+        loading: 'lazy',
+        alt: section.settings.alt_text,
+        sizes: '100vw',
+        widths: '400, 600, 750, 900, 1000',
+        class: 'collection-banner__img'
+    }}
+  </a>
+  {% endif %}
+
+</div>
+{% endif %}
+
+<style>
+.collection-banner { display: block; width: 100%; overflow: hidden; }
+.collection-banner__img { width: 100%; height: auto; display: block; }
+
+.collection-banner__desktop { display: none; }
+.collection-banner__mobile  { display: block; }
+
+@media (min-width: {{ section.settings.breakpoint }}px) {
+  .collection-banner__desktop { display: block; }
+  .collection-banner__mobile  { display: none; }
+}
+</style>
+
+{% schema %}
+{
+  "name": "Collection Banner Markets",
+  "tag": "section",
+  "class": "section-collection-banner-markets",
+  "settings": [
+    {
+      "type": "header",
+      "content": "🇩🇪 Deutsch (DE) — auch Fallback für alle Sprachen"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_desktop_de",
+      "label": "Desktop-Bild DE"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_mobile_de",
+      "label": "Mobile-Bild DE"
+    },
+    {
+      "type": "header",
+      "content": "🇳🇱 Niederländisch (NL)"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_desktop_nl",
+      "label": "Desktop-Bild NL"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_mobile_nl",
+      "label": "Mobile-Bild NL"
+    },
+    {
+      "type": "header",
+      "content": "🇫🇷 Französisch (FR)"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_desktop_fr",
+      "label": "Desktop-Bild FR"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_mobile_fr",
+      "label": "Mobile-Bild FR"
+    },
+    {
+      "type": "header",
+      "content": "🇮🇹 Italienisch (IT)"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_desktop_it",
+      "label": "Desktop-Bild IT"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_mobile_it",
+      "label": "Mobile-Bild IT"
+    },
+    {
+      "type": "header",
+      "content": "🇪🇸 Spanisch (ES)"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_desktop_es",
+      "label": "Desktop-Bild ES"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_mobile_es",
+      "label": "Mobile-Bild ES"
+    },
+    {
+      "type": "header",
+      "content": "Allgemein"
+    },
+    {
+      "type": "text",
+      "id": "alt_text",
+      "label": "Alt-Text (Barrierefreiheit)"
+    },
+    {
+      "type": "url",
+      "id": "link",
+      "label": "Link (optional)"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "breakpoint",
+      "label": "Mobile → Desktop Breakpoint (px)",
+      "min": 480,
+      "max": 1200,
+      "step": 10,
+      "default": 770
+    },
+    {
+      "type": "header",
+      "content": "Markt-Steuerung"
+    },
+    {
+      "type": "paragraph",
+      "content": "Kommagetrennte Market Handles, in denen der Banner erscheinen soll (z. B. 'de,ch'). Leer lassen = alle Märkte."
+    },
+    {
+      "type": "text",
+      "id": "allowed_markets",
+      "label": "Erlaubte Märkte (Handles)",
+      "placeholder": "de,ch",
+      "info": "Handle findest du unter Einstellungen → Märkte. z. B. 'de' = Deutschland, 'ch' = Schweiz."
+    },
+    {
+      "type": "header",
+      "content": "Collection-Steuerung"
+    },
+    {
+      "type": "paragraph",
+      "content": "Blacklist: Banner auf diesen Collections ausblenden. Whitelist: Banner nur auf diesen Collections zeigen. Sind beide ausgefüllt, gilt zuerst die Blacklist."
+    },
+    {
+      "type": "text",
+      "id": "excluded_collections",
+      "label": "❌ Ausschliessen (Blacklist)",
+      "placeholder": "sale,abverkauf,outlet",
+      "info": "Kommagetrennte Collection-Handles. Der Banner wird auf diesen Collections NICHT angezeigt. Den Handle siehst du in der URL: /collections/sale → 'sale'."
+    },
+    {
+      "type": "text",
+      "id": "only_collections",
+      "label": "✅ Nur anzeigen auf (Whitelist)",
+      "placeholder": "neuheiten,highlights",
+      "info": "Kommagetrennte Collection-Handles. Der Banner erscheint NUR auf diesen Collections. Leer lassen = alle Collections (ausser Blacklist)."
+    }
+  ],
+  "presets": [
+    {
+      "name": "Collection Banner Markets"
+    }
+  ]
+}
+{% endschema %}

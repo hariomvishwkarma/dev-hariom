@@ -1,0 +1,847 @@
+<!-- snippets/section-blocks.liquid -->
+
+{%- doc -%}
+  Renders generic section block content (headings, buttons, icons, etc.).
+  @param {object[]} blocks - Section blocks to render.
+  @param {string} section_id - Section identifier for transitions.
+  @param {string} [bg_color] - Background color token. Defaults to `transparent`.
+  @param {string} [fetchpriority] - Image fetch priority for block images.
+  @param {string} [loading] - Image loading mode for block images.
+  @param {string} [mobile_text_color] - Mobile text color token.
+  @param {string} [mobile_x_alignment] - Mobile horizontal alignment.
+  @param {string} [mobile_y_alignment] - Mobile vertical alignment.
+  @param {boolean} [hidden] - Whether the root should be aria-hidden.
+  @param {string} [text_color] - Text color token. Defaults to `body`.
+  @param {string} [text_style] - Text style token.
+  @param {number} [text_width] - Max text width in px.
+  @param {string} [x_alignment] - Desktop horizontal alignment.
+  @param {string} [y_alignment] - Desktop vertical alignment.
+  @param {boolean} [newsletter_inline_success] - Show thank-you copy in place of the form after subscribe.
+{%- enddoc -%}
+
+{%- liquid
+  assign countdown_included = false
+  assign in_button_group = false
+  assign in_icon_group = false
+  assign in_hours_group = false
+  assign transition_blocks = 0
+
+  assign bg_color = bg_color | default: 'transparent'
+  assign text_color = text_color | default: 'body'
+  assign newsletter_inline_success = newsletter_inline_success | default: false
+  assign mobile_text_color = mobile_text_color | default: text_color
+-%}
+
+{%- capture block_html -%}
+  {%- for block in blocks -%}
+    {%- liquid
+      if in_button_group and block.type != 'button'
+        assign in_button_group = false
+        assign transition_blocks = transition_blocks | plus: 1
+        echo '</div>'
+      elsif in_icon_group and block.type != 'icon'
+        assign in_icon_group = false
+        assign transition_blocks = transition_blocks | plus: 1
+        echo '</div>'
+      elsif in_hours_group and block.type != 'hours'
+        assign in_hours_group = false
+        assign transition_blocks = transition_blocks | plus: 1
+        echo '</div>'
+      endif
+    -%}
+
+    {%- if block.type == 'button' and in_button_group == false -%}
+      {%- assign in_button_group = true -%}
+      <div
+        class="section-blocks--button-group"
+        {% unless settings.transitions--text %}
+          data-transition-item="{{ section_id }}"
+          data-transition-type="fade-in"
+        {% endunless %}
+      >
+    {%- elsif block.type == 'icon' and in_icon_group == false -%}
+      {%- assign in_icon_group = true -%}
+      <div
+        class="section-blocks--icon-group"
+        {% unless settings.transitions--text %}
+          data-transition-item="{{ section_id }}"
+          data-transition-type="fade-in"
+        {% endunless %}
+      >
+    {%- elsif block.type == 'hours' and in_hours_group == false -%}
+      {%- assign in_hours_group = true -%}
+      <div
+        class="section-blocks--hours-group"
+        {% unless settings.transitions--text %}
+          data-transition-item="{{ section_id }}"
+          data-transition-type="fade-in"
+        {% endunless %}
+      >
+    {%- elsif block.type != 'empty-space' -%}
+      {%- assign transition_blocks = transition_blocks | plus: 1 -%}
+    {%- endif -%}
+
+    {%- liquid
+      assign block_spacing_style = ''
+      assign block_spacing_attrs = ''
+
+      if block_spacing_enabled
+        assign spacing_above = block.settings.spacing-above | default: 0 | plus: 0
+        assign spacing_below = block.settings.spacing-below | default: 0 | plus: 0
+        assign mobile_spacing_above = block.settings.mobile-spacing-above | default: 0 | plus: 0
+        assign mobile_spacing_below = block.settings.mobile-spacing-below | default: 0 | plus: 0
+
+        if mobile_spacing_above == 0 and spacing_above > 0
+          assign mobile_spacing_above = spacing_above
+        endif
+
+        if mobile_spacing_below == 0 and spacing_below > 0
+          assign mobile_spacing_below = spacing_below
+        endif
+
+        if spacing_above > 0
+          assign block_spacing_attrs = block_spacing_attrs | append: ' data-spacing-above="true"'
+          assign block_spacing_style = block_spacing_style | append: '--block-spacing-above: ' | append: spacing_above | append: 'px;'
+        endif
+
+        if spacing_below > 0
+          assign block_spacing_attrs = block_spacing_attrs | append: ' data-spacing-below="true"'
+          assign block_spacing_style = block_spacing_style | append: '--block-spacing-below: ' | append: spacing_below | append: 'px;'
+        endif
+
+        if mobile_spacing_above > 0
+          assign block_spacing_attrs = block_spacing_attrs | append: ' data-mobile-spacing-above="true"'
+          assign block_spacing_style = block_spacing_style | append: '--mobile-block-spacing-above: ' | append: mobile_spacing_above | append: 'px;'
+        endif
+
+        if mobile_spacing_below > 0
+          assign block_spacing_attrs = block_spacing_attrs | append: ' data-mobile-spacing-below="true"'
+          assign block_spacing_style = block_spacing_style | append: '--mobile-block-spacing-below: ' | append: mobile_spacing_below | append: 'px;'
+        endif
+      endif
+    -%}
+
+    {%- if block.type == 'heading' and block.settings.title != blank -%}
+      <div
+        class="section-blocks--block"
+        data-block-type="{{ block.type }}"
+        {% unless settings.transitions--text %}
+          data-transition-item="{{ section_id }}"
+        {% endunless %}
+        {{ block_spacing_attrs }}
+        {% if block_spacing_style != blank %}style="{{ block_spacing_style }}"{% endif %}
+        {{ block.shopify_attributes }}
+      >
+        {%- liquid
+          assign heading_url_raw = block.settings.heading-url | default: block.settings.heading_url | default: block.settings.heading-link
+          capture heading_link
+            render 'localized-url', url: heading_url_raw
+          endcapture
+        -%}
+        {%- capture heading_inner -%}
+          {%-
+            render 'utils',
+            name: 'highlighted-text',
+            text: block.settings.title,
+            highlight_color: block.settings.highlight-color,
+            highlight_text: block.settings.highlight-text,
+            highlight_type: block.settings.highlight-type
+          -%}
+        {%- endcapture -%}
+        {%- if heading_link != blank -%}
+          {%- liquid
+            assign heading_hover_underline = true
+            if block.settings.heading-hover-underline == false
+              assign heading_hover_underline = false
+            endif
+          -%}
+          <a
+            href="{{ heading_link }}"
+            class="section-blocks--title-link"
+            {% if heading_hover_underline %}
+              data-hover-underline="true"
+            {% endif %}
+          >
+            <h2 class="section-blocks--title" data-item="{{ block.settings.heading-type }}">{{ heading_inner }}</h2>
+          </a>
+        {%- else -%}
+          <h2 class="section-blocks--title" data-item="{{ block.settings.heading-type }}">{{ heading_inner }}</h2>
+        {%- endif -%}
+      </div>
+
+    {%- elsif block.type == 'text' and block.settings.text != blank -%}
+      <div
+        class="section-blocks--block"
+        data-block-type="{{ block.type }}"
+        {% unless settings.transitions--text %}
+          data-transition-item="{{ section_id }}"
+        {% endunless %}
+        {{ block_spacing_attrs }}
+        {% if block_spacing_style != blank %}style="{{ block_spacing_style }}"{% endif %}
+        {{ block.shopify_attributes }}
+      >
+        {%- liquid
+          assign text_url_raw = block.settings.text-url | default: block.settings.text_url
+          capture text_link
+            render 'localized-url', url: text_url_raw
+          endcapture
+          assign text_hover_underline = true
+          if block.settings.text-hover-underline == false
+            assign text_hover_underline = false
+          endif
+        -%}
+        {%- if text_link != blank -%}
+          <a
+            href="{{ text_link }}"
+            class="section-blocks--text-link"
+            {% if text_hover_underline %}
+              data-hover-underline="true"
+            {% endif %}
+          >
+            <p class="section-blocks--text">
+              {{- block.settings.text | escape -}}
+            </p>
+          </a>
+        {%- else -%}
+          <p class="section-blocks--text">
+            {{- block.settings.text | escape -}}
+          </p>
+        {%- endif -%}
+      </div>
+
+    {%- elsif block.type == 'overline' and block.settings.overline != blank -%}
+      <div
+        class="section-blocks--block"
+        data-block-type="{{ block.type }}"
+        {% unless settings.transitions--text %}
+          data-transition-item="{{ section_id }}"
+        {% endunless %}
+        {{ block_spacing_attrs }}
+        {% if block_spacing_style != blank %}style="{{ block_spacing_style }}"{% endif %}
+        {{ block.shopify_attributes }}
+      >
+        <h3 class="section-blocks--overline" data-item="overline">
+          {{- block.settings.overline | escape -}}
+        </h3>
+      </div>
+
+    {%- elsif block.type == 'description' -%}
+      {%- assign description_text = block.settings.description | strip_html | strip | replace: '&nbsp;', '' | replace: '&#160;', '' -%}
+      {%- assign mobile_description_text = block.settings.mobile-description | strip_html | strip | replace: '&nbsp;', '' | replace: '&#160;', '' -%}
+      {%- assign has_mobile_description = false -%}
+      {%- if mobile_description_text != blank -%}
+        {%- assign has_mobile_description = true -%}
+      {%- endif -%}
+      {%- if description_text != blank or has_mobile_description -%}
+      {%- assign description_type = block.settings.description-type | default: 'paragraph' -%}
+      {%- liquid
+        assign description_url_raw = block.settings.description-url | default: block.settings.description_url
+        capture description_link
+          render 'localized-url', url: description_url_raw
+        endcapture
+        assign description_hover_underline = true
+        if block.settings.description-hover-underline == false
+          assign description_hover_underline = false
+        endif
+      -%}
+
+      {%- if description_text != blank -%}
+        <div
+          class="section-blocks--block"
+          data-block-type="{{ block.type }}"
+          data-item="{{ description_type }}"
+          {% if has_mobile_description or block.settings.mobile-hide-enabled %}
+            data-mq="medium-large"
+          {% endif %}
+          {% unless settings.transitions--text %}
+            data-transition-item="{{ section_id }}"
+          {% endunless %}
+          {{ block_spacing_attrs }}
+          {% if block_spacing_style != blank %}style="{{ block_spacing_style }}"{% endif %}
+          {{ block.shopify_attributes }}
+        >
+          {%- if description_link != blank -%}
+            <a
+              href="{{ description_link }}"
+              class="section-blocks--description-link"
+              {% if description_hover_underline %}
+                data-hover-underline="true"
+              {% endif %}
+            >
+              {%- render 'localized-html', html: block.settings.description -%}
+            </a>
+          {%- else -%}
+            {%- render 'localized-html', html: block.settings.description -%}
+          {%- endif -%}
+        </div>
+      {%- endif -%}
+
+      {%- if has_mobile_description -%}
+        <div
+          class="section-blocks--block section-blocks--block--mobile-description"
+          data-block-type="{{ block.type }}"
+          data-item="{{ description_type }}"
+          data-mq="small"
+          {% unless settings.transitions--text %}
+            data-transition-item="{{ section_id }}"
+          {% endunless %}
+          {{ block_spacing_attrs }}
+          {% if block_spacing_style != blank %}style="{{ block_spacing_style }}"{% endif %}
+        >
+          {%- if description_link != blank -%}
+            <a
+              href="{{ description_link }}"
+              class="section-blocks--description-link"
+              {% if description_hover_underline %}
+                data-hover-underline="true"
+              {% endif %}
+            >
+              {%- render 'localized-html', html: block.settings.mobile-description -%}
+            </a>
+          {%- else -%}
+            {%- render 'localized-html', html: block.settings.mobile-description -%}
+          {%- endif -%}
+        </div>
+      {%- endif -%}
+      {%- endif -%}
+
+    {%- elsif block.type == 'button' and block.settings.text != blank -%}
+      {%- liquid
+        assign button_style = block.settings.style
+        assign button_data_item = button_style
+        assign button_extra_class = ''
+        if button_style == 'button-featured'
+          assign button_data_item = 'button-1'
+          assign button_extra_class = ' btn--featured-text'
+        endif
+
+        assign button_min_width = false
+        capture button_min_width_style
+          if block.settings.button-min-width != blank and block.settings.button-min-width > 0
+            assign button_min_width = true
+            echo '--btn-min-width:' | append: block.settings.button-min-width | append: 'px;'
+          endif
+          if block.settings.mobile-button-min-width != blank and block.settings.mobile-button-min-width > 0
+            assign button_min_width = true
+            echo '--btn-mobile-min-width:' | append: block.settings.mobile-button-min-width | append: 'px;'
+          endif
+        endcapture
+      -%}
+      <div
+        class="section-blocks--block"
+        data-block-type="{{ block.type }}"
+        {% if button_min_width %}data-button-min-width="true"{% endif %}
+        {% if button_min_width or block_spacing_style != blank %}style="{{ button_min_width_style }}{{ block_spacing_style }}"{% endif %}
+        {{ block_spacing_attrs }}
+        {{ block.shopify_attributes }}
+      >
+        <a
+          class="section-blocks--button{{ button_extra_class }}"
+          href="{% render 'localized-url', url: block.settings.link %}"
+          data-item="{{ button_data_item }}"
+          data-text="{{ block.settings.text }}"
+          data-mobile-item="{{ block.settings.mobile-style | default: button_data_item }}"
+        >
+          <span>{{- block.settings.text -}}</span>
+        </a>
+      </div>
+
+    {%- elsif block.type == 'icon' -%}
+      <div
+        class="section-blocks--block"
+        data-block-type="{{ block.type }}"
+        {{ block_spacing_attrs }}
+        {% if block_spacing_style != blank %}style="{{ block_spacing_style }}"{% endif %}
+        {{ block.shopify_attributes }}
+      >
+        {%- render 'icon-block', settings: block.settings -%}
+      </div>
+
+    {%- elsif block.type == 'image' -%}
+      <div
+        class="section-blocks--block"
+        data-block-type="{{ block.type }}"
+        style="--width:{{ block.settings.width }}px;--mobile-width:{{ block.settings.mobile-width }}px;{{ block_spacing_style }}"
+        {{ block_spacing_attrs }}
+        {{ block.shopify_attributes }}
+      >
+        {%- if block.settings.image == blank -%}
+          {%- render 'placeholder', type: 'logo', aspect_ratio: 3 -%}
+        {%- else -%}
+          {%- assign block_sizes = block.settings.width | append: "px" -%}
+          {{-
+            block.settings.image |
+            image_url: width: block.settings.width |
+            image_tag: loading: loading, fetchpriority: fetchpriority, sizes: block_sizes
+          -}}
+        {%- endif -%}
+      </div>
+
+    {%- elsif block.type == 'custom-liquid' and block.settings.custom-liquid != blank -%}
+      <div
+        class="section-blocks--block"
+        data-block-type="{{ block.type }}"
+        {% unless settings.transitions--text %}
+          data-transition-item="{{ section_id }}"
+          data-transition-type="fade-in"
+        {% endunless %}
+        {{ block_spacing_attrs }}
+        {% if block_spacing_style != blank %}style="{{ block_spacing_style }}"{% endif %}
+        {{ block.shopify_attributes }}
+      >
+        {{- block.settings.custom-liquid -}}
+      </div>
+
+    {%- elsif block.type == 'newsletter' -%}
+      <div
+        class="section-blocks--block"
+        data-block-type="{{ block.type }}"
+        {% unless settings.transitions--text %}
+          data-transition-item="{{ section_id }}"
+          data-transition-type="fade-in"
+        {% endunless %}
+        {{ block_spacing_attrs }}
+        {% if block_spacing_style != blank %}style="{{ block_spacing_style }}"{% endif %}
+        {{ block.shopify_attributes }}
+      >
+        {%-
+          render 'subscribe-form',
+          id: block.id,
+          alignment: x_alignment,
+          mobile_alignment: mobile_x_alignment,
+          button_style: block.settings.button-style,
+          input_style: block.settings.input-style,
+          disclaimer: block.settings.disclaimer,
+          disclaimer_text: block.settings.disclaimer-text,
+          privacy_policy_url: block.settings.privacy-policy-url,
+          privacy_policy_label: block.settings.privacy-policy-label,
+          email_width: block.settings.email-width,
+          mobile_email_width: block.settings.mobile-email-width,
+          button_background: block.settings.button-background,
+          button_text_color: block.settings.button-text-color,
+          button_border_color: block.settings.button-border-color,
+          inline_success: newsletter_inline_success,
+          success_heading: block.settings.success-heading,
+          success_text: block.settings.success-text
+        -%}
+      </div>
+
+    {%- elsif block.type == 'countdown' -%}
+      {%- assign countdown_included = true -%}
+
+      <div
+        class="section-blocks--block"
+        data-block-type="{{ block.type }}"
+        {% unless settings.transitions--text %}
+          data-transition-item="{{ section_id }}"
+          data-transition-type="fade-in"
+        {% endunless %}
+        {{ block_spacing_attrs }}
+        {% if block_spacing_style != blank %}style="{{ block_spacing_style }}"{% endif %}
+        {{ block.shopify_attributes }}
+      >
+        {%-
+          render 'countdown-timer',
+          expiry_date: block.settings.expiry-date,
+          expiry_hours: block.settings.expiry-hours,
+          expiry_minutes: block.settings.expiry-minutes,
+          hide_when_expired: block.settings.hide-when-expired,
+          show_button_when: block.settings.show-button-when,
+          number_color: block.settings.number-color,
+          number_size: block.settings.number-size,
+          mobile_number_size: block.settings.mobile-number-size,
+          timer_bg_color: block.settings.timer-bg-color
+        -%}
+      </div>
+
+    {%- elsif block.type == 'play-button' -%}
+      <div
+        class="section-blocks--block"
+        data-block-type="{{ block.type }}"
+        {% unless settings.transitions--text %}
+          data-transition-item="{{ section_id }}"
+          data-transition-type="fade-in"
+        {% endunless %}
+        {{ block_spacing_attrs }}
+        {% if block_spacing_style != blank %}style="{{ block_spacing_style }}"{% endif %}
+        {{ block.shopify_attributes }}
+      >
+        {%-
+          render 'video-play-button',
+          id: section_id,
+          style: block.settings.play-button-style
+        -%}
+      </div>
+
+    {%- elsif block.type == 'address' and block.settings.address != blank -%}
+      <div
+        class="section-blocks--block"
+        data-block-type="{{ block.type }}"
+        data-container="block"
+        {{ block_spacing_attrs }}
+        {% if block_spacing_style != blank %}style="{{ block_spacing_style }}"{% endif %}
+        {{ block.shopify_attributes }}
+      >
+        <div
+          {% unless settings.transitions--text %}
+            data-transition-item="{{ section_id }}"
+          {% endunless %}
+        >
+          {{- block.settings.address -}}
+        </div>
+
+        {%- assign map_address = block.settings.address -%}
+        {%- unless map_address == blank -%}
+          {%- liquid
+            assign apple_maps_text = 'sections.map.open_apple_maps' | t
+            assign google_maps_text = 'sections.map.open_google_maps' | t
+            assign map_address_format = map_address | replace: ', ', ' ' | replace: ' ', '+'
+            assign show_apple_maps = block.settings.show-apple-maps
+            assign show_google_maps = block.settings.show-google-maps
+          -%}
+
+          {%- if show_google_maps or show_apple_maps -%}
+            <div
+              class="map--buttons-container"
+              {% unless settings.transitions--text %}
+                data-transition-item="{{ section_id }}"
+              {% endunless %}
+            >
+              {%- if show_google_maps -%}
+                <a
+                  href="{{ 'https://google.com/maps/place/' | append: map_address_format }}"
+                  target="_blank"
+                  rel="noreferrer"
+                  data-item="{{ block.settings.google-maps-button-style }}"
+                  data-text="{{ google_maps_text }}"
+                >
+                  <span>{{ google_maps_text }}</span>
+                </a>
+              {%- endif -%}
+
+              {%- if show_apple_maps -%}
+                <a
+                  href="{{ 'maps://maps.apple.com/?q=' | append: map_address_format }}"
+                  target="_blank"
+                  rel="noreferrer"
+                  data-item="{{ block.settings.apple-maps-button-style }}"
+                  data-text="{{ apple_maps_text }}"
+                >
+                  <span>{{ apple_maps_text }}</span>
+                </a>
+              {%- endif -%}
+            </div>
+          {%- endif -%}
+        {%- endunless -%}
+      </div>
+
+    {%- elsif block.type == 'hours' -%}
+      {%- unless block.settings.label == blank and block.settings.value == blank -%}
+        <div
+          class="section-blocks--block"
+          data-block-type="{{ block.type }}"
+          data-item="paragraph"
+          {% unless settings.transitions--text %}
+            data-transition-item="{{ section_id }}"
+          {% endunless %}
+          {{ block_spacing_attrs }}
+          {% if block_spacing_style != blank %}style="{{ block_spacing_style }}"{% endif %}
+          {{ block.shopify_attributes }}
+        >
+          {%- liquid
+            unless block.settings.label == blank
+              echo block.settings.label
+            endunless
+            unless block.settings.value == blank
+              echo block.settings.value
+            endunless
+          -%}
+        </div>
+      {%- endunless -%}
+
+    {%- elsif block.type == 'empty-space' -%}
+      {%- assign desktop_height = block.settings.desktop-height -%}
+      {%- assign mobile_height = block.settings.mobile-height -%}
+      <div
+        class="section-blocks--block"
+        data-block-type="{{ block.type }}"
+        style="--desktop-height:{{ desktop_height }}px;--mobile-height:{{ mobile_height }}px;{{ block_spacing_style }}"
+        {{ block_spacing_attrs }}
+        {{ block.shopify_attributes }}
+      ></div>
+
+    {%- endif -%}
+
+    {%- assign last_block_type = block.type -%}
+  {%- endfor -%}
+
+  {%- if in_button_group or in_icon_group or in_hours_group -%}
+    </div>
+    {%- assign transition_blocks = transition_blocks | plus: 1 -%}
+  {%- endif -%}
+{%- endcapture -%}
+
+<div
+  class="section-blocks--root"
+  aria-hidden="{{ hidden | default: false }}"
+  data-mobile-x-alignment="{{ mobile_x_alignment }}"
+  {% if mobile_y_alignment %}
+    data-mobile-y-alignment="{{ mobile_y_alignment }}"
+  {% endif %}
+  data-x-alignment="{{ x_alignment }}"
+  {% if y_alignment %}
+    data-y-alignment="{{ y_alignment }}"
+  {% endif %}
+  {% if countdown_included %}
+    data-countdown-container
+  {% endif %}
+>
+  <div
+    class="section-blocks--wrapper"
+    data-background-color="{{ bg_color }}"
+    data-translucent="{{ settings.content--box-translucent }}"
+    data-container="block"
+    data-text-style="{{ text_style }}"
+    data-text-color="{{ text_color }}"
+    data-mobile-text-color="{{ mobile_text_color }}"
+    {% if text_width %}
+      data-text-width
+      style="--text-width:{{ text_width }}px;"
+    {% endif %}
+    {% unless settings.transitions--text %}
+      data-transition-container="{{ section_id }}"
+      data-transition-type="slide-in"
+      data-transition-cascade="vertical"
+      data-transition-cascade-interval="{{ 2000 | divided_by: transition_blocks | at_most: 500 }}"
+    {% endunless %}
+  >
+    {{- block_html -}}
+  </div>
+</div>
+
+{% stylesheet %}
+  .section-blocks--root {
+    justify-self: var(--x-alignment);
+    opacity: 1;
+    transition: opacity 0.1s var(--transition--standard);
+
+    &[aria-hidden='true'] {
+      opacity: 0;
+    }
+
+    @media (min-width: 768px) {
+      /* if there is y-alignment then we are usually in an overlaid section */
+      &[data-y-alignment] {
+        z-index: 1;
+        grid-area: 1 / -1;
+        align-self: var(--y-alignment);
+      }
+    }
+
+    @media (max-width: 767px) {
+      &[data-mobile-y-alignment] {
+        z-index: 1;
+        grid-area: 1 / -1;
+        align-self: var(--y-alignment);
+      }
+    }
+  }
+
+  .section-blocks--wrapper {
+    --text-padding-x: 0px;
+    --text-padding-y: 0px;
+    padding: var(--text-padding, var(--text-padding-top, var(--text-padding-y, 0px))
+        var(--text-padding-right, var(--text-padding-x, 0px)) var(--text-padding-bottom, var(--text-padding-y, 0px))
+        var(--text-padding-left, var(--text-padding-x, 0px)));
+    border-radius: var(--image--radius);
+
+    @media (min-width: 768px) {
+      .section-blocks--root[data-y-alignment] & {
+        --text-padding-x: var(--spacing--section--x);
+        --text-padding-y: var(--spacing--section--x);
+
+        &:not([data-background-color='transparent']) {
+          margin: var(--spacing--block) var(--spacing--section--x);
+        }
+      }
+
+      .section-blocks--root &:not([data-background-color='transparent']) {
+        --text-padding-x: var(--spacing--block);
+        --text-padding-y: var(--spacing--block);
+      }
+    }
+
+    @media (max-width: 767px) {
+      .section-blocks--root[data-mobile-y-alignment] & {
+        --text-padding-x: var(--spacing--item);
+        --text-padding-y: var(--spacing--item);
+      }
+
+      &:not([data-background-color='transparent']) {
+        margin: var(--spacing--item);
+      }
+
+      .section-blocks--root &:not([data-background-color='transparent']) {
+        --text-padding-x: var(--spacing--item);
+        --text-padding-y: var(--spacing--item);
+      }
+    }
+  }
+
+  .section-blocks--button-group,
+  .section-blocks--icon-group {
+    display: flex;
+    gap: var(--spacing--item);
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: var(--x-alignment, flex-start);
+
+    &:has(> :only-child > :only-child[aria-hidden='true']) {
+      /* countdown */
+      display: none;
+    }
+  }
+
+  .section-blocks--hours-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing--0);
+
+    @media (min-width: 768px) {
+      max-width: 20em;
+      width: 100%;
+
+      .section-blocks--root[data-x-alignment='center'] & {
+        margin: 0 auto;
+      }
+
+      .section-blocks--root[data-x-alignment='right'] & {
+        margin-left: auto;
+      }
+
+      .section-blocks--root[data-x-alignment='left'] & {
+        margin-right: auto;
+      }
+    }
+  }
+
+  .section-blocks--block {
+    align-self: var(--x-alignment);
+
+    &:is([data-block-type='description'], [data-block-type='overline']) {
+      max-width: 600px;
+    }
+
+    &[data-block-type='newsletter'] {
+      width: 100%;
+    }
+
+    &[data-block-type='image'] {
+      max-width: 100%;
+
+      @media (min-width: 768px) {
+        width: var(--width);
+      }
+
+      @media (max-width: 767px) {
+        width: var(--mobile-width);
+      }
+    }
+
+    &[data-block-type='countdown'] {
+      display: flex;
+      justify-content: var(--x-alignment, flex-start);
+    }
+
+    &[data-block-type='hours'] {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--spacing--item);
+      width: 100%;
+    }
+
+    &[data-block-type='empty-space'] {
+      @media (min-width: 768px) {
+        min-height: var(--desktop-height);
+        margin-top: var(--spacing--neg-item);
+      }
+
+      @media (max-width: 767px) {
+        min-height: var(--mobile-height);
+        margin-top: var(--spacing--neg-item);
+      }
+    }
+
+    &[data-block-type='heading'] {
+      .section-blocks--title-link {
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+        display: inline-block;
+        max-width: 100%;
+
+        .section-blocks--title {
+          color: inherit;
+        }
+
+        &[data-hover-underline='true']:hover .section-blocks--title,
+        &[data-hover-underline='true']:focus-visible .section-blocks--title {
+          text-decoration: underline;
+        }
+      }
+    }
+
+    &[data-block-type='text'] {
+      .section-blocks--text-link {
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+        display: inline-block;
+        max-width: 100%;
+
+        .section-blocks--text {
+          color: inherit;
+        }
+
+        &[data-hover-underline='true']:hover .section-blocks--text,
+        &[data-hover-underline='true']:focus-visible .section-blocks--text {
+          text-decoration: underline;
+        }
+      }
+    }
+
+    &[data-block-type='description'] {
+      .section-blocks--description-link {
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+        display: inline-block;
+        max-width: 100%;
+
+        p,
+        * {
+          color: inherit;
+        }
+
+        &[data-hover-underline='true']:hover,
+        &[data-hover-underline='true']:focus-visible,
+        &[data-hover-underline='true']:hover p,
+        &[data-hover-underline='true']:focus-visible p {
+          text-decoration: underline;
+        }
+      }
+    }
+
+    &[data-block-type='button'] {
+      align-self: center;
+
+      &:only-child {
+        width: 100%;
+
+        > * {
+          width: 100%;
+        }
+      }
+    }
+  }
+{% endstylesheet %}

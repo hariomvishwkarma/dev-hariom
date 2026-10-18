@@ -1,0 +1,58 @@
+{%- comment -%}
+The main routine to parse and render shortcodes. Call this file with the text containing shortcodes that you want to be rendered properly.
+Example: {%- render 'shortcode' with article.content as text -%}
+{%- endcomment -%}
+
+{%- capture parsed_shortcodes -%}
+  {%- if settings.render_shortcodes -%}
+    {%- assign error_output = settings.shortcode_errors -%}
+    {%- assign shortcodes = text | split: ']]' -%}
+    {%- for shortcode in shortcodes -%}
+      {%- if shortcode contains "[[" -%}
+        {%- assign code = shortcode | split: '[[' -%}
+        {%- assign content = code | first -%}
+        {%- if content != blank -%}
+            {{- content -}}
+        {%- endif -%}
+        {%- assign code = code | last | lstrip -%}
+        {%- assign keys = ""  | split: '||' -%}
+        {%- assign values = "" | split: '||' -%}
+        {%- assign stemplate = code | split: ' ' | first -%}
+        {%- assign elems = code | remove_first: stemplate | strip | replace: '&nbsp;', ' ' | split: '"' -%}
+        {%- assign paramcycle = "key" -%}
+        {%- for param in elems -%}
+          {%- if paramcycle == "key" -%}
+            {%- assign key = param | remove: '=' | strip | split: '||' -%}
+            {%- assign keys = keys | concat: key -%}
+            {%- assign paramcycle = "value" -%}
+          {%- else -%}
+            {%- if param == blank -%}
+              {%- assign value = 'None' | split: '||' -%}
+            {%- else -%}
+              {%- assign value = param | split: '||' -%}
+            {%- endif -%}
+            {%- assign values = values | concat: value -%}
+            {%- assign paramcycle = "key" -%}
+          {%- endif -%}
+        {%- endfor -%}
+        
+        {%- capture output -%}{%- render 'shortcode-render', code: stemplate, values: values, keys: keys -%}{%- endcapture -%}
+        {%- if output contains "Liquid error" or output == blank -%}
+          {%- if error_output == "raw" -%}
+            [[{{- code -}}]]
+          {%- elsif error_output == "error" -%}
+            {{- output -}}
+          {%- endif -%}
+        {%- else -%}
+          {%- if breakRte -%}</div>{%- endif -%}{{- output -}}{%- if breakRte -%}<div class="shortcode-rte">{%- endif -%}
+        {%- endif -%}
+      {%- else -%}
+        {{- shortcode -}}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- else -%}
+    {{- text -}}
+  {%- endif -%}
+{%- endcapture -%}
+
+{{- parsed_shortcodes -}}

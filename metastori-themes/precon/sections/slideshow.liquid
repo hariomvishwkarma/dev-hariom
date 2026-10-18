@@ -1,0 +1,647 @@
+<style>
+  #shopify-section-{{ section.id }} {
+    --progress-bar-color: {{ section.blocks.first.settings.text_color.red }}, {{ section.blocks.first.settings.text_color.green }}, {{ section.blocks.first.settings.text_color.blue }};
+    --section-autoplay-duration: {% if section.settings.autoplay %}{{ section.settings.cycle_speed }}s{% else %}0s{% endif %};
+    --section-animation-play-state: paused;
+    background-color: {{ section.settings.background }};
+  }
+
+  {%- for block in section.blocks -%}
+    {%- assign text_position = block.settings.text_position | split: '_' | first -%}
+
+    {%- case text_position -%}
+      {%- when 'top' -%}
+        {%- assign section_items_alignment = 'flex-start' -%}
+      {%- when 'middle' -%}
+        {%- assign section_items_alignment = 'center' -%}
+      {%- when 'bottom' -%}
+        {%- assign section_items_alignment = 'flex-end' -%}
+    {%- endcase -%}
+
+    {%- comment -%} Build text-shadow value if enabled {%- endcomment -%}
+    {%- if block.settings.enable_text_shadow -%}
+      {%- assign shadow_blur = block.settings.text_shadow_blur -%}
+      {%- assign shadow_opacity_raw = block.settings.text_shadow_opacity | divided_by: 100.0 -%}
+      {%- assign text_shadow_value = '2px 2px ' | append: shadow_blur | append: 'px rgba(0,0,0,' | append: shadow_opacity_raw | append: ')' -%}
+    {%- else -%}
+      {%- assign text_shadow_value = 'none' -%}
+    {%- endif -%}
+
+    #block-{{ section.id }}-{{ block.id }} {
+      --heading-color: {{ block.settings.text_color.red }}, {{ block.settings.text_color.green }}, {{ block.settings.text_color.blue }};
+      --text-color: {{ block.settings.text_color.red }}, {{ block.settings.text_color.green }}, {{ block.settings.text_color.blue }};
+      --primary-button-background: {{ block.settings.button_background.red }}, {{ block.settings.button_background.green }}, {{ block.settings.button_background.blue }};
+      --primary-button-text-color: {{ block.settings.button_text_color.red }}, {{ block.settings.button_text_color.green }}, {{ block.settings.button_text_color.blue }};
+      --section-blocks-alignment: {{ section_items_alignment }};
+      --section-blocks-overlay-color: {{ block.settings.overlay_color.red }}, {{ block.settings.overlay_color.green }}, {{ block.settings.overlay_color.blue }};
+      --section-blocks-overlay-opacity: {{ block.settings.overlay_opacity | divided_by: 100.0 }};
+
+      /* ── Text Box Overlay ── */
+      --text-box-display: {% if block.settings.enable_text_box %}block{% else %}none{% endif %};
+      --text-box-bg-r: {{ block.settings.text_box_color.red }};
+      --text-box-bg-g: {{ block.settings.text_box_color.green }};
+      --text-box-bg-b: {{ block.settings.text_box_color.blue }};
+      --text-box-opacity: {{ block.settings.text_box_opacity | divided_by: 100.0 }};
+      --text-box-padding: {{ block.settings.text_box_padding }}px;
+      --text-box-radius: {{ block.settings.text_box_radius }}px;
+
+      /* ── Text Shadow ── */
+      --slide-text-shadow: {{ text_shadow_value }};
+
+      /* ── Desktop Font Sizes ── */
+      --slide-heading-size-desktop: {{ block.settings.heading_size_desktop }}px;
+      --slide-subheading-size-desktop: {{ block.settings.subheading_size_desktop }}px;
+
+      /* ── Mobile Font Sizes ── */
+      --slide-heading-size-mobile: {{ block.settings.heading_size_mobile }}px;
+      --slide-subheading-size-mobile: {{ block.settings.subheading_size_mobile }}px;
+    }
+  {%- endfor -%}
+
+  /* ── Global Slide Text Styles ── */
+  .mainhead-slider {
+    font-size: var(--slide-heading-size-desktop, 48px) !important;
+    text-shadow: var(--slide-text-shadow, none) !important;
+    color: rgb(var(--heading-color)) !important;
+  }
+
+  .subhead-slider {
+    font-size: var(--slide-subheading-size-desktop, 22px) !important;
+    text-shadow: var(--slide-text-shadow, none) !important;
+    color: rgb(var(--text-color)) !important;
+  }
+
+  /* ── Text Box (overlay behind text content) ── */
+  .slider-top-box {
+    position: relative;
+  }
+
+  .slider-top-box::before {
+    content: '';
+    display: var(--text-box-display, none);
+    position: absolute;
+    inset: calc(var(--text-box-padding, 16px) * -1);
+    background: rgba(
+      var(--text-box-bg-r, 0),
+      var(--text-box-bg-g, 0),
+      var(--text-box-bg-b, 0),
+      var(--text-box-opacity, 0.45)
+    );
+    border-radius: var(--text-box-radius, 8px);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .slider-top-box > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Mobile Overrides ── */
+  @media screen and (max-width: 749px) {
+    .mainhead-slider {
+      font-size: var(--slide-heading-size-mobile, 32px) !important;
+    }
+    .subhead-slider {
+      font-size: var(--slide-subheading-size-mobile, 16px) !important;
+    }
+  }
+</style>
+
+<section class="section section--flush">
+  <slide-show {% if section.settings.show_initial_transition %}reveal-on-scroll{% endif %} {% if section.settings.autoplay %}auto-play{% endif %} transition-type="{{ section.settings.transition_type | escape }}" class="slideshow slideshow--{{ section.settings.section_height }}">
+    <div class="slideshow__slide-list">
+      {%- for block in section.blocks -%}
+        {%- comment -%}
+        ------------------------------------------------------------------------------------------------------------------
+        IMAGE PART
+        ------------------------------------------------------------------------------------------------------------------
+        {%- endcomment -%}
+
+        {%- assign image = block.settings.image -%}
+        {%- assign split_image = block.settings.split_image -%}
+        {%- assign mobile_image = block.settings.mobile_image -%}
+        {%- assign image_aspect_ratio = image.aspect_ratio | default: 2.63 -%}
+
+        {%- if image != blank and split_image != blank and section.settings.section_height == 'auto' -%}
+          {%- assign image_aspect_ratio = image_aspect_ratio | times: 2.0 -%}
+        {%- endif -%}
+
+        {%- if forloop.index > 2 -%}
+          {%- assign loading_attribute_value = 'lazy' -%}
+        {%- else -%}
+          {%- assign loading_attribute_value = 'eager' -%}
+        {%- endif -%}
+
+        {%- capture slide_content -%}
+          <div class="slideshow__image-wrapper {% if mobile_image != blank %}hidden-pocket{% endif %}" {% if section.settings.transition_type == 'reveal' and section.settings.show_initial_transition or forloop.first == false %}reveal-visibility{% endif %}>
+            {%- if image != blank -%}
+              {%- capture sizes_attributes -%}{% if split_image != blank %}(min-width: 1000px) 50vw{% else %}100vw{% endif %}{%- endcapture -%}
+              {{- image | image_url: width: 3000 | image_tag: loading: loading_attribute_value, draggable: false, class: 'slideshow__image', sizes: sizes_attributes, widths: '600,700,800,1000,1200,1400,1600,1800,2000,2200,2400,2600,2800,3000' -}}
+            {%- else -%}
+              {% capture image_name %}lifestyle-{% cycle '1', '2' %}{%- endcapture -%}
+              {{- image_name | placeholder_svg_tag: 'slideshow__image slideshow__image--placeholder' -}}
+            {%- endif -%}
+          </div>
+
+          {%- if image != blank and split_image != blank -%}
+            <div class="slideshow__image-wrapper slideshow__image-wrapper--secondary hidden-pocket" {% if section.settings.transition_type == 'reveal' and section.settings.show_initial_transition or forloop.first == false %}reveal-visibility{% endif %}>
+              {{- split_image | image_url: width: 3000 | image_tag: loading: loading_attribute_value, draggable: false, class: 'slideshow__image', sizes: '50vw', widths: '600,700,800,1000,1200,1400,1600,1800,2000,2200,2400,2600,2800,3000' -}}
+            </div>
+          {%- endif -%}
+
+          {%- if mobile_image != blank -%}
+            <div class="slideshow__image-wrapper hidden-lap-and-up" {% if section.settings.transition_type == 'reveal' and section.settings.show_initial_transition or forloop.first == false %}reveal-visibility{% endif %}>
+              {{- mobile_image | image_url: width: 3000 | image_tag: loading: loading_attribute_value, draggable: false, class: 'slideshow__image', sizes: '100vw', widths: '600,700,800,1000,1200,1400,1600,1800,2000,2200,2400,2600,2800,3000' -}}
+            </div>
+          {%- endif -%}
+
+          {%- comment -%}
+          ----------------------------------------------------------------------------------------------------------------
+          CONTENT PART
+          ----------------------------------------------------------------------------------------------------------------
+          {%- endcomment -%}
+
+          {%- capture section_content -%}
+
+            {%- if block.settings.title != blank -%}
+              <{{block.settings.heading_tag}} class="heading heading--large mainhead-slider">
+                <split-lines {% if section.settings.transition_type != 'fade' and section.settings.show_initial_transition or forloop.first == false %}reveal{% endif %}>{{ block.settings.title | escape }}</split-lines>
+              </{{block.settings.heading_tag}}>
+            {%- endif -%}
+
+            {%- if block.settings.subheading != blank -%}
+              <p class="heading heading--small subhead-slider">
+                <split-lines {% if section.settings.transition_type != 'fade' and section.settings.show_initial_transition or forloop.first == false %}reveal{% endif %}>{{ block.settings.subheading | escape }}</split-lines>
+              </p>
+            {%- endif -%}
+
+            {%- capture buttons -%}
+              {%- if block.settings.button_1_text != blank -%}
+                <a href="{{ block.settings.button_1_link }}" class="button button--primary">{{ block.settings.button_1_text | escape }}</a>
+              {%- endif -%}
+
+              {% assign current_locale = request.locale.iso_code | downcase %}
+
+              {%- if block.settings.button_2_text != blank -%}
+                {%- if block.settings.enable_button_for_de -%}
+                  {%- if current_locale == 'de' -%}
+                    <a href="{{ block.settings.button_2_link }}"
+                       class="button button--primary"
+                       style="background:{{ block.settings.button_background2 }}; color:{{ block.settings.button_text_color2 }}">
+                       {{ block.settings.button_2_text | escape }}
+                    </a>
+                  {%- endif -%}
+                {%- else -%}
+                  <a href="{{ block.settings.button_2_link }}"
+                     class="button button--primary"
+                     style="background:{{ block.settings.button_background2 }}; color:{{ block.settings.button_text_color2 }}">
+                     {{ block.settings.button_2_text | escape }}
+                  </a>
+                {%- endif -%}
+              {%- endif -%}
+            {%- endcapture -%}
+
+            {%- if block.settings.button_1_text != blank and block.settings.button_2_text != blank -%}
+              <div class="button-group" {% if section.settings.transition_type != 'fade' and section.settings.show_initial_transition or forloop.first == false %}reveal{% endif %}>
+                <div class="button-group__wrapper slider-btn-wrap">
+                  {{- buttons -}}
+                </div>
+              </div>
+            {%- elsif buttons != blank -%}
+              <div class="button-wrapper" {% if section.settings.transition_type != 'fade' and section.settings.show_initial_transition or forloop.first == false %}reveal{% endif %}>
+                {{- buttons -}}
+              </div>
+            {%- endif -%}
+          {%- endcapture -%}
+
+          {%- if section_content != blank -%}
+            <div class="container">
+              {%- assign text_alignment = block.settings.text_position | split: '_' | first -%}
+              {%- assign text_position = block.settings.text_position | split: '_' | last -%}
+
+              <div class="slideshow__text-wrapper slideshow__text-wrapper--{{ text_alignment }} vertical-breather">
+                <div class="content-box content-box--medium content-box--text-{{ text_position }} content-box--{{ text_position }} text-container slider-top-box">
+                  {{- section_content -}}
+                </div>
+              </div>
+            </div>
+          {%- endif -%}
+        {%- endcapture -%}
+
+        {%- capture slide_attributes -%}
+          {{ block.shopify_attributes }}
+          id="block-{{ section.id }}-{{ block.id }}"
+          class="slideshow__slide {% if split_image != blank %}slideshow__slide--split{% endif %} {% if section.settings.transition_type == 'sweep' %}slideshow__slide--sweep{% endif %}"
+          {% unless forloop.first %}hidden{% endunless %}
+          {% if section.settings.section_height == 'auto' %}
+            style="--image-aspect-ratio: {{ image_aspect_ratio }}; --mobile-image-aspect-ratio: {{ mobile_image.aspect_ratio | default: image_aspect_ratio | default: 1 }};"
+          {% endif %}
+        {%- endcapture -%}
+
+        <slide-show-item {% if section.settings.transition_type != 'reveal' and section.settings.show_initial_transition or forloop.first == false %}reveal-visibility{% endif %} {{ slide_attributes }}>
+          {%- if block.settings.button_1_link != blank and block.settings.button_1_text == blank and block.settings.button_2_text == blank -%}
+            <a class="slideshow__slide-inner" href="{{ block.settings.button_1_link }}">
+              {{- slide_content -}}
+            </a>
+          {%- else -%}
+            <div class="slideshow__slide-inner">
+              {{- slide_content -}}
+            </div>
+          {%- endif -%}
+        </slide-show-item>
+      {%- endfor -%}
+    </div>
+
+    {%- if section.blocks.size > 1 -%}
+      <page-dots {% if section.settings.autoplay %}animation-timer{% endif %} class="slideshow__nav container">
+        {%- for block in section.blocks -%}
+          <button class="slideshow__progress-bar" aria-controls="block-{{ section.id }}-{{ block.id }}" {% if forloop.first %}aria-current="true"{% endif%}>
+            <span class="visually-hidden">{{ 'general.accessibility.go_to_slide' | t: num: forloop.index }}</span>
+          </button>
+        {%- endfor -%}
+      </page-dots>
+    {%- endif -%}
+  </slide-show>
+</section>
+
+{% schema %}
+{
+  "name": "Slideshow",
+  "class": "shopify-section--slideshow",
+  "disabled_on": {
+    "groups": ["header", "custom.overlay"]
+  },
+  "max_blocks": 5,
+  "settings": [
+    {
+      "type": "select",
+      "id": "section_height",
+      "label": "Section height",
+      "options": [
+        { "value": "auto",   "label": "Original image ratio" },
+        { "value": "small",  "label": "Small" },
+        { "value": "medium", "label": "Medium" },
+        { "value": "large",  "label": "Large" },
+        { "value": "fit",    "label": "Fit screen height" }
+      ],
+      "info": "Choose \"Original image ratio\" to not cut images. [Learn more](https://help.shopify.com/en/manual/online-store/images/theme-images#best-practices-for-slideshows-and-full-width-images)",
+      "default": "auto"
+    },
+    {
+      "type": "select",
+      "id": "transition_type",
+      "label": "Transition type",
+      "options": [
+        { "value": "sweep",  "label": "Sweep" },
+        { "value": "reveal", "label": "Reveal" },
+        { "value": "fade",   "label": "Fade" }
+      ],
+      "default": "sweep"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_initial_transition",
+      "label": "Show initial transition",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "autoplay",
+      "label": "Auto rotate between slides",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "cycle_speed",
+      "min": 4,
+      "max": 20,
+      "step": 1,
+      "unit": "sec",
+      "label": "Change slides every",
+      "default": 5
+    },
+    {
+      "type": "color",
+      "id": "background",
+      "label": "Background",
+      "info": "Used while slideshow image is loading",
+      "default": "rgba(0,0,0,0)"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "image",
+      "name": "Image",
+      "settings": [
+
+        {
+          "type": "image_picker",
+          "id": "image",
+          "info": "2160 x 1080px .jpg recommended, 1080 x 1080px .jpg recommended if split",
+          "label": "Image"
+        },
+        {
+          "type": "image_picker",
+          "id": "split_image",
+          "info": "1080 x 1080px .jpg recommended. Won't show up on mobile.",
+          "label": "Split image"
+        },
+        {
+          "type": "image_picker",
+          "id": "mobile_image",
+          "label": "Mobile image",
+          "info": "1000 x 1400px .jpg recommended. If none is set, desktop image will be used."
+        },
+
+        {
+          "type": "header",
+          "content": "Content"
+        },
+        {
+          "type": "select",
+          "id": "text_position",
+          "label": "Text position",
+          "options": [
+            { "value": "top_left",      "label": "Top left" },
+            { "value": "top_center",    "label": "Top center" },
+            { "value": "top_right",     "label": "Top right" },
+            { "value": "middle_left",   "label": "Middle left" },
+            { "value": "middle_center", "label": "Middle center" },
+            { "value": "middle_right",  "label": "Middle right" },
+            { "value": "bottom_left",   "label": "Bottom left" },
+            { "value": "bottom_center", "label": "Bottom center" },
+            { "value": "bottom_right",  "label": "Bottom right" }
+          ],
+          "default": "middle_center"
+        },
+        {
+          "type": "text",
+          "id": "subheading",
+          "label": "Subheading",
+          "default": "Tell your story"
+        },
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Heading",
+          "default": "Slide title"
+        },
+        {
+          "type": "select",
+          "id": "heading_tag",
+          "label": "Heading element",
+          "options": [
+            { "value": "h1", "label": "H1" },
+            { "value": "h2", "label": "H2" },
+            { "value": "h3", "label": "H3" }
+          ],
+          "default": "h3"
+        },
+        {
+          "type": "text",
+          "id": "button_1_text",
+          "label": "Button 1 text"
+        },
+        {
+          "type": "url",
+          "id": "button_1_link",
+          "label": "Button 1 link",
+          "info": "Leave \"Button 1 text\" and \"Button 2\" empty to make the whole slide clickable."
+        },
+        {
+          "type": "text",
+          "id": "button_2_text",
+          "label": "Button 2 text"
+        },
+        {
+          "type": "url",
+          "id": "button_2_link",
+          "label": "Button 2 link"
+        },
+        {
+          "type": "checkbox",
+          "id": "enable_button_for_de",
+          "label": "Show Button 2 for German language only",
+          "default": true
+        },
+
+        {
+          "type": "header",
+          "content": "🖊 Text Colors"
+        },
+        {
+          "type": "color",
+          "id": "text_color",
+          "label": "Heading & subheading color",
+          "default": "#ffffff",
+          "info": "Default is white — works best on most backgrounds."
+        },
+        {
+          "type": "color",
+          "id": "button_background",
+          "label": "Button 1 background",
+          "default": "#ffffff"
+        },
+        {
+          "type": "color",
+          "id": "button_text_color",
+          "label": "Button 1 text color",
+          "default": "#000000"
+        },
+        {
+          "type": "color",
+          "id": "button_background2",
+          "label": "Button 2 background",
+          "default": "#ffffff"
+        },
+        {
+          "type": "color",
+          "id": "button_text_color2",
+          "label": "Button 2 text color",
+          "default": "#000000"
+        },
+
+        {
+          "type": "header",
+          "content": "📐 Desktop Font Sizes"
+        },
+        {
+          "type": "range",
+          "id": "heading_size_desktop",
+          "label": "Heading font size — Desktop",
+          "min": 20,
+          "max": 100,
+          "step": 2,
+          "unit": "px",
+          "default": 48,
+          "info": "Controls the large title text on desktop screens."
+        },
+        {
+          "type": "range",
+          "id": "subheading_size_desktop",
+          "label": "Subheading font size — Desktop",
+          "min": 12,
+          "max": 60,
+          "step": 1,
+          "unit": "px",
+          "default": 22,
+          "info": "Controls the smaller text below the title on desktop."
+        },
+
+        {
+          "type": "header",
+          "content": "📱 Mobile Font Sizes"
+        },
+        {
+          "type": "range",
+          "id": "heading_size_mobile",
+          "label": "Heading font size — Mobile",
+          "min": 16,
+          "max": 72,
+          "step": 2,
+          "unit": "px",
+          "default": 32,
+          "info": "Controls the large title text on phones and small screens."
+        },
+        {
+          "type": "range",
+          "id": "subheading_size_mobile",
+          "label": "Subheading font size — Mobile",
+          "min": 10,
+          "max": 40,
+          "step": 1,
+          "unit": "px",
+          "default": 16,
+          "info": "Controls the smaller text below the title on mobile."
+        },
+
+        {
+          "type": "header",
+          "content": "✨ Text Shadow"
+        },
+        {
+          "type": "checkbox",
+          "id": "enable_text_shadow",
+          "label": "Enable text shadow",
+          "default": true,
+          "info": "Adds a soft shadow behind the text to improve readability on bright backgrounds."
+        },
+        {
+          "type": "range",
+          "id": "text_shadow_blur",
+          "label": "Shadow blur (spread)",
+          "min": 0,
+          "max": 30,
+          "step": 1,
+          "unit": "px",
+          "default": 8,
+          "info": "Higher = softer / more spread out shadow."
+        },
+        {
+          "type": "range",
+          "id": "text_shadow_opacity",
+          "label": "Shadow strength",
+          "min": 0,
+          "max": 100,
+          "step": 5,
+          "unit": "%",
+          "default": 60,
+          "info": "100% = fully dark shadow, 0% = invisible."
+        },
+
+        {
+          "type": "header",
+          "content": "🔲 Text Box (semi-transparent background)"
+        },
+        {
+          "type": "checkbox",
+          "id": "enable_text_box",
+          "label": "Show text box",
+          "default": true,
+          "info": "Adds a colored box behind the text so it stays readable on any image."
+        },
+        {
+          "type": "color",
+          "id": "text_box_color",
+          "label": "Text box color",
+          "default": "#000000",
+          "info": "Black works well on most images. Try dark navy or deep brown for a warmer feel."
+        },
+        {
+          "type": "range",
+          "id": "text_box_opacity",
+          "label": "Text box opacity (transparency)",
+          "min": 0,
+          "max": 100,
+          "step": 5,
+          "unit": "%",
+          "default": 45,
+          "info": "0% = fully transparent (invisible), 100% = fully solid. 40–55% is usually ideal."
+        },
+        {
+          "type": "range",
+          "id": "text_box_padding",
+          "label": "Text box padding (breathing room)",
+          "min": 0,
+          "max": 60,
+          "step": 4,
+          "unit": "px",
+          "default": 20,
+          "info": "Space between the text and the edge of the box."
+        },
+        {
+          "type": "range",
+          "id": "text_box_radius",
+          "label": "Text box corner roundness",
+          "min": 0,
+          "max": 32,
+          "step": 2,
+          "unit": "px",
+          "default": 8,
+          "info": "0 = sharp corners, higher = more rounded corners."
+        },
+
+        {
+          "type": "header",
+          "content": "🌅 Image Overlay"
+        },
+        {
+          "type": "color",
+          "id": "overlay_color",
+          "label": "Full-image overlay color",
+          "default": "#000000",
+          "info": "This tints the entire slide image. Different from the text box."
+        },
+        {
+          "type": "range",
+          "id": "overlay_opacity",
+          "label": "Full-image overlay opacity",
+          "min": 0,
+          "max": 100,
+          "step": 1,
+          "unit": "%",
+          "default": 30,
+          "info": "0% = no tint on the image, 100% = fully covered."
+        }
+
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Slideshow",
+      "blocks": [
+        {
+          "type": "image",
+          "settings": { "title": "Slide 1" }
+        },
+        {
+          "type": "image",
+          "settings": { "title": "Slide 2" }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

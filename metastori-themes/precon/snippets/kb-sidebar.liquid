@@ -1,0 +1,58 @@
+{%- comment -%}
+  Knowledge Base sidebar — recreates HubSpot's `hs-kb-sidebar` accordion nav.
+
+  Renders the full category tree on every KB page: each top-level category,
+  its subcategories (as #anchor links into the category page), and the active
+  branch expanded. Pure-CSS accordion (checkbox hack) — no JavaScript.
+
+  Data source: the single `knowledge_base_category_order` entry drives category order.
+  Falls back to all `knowledgebase_categories` entries if settings are absent.
+
+  Accepts:
+    current_handle {string} handle of the category the current page belongs to,
+                            used to mark/expand the active branch.
+{%- endcomment -%}
+
+{%- liquid
+  assign categories = shop.metafields.custom.knowledge_base_category_order.value
+  if categories == blank
+    assign categories = shop.metaobjects.knowledgebase_categories.values
+  endif
+-%}
+
+<nav class="kb-sidebar__nav" aria-label="{{ 'bso.general.kb_categories' | t }}">
+  <ul class="kb-nav">
+    {%- for cat in categories -%}
+      {%- liquid
+        assign subs = cat.subcategories.value
+        assign is_active = false
+        if cat.system.handle == current_handle
+          assign is_active = true
+        endif
+      -%}
+
+      {%- if subs.size > 0 -%}
+        <li class="kb-nav__item kb-nav__item--parent{% if is_active %} is-active{% endif %}">
+          <input
+            type="checkbox"
+            class="kb-nav__toggle"
+            id="kb-nav-{{ cat.system.handle }}"
+            aria-label="{{ 'bso.general.show_subcategories' | t: title: cat.title }}"
+            {% if is_active %}checked{% endif %}>
+          <a class="kb-nav__link" href="{{ cat.system.url }}">{{ cat.title }}</a>
+          <ul class="kb-nav__sublist">
+            {%- for sub in subs -%}
+              <li class="kb-nav__subitem">
+                <a class="kb-nav__sublink" href="{{ cat.system.url }}#{{ sub.system.handle }}">{{ sub.title }}</a>
+              </li>
+            {%- endfor -%}
+          </ul>
+        </li>
+      {%- else -%}
+        <li class="kb-nav__item{% if is_active %} is-active{% endif %}">
+          <a class="kb-nav__link" href="{{ cat.system.url }}">{{ cat.title }}</a>
+        </li>
+      {%- endif -%}
+    {%- endfor -%}
+  </ul>
+</nav>

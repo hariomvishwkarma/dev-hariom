@@ -1,0 +1,122 @@
+{%- comment -%}
+  Knowledge Base article page (knowledgebase_faq).
+
+  Same two-column shell as the category page (sidebar left, content right).
+  Content = question (h1) + optional subtitle (h2) + answer (rich text) +
+  related articles. Reuses the kb-sidebar snippet.
+
+  Depends on a `parent_category` reference on the FAQ (metaobject reference ->
+  knowledgebase_categories) for: the sidebar's active branch, and the related-
+  articles list. Everything degrades gracefully if that field is absent/empty.
+{%- endcomment -%}
+
+{{ 'knowledgebase.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'knowledgebase.js' | asset_url }}" defer="defer"></script>
+
+{%- liquid
+  assign parent = metaobject.parent_category.value
+  assign parent_handle = ''
+  if parent != blank
+    assign parent_handle = parent.system.handle
+  endif
+
+  # Build the related-articles pool from the parent category's direct articles
+  # plus every subcategory's articles, then drop the current article.
+  assign related = ''
+  if parent != blank
+    assign related = parent.questions.value
+    for sub in parent.subcategories.value
+      assign related = related | concat: sub.faqs.value
+    endfor
+  endif
+-%}
+
+<div class="container kb-page">
+  <div class="kb-layout">
+    <div class="kb-content">
+      <article class="kb-article">
+        <{{ section.settings.category_html_tag }} class="heading {{ section.settings.category_html_style }} kb-article__title">{{ metaobject.question }}</{{- section.settings.category_html_tag -}}>
+
+        {%- if metaobject.subtitle != blank -%}
+          <p class="kb-article__subtitle">{{ metaobject.subtitle }}</p>
+        {%- endif -%}
+
+        <div class="rte kb-article__body">
+          {{ metaobject.answer | metafield_tag }}
+        </div>
+      </article>
+
+      {%- if related != blank -%}
+        <section class="kb-related" aria-labelledby="kb-related-heading">
+          <h2 class="heading h5 kb-related__heading" id="kb-related-heading">{{ 'article.general.related_articles' | t }}</h2>
+          <ul class="kb-article-list">
+            {%- assign shown = 0 -%}
+            {%- for faq in related -%}
+              {%- if faq.system.handle == metaobject.system.handle -%}{%- continue -%}{%- endif -%}
+              {%- if shown >= section.settings.related_count -%}{%- break -%}{%- endif -%}
+              <li class="kb-article-list__item">
+                <a class="kb-article-list__link" href="{{ faq.system.url }}">{{ faq.question }}</a>
+              </li>
+              {%- assign shown = shown | plus: 1 -%}
+            {%- endfor -%}
+          </ul>
+        </section>
+      {%- endif -%}
+    </div>
+
+    <aside class="kb-sidebar">
+      {%- render 'kb-sidebar', current_handle: parent_handle -%}
+    </aside>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "KB Article",
+  "tag": "section",
+  "class": "shopify-section--kb-article",
+  "settings": [
+    {
+      "type": "range",
+      "id": "related_count",
+      "label": "Number of related articles",
+      "min": 0,
+      "max": 10,
+      "step": 1,
+      "default": 5
+    },
+    {
+      "type": "select",
+      "id": "category_html_tag",
+      "label": "Category headingHTML tag",
+      "options": [
+        { "value": "h1", "label": "H1" },
+        { "value": "h2", "label": "H2" },
+        { "value": "h3", "label": "H3" },
+        { "value": "h4", "label": "H4" },
+        { "value": "h5", "label": "H5" },
+        { "value": "div", "label": "Div" },
+        { "value": "p", "label": "Paragraph" },
+        { "value": "span", "label": "Span" }
+      ],
+      "default": "div"
+    },
+    {
+      "type": "select",
+      "id": "category_html_style",
+      "label": "Category heading HTML style",
+      "options": [
+        { "value": "h1", "label": "H1" },
+        { "value": "h2", "label": "H2" },
+        { "value": "h3", "label": "H3" },
+        { "value": "h4", "label": "H4" },
+        { "value": "h5", "label": "H5" }
+      ],
+      "default": "h2"
+    }
+  ],
+  "presets": [
+    { "name": "KB Article" }
+  ]
+}
+{% endschema %}

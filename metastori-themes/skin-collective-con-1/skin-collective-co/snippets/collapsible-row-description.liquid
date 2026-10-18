@@ -1,0 +1,44 @@
+{%- doc -%}
+  Resolves collapsible row body HTML from block settings and optional ingredients metafields.
+  @param {object} block - Collapsible row block.
+  @param {object} product - Current product.
+{%- enddoc -%}
+
+{%- if block.settings.ingredients-as-list == false -%}
+  {%- liquid
+    # Comma-separated list authored straight on the product wins.
+    assign ingredient_parts = product.metafields.custom.ingredients_tabs.value | strip
+
+    # Otherwise build the same list from the ingredients metaobject.
+    if ingredient_parts == blank
+      assign ingredients = product.metafields.custom.key_ingredients.value
+
+      if ingredients != blank
+        for ingredient in ingredients
+          assign item_title = ingredient.filter_title
+          if item_title == blank
+            assign item_title = ingredient.title | default: ingredient.name | default: ingredient.heading
+          endif
+          if item_title.value != blank
+            assign item_title = item_title.value
+          endif
+
+          if item_title != blank
+            if ingredient_parts != blank
+              assign ingredient_parts = ingredient_parts | append: ', '
+            endif
+            assign ingredient_parts = ingredient_parts | append: item_title
+          endif
+        endfor
+      endif
+    endif
+  -%}
+
+  {%- if ingredient_parts != blank -%}
+    <p>{{ ingredient_parts | escape }}</p>
+  {%- else -%}
+    {%- render 'localized-html', html: block.settings.description -%}
+  {%- endif -%}
+{%- else -%}
+  {%- render 'localized-html', html: block.settings.description -%}
+{%- endif -%}

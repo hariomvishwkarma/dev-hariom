@@ -1,0 +1,53 @@
+<script type="text/javascript">
+      window.Shopify.loadFeatures(
+        [{ name: 'consent-tracking-api', version: '0.1' }], 
+        error => {
+          if (error) throw error
+          console.log('** Shopify Consent Tracking API loaded');
+          const syncTrackingConsent = consentObj => {
+            window.Shopify.customerPrivacy.setTrackingConsent(consentObj, () => {
+              console.log("** UC consent synced with Shopify Customer Privacy API")
+              console.log("- Shopify consent:")
+              console.log(window.Shopify.customerPrivacy.currentVisitorConsent())
+              console.log("--------------------------")
+            })
+          }
+          window.addEventListener("UC_CONSENT", e => {
+            const services = Object.values(e.detail.services)
+            const ucAnalytics = services.find(service => service.name == 'Shopify Analytics')
+            const ucMarketing = services.find(service => service.name == 'Shopify Marketing')
+            const ucPreferences = services.find(service => service.name == 'Shopify Preferences')
+            if (ucAnalytics && ucMarketing && ucPreferences) {
+              const analyticsConsent = ucAnalytics.consent.given
+              const marketingConsent = ucMarketing.consent.given
+              const preferencesConsent = ucPreferences.consent.given
+              console.log('** Usercentrics consent:')
+              console.log("- status: " + e.detail.consent.status)
+              console.log("- updatedBy: " + e.detail.consent.updatedBy)
+              console.log("- Analytics: " + analyticsConsent)
+              console.log("- Marketing: " + marketingConsent)
+              console.log("- Preferences: " + preferencesConsent)
+              const isOptOut = window.Shopify.customerPrivacy.saleOfDataRegion()
+              console.log("** is using Opt-Out framework: " + isOptOut)
+              if (isOptOut) { 
+                const val = e.detail.consent.status == 'ALL_DENIED' ? false : true
+                syncTrackingConsent({
+                  analytics: val, 
+                  marketing: val, 
+                  preferences: val, 
+                  sale_of_data: val
+                })
+              } else {     
+                syncTrackingConsent({
+                  analytics: analyticsConsent,
+                  marketing: marketingConsent,
+                  preferences: preferencesConsent,
+                })
+              }
+            } else {
+              throw 'No DPSs found (Shopify Analytics, Shopify Marketing, Shopify Preferences)'
+            }
+          })
+        }
+      )
+    </script>

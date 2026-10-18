@@ -1,0 +1,965 @@
+<style>
+  .nutritional-information-title{
+      color: {{ settings.heading_color }};
+      font-weight: bold;
+  }
+  .nutritional-information-items {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 16px;
+  }
+  .nutritional-information-item {
+    display: flex;
+    align-items: center;
+  }
+  .nutritional-label, .nutritional-value {
+    width: 50%;
+  }
+  .nutritional-information-wrapper {
+    border-bottom: 1px solid rgb(var(--border-color));
+    padding-bottom: 30px;
+  }
+  .recipe-tip {
+    margin-top: 24px;
+  }
+  .tab-button{
+    color: {{settings.primary_button_background}};
+    border-radius: 50px;
+    padding: 6px 16px;
+    border:1px solid {{settings.primary_button_background}};
+  }
+  .tab-button.active_tab {
+    background: {{ settings.primary_button_background }};
+    color: {{ settings.primary_button_text_color }};
+  }
+  .tab-bar-buttons {
+    padding: 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .recipe-zutaten, .tab-item-wrapper{
+    display:none;
+  }
+  .tab-item-wrapper.active_wrapper{
+    display:block;
+  }
+  .ingredient_item_list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  @media (min-width:768px){
+    .article__inner{
+      flex-direction: row;
+      margin-inline: unset;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .article__info{
+      max-width: 30%;
+      width: 100%;
+      position: relative;
+    }
+    .nutritional-information-title{
+      font-size: 24px;
+      line-height: 1.26;
+    }
+    .article__content{
+      max-width: 65%;
+    }
+  }
+
+  .nutritional-servings-item{
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 16px;
+      font-weight: 500;
+  }
+
+  span.nutritional-servings-label {
+    margin-right: 10px;
+  }
+
+
+  {%- if section.settings.enable_print_button -%}
+  /* ---- Print button ---- */
+  .recipe-print-btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    margin:14px 0;padding:10px 50px;width:max-content;
+    font:600 15px/1 inherit;color:#fff;
+    background:{{ section.settings.print_button_color }};
+    border:none;border-radius:999px;cursor:pointer;
+    transition:opacity .2s;position:relative;
+  }
+  .recipe-print-btn:hover{opacity:.85}
+  .recipe-print-btn svg{width:16px;height:16px;fill:currentColor}
+  .recipe-print-btn .rp-btn-loader{
+    display:none;width:16px;height:16px;
+    border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+    border-radius:50%;animation:rpSpin .6s linear infinite;
+  }
+  .recipe-print-btn.is-loading{pointer-events:none;opacity:.85}
+  .recipe-print-btn.is-loading .rp-btn-icon{display:none}
+  .recipe-print-btn.is-loading .rp-btn-loader{display:inline-block}
+  @keyframes rpSpin{to{transform:rotate(360deg)}}
+  {%- endif -%}
+
+</style>
+
+
+{%- if section.settings.enable_print_button -%}
+<style media="print">
+  body > *{display:none !important}
+  #recipe-print-area{display:block !important;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.5;max-width:100%;padding:1.2cm 1.4cm;box-sizing:border-box}
+  #recipe-print-area .rp-head{border-bottom:3px solid {{ section.settings.print_button_color }};padding-bottom:12px;margin-bottom:18px}
+  #recipe-print-area .rp-title{font-size:26px;font-weight:700;margin:0 0 4px;color:#111}
+  #recipe-print-area .rp-sub{font-size:13px;color:#666;margin:0}
+  #recipe-print-area h2{font-size:16px;font-weight:700;color:{{ section.settings.print_button_color }};margin:22px 0 10px;text-transform:uppercase;letter-spacing:.5px}
+  #recipe-print-area .rp-nutri{display:grid;grid-template-columns:1fr 1fr;gap:6px 28px;margin:0}
+  #recipe-print-area .rp-nutri div{display:flex;justify-content:space-between;border-bottom:1px dotted #ccc;padding:4px 0;font-size:14px}
+  #recipe-print-area .rp-nutri span:last-child{font-weight:600}
+  #recipe-print-area .rp-ing{list-style:none;padding:0;margin:0;columns:2;column-gap:32px}
+  #recipe-print-area .rp-ing li{padding:5px 0;font-size:14px;border-bottom:1px solid #eee;break-inside:avoid}
+  #recipe-print-area .rp-steps{padding-left:20px;margin:0}
+  #recipe-print-area .rp-steps li{padding:6px 0;font-size:14px;break-inside:avoid}
+  #recipe-print-area .rp-tip{margin-top:16px;padding:12px 14px;background:#f2fafa;border-left:4px solid {{ section.settings.print_button_color }};font-size:14px;border-radius:0 6px 6px 0}
+  #recipe-print-area .rp-foot{margin-top:26px;padding-top:10px;border-top:1px solid #ddd;font-size:11px;color:#999;text-align:center}
+  @page{margin:1.6cm}
+</style>
+{%- endif -%}
+
+
+
+{% assign metaobject = article.metafields.custom.blog_content.value %}
+<section>
+  <div class="article">
+    <div class="article__main-part">
+
+      <div class="container">
+        <div class="article__inner">
+          {%- capture blog_post_info -%}
+
+            {%- if section.settings.show_share_buttons -%}
+              {%- assign share_url = shop.url | append: request.path -%}
+              {%- assign twitter_text = metaobject.title | url_param_escape -%}
+              {%- assign pinterest_description = metaobject.content | metafield_tag | strip_html | truncatewords: 15 | url_param_escape -%}
+              {%- assign pinterest_image = metaobject.image | image_url: width: 800 | prepend: 'https:' -%}
+
+              <button type="button" is="share-toggle-button" share-url="{{ share_url | escape }}" share-title="{{ metaobject.title | escape }}" class="article__share text--subdued link hidden-tablet-and-up" aria-controls="mobile-share-buttons-{{ section.id }}" aria-expanded="false">{{ 'article.general.share' | t }}</button>
+
+              <popover-content id="mobile-share-buttons-{{ section.id }}" class="popover hidden-tablet-and-up">
+                <span class="popover__overlay"></span>
+
+                <header class="popover__header">
+                  <span class="popover__title heading h6">{{- 'article.general.share' | t -}}</span>
+
+                  <button type="button" class="popover__close-button tap-area tap-area--large" data-action="close" title="{{ 'general.accessibility.close' | t | escape }}">
+                    {%- render 'icon' with 'close' -%}
+                  </button>
+                </header>
+
+                <div class="mobile-share-buttons">
+                  <a class="mobile-share-buttons__item mobile-share-buttons__item--facebook" href="https://www.facebook.com/sharer.php?u={{ share_url }}" target="_blank" rel="noopener" aria-label="{{ 'general.social.facebook_share' | t }}">
+                    {%- render 'icon' with 'facebook-share-mobile' -%} Facebook
+                  </a>
+
+                  <a class="mobile-share-buttons__item mobile-share-buttons__item--pinterest" href="https://pinterest.com/pin/create/button/?url={{ share_url }}{% if pinterest_image != blank %}&media={{ pinterest_image }}{% endif %}&description={{ pinterest_description }}" target="_blank" rel="noopener" aria-label="{{ 'general.social.pinterest_pin' | t }}">
+                    {%- render 'icon' with 'pinterest-share-mobile' -%} Pinterest
+                  </a>
+
+                  <a class="mobile-share-buttons__item mobile-share-buttons__item--twitter" href="https://twitter.com/intent/tweet?{% if twitter_text != blank %}text={{twitter_text}}&{% endif %}url={{ share_url }}" target="_blank" rel="noopener" aria-label="{{ 'general.social.twitter_tweet' | t }}">
+                    {%- render 'icon' with 'twitter-share-mobile' -%} Twitter
+                  </a>
+
+                  <a class="mobile-share-buttons__item mobile-share-buttons__item--mail" href="mailto:?&subject={{ article.title | escape }}&body={{ share_url }}" aria-label="{{ 'general.social.email_share' | t }}">
+                    {%- render 'icon' with 'email-share-mobile' -%} {{ 'general.social.email_label' | t }}
+                  </a>
+                </div>
+              </popover-content>
+
+              <div class="article__share hidden-phone">
+                <span class="article__share-label">{{ 'article.general.share' | t }}</span>
+
+                <div class="article__share-button-list" role="list">
+                  <a class="article__share-button-item article__share-button-item--facebook tap-area" href="https://www.facebook.com/sharer.php?u={{ share_url }}" target="_blank" rel="noopener" role="listitem" aria-label="{{ 'general.social.facebook_share' | t }}">
+                    {%- render 'icon' with 'facebook' -%}
+                  </a>
+
+                  <a class="article__share-button-item article__share-button-item--pinterest tap-area" href="https://pinterest.com/pin/create/button/?url={{ share_url }}{% if pinterest_image != blank %}&media={{ pinterest_image }}{% endif %}&description={{ pinterest_description }}" target="_blank" rel="noopener" role="listitem" aria-label="{{ 'general.social.pinterest_pin' | t }}">
+                    {%- render 'icon' with 'pinterest' -%}
+                  </a>
+
+                  <a class="article__share-button-item article__share-button-item--twitter tap-area" href="https://twitter.com/intent/tweet?{% if twitter_text != blank %}text={{twitter_text}}&{% endif %}url={{ share_url }}" target="_blank" rel="noopener" role="listitem" aria-label="{{ 'general.social.twitter_tweet' | t }}">
+                    {%- render 'icon' with 'twitter' -%}
+                  </a>
+
+                  <a class="article__share-button-item article__share-button-item--mail tap-area" href="mailto:?&subject={{ metaobject.title | escape }}&body={{ share_url }}" role="listitem" aria-label="{{ 'general.social.email_share' | t }}">
+                    {%- render 'icon' with 'share' -%}
+                  </a>
+                </div>
+              </div>
+            {%- endif -%}
+          {%- endcapture -%}
+
+          {%- if blog_post_info != blank -%}
+            <div class="article__info">
+
+              {%- assign kalorien = metaobject.kalorien -%}
+              {%- assign eiweis = metaobject.eiweis -%}
+              {%- assign kohlenhydrate = metaobject.kohlenhydrate -%}
+              {%- assign fett = metaobject.fett -%}
+              {%- assign ballaststoffe = metaobject.ballaststoffe -%}
+              {%- assign broteinheite = metaobject.broteinheite -%}
+              <div class="nutritional-information-wrapper">
+
+                <h3 class="nutritional-information-title">{{section.settings.nutritional_heading}}</h3>
+                
+                {% comment %} {% if section.settings.servings_label != blank or section.settings.servings_value != blank %}
+                  <div class="nutritional-servings-item">
+                    <span class="nutritional-servings-label">{{ section.settings.servings_label }}</span>
+                    <span class="nutritional-servings-value">{{ section.settings.servings_value }}</span>
+                  </div>
+                {% endif %}
+                {% endcomment %}
+
+
+                <div class="nutritional-information-items">
+                  {% if kalorien != blank %}
+                    <div class="nutritional-information-item">
+                      <span class="nutritional-label">{{ section.settings.kalorien }}</span>
+                      <span class="nutritional-value">{{ kalorien | replace: '.', ',' }} kcal</span>
+                    </div>
+                  {% endif %}
+                  {% if eiweis != blank %}
+                    <div class="nutritional-information-item">
+                      <span class="nutritional-label">{{ section.settings.eiweiss }}</span>
+                      <span class="nutritional-value">{{ eiweis | replace: '.', ',' }} g</span>
+                    </div>
+                  {% endif %}
+                  {% if kohlenhydrate != blank %}
+                    <div class="nutritional-information-item">
+                      <span class="nutritional-label">{{ section.settings.kohlenhydrate }}</span>
+                      <span class="nutritional-value">{{ kohlenhydrate | replace: '.', ',' }} g</span>
+                    </div>
+                  {% endif %}
+                  {% if fett != blank %}
+                    <div class="nutritional-information-item">
+                      <span class="nutritional-label">{{ section.settings.fett }}</span>
+                      <span class="nutritional-value">{{ fett | replace: '.', ',' }} g</span>
+                    </div>
+                  {% endif %}
+                  {% if ballaststoffe != blank %}
+                    <div class="nutritional-information-item">
+                      <span class="nutritional-label">{{ section.settings.ballaststoffe }}</span>
+                      <span class="nutritional-value">{{ ballaststoffe | replace: '.', ',' }} g</span>
+                    </div>
+                  {% endif %}
+                  {% if broteinheite != blank %}
+                    <div class="nutritional-information-item">
+                      <span class="nutritional-label">{{ section.settings.broteinheiten }}</span>
+                      <span class="nutritional-value">{{ broteinheite | replace: '.', ',' }}</span>
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+              {{- blog_post_info -}}
+
+                     {%- if section.settings.enable_print_button -%}
+                <button type="button" class="recipe-print-btn" id="recipePrintBtn-{{ section.id }}">
+                  <span class="rp-btn-icon">
+                    <svg viewBox="0 0 24 24"><path d="M19 8H5a3 3 0 0 0-3 3v6h4v4h12v-4h4v-6a3 3 0 0 0-3-3zm-3 11H8v-5h8v5zm3-7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM18 3H6v4h12V3z"/></svg>
+                  </span>
+                  <span class="rp-btn-loader" aria-hidden="true"></span>
+                  <span class="rp-btn-text">{{ section.settings.print_button_text }}</span>
+                </button>
+              {%- endif -%}
+            </div>
+          {%- endif -%}
+
+          <div class="article__content">
+            <div class="rte">
+              <div class="tab-bar-buttons">
+                  <button class="tab-button zubereitung active_tab" data-wrapper="zubereitung" onclick="openTab(event)">{{section.settings.tab_zubereitung}}</button>
+                  <button class="tab-button zutaten" onclick="openTab(event)" data-wrapper="zutaten">{{section.settings.tab_zutaten}}</button>
+              </div>
+        
+        
+        
+                
+              {% if metaobject.zubereitungsschritte != blank %}
+
+
+
+           
+                <div class="preparation-steps tab-item-wrapper active_wrapper" data-tab="zubereitung">
+            
+
+                  <ol>
+                    {% for step in metaobject.zubereitungsschritte.value %}
+                      <li>{{ step }}</li>
+                    {% endfor %}
+                  </ol>
+                  {% if metaobject.tip != blank %}
+                    <div class="recipe-tip">
+                      <b>Tipp: </b><span>{{ metaobject.tip }}</span>
+                    </div>
+                  {%endif %}
+                </div>
+              {% endif %}
+             <!-- ============================================ -->
+<!-- PORTION CALCULATOR - CORRECT MULTIPLICATION  -->
+<!-- ============================================ -->
+
+
+
+{% if metaobject.zutaten != blank %}
+<div class="recipe-zutaten tab-item-wrapper" data-tab="zutaten">
+  
+   {% if section.settings.servings_label != blank or section.settings.servings_value != blank %}
+               <div class="portion-wrapper">
+    <span class="portion-label">{{ section.settings.servings_label }}</span>
+    
+    <div class="portion-group">
+      <button class="portion-circle minus" onclick="updatePortions('minus')" id="btnMinus" disabled>−</button>
+      
+      <div class="portion-box">
+        <span class="portion-number" id="displayNumber">{{ section.settings.servings_value | default: 2 }}</span>
+      </div>
+      
+      <button class="portion-circle plus" onclick="updatePortions('plus')" id="btnPlus">+</button>
+    </div>
+  </div>
+                {% endif %}
+
+  <!-- Simple Portion Selector Inside -->
+
+  
+  <!-- Original Ingredient List -->
+  <div class="ingredient_item_list">
+    {% for ingredient in metaobject.zutaten.value %}
+      <span class="ingredient_item" data-original="{{ ingredient | escape }}">{{ ingredient }}</span>
+    {%endfor %}
+  </div>
+</div>
+
+<style>
+.portion-wrapper {
+  margin-bottom: 25px;
+  padding: 0 5px 10px 5px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.portion-label {
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+}
+
+.portion-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.portion-circle {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: #f5f5f5;
+  color: #333;
+  font-size: 22px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.portion-circle:hover:not(:disabled) {
+  background: #e5e5e5;
+}
+
+.portion-circle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.portion-box {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 40px;
+  padding: 0 18px;
+  height: 42px;
+  min-width: 90px;
+  justify-content: center;
+}
+
+.portion-number {
+  font-size: 19px;
+  font-weight: 700;
+  color: #222;
+  margin-right: 5px;
+}
+
+.ingredient_item.highlight {
+  background-color: #fff9e6;
+  transition: background-color 0.3s;
+}
+</style>
+
+<script>
+(function() {
+  // Configuration
+  const baseValue = {{ section.settings.servings_value | default: 2 }};
+  const maxValue = 20;
+  const step = 1;
+  
+  // State
+  let currentValue = baseValue;
+  let hasBeenChanged = false; // Track if portions have been changed
+  
+  // DOM Elements
+  const displayEl = document.getElementById('displayNumber');
+  const minusBtn = document.getElementById('btnMinus');
+  const plusBtn = document.getElementById('btnPlus');
+  
+  // Get all ingredient spans
+  const ingredientItems = document.querySelectorAll('.ingredient_item');
+  
+  // Store original texts
+  const originalData = [];
+  
+  ingredientItems.forEach((item, index) => {
+    originalData[index] = item.textContent;
+  });
+  
+  // Helper: Parse number from ingredient text - IMPROVED VERSION
+  function parseNumberFromText(text) {
+    // Handle Unicode fractions (½, ¼, ¾, etc.)
+    const unicodeFractions = {
+      '½': 0.5,
+      '¼': 0.25,
+      '¾': 0.75,
+      '⅓': 0.333,
+      '⅔': 0.667,
+      '⅕': 0.2,
+      '⅖': 0.4,
+      '⅗': 0.6,
+      '⅘': 0.8,
+      '⅙': 0.167,
+      '⅚': 0.833,
+      '⅛': 0.125,
+      '⅜': 0.375,
+      '⅝': 0.625,
+      '⅞': 0.875
+    };
+    
+    // Check if text starts with a Unicode fraction
+    for (const [fraction, value] of Object.entries(unicodeFractions)) {
+      if (text.startsWith(fraction)) {
+        return value;
+      }
+    }
+    
+    // Match regular numbers at start - including decimals and fractions like 1/2
+    const match = text.match(/^(\d+(?:\s+\d+)?(?:\/\d+)?(?:\.\d+)?)/);
+    if (!match) return null;
+    
+    const numStr = match[1].trim();
+    
+    // Handle mixed fractions like "2 1/2"
+    if (numStr.includes(' ') && numStr.includes('/')) {
+      const parts = numStr.split(' ');
+      const whole = parseInt(parts[0]);
+      const fraction = parts[1].split('/');
+      return whole + (parseInt(fraction[0]) / parseInt(fraction[1]));
+    }
+    
+    // Handle simple fractions like "1/2"
+    if (numStr.includes('/')) {
+      const fraction = numStr.split('/');
+      return parseInt(fraction[0]) / parseInt(fraction[1]);
+    }
+    
+    // Handle decimals
+    return parseFloat(numStr);
+  }
+  
+  // Helper: Format number - IMPROVED VERSION
+  function formatNumber(num, originalText, index) {
+    // Special case: If portions haven't been changed yet, keep original format
+    if (!hasBeenChanged) {
+      // Check if original text started with a Unicode fraction
+      const unicodeFractions = ['½', '¼', '¾', '⅓', '⅔', '⅕', '⅖', '⅗', '⅘', '⅙', '⅚', '⅛', '⅜', '⅝', '⅞'];
+      for (const fraction of unicodeFractions) {
+        if (originalText.startsWith(fraction)) {
+          return fraction;
+        }
+      }
+      
+      // Otherwise return the original number part
+      const match = originalText.match(/^(\d+(?:\s+\d+)?(?:\/\d+)?(?:\.\d+)?)/);
+      return match ? match[1] : originalText;
+    }
+    
+    // After first change, show decimals
+    // Round to 1 decimal place
+    return Math.round(num * 10) / 10 + '';
+  }
+  
+  // Helper: Get the part after the number - IMPROVED VERSION
+  function getAfterNumber(text) {
+    // Check if text starts with a Unicode fraction
+    const unicodeFractions = ['½', '¼', '¾', '⅓', '⅔', '⅕', '⅖', '⅗', '⅘', '⅙', '⅚', '⅛', '⅜', '⅝', '⅞'];
+    for (const fraction of unicodeFractions) {
+      if (text.startsWith(fraction)) {
+        return text.substring(fraction.length);
+      }
+    }
+    
+    // Otherwise use regex to remove the number part
+    return text.replace(/^\d+(?:\s+\d+)?(?:\/\d+)?(?:\.\d+)?/, '');
+  }
+  
+  // Update all ingredients
+  function updateIngredients() {
+    const factor = currentValue / baseValue;
+    
+    ingredientItems.forEach((item, index) => {
+      const originalText = originalData[index];
+      const number = parseNumberFromText(originalText);
+      
+      if (number !== null) {
+        // Calculate new amount
+        const newAmount = number * factor;
+        
+        // Format the number (keep Unicode fractions until first change)
+        const formattedNumber = formatNumber(newAmount, originalText, index);
+        
+        // Get the part after the number
+        const afterNumber = getAfterNumber(originalText);
+        
+        // Create new text
+        const newText = formattedNumber + afterNumber;
+        item.textContent = newText;
+        
+        // Highlight
+        item.classList.add('highlight');
+        setTimeout(() => {
+          item.classList.remove('highlight');
+        }, 300);
+      }
+    });
+  }
+  
+  // Reset function
+  function resetToBase() {
+    currentValue = baseValue;
+    hasBeenChanged = false; // Reset the flag
+    displayEl.textContent = currentValue;
+    
+    ingredientItems.forEach((item, index) => {
+      item.textContent = originalData[index];
+      item.classList.add('highlight');
+      setTimeout(() => {
+        item.classList.remove('highlight');
+      }, 300);
+    });
+    
+    minusBtn.disabled = currentValue <= 1;
+    plusBtn.disabled = false;
+  }
+  
+  // Update button states
+  function updateButtons() {
+    minusBtn.disabled = currentValue <= 1;
+    plusBtn.disabled = currentValue >= maxValue;
+  }
+  
+  // Main function
+  window.updatePortions = function(direction) {
+    let newValue = currentValue;
+    
+    if (direction === 'plus') {
+      newValue += 1;
+    } else {
+      newValue -= 1;
+    }
+    
+    if (newValue < 1 || newValue > maxValue) return;
+    
+    // Mark that portions have been changed
+    hasBeenChanged = true;
+    
+    currentValue = newValue;
+    displayEl.textContent = currentValue;
+    
+    updateIngredients();
+    updateButtons();
+  };
+  
+  // Initialize buttons
+  updateButtons();
+  
+})();
+</script>
+{% endif %}
+
+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+function openTab(event) {
+  const btn = event.currentTarget;
+  const wrapper = btn.getAttribute('data-wrapper');
+
+  document.querySelectorAll('.tab-button').forEach((btn) => {
+    btn.classList.remove('active_tab');
+  });
+
+  btn.classList.add('active_tab');
+
+  document.querySelectorAll('.tab-item-wrapper').forEach((item) => {
+    item.classList.remove('active_wrapper');
+  });
+
+  document.querySelector('.tab-item-wrapper[data-tab="' + wrapper + '"]')
+    .classList.add('active_wrapper');
+}
+</script>
+
+{% assign blog_content = article.metafields.custom.blog_content.value %}
+{% if blog_content != blank and section.settings.show_render_structured_data %}
+  {%- assign keywords = blog_content.keywords.value -%}
+  {%- assign nutritional_values_string = blank -%}
+  {%- if blog_content.kalorien != blank -%}
+    {% assign nutritional_values_string = nutritional_values_string |  append: 'calories:' | append: blog_content.kalorien | append: ' grams|' %}
+  {%- endif -%}
+  {%- if blog_content.eiweis != blank -%}
+    {% assign nutritional_values_string = nutritional_values_string |  append: 'protein:' | append: blog_content.eiweis | append: ' grams|' %}
+  {%- endif -%}
+  {%- if blog_content.kohlenhydrate != blank -%}
+    {% assign nutritional_values_string = nutritional_values_string |  append: 'carbohydrate:' | append: blog_content.kohlenhydrate | append: ' grams|' %}
+  {%- endif -%}
+  {%- if blog_content.fett != blank -%}
+    {% assign nutritional_values_string = nutritional_values_string |  append: 'fat:' | append: blog_content.fett | append: ' grams|' %}
+  {%- endif -%}
+  {%- if blog_content.ballaststoffe != blank -%}
+    {% assign nutritional_values_string = nutritional_values_string |  append: 'fiber:' | append: blog_content.ballaststoffe | append: ' grams|' %}
+  {%- endif -%}
+  {%- if blog_content.broteinheite != blank -%}
+    {% assign nutritional_values_string = nutritional_values_string |  append: 'bread:' | append: blog_content.broteinheite | append: ' grams' %}
+  {%- endif -%}
+
+  {%- assign zutaten = blog_content.zutaten.value -%}
+  {%- assign zubereitungsschritte = blog_content.zubereitungsschritte.value -%}
+
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org/",
+      "@type": "Recipe",
+      "name": {{ article.title | json }},
+      "image": [
+        "https:{{ blog_content.bild | image_url: width: 300 }}"
+      ],
+      "author": {
+        "@type": "Person",
+        "name": {{ article.author | json }}
+      },
+      "datePublished": "{{ article.published_at | date: '%Y-%m-%d' }}",
+      "description": {{ article.meta_description | json }},
+      {%- if blog_content.zubereitungszeit %}
+        "prepTime": "PT{{ blog_content.zubereitungszeit }}M",
+      {%- endif -%}
+      {%- if blog_content.kochzeit %}
+        "cookTime": "PT{{ blog_content.kochzeit }}M",
+      {%- endif -%}
+      {%- if blog_content.gesamtzeit %}
+        "totalTime": "PT{{ blog_content.gesamtzeit }}M",
+      {%- endif %}
+      {%- if keywords != blank -%}
+      "keywords": {% for keyword in keywords -%}"{{ keyword | downcase }}"{%- unless forloop.last -%},{% endunless -%}{%- endfor -%}, 
+      {%- endif -%}
+      {%- if blog_content.recipeyield != blank or blog_content.kalorien != blank -%}
+        "recipeYield": {{ blog_content.recipeyield | default: 2 | json }},
+      {%- endif -%}
+      {%- if blog_content.recipe_category != blank -%}
+        "recipeCategory": {{ blog_content.recipe_category | json }},
+      {%- endif -%}
+      {%- if nutritional_values_string != blank -%}
+        "nutrition": {
+          "@type": "NutritionInformation",
+          {%- assign nutritional_values = nutritional_values_string | split: '|' -%}
+          {%- for item in nutritional_values -%}
+            {%- assign parts = item | split: ':' -%}
+            "{{ parts[0] }}": "{{ parts[1] }}"{% unless forloop.last -%},{% endunless %}
+          {%- endfor -%}
+        },
+      {%- endif -%}
+      "recipeIngredient": [
+        {%- for ingredient in zutaten -%}
+          {%- unless forloop.last -%}
+            {%- if ingredient contains '|' %}
+              {%- assign text_with_url = ingredient | split: '|' -%}
+                {%- assign text = text_with_url[0] | json  -%}
+                {{ text }},
+            {%- else -%}
+              {{ ingredient | json }},
+            {% endif %}
+          {%- else -%}
+            {%- if ingredient contains '|' -%}
+              {%- assign text_with_url = ingredient | split: '|' -%}
+                {%- assign text = text_with_url[0] -%}
+                {{ text | json }}{%- unless forloop.last -%},{% endunless %}
+            {%- else -%}
+              {{ ingredient | json }}{%- unless forloop.last -%},{% endunless %}
+            {%- endif -%}
+          {%- endunless -%}
+        {%- endfor -%}
+      ],
+      "recipeInstructions": [
+        {% for step in zubereitungsschritte %}
+        {
+          "@type": "HowToStep",
+          "text": {{ step | json }}
+        }{%- unless forloop.last -%},{% endunless %}
+        {%- endfor -%}
+      ]
+    }
+  </script>
+{% endif %}
+
+
+
+{%- if section.settings.enable_print_button -%}
+<script>
+(function(){
+  var btn = document.getElementById('recipePrintBtn-{{ section.id }}');
+  if(!btn) return;
+
+  function T(e){return e ? e.textContent.trim() : '';}
+
+  // Build print area on demand (har click pe fresh)
+  function buildPrint(){
+    document.getElementById('recipe-print-area')?.remove();
+    var a = document.createElement('div');
+    a.id = 'recipe-print-area';
+    a.style.display = 'none';
+
+    var title = T(document.querySelector('h1.article__title')) || T(document.querySelector('.article__title'));
+    var sub = {{ section.settings.print_subtitle | json }};
+    var h = '<div class="rp-head"><h1 class="rp-title">'+title+'</h1>';
+    if(sub){ h += '<p class="rp-sub">'+sub+'</p>'; }
+    h += '</div>';
+
+    var n = document.querySelectorAll('.nutritional-information-item');
+    if(n.length){
+      h += '<h2>{{ section.settings.nutritional_heading | escape }}</h2><div class="rp-nutri">';
+      n.forEach(function(i){
+        h += '<div><span>'+T(i.querySelector('.nutritional-label'))+'</span><span>'+T(i.querySelector('.nutritional-value'))+'</span></div>';
+      });
+      h += '</div>';
+    }
+
+    var portions = T(document.getElementById('displayNumber'));
+    var ing = document.querySelectorAll('.ingredient_item_list .ingredient_item');
+    if(ing.length){
+      h += '<h2>{{ section.settings.tab_zutaten | escape }}'+(portions ? ' ('+portions+')' : '')+'</h2><ul class="rp-ing">';
+      ing.forEach(function(i){ h += '<li>'+T(i)+'</li>'; });
+      h += '</ul>';
+    }
+
+    var st = document.querySelectorAll('.preparation-steps ol li');
+    if(st.length){
+      h += '<h2>{{ section.settings.tab_zubereitung | escape }}</h2><ol class="rp-steps">';
+      st.forEach(function(s){ h += '<li>'+T(s)+'</li>'; });
+      h += '</ol>';
+    }
+
+    var tip = document.querySelector('.recipe-tip');
+    if(tip){ h += '<div class="rp-tip">'+tip.innerHTML+'</div>'; }
+
+    h += '<div class="rp-foot">'+location.host+'</div>';
+    a.innerHTML = h;
+    document.body.appendChild(a);
+  }
+
+  var isPrinting = false;
+
+  function stopLoading(){
+    btn.classList.remove('is-loading');
+    isPrinting = false;
+  }
+
+  // loader hatao jab print dialog band ho (cancel ya done dono case)
+  window.addEventListener('afterprint', stopLoading);
+
+  function handlePrint(){
+    if(isPrinting) return;           // double-open / double-trigger guard
+    isPrinting = true;
+    btn.classList.add('is-loading'); // loader turant on
+
+    // 2 frames + chhota delay taaki loader ACTUALLY paint ho,
+    // tabhi blocking window.print() call karo
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        buildPrint();                // fresh build, latest portions capture
+        setTimeout(function(){
+          window.print();
+          // fallback: kuch browsers afterprint reliably fire nahi karte
+          setTimeout(stopLoading, 800);
+        }, 60);
+      });
+    });
+  }
+
+  // SIRF ek bind — markup me onclick attribute nahi hai, isliye double nahi hoga
+  btn.addEventListener('click', handlePrint);
+})();
+</script>
+{%- endif -%}
+
+
+
+{% schema %}
+{
+  "name": "Metaobject Blog Content",
+  "class": "shopify-section--main-article shopify-section--main-article-2",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_render_structured_data",
+      "label": "Render structured data",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_share_buttons",
+      "label": "Show share buttons",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "servings_label",
+      "label": "Servings label",
+      "default": "Anzahl Portionen: "
+    },
+    {
+      "type": "text",
+      "id": "servings_value",
+      "label": "Servings value",
+      "default": "2"
+    },
+      {
+      "type":"header",
+      "content":"Print Button"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_print_button",
+      "label": "Enable print button",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "print_button_text",
+      "label": "Print button text",
+      "default": "Drucken"
+    },
+    {
+      "type": "text",
+      "id": "print_subtitle",
+      "label": "Print page subtitle",
+      "default": "Rezepte für die Precon Diät"
+    },
+    {
+      "type": "color",
+      "id": "print_button_color",
+      "label": "Print button color",
+      "default": "#19a3ad"
+    },
+    {
+      "type":"header",
+      "content":"Nutritional Information Texts"
+    },
+    {
+      "type": "text",
+      "id": "nutritional_heading",
+      "label": "Heading",
+      "default": "Nährwertangaben pro Portion"
+    },
+    {
+      "type": "text",
+      "id": "kalorien",
+      "label": "Kalorien",
+      "default": "Kalorien"
+    },
+    {
+      "type": "text",
+      "id": "eiweiss",
+      "label": "Eiweiss",
+      "default": "Eiweiss"
+    },
+    {
+      "type": "text",
+      "id": "kohlenhydrate",
+      "label": "Kohlenhydrate",
+      "default": "Kohlenhydrate"
+    },
+    {
+      "type": "text",
+      "id": "fett",
+      "label": "Fett",
+      "default": "Fett"
+    },
+    {
+      "type": "text",
+      "id": "ballaststoffe",
+      "label": "Ballaststoffe",
+      "default": "Ballaststoffe"
+    },
+    {
+      "type": "text",
+      "id": "broteinheiten",
+      "label": "Broteinheiten",
+      "default": "Broteinheiten"
+    },
+    {
+      "type":"header",
+      "content":"Tabs"
+    },
+    {
+      "type": "text",
+      "id": "tab_zubereitung",
+      "label": "Tab 1 (Zubereitung)",
+      "default": "Zubereitung"
+    },
+    {
+      "type": "text",
+      "id": "tab_zutaten",
+      "label": "Tab 2 (Zutaten)",
+      "default": "Zutaten"
+    },
+  ],
+  "presets":[
+    {
+      "name": "Metaobject Blog Content"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,878 @@
+<!-- sections/popup.liquid -->
+
+{%- liquid
+  assign load_consent_tracking = false
+  assign limit = section.settings.limit
+
+  capture blocks
+    for block in section.blocks
+      case block.type
+        when 'newsletter-small', 'newsletter-large'
+          render 'newsletter-popup', block: block
+        when 'promotion-bar'
+          render 'promotion-bar', block: block
+        when 'consent-tracking'
+          assign load_consent_tracking = true
+          render 'consent-tracking', block: block
+      endcase
+    endfor
+  endcapture
+-%}
+
+<div
+  class="popup--root"
+  data-consent-tracking="{{ load_consent_tracking }}"
+  data-limit="{{ limit }}"
+>
+  {{ blocks }}
+</div>
+
+{% stylesheet %}
+  .popup--root {
+    position: relative;
+
+    > [data-block-id] {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing--item);
+      height: fit-content;
+      position: fixed;
+      z-index: 10;
+      user-select: none;
+      opacity: 0;
+      visibility: hidden;
+      scale: 0.9;
+      transition:
+        opacity 0.2s var(--transition--standard),
+        scale 0.2s var(--transition--standard),
+        visibility 0.2s var(--transition--standard);
+
+      .layout--close {
+        &:before,
+        &:after {
+          background-color: var(--color);
+        }
+      }
+
+      .layout--viewport[data-drop-shadows='true'] & {
+        box-shadow: var(--box-shadow--center);
+      }
+
+      .layout--viewport[data-drop-shadows='false'] & {
+        border: var(--border--dark);
+      }
+
+      &[data-position='left'] {
+        @media (max-width: 767px) {
+          left: var(--spacing--item);
+        }
+
+        @media (min-width: 768px) {
+          left: var(--spacing--block);
+          transform-origin: bottom left;
+        }
+      }
+
+      &[data-position='center'] {
+        transform-origin: center center;
+
+        @media (max-width: 767px) {
+          left: var(--spacing--item);
+          bottom: var(--spacing--item);
+        }
+
+        @media (min-width: 768px) {
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+        }
+      }
+
+      &[data-position='right'] {
+        @media (max-width: 767px) {
+          right: var(--spacing--item);
+        }
+
+        @media (min-width: 768px) {
+          right: var(--spacing--block);
+          transform-origin: bottom right;
+        }
+      }
+
+      &[aria-hidden='true'] {
+        display: none;
+      }
+
+      &[aria-expanded='true'] {
+        opacity: 1;
+        visibility: visible;
+        scale: 1;
+      }
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+  {
+    "name": "Popups",
+    "class": "section--popup",
+    "tag": "aside",
+    "limit": 1,
+    "settings": [
+      {
+        "type": "paragraph",
+        "content": "Add/edit/hide each popup in this section's block settings."
+      },
+      {
+        "id": "limit",
+        "label": "Limit to one popup per page load",
+        "type": "checkbox",
+        "default": true,
+        "info": "Cookie consent popup will always take priority. When disabled popups will be shown one after another."
+      }
+    ],
+    "blocks": [
+      {
+        "type": "newsletter-small",
+        "name": "Newsletter (small)",
+        "settings": [
+          {
+            "type": "header",
+            "content": "Content"
+          },
+          {
+            "type": "image_picker",
+            "id": "image",
+            "label": "Image",
+            "visible_if": "{{ block.settings.image-enabled == true }}"
+          },
+          {
+            "type": "text",
+            "id": "heading",
+            "label": "Heading",
+            "default": "Sign up and save"
+          },
+          {
+            "type": "richtext",
+            "id": "description",
+            "label": "Description",
+            "default": "<p>Describe the benefits of the newsletter – dazzling discounts, sneak peeks, limited-edition treats, exclusive deals, fashion tips.</p>"
+          },
+          {
+            "type": "text",
+            "id": "social-title",
+            "label": "Social media title",
+            "default": "Follow us",
+            "visible_if": "{{ block.settings.social-enabled == true }}"
+          },
+          {
+            "type": "header",
+            "content": "General layout"
+          },
+          {
+            "id": "background-color",
+            "label": "Background color",
+            "type": "select",
+            "options": [
+              {
+                "label": "None",
+                "value": "none"
+              },
+              {
+                "label": "Light",
+                "value": "light"
+              },
+              {
+                "label": "Dark",
+                "value": "dark"
+              },
+              {
+                "label": "Accent 1",
+                "value": "accent-1"
+              },
+              {
+                "label": "Accent 2",
+                "value": "accent-2"
+              },
+              {
+                "label": "Accent 3",
+                "value": "accent-3"
+              }
+            ],
+            "default": "dark"
+          },
+          {
+            "id": "translucent",
+            "label": "Translucent background",
+            "type": "checkbox",
+            "default": true
+          },
+          {
+            "id": "popup-width",
+            "label": "Popup width",
+            "type": "range",
+            "min": 300,
+            "max": 500,
+            "step": 10,
+            "unit": "px",
+            "default": 400,
+            "info": "Maximum width on large screens. Shown on the right."
+          },
+          {
+            "type": "header",
+            "content": "Features"
+          },
+          {
+            "type": "checkbox",
+            "id": "social-enabled",
+            "label": "Show social icons",
+            "default": true
+          },
+          {
+            "id": "delay",
+            "label": "Popup delay",
+            "type": "range",
+            "unit": "sec",
+            "min": 0,
+            "max": 15,
+            "step": 1,
+            "default": 5
+          },
+          {
+            "type": "checkbox",
+            "id": "show-at-bottom",
+            "label": "Show popup at bottom of page",
+            "default": true,
+            "info": "If the popup hasn't opened yet, it will open when the user reaches the bottom of the page."
+          },
+          {
+            "label": "Show again after",
+            "id": "days-range",
+            "type": "range",
+            "unit": "day",
+            "min": 1,
+            "max": 30,
+            "step": 1,
+            "default": 7,
+            "info": "Independent to each browser and device."
+          },
+          {
+            "type": "checkbox",
+            "id": "referrer-enabled",
+            "label": "Limit to specific referrer path",
+            "default": false
+          },
+          {
+            "type": "text",
+            "id": "referrer-url",
+            "label": "Targeted referrer",
+            "visible_if": "{{ block.settings.referrer-enabled }}"
+          },
+          {
+            "type": "checkbox",
+            "id": "page-enabled",
+            "label": "Limit to specific page",
+            "default": false
+          },
+          {
+            "type": "url",
+            "id": "page-url",
+            "label": "Targeted page",
+            "visible_if": "{{ block.settings.page-enabled }}"
+          },
+          {
+            "type": "header",
+            "content": "Text layout"
+          },
+          {
+            "id": "text-color",
+            "label": "Text color",
+            "type": "select",
+            "options": [
+              {
+                "label": "Light",
+                "value": "white"
+              },
+              {
+                "label": "Dark",
+                "value": "body"
+              }
+            ],
+            "default": "white"
+          },
+          {
+            "id": "text-alignment",
+            "label": "Text alignment",
+            "type": "text_alignment",
+            "default": "center"
+          },
+          {
+            "type": "header",
+            "content": "Image layout"
+          },
+          {
+            "id": "image-enabled",
+            "label": "Show image",
+            "type": "checkbox",
+            "default": true,
+            "info": "Does not appear in mobile in order to meet [Google's interstitial guidelines](https://developers.google.com/search/docs/appearance/avoid-intrusive-interstitials) for improved SEO."
+          },
+          {
+            "id": "image-position",
+            "label": "Image position",
+            "type": "select",
+            "options": [
+              { "label": "Left", "value": "left" },
+              { "label": "Top", "value": "top" }
+            ],
+            "default": "top",
+            "visible_if": "{{ block.settings.image-enabled == true }}"
+          }
+        ]
+      },
+      {
+        "type": "newsletter-large",
+        "name": "Newsletter (large)",
+        "settings": [
+          {
+            "type": "header",
+            "content": "Content"
+          },
+          {
+            "type": "image_picker",
+            "id": "image",
+            "label": "Image",
+            "visible_if": "{{ block.settings.image-enabled == true }}"
+          },
+          {
+            "type": "text",
+            "id": "heading",
+            "label": "Heading",
+            "default": "Sign up and save"
+          },
+          {
+            "type": "richtext",
+            "id": "description",
+            "label": "Description",
+            "default": "<p>Describe the benefits of the newsletter – dazzling discounts, sneak peeks, limited-edition treats, exclusive deals, fashion tips.</p>"
+          },
+          {
+            "type": "text",
+            "id": "social-title",
+            "label": "Social media title",
+            "default": "Follow us",
+            "visible_if": "{{ block.settings.social-enabled == true }}"
+          },
+          {
+            "type": "header",
+            "content": "General layout"
+          },
+          {
+            "id": "background-color",
+            "label": "Background color",
+            "type": "select",
+            "options": [
+              {
+                "label": "None",
+                "value": "none"
+              },
+              {
+                "label": "Light",
+                "value": "light"
+              },
+              {
+                "label": "Dark",
+                "value": "dark"
+              },
+              {
+                "label": "Accent 1",
+                "value": "accent-1"
+              },
+              {
+                "label": "Accent 2",
+                "value": "accent-2"
+              },
+              {
+                "label": "Accent 3",
+                "value": "accent-3"
+              }
+            ],
+            "default": "none"
+          },
+          {
+            "id": "translucent",
+            "label": "Translucent background",
+            "type": "checkbox",
+            "default": false
+          },
+          {
+            "id": "popup-width",
+            "label": "Popup width",
+            "type": "range",
+            "min": 500,
+            "max": 900,
+            "step": 10,
+            "unit": "px",
+            "default": 800,
+            "info": "Maximum width on large screens. Shown centered."
+          },
+          {
+            "type": "header",
+            "content": "Features"
+          },
+          {
+            "type": "checkbox",
+            "id": "social-enabled",
+            "label": "Show social icons",
+            "default": true
+          },
+          {
+            "id": "delay",
+            "label": "Popup delay",
+            "type": "range",
+            "unit": "sec",
+            "min": 0,
+            "max": 15,
+            "step": 1,
+            "default": 5
+          },
+          {
+            "type": "checkbox",
+            "id": "show-at-bottom",
+            "label": "Show popup at bottom of page",
+            "default": true,
+            "info": "If the popup hasn't opened yet, it will open when the user reaches the bottom of the page."
+          },
+          {
+            "label": "Show again after",
+            "id": "days-range",
+            "type": "range",
+            "unit": "day",
+            "min": 1,
+            "max": 30,
+            "step": 1,
+            "default": 7,
+            "info": "Independent to each browser and device."
+          },
+          {
+            "type": "checkbox",
+            "id": "referrer-enabled",
+            "label": "Limit to specific referrer path",
+            "default": false
+          },
+          {
+            "type": "text",
+            "id": "referrer-url",
+            "label": "Targeted referrer",
+            "visible_if": "{{ block.settings.referrer-enabled }}"
+          },
+          {
+            "type": "checkbox",
+            "id": "page-enabled",
+            "label": "Limit to specific page",
+            "default": false
+          },
+          {
+            "type": "url",
+            "id": "page-url",
+            "label": "Targeted page",
+            "visible_if": "{{ block.settings.page-enabled }}"
+          },
+          {
+            "type": "header",
+            "content": "Text layout"
+          },
+          {
+            "id": "text-color",
+            "label": "Text color",
+            "type": "select",
+            "options": [
+              {
+                "label": "Light",
+                "value": "white"
+              },
+              {
+                "label": "Dark",
+                "value": "body"
+              }
+            ],
+            "default": "body"
+          },
+          {
+            "id": "text-alignment",
+            "label": "Text alignment",
+            "type": "text_alignment",
+            "default": "center"
+          },
+          {
+            "type": "header",
+            "content": "Image layout"
+          },
+          {
+            "id": "image-enabled",
+            "label": "Show image",
+            "type": "checkbox",
+            "default": true,
+            "info": "Does not appear on mobile in order to meet [Google's interstitial guidelines](https://developers.google.com/search/docs/appearance/avoid-intrusive-interstitials) for improved SEO."
+          },
+          {
+            "id": "image-position",
+            "label": "Image position",
+            "type": "select",
+            "options": [
+              { "label": "Left", "value": "left" },
+              { "label": "Right", "value": "right" }
+            ],
+            "default": "left",
+            "visible_if": "{{ block.settings.image-enabled == true }}"
+          }
+        ]
+      },
+      {
+        "type": "promotion-bar",
+        "name": "Promotion bar",
+        "settings": [
+          {
+            "type": "header",
+            "content": "Content"
+          },
+          {
+            "type": "text",
+            "id": "heading",
+            "label": "Description",
+            "default": "10% off your first order"
+          },
+          {
+            "type": "header",
+            "content": "General layout"
+          },
+          {
+            "id": "background-color",
+            "label": "Background color",
+            "type": "select",
+            "options": [
+              {
+                "label": "None",
+                "value": "none"
+              },
+              {
+                "label": "Light",
+                "value": "light"
+              },
+              {
+                "label": "Dark",
+                "value": "dark"
+              },
+              {
+                "label": "Accent 1",
+                "value": "accent-1"
+              },
+              {
+                "label": "Accent 2",
+                "value": "accent-2"
+              },
+              {
+                "label": "Accent 3",
+                "value": "accent-3"
+              }
+            ],
+            "default": "dark"
+          },
+          {
+            "id": "translucent",
+            "label": "Translucent background",
+            "type": "checkbox",
+            "default": true
+          },
+          {
+            "type": "header",
+            "content": "Features"
+          },
+          {
+            "id": "delay",
+            "label": "Popup delay",
+            "type": "range",
+            "unit": "sec",
+            "min": 0,
+            "max": 15,
+            "step": 1,
+            "default": 3
+          },
+          {
+            "type": "checkbox",
+            "id": "show-at-bottom",
+            "label": "Show popup at bottom of page",
+            "default": true,
+            "info": "If the popup hasn't opened yet, it will open when the user reaches the bottom of the page."
+          },
+          {
+            "label": "Show again after",
+            "id": "days-range",
+            "type": "range",
+            "unit": "day",
+            "min": 1,
+            "max": 30,
+            "step": 1,
+            "default": 7,
+            "info": "Independent to each browser and device."
+          },
+          {
+            "type": "checkbox",
+            "id": "referrer-enabled",
+            "label": "Limit to specific referrer path",
+            "default": false
+          },
+          {
+            "type": "text",
+            "id": "referrer-url",
+            "label": "Targeted referrer",
+            "visible_if": "{{ block.settings.referrer-enabled }}"
+          },
+          {
+            "type": "checkbox",
+            "id": "page-enabled",
+            "label": "Limit to specific page",
+            "default": false
+          },
+          {
+            "type": "url",
+            "id": "page-url",
+            "label": "Targeted page",
+            "visible_if": "{{ block.settings.page-enabled }}"
+          },
+          {
+            "type": "checkbox",
+            "id": "scroll-text",
+            "label": "Scroll text",
+            "default": true
+          },
+          {
+            "id": "animation-speed",
+            "label": "Scroll speed",
+            "type": "range",
+            "min": 1,
+            "max": 10,
+            "step": 0.5,
+            "default": 7.5,
+            "visible_if": "{{ block.settings.scroll-text }}"
+          },
+          {
+            "type": "header",
+            "content": "Text layout"
+          },
+          {
+            "id": "text-color",
+            "label": "Text color",
+            "type": "select",
+            "options": [
+              {
+                "label": "Light",
+                "value": "white"
+              },
+              {
+                "label": "Dark",
+                "value": "body"
+              }
+            ],
+            "default": "white"
+          },
+          {
+            "id": "heading-type",
+            "label": "Heading type",
+            "type": "select",
+            "options": [
+              { "label": "Medium", "value": "block-heading" },
+              { "label": "Small", "value": "paragraph" }
+            ],
+            "default": "paragraph"
+          },
+          {
+            "type": "header",
+            "content": "Mobile"
+          },
+          {
+            "type": "checkbox",
+            "id": "mobile-scroll-text",
+            "label": "Scroll text",
+            "default": true
+          },
+          {
+            "id": "mobile-animation-speed",
+            "label": "Scroll speed",
+            "type": "range",
+            "min": 1,
+            "max": 10,
+            "step": 0.5,
+            "default": 7.5,
+            "visible_if": "{{ block.settings.mobile-scroll-text }}"
+          }
+        ]
+      },
+      {
+        "type": "consent-tracking",
+        "name": "Cookie consent",
+        "limit": 1,
+        "settings": [
+          {
+            "type": "paragraph",
+            "content": "This feature uses the Shopify [consent tracking API](https://shopify.dev/docs/api/consent-tracking) and will not show in all regions. Customer privacy tracking limits must be enabled in your [online store settings](/admin/online_store/preferences)."
+          },
+          {
+            "type": "header",
+            "content": "Content"
+          },
+          {
+            "type": "text",
+            "id": "heading",
+            "label": "Heading",
+            "default": "Cookie consent"
+          },
+          {
+            "type": "richtext",
+            "id": "description",
+            "label": "Description",
+            "default": "<p>We use cookies and similar technologies to provide the best experience on our website. Refer to our Privacy Policy for more information.</p>"
+          },
+          {
+            "type": "header",
+            "content": "General layout"
+          },
+          {
+            "id": "background-color",
+            "label": "Background color",
+            "type": "select",
+            "options": [
+              {
+                "label": "None",
+                "value": "none"
+              },
+              {
+                "label": "Light",
+                "value": "light"
+              },
+              {
+                "label": "Dark",
+                "value": "dark"
+              },
+              {
+                "label": "Accent 1",
+                "value": "accent-1"
+              },
+              {
+                "label": "Accent 2",
+                "value": "accent-2"
+              },
+              {
+                "label": "Accent 3",
+                "value": "accent-3"
+              }
+            ],
+            "default": "dark"
+          },
+          {
+            "id": "translucent",
+            "label": "Translucent background",
+            "type": "checkbox",
+            "default": true
+          },
+          {
+            "type": "header",
+            "content": "Features"
+          },
+          {
+            "id": "position",
+            "label": "Position",
+            "type": "select",
+            "options": [
+              {
+                "label": "Left",
+                "value": "left"
+              },
+              {
+                "label": "Bottom",
+                "value": "bottom"
+              },
+              {
+                "label": "Right",
+                "value": "right"
+              }
+            ],
+            "default": "left"
+          },
+          {
+            "type": "header",
+            "content": "Text layout"
+          },
+          {
+            "id": "text-color",
+            "label": "Text color",
+            "type": "select",
+            "options": [
+              {
+                "label": "Light",
+                "value": "white"
+              },
+              {
+                "label": "Dark",
+                "value": "body"
+              }
+            ],
+            "default": "white"
+          },
+          {
+            "id": "text-alignment",
+            "label": "Text alignment",
+            "type": "text_alignment",
+            "default": "center"
+          },
+          {
+            "id": "accept-button-style",
+            "label": "Accept button style",
+            "type": "select",
+            "options": [
+              { "label": "Style 1", "value": "button-1" },
+              { "label": "Style 2", "value": "button-2" },
+              { "label": "Style 3", "value": "button-3" },
+              { "label": "Style 4", "value": "button-4" },
+              { "label": "Link", "value": "block-link" }
+            ],
+            "default": "button-2"
+          },
+          {
+            "id": "decline-button-style",
+            "label": "Decline button style",
+            "type": "select",
+            "options": [
+              { "label": "Style 1", "value": "button-1" },
+              { "label": "Style 2", "value": "button-2" },
+              { "label": "Style 3", "value": "button-3" },
+              { "label": "Style 4", "value": "button-4" },
+              { "label": "Link", "value": "block-link" }
+            ],
+            "default": "button-4"
+          }
+        ]
+      }
+    ],
+    "presets": [
+      {
+        "name": "Popup",
+        "blocks": [
+          {
+            "type": "newsletter-small"
+          },
+          {
+            "type": "promotion-bar"
+          },
+          {
+            "type": "consent-tracking"
+          }
+        ]
+      }
+    ],
+    "enabled_on": {
+      "groups": ["aside"]
+    }
+  }
+{% endschema %}

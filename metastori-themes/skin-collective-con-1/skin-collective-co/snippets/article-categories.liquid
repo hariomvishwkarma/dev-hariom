@@ -1,0 +1,91 @@
+{%- comment -%} snippets/article-categories.liquid {%- endcomment -%}
+{%- doc -%}
+  Emits an article's categories as `key|:|Label` entries joined by `|||`.
+
+  `custom.category` is translated per language, so its handle changes between
+  locales and cannot be used to match a `?category=` value across a language
+  switch. The untranslated `custom.category_key` metafield supplies a stable
+  key; metaobject references already carry one in `system.handle`. When no key
+  is set the translated value is handleized as before, which keeps the tabs
+  working inside a single language.
+
+  @param {article} [featured_article] - Article to read the metafields from.
+{%- enddoc -%}
+
+{%- liquid
+  assign category_metafield = featured_article.metafields.custom.category
+  assign category_type = category_metafield.type | default: ''
+  assign category_raw = category_metafield.value
+
+  assign category_is_list = false
+  if category_type contains 'list.'
+    assign category_is_list = true
+  endif
+
+  assign category_is_reference = false
+  if category_type contains 'metaobject_reference'
+    assign category_is_reference = true
+  endif
+
+  assign category_key_metafield = featured_article.metafields.custom.category_key
+  assign category_key_raw = category_key_metafield.value | default: category_key_metafield
+  assign category_key_list = category_key_raw | split: ','
+-%}
+
+{%- if category_raw != blank -%}
+  {%- if category_is_list -%}
+    {%- liquid
+      for category_entry in category_raw
+        if category_is_reference
+          assign category_name = category_entry.title | default: category_entry.name | default: category_entry.label | default: category_entry.category | default: category_entry.system.handle
+          assign category_key = category_entry.system.handle
+        else
+          assign category_name = category_entry
+          assign category_key = category_key_list[forloop.index0]
+        endif
+
+        assign category_name = category_name | strip
+        if category_name == blank
+          continue
+        endif
+
+        assign category_key = category_key | strip
+        if category_key == blank
+          assign category_key = category_name
+        endif
+
+        assign category_key = category_key | handleize
+        if category_key == blank
+          assign category_key = 'category-' | append: forloop.index
+        endif
+
+        echo category_key | append: '|:|' | append: category_name | append: '|||'
+      endfor
+    -%}
+  {%- else -%}
+    {%- liquid
+      if category_is_reference
+        assign category_name = category_raw.title | default: category_raw.name | default: category_raw.label | default: category_raw.category | default: category_raw.system.handle
+        assign category_key = category_raw.system.handle
+      else
+        assign category_name = category_raw
+        assign category_key = category_key_list[0]
+      endif
+
+      assign category_name = category_name | strip
+      unless category_name == blank
+        assign category_key = category_key | strip
+        if category_key == blank
+          assign category_key = category_name
+        endif
+
+        assign category_key = category_key | handleize
+        if category_key == blank
+          assign category_key = 'category-1'
+        endif
+
+        echo category_key | append: '|:|' | append: category_name | append: '|||'
+      endunless
+    -%}
+  {%- endif -%}
+{%- endif -%}

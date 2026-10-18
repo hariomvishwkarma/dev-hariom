@@ -1,0 +1,75 @@
+<script>
+window.Shopify.loadFeatures(
+  [{ name: 'consent-tracking-api', version: '0.1' }],
+  (error) => {
+
+    if (error) {
+      console.error('Shopify Consent API failed', error);
+      return;
+    }
+
+    console.log('✅ Shopify Consent API loaded');
+
+    // HARD DEFAULT DENY
+    window.Shopify.customerPrivacy.setTrackingConsent({
+      analytics: false,
+      marketing: false,
+      preferences: false,
+      sale_of_data: false
+    });
+
+    // Listen ONLY for real consent updates
+    window.addEventListener("UC_CONSENT", function(event) {
+
+      console.log('UC event:', event.detail);
+
+      // 🚨 ONLY process real user actions
+      const action = event.detail?.consent?.updatedBy;
+
+      if (!action || action === 'INITIAL') {
+        console.log('⛔ Ignoring initialization event');
+        return;
+      }
+
+      const services = Object.values(event.detail.services || {});
+
+      const getConsent = (serviceName) => {
+        const service = services.find(
+          s => s.name &&
+          s.name.toLowerCase() === serviceName.toLowerCase()
+        );
+
+        return service ? !!service.consent.given : false;
+      };
+
+      const analytics = getConsent('Shopify Analytics');
+      const marketing = getConsent('Shopify Marketing');
+      const preferences = getConsent('Shopify Preferences');
+
+      console.log('✅ Final mapped consent:', {
+        analytics,
+        marketing,
+        preferences
+      });
+
+      // Sync ONLY after explicit user interaction
+      window.Shopify.customerPrivacy.setTrackingConsent({
+        analytics,
+        marketing,
+        preferences,
+        sale_of_data: marketing
+      }, () => {
+
+        console.log('✅ Shopify consent synced');
+
+        console.log(
+          window.Shopify.customerPrivacy.currentVisitorConsent()
+        );
+
+      });
+
+    });
+
+  }
+);
+</script>

@@ -1,0 +1,179 @@
+{%- liquid
+  assign sorted_thresholds = section.blocks | map: 'settings' | map: 'threshold' | sort
+  assign first_level_threshold = sorted_thresholds | first | times: 100.0
+  assign last_level_threshold = sorted_thresholds | last | times: 100.0
+
+  assign offset = first_level_threshold | times: 0.2
+  assign denominator = last_level_threshold | plus: offset
+  assign progress = calculated_total_price | times: 1.0 | divided_by: denominator | at_most: 1
+  if calculated_total_price >= last_level_threshold
+    assign progress = 1
+  endif
+
+  assign first_not_activeted_threshold = -1
+  for threshold in sorted_thresholds
+    assign threshold_in_cents = threshold | times: 100 | round
+    if calculated_total_price >= threshold_in_cents
+      continue
+    endif
+    assign first_not_activeted_threshold = threshold
+    break
+  endfor
+  assign first_not_activeted_level = null
+  if first_not_activeted_threshold != -1
+    assign first_not_activeted_target_cents = first_not_activeted_threshold | times: 100 | round
+    for block in section.blocks
+      assign block_thresh_cents = block.settings.threshold | times: 100 | round
+      if block_thresh_cents == first_not_activeted_target_cents
+        assign first_not_activeted_level = block
+        break
+      endif
+    endfor
+  endif
+
+  assign gifts_levels = section.blocks | where: 'type', 'cart_gift_level'
+  assign first_gift_threshold = gifts_levels | map: 'settings' | map: 'threshold' | sort | first | times: 100.0
+  assign show_gifts_drawer = false
+  assign has_manual_gift_levels = false
+  for gift_level in gifts_levels
+    unless gift_level.settings.auto_add_gift
+      assign has_manual_gift_levels = true
+      break
+    endunless
+  endfor
+  if calculated_total_price >= first_gift_threshold and has_manual_gift_levels
+    assign show_gifts_drawer = true
+  endif
+-%}
+
+<cart-bar
+  threshold="{{ last_level_threshold }}"
+  offset="{{ offset }}"
+  class="shipping-bar cart-bar"
+  style="--progress: {{ progress }}"
+  {% if first_not_activeted_level %}{{ first_not_activeted_level.shopify_attributes }}{% endif %}
+>
+  <div class="shipping-bar__progress">
+    {% for threshold in sorted_thresholds %}
+      {% assign step_cents = threshold | times: 100 | round %}
+      {% assign level_position = step_cents | times: 1.0 | divided_by: denominator | at_most: 1 %}
+      <div class="bar-step" style="--position-left: {{ level_position }}%">
+        <div class="step-line">
+          <span class="step-threshold">
+            {%- liquid
+              assign step_block = null
+              for block in section.blocks
+                assign block_thresh_cents = block.settings.threshold | times: 100 | round
+                if block_thresh_cents == step_cents
+                  assign step_block = block
+                  break
+                endif
+              endfor
+              assign step_label = threshold | times: 100 | money_without_trailing_zeros
+            -%}
+
+            {% assign current_progress_in_cents = calculated_total_price %}
+            {% if step_block %}
+            {% if current_progress_in_cents >= step_cents %}
+              {% if step_block.type == 'cart_free_shipping_level' %}
+                <p class="cus-small-bar-text">gratis Versand</p>
+                {% if section.settings['cart-bar-shipping-fill'] != blank %}
+                  <span class="cus-bar-img-text" style="background-color:#56473A;color:#fff;">
+                    <img
+                      class="c_cartshipping-icon"
+                      src="{{ section.settings.cart-bar-shipping-fill | image_url }}"
+                      alt=""
+                      width=""
+                      height=""
+                    >
+                    {{ step_label }}
+                  </span>
+                {% endif %}
+              {% elsif step_block.type == 'cart_gift_level' %}
+                <p class="cus-small-bar-text">Geschenk</p>
+                {% if section.settings['cart-bar-gift-fill'] != blank %}
+                  <span class="cus-bar-img-text" style="background-color:#56473A;color:#fff;">
+                    <img
+                      class="c_cartgift-icon"
+                      src="{{ section.settings.cart-bar-gift-fill | image_url }}"
+                      alt=""
+                      width=""
+                      height=""
+                    >
+                    {{ step_label }}
+                  </span>
+                {% endif %}
+              {% endif %}
+            {% else %}
+              {% if step_block.type == 'cart_free_shipping_level' %}
+                <p class="cus-small-bar-text">gratis Versand</p>
+                {% if section.settings['cart-bar-shipping-notfill'] != blank %}
+                  <span class="cus-bar-img-text" style="background-color:#EFECE4;color:#56473A;">
+                    <img
+                      class="c_cartshipping-icon"
+                      src="{{ section.settings.cart-bar-shipping-notfill | image_url }}"
+                      alt=""
+                      width=""
+                      height=""
+                    >
+                    {{ step_label }}
+                  </span>
+                {% endif %}
+              {% elsif step_block.type == 'cart_gift_level' %}
+                <p class="cus-small-bar-text">Geschenk</p>
+                {% if section.settings['cart-bar-gift-notfill'] != blank %}
+                  <span class="cus-bar-img-text" style="background-color:#EFECE4;color:#56473A;">
+                    <img
+                      class="c_cartgift-icon"
+                      src="{{ section.settings.cart-bar-gift-notfill | image_url }}"
+                      alt=""
+                      width=""
+                      height=""
+                    >
+                    {{ step_label }}
+                  </span>
+                {% endif %}
+              {% endif %}
+            {% endif %}
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% assign first_not_activeted_threshold_in_cents = first_not_activeted_threshold | times: 100 %}
+  {%- capture remaining_amount -%}{{ calculated_total_price | minus: first_not_activeted_threshold_in_cents | abs | money }}{%- endcapture -%}
+  {%- capture remaining_amount_gift -%}{{ calculated_total_price | minus: first_gift_threshold | abs | money }}{%- endcapture -%}
+  <span class="shipping-bar__text text--small">
+    {% assign threshold_in_cents22 = first_level_threshold | money_without_trailing_zeros %}
+    {% if remaining_amount >= threshold_in_cents22 -%}
+      <span>
+        {{- section.settings['free-shipping_reached_text'] }}
+        <br>
+      </span>
+    {%- endif %}
+    {% if first_not_activeted_level and first_not_activeted_level.settings.remaining_text != blank %}
+      {{
+        first_not_activeted_level.settings.remaining_text
+        | replace: 'xx', remaining_amount
+        | replace: 'xaxa', remaining_amount_gift
+      }}
+    {% else %}
+      {{ all_levels_reached_text }}
+    {% endif %}
+  </span>
+  {%- if gifts_levels.size > 0 -%}
+    {% if show_gifts_drawer %}
+      <button
+        class="link link-primary text--small"
+        type="button"
+        is="toggle-button"
+        aria-controls="gift-drawer"
+        aria-expanded="false"
+      >
+        {{ section.settings.choose_gift_text }}
+      </button>
+    {% endif %}
+  {% endif %}
+</cart-bar>

@@ -1,0 +1,290 @@
+<!-- snippets/subscribe-form.liquid -->
+
+{%- doc -%}
+  Renders the newsletter subscribe form.
+  @param {string} alignment - Desktop alignment token.
+  @param {string} [button_style] - Button style token. Defaults to `button-1`.
+  @param {string} id - Unique form id.
+  @param {string} [mobile_alignment] - Mobile alignment token. Defaults to `alignment`.
+  @param {string} [transition_id] - Transition identifier.
+  @param {string} [input_style] - Email field style: `underline` (default) or `boxed`.
+  @param {string} [disclaimer] - Optional legacy richtext below the form.
+  @param {string} [disclaimer_text] - Plain text before the Privacy Policy link.
+  @param {string} [privacy_policy_url] - Privacy Policy link URL.
+  @param {string} [privacy_policy_label] - Privacy Policy link label.
+  @param {number} [email_width] - Email field width % of the row (desktop).
+  @param {number} [mobile_email_width] - Email field width % on mobile.
+  @param {string} [button_background] - Optional custom button background (outline style).
+  @param {string} [button_text_color] - Optional custom button text color.
+  @param {string} [button_border_color] - Optional custom button border color.
+  @param {boolean} [inline_success] - Replace the form with thank-you copy after a successful subscribe.
+  @param {string} [success_heading] - Optional success heading override.
+  @param {string} [success_text] - Optional success body override.
+{%- enddoc -%}
+
+{%- liquid
+  assign email_t = 'general.mailing_list.email' | t
+  assign submit_t = 'general.mailing_list.submit' | t
+  assign shopify_disclaimer_t = 'shopify.online_store.spam_detection.disclaimer_html' | t
+
+  assign button_style = button_style | default: 'button-1'
+  assign mobile_alignment = mobile_alignment | default: alignment
+  assign input_style = input_style | default: 'underline'
+  assign email_width = email_width | default: 70
+  assign mobile_email_width = mobile_email_width | default: 68
+  assign privacy_policy_label = privacy_policy_label | default: 'Privacy Policy'
+
+  assign button_extra_class = ''
+  assign button_data_item = 'inline-' | append: button_style
+  if button_style == 'outline'
+    assign button_data_item = 'inline-button-1'
+    assign button_extra_class = ' subscribe-form--submit-outline'
+  endif
+
+  assign show_disclaimer_line = false
+  if disclaimer_text != blank or privacy_policy_url != blank or disclaimer != blank
+    assign show_disclaimer_line = true
+  endif
+
+  assign inline_success = inline_success | default: false
+  assign success_heading_t = 'general.mailing_list.success_heading' | t
+  assign success_content_t = 'general.mailing_list.success_content' | t
+  if success_heading != blank
+    assign success_heading_t = success_heading
+  endif
+  if success_text != blank
+    assign success_content_t = success_text
+  endif
+  assign show_inline_success = false
+-%}
+
+<subscribe-form
+  class="subscribe-form--root"
+  data-x-alignment="{{ alignment }}"
+  data-mobile-x-alignment="{{ mobile_alignment }}"
+  data-input-style="{{ input_style }}"
+  {% if button_style == 'outline' %}data-custom-button="true"{% endif %}
+  {% if transition_id and settings.transitions--text == false %}
+    data-transition-item="{{ transition_id }}"
+    data-transition-type="fade-in"
+  {% endif %}
+  style="
+    --nl-email-width: {{ email_width }}%;
+    --nl-mobile-email-width: {{ mobile_email_width }}%;
+    {% if button_background != blank and button_background != 'rgba(0,0,0,0)' %}--nl-btn-bg: {{ button_background }};{% endif %}
+    {% if button_text_color != blank %}--nl-btn-color: {{ button_text_color }};{% endif %}
+    {% if button_border_color != blank %}--nl-btn-border: {{ button_border_color }};{% endif %}
+  "
+>
+  {%- form 'customer', id: id, class: 'subscribe-form', aria-busy: 'false' -%}
+    {%- if inline_success and form.posted_successfully? -%}
+      {%- assign show_inline_success = true -%}
+      <div class="subscribe-form--success">
+        <h2 class="subscribe-form--success-heading section-blocks--title" data-item="block-heading">
+          {{- success_heading_t | escape -}}
+        </h2>
+        <p class="subscribe-form--success-text" data-item="paragraph">
+          {{- success_content_t | escape -}}
+        </p>
+        <button type="button" hidden disabled tabindex="-1" aria-hidden="true"></button>
+      </div>
+    {%- else -%}
+      <input type="hidden" name="contact[tags]" value="newsletter" />
+      <input
+        type="hidden"
+        name="contact[first_name]"
+        value="Newsletter"
+      />
+      <input
+        type="hidden"
+        name="contact[last_name]"
+        value="Subscriber"
+      />
+      <label for="{{ id }}_subscribe-form_email" data-item="hidden-text">
+        {{ email_t }}
+      </label>
+      <input
+        class="subscribe-form--input"
+        id="{{ id }}_subscribe-form_email"
+        type="email"
+        autocomplete="email"
+        placeholder="{{ email_t }}"
+        name="contact[email]"
+        data-item="nav-text"
+      />
+
+      <button
+        class="subscribe-form--submit{{ button_extra_class }}"
+        type="submit"
+        data-item="{{ button_data_item }}"
+      >
+        <span class="subscribe-form--submit-text">
+          {{- submit_t -}}
+        </span>
+        {%- render 'icons', icon: 'spinner' -%}
+      </button>
+
+      {%- if form.posted_successfully? -%}
+        <script>window.location.hash = '#feedback-bar--newsletter';</script>
+      {%- endif -%}
+
+      <div data-item="hidden-text">
+        {%- comment -%} remove the below line to display reCAPTCHA badge {%- endcomment -%}
+        {{- shopify_disclaimer_t -}}
+      </div>
+    {%- endif -%}
+  {%- endform -%}
+
+  {%- if show_disclaimer_line and show_inline_success == false -%}
+    <div class="subscribe-form--disclaimer" data-item="paragraph">
+      {%- if disclaimer != blank and disclaimer_text == blank and privacy_policy_url == blank -%}
+        {{- disclaimer -}}
+      {%- else -%}
+        {%- if disclaimer_text != blank -%}
+          <span>{{ disclaimer_text | escape }}{% if privacy_policy_url != blank or privacy_policy_label != blank %} {% endif %}</span>
+        {%- endif -%}
+        {%- if privacy_policy_url != blank -%}
+          <a href="{% render 'localized-url', url: privacy_policy_url %}">{{ privacy_policy_label | escape }}</a>
+        {%- elsif privacy_policy_label != blank and disclaimer_text != blank -%}
+          <span>{{ privacy_policy_label | escape }}</span>
+        {%- endif -%}
+      {%- endif -%}
+    </div>
+  {%- endif -%}
+</subscribe-form>
+
+{% stylesheet %}
+  .subscribe-form--root {
+    width: 100%;
+    min-width: 200px;
+    max-width: var(--subscribe-form--max-width, 400px);
+    display: block;
+    margin: 0 auto;
+
+    @media (min-width: 768px) {
+      min-width: 200px;
+
+      &[data-x-alignment='left'] {
+        margin: 0 auto 0 0;
+      }
+
+      &[data-x-alignment='right'] {
+        margin: 0 0 0 auto;
+      }
+    }
+
+    @media (min-width: 768px) {
+      min-width: 150px;
+    }
+
+    @media (max-width: 767px) {
+      &[data-mobile-x-alignment='left'] {
+        margin: 0 auto 0 0;
+      }
+
+      &[data-mobile-x-alignment='right'] {
+        margin: 0 0 0 auto;
+      }
+    }
+  }
+
+  .subscribe-form {
+    --border: 1px solid var(--color--body);
+
+    width: 100%;
+    display: flex;
+    gap: var(--spacing--1);
+    align-items: end;
+
+    &[aria-busy='true'] .subscribe-form--submit-text,
+    &[aria-busy='false'] .icon--spinner {
+      opacity: 0;
+    }
+  }
+
+  .subscribe-form--input {
+    --input--color: var(--color--body);
+    --input--radius: 0;
+    --input--height: 32px;
+    --input--bg-color: transparent;
+
+    margin: 0;
+    border: 0;
+    padding: 0;
+    border-bottom: var(--border);
+
+    &:focus-visible {
+      border: 0;
+      border-bottom: var(--border);
+    }
+
+    [data-text-color='white'] & {
+      --input--color: white;
+      --border: 1px solid white;
+      border: 0;
+      border-bottom: var(--border);
+    }
+
+    [data-text-color='white'] [data-text-color='body'] & {
+      --border: 1px solid var(--color--body);
+      --input--color: var(--color--body);
+    }
+
+    &:-webkit-autofill {
+      -webkit-background-clip: text;
+    }
+  }
+
+  .subscribe-form--submit {
+    .icon--spinner {
+      height: var(--button--height);
+      width: var(--button--height);
+    }
+  }
+
+  .subscribe-form--disclaimer {
+    width: 100%;
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.35;
+    opacity: 0.85;
+
+    p {
+      margin: 0;
+      font-size: inherit;
+      line-height: inherit;
+    }
+
+    a {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+  }
+
+  .subscribe-form:has(.subscribe-form--success) {
+    display: block;
+  }
+
+  .subscribe-form--success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .subscribe-form--success-heading {
+    margin: 0;
+    width: 100%;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .subscribe-form--success-text {
+    margin: 0;
+    width: 100%;
+    text-align: center;
+    font-style: normal;
+  }
+{% endstylesheet %}

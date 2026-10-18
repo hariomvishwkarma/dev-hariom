@@ -1,0 +1,217 @@
+{% if product.metafields.custom.bundle != blank %}
+  {{ 'pdp-bundle-builder.css' | asset_url | stylesheet_tag }}
+  <div class="pdp-bundle-builder">
+    <div class="pdp-bundle-builder-container">
+      
+
+
+
+{% if product.metafields.custom.bundle != blank %}
+  {% assign all_single_options = true %}
+  {% assign variant_data_string = '' %}
+  
+  {% comment %} First check if all options have only 1 product {% endcomment %}
+  {% for i in (1..14) %}
+    {% if i == 1 %}
+      {% assign key_products = 'products' %}
+    {% else %}
+      {% assign key_products = 'products' | append: i %}
+    {% endif %}
+    
+    {% assign products = product.metafields.custom.bundle.value[key_products] %}
+    
+    {% if products != blank and products.value.count > 1 %}
+      {% assign all_single_options = false %}
+    {% endif %}
+  {% endfor %}
+  
+  {% comment %} If all options have only 1 product, collect variant data {% endcomment %}
+  {% if all_single_options %}
+      <h3 class="pdp-bundle-builder-heading">{{ block.settings.heading_2 }}</h3>
+    
+  {% else %}
+               <h3 class="pdp-bundle-builder-heading">{{ block.settings.heading }}</h3>
+  {% endif %}
+{% endif %}
+
+
+
+
+
+
+      <div class="pdp-bundle-builder-options">
+        {% assign count = 0 %}
+        {% for i in (1..14) %}
+          {% if i == 1 %}
+            {% assign key_name = 'name' %}
+            {% assign key_products = 'products' %}
+          {% else %}
+            {% assign key_name = 'name' | append: i %}
+            {% assign key_products = 'products' | append: i %}
+          {% endif %}
+
+          {% assign name_with_qty = product.metafields.custom.bundle.value[key_name] %}
+          {% assign products = product.metafields.custom.bundle.value[key_products] %}
+          
+          {% comment %} Parse name and quantity from the "name|qty" format {% endcomment %}
+          {% assign name_parts = name_with_qty | split: '|' %}
+          {% assign name = name_parts[0] %}
+          {% assign quantity = name_parts[1] | default: 1 %}
+          
+          {% assign show_option = false %}
+          {% for p in products.value %}
+            {% if p.available %}
+              {% assign show_option = true %}
+              {% assign first_available_product = p %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+          {% if products.value.count > 1 and show_option %}
+            {% assign count = count | plus: 1 %}
+            <div class="pdp-bundle-builder-option">
+              <div class="pdp-bundle-builder-option-header active" 
+                data-qty="{{ quantity }}"
+                data-vid="{{ first_available_product.selected_or_first_available_variant.id }}"
+              >
+                {% if first_available_product.featured_image %}
+                  {{
+                    first_available_product.featured_image
+                    | image_url: width: 200
+                    | image_tag: class: 'pdp-bundle-builder-option-header-img', loading: 'lazy'
+                  }}
+                {% endif %}
+                {% if first_available_product.metafields.custom.bundle_product_title != blank %}
+                <h4 class="pdp-bundle-builder-option-header-text">{{ quantity }} x {{ first_available_product.metafields.custom.bundle_product_title }}</h4>
+                {% else %}
+                <h4 class="pdp-bundle-builder-option-header-text">{{ quantity }} x {{ first_available_product.title }}</h4>
+                {% endif %}
+
+                <svg width="13" height="8" viewBox="0 0 13 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12.0945 0.42978C12.3468 0.42978 12.5991 0.542267 12.7794 0.748492C13.1038 1.1422 13.0677 1.72338 12.6892 2.07958C12.3108 2.43579 7.03023 7.19772 7.03023 7.19772C6.68781 7.51643 6.18318 7.49769 5.84076 7.19772L0.307899 2.07958C-0.0705706 1.74212 -0.106616 1.14219 0.235809 0.748491C0.560211 0.354788 1.13693 0.336041 1.5154 0.6735L6.45352 5.22921L11.4998 0.654754C11.662 0.504772 11.8782 0.42978 12.0945 0.42978Z" fill="#32323A"></path>
+                </svg>
+              </div>
+              <div class="pdp-bundle-builder-option-dropdown">
+                <span class="pdp-bundle-builder-option-dropdown-close">
+                  <svg
+                    aria-hidden="true"
+                    focusable="false"
+                    role="presentation"
+                    class="icon icon-close"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M18 6L6 18" stroke="#32323A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M6 6L18 18" stroke="#32323A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </span>
+                <div class="pdp-bundle-builder-option-dropdown-products">
+                  {% assign p_count = 0 %}
+                  {% for p in products.value %}
+                    {% if p.available %}
+                      {% assign p_count = p_count | plus: 1 %}
+                      <div
+                        class="pdp-bundle-builder-option-dropdown-product {% if p_count == 1 %} active {% endif %}"
+                        data-qty="{{ quantity }}"
+                        data-vid="{{ p.selected_or_first_available_variant.id }}"
+                        data-title="{{ quantity }} x {{ p.title }}"
+                      >
+                        <div class="pdp-bundle-builder-option-dropdown-product-img">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <ellipse cx="8" cy="7.87456" rx="8" ry="7.87456" fill="#32323A"/>
+                            <path d="M4.79688 8.15293L7.42011 10.4982L11.1969 5.77344" stroke="#FAF7F4" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                          {% if p.images[0] %}
+                          {{ p.images[0] | image_url: width: 200 | image_tag: loading: 'lazy' }}
+                          {% endif %}
+                        </div>
+                        {% if p.metafields.custom.bundle_product_title != blank %}
+                             <h4>{{ quantity }} x {{ p.metafields.custom.bundle_product_title }}</h4>
+                        {% else %}
+                               <h4>{{ quantity }} x {{ p.title }}</h4>
+                        {% endif %}
+                  
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <div class="pdp-bundle-builder-single-products">
+        {% assign single_count = 0 %}
+        {% for i in (1..14) %}
+          {% if i == 1 %}
+            {% assign key_name = 'name' %}
+            {% assign key_products = 'products' %}
+          {% else %}
+            {% assign key_name = 'name' | append: i %}
+            {% assign key_products = 'products' | append: i %}
+          {% endif %}
+
+          {% assign name_with_qty = product.metafields.custom.bundle.value[key_name] %}
+          {% assign products = product.metafields.custom.bundle.value[key_products] %}
+          
+          {% comment %} Parse name and quantity from the "name|qty" format {% endcomment %}
+          {% assign name_parts = name_with_qty | split: '|' %}
+          {% assign name = name_parts[0] %}
+          {% assign quantity = name_parts[1] | default: 1 %}
+          
+          {% if products.value.count == 1 %}
+            {% assign single_count = single_count | plus: 1 %}
+            {% for p in products.value %}
+              {% if p.available %}
+                <div
+                  class="pdp-bundle-builder-single-product"
+                  data-vid="{{ p.selected_or_first_available_variant.id }}"
+                  data-qty="{{ quantity }}"
+                >
+                  <div class="pdp-bundle-builder-single-product-image">
+                    {% if p.images[0] %}
+                    {{ p.images[0] | image_url: width: 400 | image_tag: loading: 'lazy' }}
+                    {% endif %}
+                    {% comment %}
+                    <span class="pdp-bundle-builder-single-product-qty">{{ quantity }}</span>
+                    {% endcomment %}
+                  </div>
+                   {% if p.metafields.custom.bundle_product_title != blank %}
+                      <h4 class="pdp-bundle-builder-single-product-name">{{ quantity }} x {{ p.metafields.custom.bundle_product_title }}</h4>
+                   {% else %}
+                    <h4 class="pdp-bundle-builder-single-product-name">{{ quantity }} x {{ p.title }}</h4>
+                   {% endif %}
+                 
+                  {% comment %}
+                  <div class="pdp-bundle-builder-single-product-info-label">Mehr Infos</div>
+                   {% endcomment %}
+                  {% assign remainder = single_count | modulo: 4 %}
+                  {% comment %}
+                  <div class="pdp-bundle-builder-single-product-info {% if remainder == 3 or remainder == 0 %} tooltip--right {% endif %}">
+                    <h4 class="pdp-bundle-builder-single-product-title">{{ p.title }}</h4>
+                    <div class="pdp-bundle-builder-single-product-description">{{ p.description }}</div>
+                    <div class="tooltip__arrow">
+                      <svg viewBox="0 0 47 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M23.5 25L0.117312 0.249999L46.8827 0.250003L23.5 25Z" fill="white"></path>
+                      </svg>
+                    </div>
+                  </div>
+                  {% endcomment %}
+                </div>
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <script src="{{ 'pdp-bundle-builder.js' | asset_url }}" defer></script>
+{% endif %}

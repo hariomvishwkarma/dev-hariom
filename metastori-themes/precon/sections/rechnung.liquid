@@ -1,0 +1,469 @@
+{% comment %}
+  Precon – Erklär-Sektion: «So berechnen wir Deinen persönlichen Plan»
+  Datei:    sections/precon-erklaerung.liquid
+  Einbetten: Shopify Theme Editor → Add section → «Rechnung»
+{% endcomment %}
+
+{% assign s = section.settings %}
+
+<style>
+  /* ── Scoped auf diese Section-Instanz ── */
+  #shopify-section-{{ section.id }} .pce {
+    background: {{ s.bg_color }};
+    padding:    0 0 64px;
+    overflow:   hidden;
+  }
+
+  /* Dekorative Linien oben */
+  #shopify-section-{{ section.id }} .pce-top-lines {
+    display:               grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap:                   8px;
+    margin-bottom:         52px;
+  }
+  #shopify-section-{{ section.id }} .pce-top-line {
+    height:     2px;
+    background: {{ s.accent_color }};
+  }
+
+  /* ── Heading ── */
+  #shopify-section-{{ section.id }} .pce-header {
+    text-align:    center;
+    max-width:     640px;
+    margin:        0 auto 56px;
+    padding:       0 24px;
+  }
+  #shopify-section-{{ section.id }} .pce-pretitle {
+    font-family:    'Figtree', sans-serif;
+    font-size:      12px;
+    font-weight:    600;                  /* Subline → Figtree Semi-Bold */
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color:          {{ s.accent_color }};
+    margin-bottom:  10px;
+  }
+  #shopify-section-{{ section.id }} .pce-heading {
+    font-family:   'Figtree', sans-serif; /* Headline → Figtree Light */
+    font-size:     clamp(28px, 3.8vw, 42px);
+    font-weight:   300;
+    color:         {{ s.text_color }};
+    line-height:   1.0;                   /* ← tight: removes gap between lines */
+    margin-bottom: 22px;
+  }
+  #shopify-section-{{ section.id }} .pce-heading em {
+    font-family: 'Playfair Display', serif; /* Italic part → Playfair Medium Italic */
+    font-style:  italic;
+    font-weight: 500;
+    display:     inline-block;
+    line-height: 1.15;                    /* Playfair needs slightly more room */
+  }
+  #shopify-section-{{ section.id }} .pce-subtitle {
+    font-family: 'Figtree', sans-serif;   /* Body Copy → Figtree Normal */
+    font-size:   17px;
+    line-height: 1.65;
+    color:       {{ s.text_soft_color }};
+    font-weight: 400;
+  }
+
+  /* ── Desktop: horizontal timeline connector ── */
+  #shopify-section-{{ section.id }} .pce-timeline {
+    display:     flex;
+    align-items: center;
+    max-width:   720px;
+    margin:      0 auto 36px;
+    padding:     0 10%;
+  }
+  #shopify-section-{{ section.id }} .pce-timeline-line {
+    flex:       1;
+    height:     1px;
+    background: {{ s.connector_color }};
+  }
+  #shopify-section-{{ section.id }} .pce-timeline-dot {
+    width:         14px;
+    height:        14px;
+    border-radius: 50%;
+    background:    {{ s.accent_color }};
+    flex-shrink:   0;
+  }
+
+  /* ── Desktop: drei Spalten ── */
+  #shopify-section-{{ section.id }} .pce-cols {
+    display:               grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    max-width:             860px;
+    margin:                0 auto;
+    padding:               0 24px;
+  }
+  #shopify-section-{{ section.id }} .pce-col {
+    text-align: center;
+    padding:    0 28px;
+  }
+  #shopify-section-{{ section.id }} .pce-col:not(:last-child) {
+    border-right: 1px solid {{ s.connector_color }};
+  }
+
+  /* Mobile step-track (dot + vline) — hidden on desktop */
+  #shopify-section-{{ section.id }} .pce-step-track { display: none; }
+
+  /* ── Spalten-Inhalte ── */
+  #shopify-section-{{ section.id }} .pce-col-label {
+    font-family:    'Figtree', sans-serif; /* Subline → Figtree Semi-Bold */
+    font-size:      11px;
+    font-weight:    600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color:          {{ s.accent_color }};
+    margin-bottom:  12px;
+  }
+  #shopify-section-{{ section.id }} .pce-col-title {
+    font-family: var(--accent-font-family);
+    font-style: var(--accent-font-style); /* Multi-word → Playfair Medium Italic */
+    font-size:     clamp(20px, 2.5vw, 26px);
+    font-weight:   500;
+    color:         {{ s.text_color }};
+    line-height:   1.25;
+    margin-bottom: 14px;
+  }
+  #shopify-section-{{ section.id }} .pce-col-text {
+    font-family: 'Figtree', sans-serif;    /* Body Copy → Figtree Normal */
+    font-size:   15px;
+    line-height: 1.7;
+    color:       {{ s.text_soft_color }};
+    font-weight: 400;
+  }
+
+  /* ════════════════════════════════════════
+     SCROLL-ANIMATION
+     ════════════════════════════════════════ */
+  #shopify-section-{{ section.id }} .pce-anim {
+    opacity:          0;
+    transform:        translateY(24px);
+    transition:       opacity 0.55s ease, transform 0.55s ease;
+    transition-delay: var(--anim-delay, 0s);
+  }
+  #shopify-section-{{ section.id }} .pce-anim.is-visible {
+    opacity:   1;
+    transform: translateY(0);
+  }
+
+  /* Desktop: stagger delay */
+  @media (min-width: 681px) {
+    #shopify-section-{{ section.id }} .pce-cols .pce-col:nth-child(2) { --anim-delay: 0.15s; }
+    #shopify-section-{{ section.id }} .pce-cols .pce-col:nth-child(3) { --anim-delay: 0.30s; }
+  }
+
+  /* Vline draw animation (mobile) */
+  #shopify-section-{{ section.id }} .pce-step-vline {
+    transform-origin: top center;
+    transform:        scaleY(0);
+    transition:       transform 0.5s ease 0.38s;
+  }
+  #shopify-section-{{ section.id }} .pce-anim.is-visible .pce-step-vline {
+    transform: scaleY(1);
+  }
+
+  /* ════════════════════════════════════════
+     MOBILE: vertikale Timeline
+     ════════════════════════════════════════ */
+  @media (max-width: 680px) {
+
+    /* Horizontale Timeline ausblenden */
+    #shopify-section-{{ section.id }} .pce-timeline { display: none; }
+
+    /* Spalten-Grid → single column */
+    #shopify-section-{{ section.id }} .pce-cols {
+      grid-template-columns: 1fr;
+      padding:               0 28px;
+      max-width:             100%;
+    }
+
+    /* Jeder Schritt: flex-row mit Track links */
+    #shopify-section-{{ section.id }} .pce-col {
+      display:        flex;
+      flex-direction: row;
+      align-items:    flex-start;
+      gap:            18px;
+      text-align:     left;
+      padding:        0 0 36px 0;
+      border-right:   none !important;
+    }
+
+    /* Vertikaler Track (Dot + Linie) sichtbar machen */
+    #shopify-section-{{ section.id }} .pce-step-track {
+      display:        flex;
+      flex-direction: column;
+      align-items:    center;
+      flex-shrink:    0;
+      padding-top:    2px;
+      width:          14px;
+    }
+    #shopify-section-{{ section.id }} .pce-step-dot {
+      width:         13px;
+      height:        13px;
+      border-radius: 50%;
+      background:    {{ s.accent_color }};
+      flex-shrink:   0;
+    }
+    #shopify-section-{{ section.id }} .pce-step-vline {
+      width:      1.5px;
+      flex:       1;
+      min-height: 60px;
+      background: {{ s.connector_color }};
+      margin-top: 7px;
+    }
+
+    /* Letzte Linie nicht zeigen + kein Padding unten */
+    #shopify-section-{{ section.id }} .pce-col:last-child .pce-step-vline {
+      display: none;
+    }
+    #shopify-section-{{ section.id }} .pce-col:last-child {
+      padding-bottom: 0;
+    }
+
+    /* Section-Padding unten auf Mobile reduzieren */
+    #shopify-section-{{ section.id }} .pce {
+      padding-bottom: 40px;
+    }
+
+    /* Body-Text linksbündig */
+    #shopify-section-{{ section.id }} .pce-step-body { flex: 1; }
+  }
+</style>
+
+<section class="pce">
+
+  <!-- Dekorative Linien oben -->
+  <div class="pce-top-lines">
+    <div class="pce-top-line"></div>
+    <div class="pce-top-line"></div>
+    <div class="pce-top-line"></div>
+  </div>
+
+  <!-- Heading -->
+  <div class="pce-header">
+    {% if s.pretitle != blank %}
+      <p class="pce-pretitle">{{ s.pretitle }}</p>
+    {% endif %}
+    <h2 class="pce-heading">
+      {{ s.heading_line1 }}<br>
+      <em>{{ s.heading_line2 }}</em>
+    </h2>
+    {% if s.subtitle != blank %}
+      <p class="pce-subtitle">{{ s.subtitle }}</p>
+    {% endif %}
+  </div>
+
+  <!-- Horizontale Timeline (Desktop) -->
+  <div class="pce-timeline" aria-hidden="true">
+    <div class="pce-timeline-dot"></div>
+    <div class="pce-timeline-line"></div>
+    <div class="pce-timeline-dot"></div>
+    <div class="pce-timeline-line"></div>
+    <div class="pce-timeline-dot"></div>
+  </div>
+
+  <!-- Drei Schritte -->
+  <div class="pce-cols">
+
+    <div class="pce-col pce-anim">
+      <div class="pce-step-track" aria-hidden="true">
+        <div class="pce-step-dot"></div>
+        <div class="pce-step-vline"></div>
+      </div>
+      <div class="pce-step-body">
+        <div class="pce-col-label">{{ s.step1_label }}</div>
+        <div class="pce-col-title">{{ s.step1_title }}</div>
+        <div class="pce-col-text">{{ s.step1_text }}</div>
+      </div>
+    </div>
+
+    <div class="pce-col pce-anim">
+      <div class="pce-step-track" aria-hidden="true">
+        <div class="pce-step-dot"></div>
+        <div class="pce-step-vline"></div>
+      </div>
+      <div class="pce-step-body">
+        <div class="pce-col-label">{{ s.step2_label }}</div>
+        <div class="pce-col-title">{{ s.step2_title }}</div>
+        <div class="pce-col-text">{{ s.step2_text }}</div>
+      </div>
+    </div>
+
+    <div class="pce-col pce-anim">
+      <div class="pce-step-track" aria-hidden="true">
+        <div class="pce-step-dot"></div>
+        <div class="pce-step-vline"></div>
+      </div>
+      <div class="pce-step-body">
+        <div class="pce-col-label">{{ s.step3_label }}</div>
+        <div class="pce-col-title">{{ s.step3_title }}</div>
+        <div class="pce-col-text">{{ s.step3_text }}</div>
+      </div>
+    </div>
+
+  </div>
+
+</section>
+
+<script>
+  (function () {
+    var sid   = '{{ section.id }}';
+    var steps = document.querySelectorAll(
+      '#shopify-section-' + sid + ' .pce-anim'
+    );
+
+    /* Fallback: alle sofort einblenden wenn kein IntersectionObserver */
+    if (!('IntersectionObserver' in window)) {
+      steps.forEach(function (el) { el.classList.add('is-visible'); });
+      return;
+    }
+
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.18 });
+
+    steps.forEach(function (el) { observer.observe(el); });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Rechnung",
+  "settings": [
+
+    { "type": "header", "content": "🎨 Farben" },
+
+    {
+      "type":    "color",
+      "id":      "bg_color",
+      "label":   "Hintergrund",
+      "default": "#EFECE4"
+    },
+    {
+      "type":    "color",
+      "id":      "accent_color",
+      "label":   "Akzentfarbe (Linien, Dots, Labels)",
+      "default": "#3DADBB"
+    },
+    {
+      "type":    "color",
+      "id":      "text_color",
+      "label":   "Haupttextfarbe (Überschriften)",
+      "default": "#56473A"
+    },
+    {
+      "type":    "color",
+      "id":      "text_soft_color",
+      "label":   "Weiche Textfarbe (Body-Copy)",
+      "default": "#8a7b70"
+    },
+    {
+      "type":    "color",
+      "id":      "connector_color",
+      "label":   "Timeline-Linie & Spalten-Trennlinie",
+      "default": "#C8C2BB"
+    },
+
+    { "type": "header", "content": "📝 Kopfbereich" },
+
+    {
+      "type":    "text",
+      "id":      "pretitle",
+      "label":   "Pretitle (klein, über Überschrift)",
+      "default": "Wie funktioniert der Rechner?"
+    },
+    {
+      "type":    "text",
+      "id":      "heading_line1",
+      "label":   "Überschrift – Zeile 1 (normal)",
+      "default": "So berechnen wir Deinen"
+    },
+    {
+      "type":    "text",
+      "id":      "heading_line2",
+      "label":   "Überschrift – Zeile 2 (kursiv)",
+      "default": "persönlichen Plan"
+    },
+    {
+      "type":    "text",
+      "id":      "subtitle",
+      "label":   "Untertitel",
+      "default": "Drei Schritte — Deine Angaben, eine wissenschaftliche Formel, Dein individuelles Ergebnis."
+    },
+
+    { "type": "header", "content": "1️⃣ Schritt 1" },
+
+    {
+      "type":    "text",
+      "id":      "step1_label",
+      "label":   "Label",
+      "default": "01 — Deine Angaben"
+    },
+    {
+      "type":    "text",
+      "id":      "step1_title",
+      "label":   "Titel (kursiv)",
+      "default": "Wer bist Du?"
+    },
+    {
+      "type":    "textarea",
+      "id":      "step1_text",
+      "label":   "Beschreibung",
+      "default": "Geschlecht, Alter, Größe, Gewicht und Aktivität — alles, was Deinen Körper einzigartig macht."
+    },
+
+    { "type": "header", "content": "2️⃣ Schritt 2" },
+
+    {
+      "type":    "text",
+      "id":      "step2_label",
+      "label":   "Label",
+      "default": "02 — Berechnung"
+    },
+    {
+      "type":    "text",
+      "id":      "step2_title",
+      "label":   "Titel (kursiv)",
+      "default": "Dein persönlicher Bedarf."
+    },
+    {
+      "type":    "textarea",
+      "id":      "step2_text",
+      "label":   "Beschreibung",
+      "default": "Wir berechnen Deinen individuellen Tagesbedarf mit der wissenschaftlich anerkannten Mifflin-St-Jeor-Formel."
+    },
+
+    { "type": "header", "content": "3️⃣ Schritt 3" },
+
+    {
+      "type":    "text",
+      "id":      "step3_label",
+      "label":   "Label",
+      "default": "03 — Dein Plan"
+    },
+    {
+      "type":    "text",
+      "id":      "step3_title",
+      "label":   "Titel (kursiv)",
+      "default": "Abnehmen ohne Hunger."
+    },
+    {
+      "type":    "textarea",
+      "id":      "step3_text",
+      "label":   "Beschreibung",
+      "default": "Du erhältst einen Mahlzeitenplan, der gezielt unter Deinem Bedarf liegt — so nimmst Du ab, ohne zu verzichten."
+    }
+
+  ],
+  "presets": [
+    {
+      "name": "Rechnung"
+    }
+  ]
+}
+{% endschema %}

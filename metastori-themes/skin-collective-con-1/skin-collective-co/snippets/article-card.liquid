@@ -1,0 +1,238 @@
+<!-- snippets/article-card.liquid -->
+
+{%- doc -%}
+  Renders a blog article card with optional metadata and placeholders.
+  @param {article} [featured_article] - Article to display.
+  @param {string} [heading_type] - Heading data-item class. Defaults to `block-heading`.
+  @param {string} [loading] - Image loading mode.
+  @param {boolean} [placeholder] - Show placeholder state. Defaults to `false`.
+  @param {boolean} [show_author] - Show author name.
+  @param {boolean} [show_category] - Show the article's `custom.category` metafield as a category label.
+  @param {boolean} [show_cta] - Show call-to-action link for non-placeholder cards.
+  @param {boolean} [show_date] - Show published date. Defaults to `false`.
+  @param {boolean} [show_excerpt] - Show article excerpt.
+  @param {string} [sizes] - Image `sizes` attribute.
+  @param {string} [transition_id] - Transition group id for root container transitions.
+{%- enddoc -%}
+
+{%- liquid
+  assign article_view_transition = 'article-image-' | append: featured_article.id
+  assign article_item_title_t = 'blog.article.item_title' | t
+  assign article_date_t = 'blog.article.date' | t
+  assign article_excerpt_t = 'blog.article.excerpt' | t
+  assign article_continue_reading_t = 'blog.article.continue_reading' | t
+  assign written_by_t = 'blog.article.written_by' | t
+
+  assign heading_type = heading_type | default: 'block-heading'
+  assign show_date = show_date | default: false
+  assign placeholder = placeholder | default: false
+-%}
+
+{%- capture article_category_names -%}
+  {%- render 'article-categories', featured_article: featured_article -%}
+{%- endcapture -%}
+
+{%- liquid
+  comment
+    Entries arrive as `key|:|Label`. The key is language-stable and drives
+    filtering; the label is the translated text shown on the card.
+  endcomment
+  assign article_category_entries = article_category_names | split: '|||'
+
+  assign category_label = ''
+  capture article_category_handles
+    for category_entry in article_category_entries
+      assign category_entry = category_entry | strip
+      if category_entry == blank
+        continue
+      endif
+
+      assign category_parts = category_entry | split: '|:|'
+      assign category_key = category_parts[0] | strip
+      assign category_name = category_parts[1] | strip
+      if category_key == blank or category_name == blank
+        continue
+      endif
+
+      if category_label == blank
+        assign category_label = category_name
+      endif
+      echo category_key | append: ' '
+    endfor
+  endcapture
+  assign article_category_handles = article_category_handles | strip
+-%}
+
+<div
+  class="article-card--root"
+  data-container="block"
+  data-article-categories="{{ article_category_handles | escape }}"
+  {%- if transition_id and settings.transitions--other == false -%}
+    data-transition-item="{{ transition_id }}"
+  {%- endif -%}
+>
+  {%- if placeholder -%}
+    <div class="article-card--image">
+      {%- render 'placeholder', type: 'image' -%}
+    </div>
+
+    <h3 class="article-card--heading" data-item="{{ heading_type }}">
+      {{- article_item_title_t -}}
+    </h3>
+
+    {%- if show_date -%}
+      <div class="article-card--date" data-item="nav-text" data-text-color="gray">
+        {{- article_date_t -}}
+      </div>
+    {%- endif -%}
+
+    {%- if show_excerpt -%}
+      <div class="article-card--excerpt" data-item="paragraph">
+        {{- article_excerpt_t -}}
+      </div>
+    {%- endif -%}
+
+    <div class="article-card--read-more" data-item="block-link">
+      <span>{{ article_continue_reading_t }}</span>
+    </div>
+
+  {%- else -%}
+    <a
+      href="{{ featured_article.url }}"
+      class="article-card--image"
+      {% unless settings.transitions--image %}
+        data-transition-item
+        data-transition-type="zoom-in"
+        data-transition-trigger="hover"
+      {% endunless %}
+      aria-label="{{ featured_article.image.alt }}"
+    >
+      {%- liquid
+        if featured_article.image
+          render 'image', image: featured_article.image, sizes: sizes, loading: loading, view_transition: article_view_transition
+        else
+          render 'placeholder', type: 'lifestyle', placeholder_index: 2, view_transition: article_view_transition
+        endif
+      -%}
+    </a>
+
+    <div class="article-card--meta">
+    {%- if show_category -%}
+      {%- unless category_label == blank -%}
+        <div class="article-card--category" data-item="caption">
+          {{- category_label -}}
+        </div>
+      {%- endunless -%}
+    {%- endif -%}
+
+    <a href="{{ featured_article.url }}" class="article-card--heading-link">
+      <h3 class="article-card--heading" data-item="{{ heading_type }}">
+        {{- featured_article.title -}}
+      </h3>
+    </a>
+
+    {%- if show_date or show_author -%}
+      <div class="article-card--info">
+        {%- if show_date -%}
+          <div class="article-card--date" data-item="nav-text">
+            {%-
+              render 'utils',
+              name: 'timesince',
+              created_at: featured_article.published_at
+            -%}
+          </div>
+        {%- endif -%}
+
+        {%- if show_date and show_author -%}
+          <span class="article-card--dot" data-mq="medium-large">&CenterDot;</span>
+        {%- endif -%}
+
+        {%- if show_author -%}
+          <div class="article-card--author" data-item="caption">
+            {{- written_by_t }} {{ featured_article.author -}}
+          </div>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+
+    {%- if show_excerpt -%}
+      <div class="article-card--excerpt" data-item="paragraph">
+        {%- liquid
+          if featured_article.excerpt == blank
+            echo featured_article.content | strip_html
+          else
+            echo featured_article.excerpt | strip_html
+          endif
+        -%}
+      </div>
+    {%- endif -%}
+
+    {%- if show_cta -%}
+      <a
+        href="{{ featured_article.url }}"
+        class="article-card--read-more"
+        data-item="block-link"
+      >
+        <span>{{- article_continue_reading_t -}}</span>
+      </a>
+    {%- endif -%}
+    </div>
+
+  {%- endif -%}
+</div>
+
+{% stylesheet %}
+  .article-card--root {
+    align-items: var(--x-alignment);
+  }
+
+  .article-card--image {
+    display: block;
+    width: 100%;
+    border-radius: var(--image--radius);
+
+    > * {
+      --image--height: auto; /* image blows up in Safari */
+    }
+  }
+
+  .article-card--category {
+    width: 100%;
+    font-style: italic;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .article-card--meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing--2, 8px);
+    width: 100%;
+    align-items: inherit;
+  }
+
+  .article-card--excerpt {
+    margin-top: 18px;
+    line-height: 1.33;
+  }
+
+  .article-card--info {
+    display: flex;
+    gap: var(--spacing--1);
+
+    @media (max-width: 767px) {
+      flex-direction: column;
+    }
+
+    [data-columns='3'] & {
+      flex-direction: column;
+    }
+  }
+
+  .article-card--dot {
+    [data-columns='3'] & {
+      display: none;
+    }
+  }
+
+{% endstylesheet %}

@@ -1,0 +1,1706 @@
+{{- 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap' | stylesheet_tag -}}
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+
+<style>
+  /* ── CSS CUSTOM PROPERTIES ── */
+  .precon-rechner {
+    --brand-dark: #56473A;
+    --brand-beige: #EFECE4;
+    --accent: #3DADBB;
+    --accent-dark: #2e9aa8;
+    --accent-light: rgba(61,173,187,0.10);
+    --white: #FFFFFF;
+    --light-gray: #F7F7F5;
+    --mid-gray: #D8D3CE;
+    --error: #C0392B;
+    --success: #2D692D;
+    --text: #56473A;
+    --text-soft: #8a7b70;
+    --radius: 10px;
+  }
+
+  .precon-rechner *,
+  .precon-rechner *::before,
+  .precon-rechner *::after {
+    box-sizing: border-box;
+  }
+
+  /* ── WRAPPER ── */
+  .precon-rechner .widget-wrapper {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 0 0 60px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    background: var(--white);
+  }
+
+  /* ── HEADER ── */
+  .precon-rechner .widget-header {
+    background: var(--white);
+    padding: 36px 28px 20px;
+    text-align: center;
+  }
+  .precon-rechner .widget-pretitle {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .precon-rechner .widget-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(26px, 6vw, 36px);
+    font-weight: 700;
+    color: var(--brand-dark);
+    line-height: 1.2;
+    margin-bottom: 10px;
+  }
+  .precon-rechner .widget-subtitle { display: block; }
+  .precon-rechner.results-mode .widget-subtitle,
+  .precon-rechner.results-mode .widget-pretitle { display: none; }
+  .precon-rechner .widget-subtitle {
+    color: var(--text-soft);
+    font-weight: 400;
+    line-height: 1.65;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  /* ── PROGRESS BAR ── */
+  .precon-rechner .progress-container {
+    background: var(--white);
+    padding: 20px 28px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 1px solid #eee;
+  }
+  .precon-rechner .progress-steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 10px;
+  }
+  .precon-rechner .prog-step {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--mid-gray);
+    background: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mid-gray);
+    flex-shrink: 0;
+    transition: all 0.35s ease;
+    position: relative;
+    z-index: 2;
+  }
+  .precon-rechner .prog-step.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(61,173,187,0.18);
+  }
+  .precon-rechner .prog-step.done {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--white);
+  }
+  .precon-rechner .prog-line {
+    flex: 1;
+    height: 2px;
+    background: var(--mid-gray);
+    transition: background 0.35s ease;
+    position: relative;
+    z-index: 1;
+  }
+  .precon-rechner .prog-line.done { background: var(--accent); }
+  .precon-rechner .progress-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 4px;
+  }
+  .precon-rechner .prog-label {
+    font-size: 9.5px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--mid-gray);
+    text-align: center;
+    flex: 1;
+    font-weight: 500;
+    transition: color 0.3s;
+  }
+  .precon-rechner .prog-label:first-child { text-align: left; }
+  .precon-rechner .prog-label:last-child { text-align: right; }
+  .precon-rechner .prog-label.active,
+  .precon-rechner .prog-label.done { color: var(--accent); }
+
+  /* ── STEP CARD ── */
+  .precon-rechner .step-card {
+    background: var(--white);
+    padding: 32px 28px 28px;
+    display: none;
+    animation: precon-slideIn 0.3s ease forwards;
+  }
+  .precon-rechner .step-card.visible { display: block; }
+
+  @keyframes precon-slideIn {
+    from { opacity: 0; transform: translateX(18px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes precon-slideBack {
+    from { opacity: 0; transform: translateX(-18px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .precon-rechner .step-card.slide-back { animation: precon-slideBack 0.3s ease forwards; }
+
+  .precon-rechner .step-question {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(20px, 4.5vw, 24px);
+    font-weight: 600;
+    color: var(--brand-dark);
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .precon-rechner .step-hint {
+    font-size: 16px;
+    color: var(--text-soft);
+    font-weight: 400;
+    margin-bottom: 26px;
+    line-height: 1.5;
+  }
+
+  /* ── GENDER BUTTONS ── */
+  .precon-rechner .gender-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 4px;
+  }
+  .precon-rechner .gender-btn {
+    padding: 24px 16px 20px;
+    border: 2px solid var(--mid-gray);
+    background: var(--light-gray);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    color: var(--text);
+    text-align: center;
+    border-radius: var(--radius);
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+  .precon-rechner .gender-btn:hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .precon-rechner .gender-btn.selected {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    color: var(--accent-dark);
+  }
+  .precon-rechner .gender-icon { font-size: 34px; display: block; margin-bottom: 8px; }
+
+  /* ── INPUT FIELDS ── */
+  .precon-rechner .field-group { margin-bottom: 20px; }
+  .precon-rechner .field-group:last-of-type { margin-bottom: 0; }
+
+  .precon-rechner label.field-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    margin-bottom: 8px;
+  }
+  .precon-rechner .input-wrap { position: relative; }
+  .precon-rechner .input-wrap input {
+    width: 100%;
+    padding: 15px 52px 15px 16px;
+    border: 2px solid var(--mid-gray);
+    background: var(--light-gray);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+    outline: none;
+    border-radius: var(--radius);
+    transition: all 0.2s ease;
+    -moz-appearance: textfield;
+  }
+  .precon-rechner .input-wrap input::-webkit-outer-spin-button,
+  .precon-rechner .input-wrap input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .precon-rechner .input-wrap input:focus {
+    border-color: var(--accent);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(61,173,187,0.12);
+  }
+  .precon-rechner .input-wrap input.has-error {
+    border-color: var(--error);
+    background: rgba(192,57,43,0.04);
+  }
+  .precon-rechner .input-unit {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-soft);
+    pointer-events: none;
+  }
+  .precon-rechner .field-error {
+    font-size: 16px;
+    color: var(--error);
+    margin-top: 6px;
+    display: none;
+    font-weight: 400;
+  }
+  .precon-rechner .field-error.visible { display: block; }
+  .precon-rechner .field-note {
+    font-size: 16px;
+    color: var(--text-soft);
+    margin-top: 5px;
+  }
+
+  /* ── CHOICE BUTTONS ── */
+  .precon-rechner .choices { display: flex; flex-direction: column; gap: 10px; }
+  .precon-rechner .choice-btn {
+    padding: 15px 18px;
+    border: 2px solid var(--mid-gray);
+    background: var(--light-gray);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14.5px;
+    color: var(--text);
+    text-align: left;
+    border-radius: var(--radius);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    font-weight: 400;
+    line-height: 1.4;
+  }
+  .precon-rechner .choice-btn:hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .precon-rechner .choice-btn.selected {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    color: var(--brand-dark);
+    font-weight: 500;
+  }
+  .precon-rechner .choice-radio {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--mid-gray);
+    flex-shrink: 0;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .precon-rechner .choice-btn.selected .choice-radio {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+  .precon-rechner .choice-btn.selected .choice-radio::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: white;
+  }
+
+  /* ── TEXT INPUTS ── */
+  .precon-rechner .text-input-wrap input {
+    font-size: 16px;
+    padding: 15px 16px;
+  }
+  .precon-rechner .text-input-wrap input:focus {
+    border-color: var(--accent);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(61,173,187,0.12);
+  }
+
+  /* ── CONSENT ── */
+  .precon-rechner .consent-row {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 16px;
+    background: var(--light-gray);
+    border: 2px solid var(--mid-gray);
+    cursor: pointer;
+    border-radius: var(--radius);
+    transition: border-color 0.2s;
+    margin-top: 20px;
+  }
+  .precon-rechner .consent-row:hover { border-color: var(--accent); }
+  .precon-rechner .consent-row.checked { border-color: var(--accent); background: var(--accent-light); }
+  .precon-rechner .consent-box-el {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    border-radius: 5px;
+    border: 2px solid var(--mid-gray);
+    background: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-top: 1px;
+  }
+  .precon-rechner .consent-row.checked .consent-box-el {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .precon-rechner .consent-check { display: none; color: white; font-size: 12px; font-weight: 700; }
+  .precon-rechner .consent-row.checked .consent-check { display: block; }
+  .precon-rechner .consent-text {
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--text-soft);
+  }
+
+  /* ── NOTICE ── */
+  .precon-rechner .notice-box {
+    padding: 14px 16px;
+    border-radius: var(--radius);
+    font-size: 16px;
+    line-height: 1.65;
+    margin-top: 14px;
+    display: none;
+  }
+  .precon-rechner .notice-box.visible { display: block; }
+  .precon-rechner .notice-box.warning {
+    background: rgba(61,173,187,0.08);
+    border-left: 3px solid var(--accent);
+    color: var(--brand-dark);
+  }
+
+  /* ── CTA BUTTON ── */
+  .precon-rechner .btn-next {
+    width: 100%;
+    padding: 17px;
+    background: var(--accent);
+    color: var(--white);
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    border-radius: 999px;
+    transition: all 0.2s ease;
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .precon-rechner .btn-next:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(61,173,187,0.3); }
+  .precon-rechner .btn-next:active { transform: translateY(0); }
+  .precon-rechner .btn-next svg { width: 18px; height: 18px; }
+
+  .precon-rechner .btn-back {
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-soft);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 12px;
+    display: block;
+    text-align: center;
+    letter-spacing: 0.3px;
+    transition: color 0.2s;
+    margin-top: 4px;
+  }
+  .precon-rechner .btn-back:hover { color: var(--brand-dark); }
+
+  /* ── RESULTS ── */
+  .precon-rechner .results-wrap { padding: 28px 28px 0; }
+  .precon-rechner .results-greeting {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(20px, 4.5vw, 26px);
+    font-weight: 700;
+    color: var(--brand-dark);
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .precon-rechner .results-intro {
+    font-size: 16px;
+    color: var(--text-soft);
+    font-weight: 400;
+    margin-bottom: 28px;
+    line-height: 1.6;
+  }
+
+  /* RESULT BLOCKS */
+  .precon-rechner .result-block {
+    background: var(--light-gray);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 12px;
+  }
+  .precon-rechner .result-block.accent-block {
+    background: var(--brand-dark);
+    margin-bottom: 12px;
+  }
+  .precon-rechner .result-block.precon-block {
+    background: var(--accent-light);
+    border: 2px solid var(--accent);
+    margin-bottom: 12px;
+  }
+  .precon-rechner .res-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    margin-bottom: 4px;
+  }
+  .precon-rechner .accent-block .res-label { color: rgba(255,255,255,0.6); }
+  .precon-rechner .precon-block .res-label { color: var(--accent-dark); }
+  .precon-rechner .res-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--brand-dark);
+    line-height: 1.1;
+  }
+  .precon-rechner .accent-block .res-value { color: var(--white); font-size: 40px; }
+  .precon-rechner .precon-block .res-value { color: var(--brand-dark); }
+  .precon-rechner .res-unit {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--text-soft);
+    margin-left: 3px;
+  }
+  .precon-rechner .accent-block .res-unit { color: rgba(255,255,255,0.6); }
+  .precon-rechner .res-sub {
+    font-size: 16px;
+    color: var(--text-soft);
+    margin-top: 3px;
+    font-weight: 400;
+  }
+  .precon-rechner .accent-block .res-sub { color: rgba(255,255,255,0.5); }
+  .precon-rechner .precon-block .res-sub { color: #5a8e95; }
+
+  .precon-rechner .bmi-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .precon-rechner .bmi-row .result-block { margin-bottom: 0; }
+  .precon-rechner .secondary-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .precon-rechner .secondary-row .result-block { margin-bottom: 0; }
+
+  /* ── BMI GAUGE ── */
+  .precon-rechner .bmi-gauge-wrap { position: relative; margin: 0 0 20px; }
+  .precon-rechner .bmi-gauge-bar { display: flex; height: 16px; border-radius: 999px; overflow: hidden; }
+  .precon-rechner .bmi-seg { flex-shrink: 0; }
+  .precon-rechner .bmi-gauge-ticks { position: relative; height: 22px; margin-top: 4px; }
+  .precon-rechner .bmi-gauge-ticks span {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-soft);
+    white-space: nowrap;
+  }
+  .precon-rechner .bmi-needle-wrap {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .precon-rechner .bmi-needle-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--brand-dark);
+    border: 3px solid white;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.3);
+    margin-top: -1px;
+  }
+  .precon-rechner .bmi-needle-line { width: 2px; height: 18px; background: var(--brand-dark); opacity: 0.45; }
+  .precon-rechner .bmi-labels-wrap { position: relative; height: 72px; margin-top: 2px; }
+  .precon-rechner .bmi-label-item {
+    position: absolute;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .precon-rechner .bmi-label-item.level-1 { top: 0; }
+  .precon-rechner .bmi-label-item.level-2 { top: 36px; }
+  .precon-rechner .bmi-label-connector { width: 1.5px; background: var(--mid-gray); flex-shrink: 0; }
+  .precon-rechner .level-1 .bmi-label-connector { height: 8px; }
+  .precon-rechner .level-2 .bmi-label-connector { height: 44px; margin-top: -44px; order: -1; }
+  .precon-rechner .bmi-label-text { font-size: 11px; color: var(--text-soft); text-align: center; line-height: 1.3; white-space: nowrap; }
+  .precon-rechner .bmi-gauge-bar,
+  .precon-rechner .bmi-gauge-ticks,
+  .precon-rechner .bmi-labels-wrap { margin-left: 2%; margin-right: 2%; }
+
+  /* ── ABNEHMPLAN PAGE ── */
+  .precon-rechner .plan-intro {
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--text);
+    margin-bottom: 28px;
+    padding: 18px 20px;
+    background: var(--light-gray);
+    border-radius: var(--radius);
+  }
+  .precon-rechner .plan-intro.plain { background: none; padding: 0; border-radius: 0; }
+  .precon-rechner .plan-intro strong { font-weight: 600; color: var(--brand-dark); }
+  .precon-rechner .plan-section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--brand-dark);
+    margin-bottom: 16px;
+  }
+  .precon-rechner .chart-wrap {
+    background: var(--white);
+    border: 1.5px solid var(--mid-gray);
+    border-radius: var(--radius);
+    padding: 16px 8px 12px;
+    margin-bottom: 4px;
+  }
+
+  /* ── PHASENPLAN ── */
+  .precon-rechner .phase-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .precon-rechner .phase-badge {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    text-transform: uppercase;
+  }
+  .precon-rechner .phase-badge--start,
+  .precon-rechner .phase-badge--abnehm,
+  .precon-rechner .phase-badge--halte { background: var(--brand-dark); color: white; }
+  .precon-rechner .phase-duration { font-size: 14px; color: var(--text-soft); font-weight: 400; }
+  .precon-rechner .info-box {
+    display: flex;
+    gap: 10px;
+    background: rgba(61,173,187,0.07);
+    border: 1.5px solid rgba(61,173,187,0.3);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-top: 10px;
+    margin-bottom: 32px;
+  }
+  .precon-rechner .info-box-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+  }
+  .precon-rechner .info-box-text { font-size: 15px; line-height: 1.65; color: var(--text-soft); }
+
+  /* ── LOADING SCREEN ── */
+  .precon-rechner .loading-spinner-wrap { margin: 8px 0 32px; }
+  .precon-rechner .loading-bar-track {
+    width: 100%;
+    height: 6px;
+    background: var(--mid-gray);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .precon-rechner .loading-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width 8s linear;
+  }
+  .precon-rechner .loading-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(22px, 5vw, 28px);
+    font-weight: 700;
+    color: var(--brand-dark);
+    line-height: 1.3;
+    margin-bottom: 10px;
+  }
+  .precon-rechner .loading-sub { font-size: 16px; color: var(--text-soft); font-weight: 400; margin-bottom: 36px; }
+  .precon-rechner .loading-review {
+    background: var(--brand-beige);
+    border-radius: var(--radius);
+    padding: 24px 22px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .precon-rechner .loading-review.visible { opacity: 1; transform: translateY(0); }
+  .precon-rechner .loading-review-stars { color: #E8892C; font-size: 22px; letter-spacing: 2px; margin-bottom: 14px; }
+  .precon-rechner .loading-review-quote { font-size: 16px; line-height: 1.7; color: var(--brand-dark); font-weight: 400; margin-bottom: 14px; }
+  .precon-rechner .loading-review-author { font-size: 15px; color: var(--text-soft); font-weight: 500; }
+
+  /* ── FOOTER NOTE ── */
+  .precon-rechner .footer-note {
+    text-align: center;
+    font-size: 11px;
+    color: #b0a49b;
+    line-height: 1.7;
+    margin-top: 28px;
+    padding: 20px 28px 0;
+    border-top: 1px solid #eee;
+  }
+
+  /* ── DESKTOP ── */
+  @media (min-width: 640px) {
+    .precon-rechner .widget-wrapper { max-width: 680px; padding: 0 0 80px; }
+    .precon-rechner .widget-header { padding: 48px 48px 24px; }
+    .precon-rechner .progress-container { padding: 22px 48px 26px; }
+    .precon-rechner .step-card { padding: 36px 48px 32px; }
+    .precon-rechner .results-wrap { padding: 32px 48px 0; }
+    .precon-rechner .footer-note { padding: 20px 48px 0; }
+    .precon-rechner .gender-btn { padding: 30px 20px 24px; }
+    .precon-rechner .gender-icon { font-size: 40px; }
+  }
+
+  @media (min-width: 900px) {
+    .precon-rechner .widget-wrapper {
+      margin: 40px auto;
+      box-shadow: 0 4px 40px rgba(86,71,58,0.10);
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--white);
+    }
+  }
+</style>
+
+<div class="precon-rechner">
+<div class="widget-wrapper">
+
+  <!-- HEADER -->
+  <div class="widget-header">
+    <div class="widget-pretitle">Precon Programm</div>
+    <h2 class="widget-title">Dein Precon Abnehmplan</h2>
+    <p class="widget-subtitle">Berechne in wenigen Schritten Deinen persönlichen Abnehmplan – kostenlos und individuell auf Dich abgestimmt.</p>
+  </div>
+
+  <!-- PROGRESS BAR -->
+  <div class="progress-container">
+    <div class="progress-steps">
+      <div class="prog-step active" id="precon-ps1">1</div>
+      <div class="prog-line" id="precon-pl1"></div>
+      <div class="prog-step" id="precon-ps2">2</div>
+      <div class="prog-line" id="precon-pl2"></div>
+      <div class="prog-step" id="precon-ps3">3</div>
+      <div class="prog-line" id="precon-pl3"></div>
+      <div class="prog-step" id="precon-ps4">4</div>
+      <div class="prog-line" id="precon-pl4"></div>
+      <div class="prog-step" id="precon-ps5">5</div>
+      <div class="prog-line" id="precon-pl5"></div>
+      <div class="prog-step" id="precon-ps6">6</div>
+      <div class="prog-line" id="precon-pl6"></div>
+      <div class="prog-step" id="precon-ps7">7</div>
+    </div>
+  </div>
+
+  <!-- STEP 1: Gender -->
+  <div class="step-card visible" id="precon-step1">
+    <div class="step-question">Wie ist Dein Geschlecht?</div>
+    <div class="step-hint">Diese Angabe wird für die genaue Berechnung Deines Grundumsatzes benötigt.</div>
+    <div class="gender-grid">
+      <button class="gender-btn" id="precon-btn-frau" onclick="preconSelectGender('Frau')">
+        <span class="gender-icon">♀</span>Frau
+      </button>
+      <button class="gender-btn" id="precon-btn-mann" onclick="preconSelectGender('Mann')">
+        <span class="gender-icon">♂</span>Mann
+      </button>
+    </div>
+    <div class="field-error" id="precon-err-gender" style="margin-top:10px;">Bitte wähle Dein Geschlecht aus.</div>
+    <button class="btn-next" onclick="preconGoStep2()">
+      Weiter
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+
+  <!-- STEP 2: Age + Height -->
+  <div class="step-card" id="precon-step2">
+    <div class="step-question">Wie alt bist Du und wie groß?</div>
+    <div class="step-hint">Diese Werte fließen direkt in Deine Berechnung ein.</div>
+    <div class="field-group">
+      <label class="field-label">Alter</label>
+      <div class="input-wrap">
+        <input type="number" id="precon-age" placeholder="z.B. 50" min="15" max="99" inputmode="numeric">
+        <span class="input-unit">Jahre</span>
+      </div>
+      <div class="field-error" id="precon-err-age">Bitte gib ein gültiges Alter ein (18–100).</div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Körpergröße</label>
+      <div class="input-wrap">
+        <input type="number" id="precon-height" placeholder="z.B. 172" min="100" max="250" inputmode="numeric">
+        <span class="input-unit">cm</span>
+      </div>
+      <div class="field-error" id="precon-err-height">Bitte gib eine gültige Körpergröße ein.</div>
+    </div>
+    <button class="btn-next" onclick="preconGoStep3()">
+      Weiter
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+    <button class="btn-back" onclick="preconGoStep(1, true)">← Zurück</button>
+  </div>
+
+  <!-- STEP 3: Weight + Target Weight -->
+  <div class="step-card" id="precon-step3">
+    <div class="step-question">Was ist Dein aktuelles und Dein Zielgewicht?</div>
+    <div class="step-hint">Beide Angaben helfen uns, Deinen persönlichen Plan zu berechnen.</div>
+    <div class="field-group">
+      <label class="field-label">Aktuelles Gewicht</label>
+      <div class="input-wrap">
+        <input type="number" id="precon-weight" placeholder="" step="0.1" inputmode="decimal">
+        <span class="input-unit">kg</span>
+      </div>
+      <div class="field-error" id="precon-err-weight-low">Bei Deinem aktuellen Gewicht empfehlen wir keine Gewichtsabnahme.</div>
+      <div class="field-error" id="precon-err-weight-high">Für eine persönliche Beratung bei diesem Gewicht empfehlen wir Dir, Dich direkt an unsere Ernährungsberater zu wenden: <a href="mailto:team@precon.info" style="color:var(--error);text-decoration:underline;">team@precon.info</a></div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Zielgewicht</label>
+      <div class="input-wrap">
+        <input type="number" id="precon-targetWeight" placeholder="" step="0.1" inputmode="decimal">
+        <span class="input-unit">kg</span>
+      </div>
+      <div class="field-error" id="precon-err-target">Wir würden nicht empfehlen, sich dieses Gewicht als Ziel zu setzen. Bitte wähle ein anderes Ziel.</div>
+      <div class="field-error" id="precon-err-target-equal">Das Wunschgewicht darf für die Erstellung eines Abnehmplans nicht dem aktuellen Gewicht entsprechen.</div>
+      <div class="field-error" id="precon-err-target-high">Dieser Kalorienrechner unterstützt Dich bei Deinen Abnehmzielen. Für Gewichtszunahme würden wir diesen Rechner nicht empfehlen. Bitte wähle ein anderes Zielgewicht.</div>
+      <div class="field-error" id="precon-err-target-bmi"></div>
+    </div>
+    <button class="btn-next" onclick="preconGoStep4()">
+      Weiter
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+    <button class="btn-back" onclick="preconGoStep(2, true)">← Zurück</button>
+  </div>
+
+  <!-- STEP 4: Beruf / Alltag -->
+  <div class="step-card" id="precon-step4">
+    <div class="step-question">Wie sieht Dein Alltag aus?</div>
+    <div class="step-hint">Wähle die Option, die Deinen typischen Alltag am besten beschreibt.</div>
+    <div class="choices" id="precon-beruf-choices">
+      <button class="choice-btn" onclick="preconSelectBeruf(1.2, this)">
+        <span class="choice-radio"></span>Vorwiegend sitzend (Büro)
+      </button>
+      <button class="choice-btn" onclick="preconSelectBeruf(1.3, this)">
+        <span class="choice-radio"></span>Abwechselnd sitzend, stehend, gehend
+      </button>
+      <button class="choice-btn" onclick="preconSelectBeruf(1.4, this)">
+        <span class="choice-radio"></span>Vorwiegend stehend / gehend
+      </button>
+    </div>
+    <div class="field-error" id="precon-err-beruf">Bitte wähle eine Option aus.</div>
+    <button class="btn-next" onclick="preconGoStep5()">
+      Weiter
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+    <button class="btn-back" onclick="preconGoStep(3, true)">← Zurück</button>
+  </div>
+
+  <!-- STEP 5: Sport / Training -->
+  <div class="step-card" id="precon-step5">
+    <div class="step-question">Wie oft treibst Du Sport?</div>
+    <div class="step-hint">Wähle aus, wie häufig Du pro Woche aktiv trainierst.</div>
+    <div class="choices" id="precon-sport-choices">
+      <button class="choice-btn" onclick="preconSelectSport(0.05, this)">
+        <span class="choice-radio"></span>Selten bis nie
+      </button>
+      <button class="choice-btn" onclick="preconSelectSport(0.10, this)">
+        <span class="choice-radio"></span>1 bis 2× pro Woche
+      </button>
+      <button class="choice-btn" onclick="preconSelectSport(0.15, this)">
+        <span class="choice-radio"></span>3 bis 4× pro Woche
+      </button>
+      <button class="choice-btn" onclick="preconSelectSport(0.20, this)">
+        <span class="choice-radio"></span>5 Mal oder mehr pro Woche
+      </button>
+    </div>
+    <div class="field-error" id="precon-err-sport">Bitte wähle eine Option aus.</div>
+    <button class="btn-next" onclick="preconGoStep6()">
+      Weiter
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+    <button class="btn-back" onclick="preconGoStep(4, true)">← Zurück</button>
+  </div>
+
+  <!-- STEP 6: Name -->
+  <div class="step-card" id="precon-step6">
+    <div class="step-question">Wie heißt Du?</div>
+    <div class="step-hint">Damit können wir Deine Ergebnisse persönlich für Dich aufbereiten.</div>
+    <div class="field-group">
+      <label class="field-label">Vorname</label>
+      <div class="input-wrap text-input-wrap">
+        <input type="text" id="precon-firstName" placeholder="z.B. Anna" autocomplete="given-name">
+      </div>
+      <div class="field-error" id="precon-err-firstName">Bitte gib Deinen Vornamen ein.</div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Nachname</label>
+      <div class="input-wrap text-input-wrap">
+        <input type="text" id="precon-lastName" placeholder="z.B. Müller" autocomplete="family-name">
+      </div>
+      <div class="field-error" id="precon-err-lastName">Bitte gib Deinen Nachnamen ein.</div>
+    </div>
+    <button class="btn-next" onclick="preconGoStep7()">
+      Weiter
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+    <button class="btn-back" onclick="preconGoStep(5, true)">← Zurück</button>
+  </div>
+
+  <!-- STEP 7: Email + Consent -->
+  <div class="step-card" id="precon-step7">
+    <div class="step-question">Wohin sollen wir Deinen Abnehmplan senden?</div>
+    <div class="step-hint">Deine E-Mail-Adresse wird nur für Deinen persönlichen Abnehmplan verwendet.</div>
+    <div class="field-group">
+      <label class="field-label">E-Mail-Adresse</label>
+      <div class="input-wrap text-input-wrap">
+        <input type="email" id="precon-email" placeholder="deine@email.de" autocomplete="email" inputmode="email">
+      </div>
+      <div class="field-error" id="precon-err-email">Bitte gib eine gültige E-Mail-Adresse ein.</div>
+    </div>
+    <div class="consent-row" id="precon-consentRow" onclick="preconToggleConsent()">
+      <div class="consent-box-el">
+        <span class="consent-check">✓</span>
+      </div>
+      <div class="consent-text">
+        Ich bin damit einverstanden, dass mich Precon per E-Mail mit meinem persönlichen Abnehmplan und passenden Programminformationen kontaktiert. Ich kann diese Einwilligung jederzeit widerrufen.
+      </div>
+    </div>
+    <div class="field-error" id="precon-err-consent" style="margin-top: 8px;">Bitte stimme der E-Mail-Kommunikation zu, um fortzufahren.</div>
+    <button class="btn-next" onclick="preconCalculate()">
+      Meinen Abnehmplan berechnen ✦
+    </button>
+    <button class="btn-back" onclick="preconGoStep(6, true)">← Zurück</button>
+  </div>
+
+  <!-- LOADING SCREEN -->
+  <div class="step-card" id="precon-stepLoading">
+    <div class="loading-spinner-wrap">
+      <div class="loading-bar-track">
+        <div class="loading-bar-fill" id="precon-loadingBarFill"></div>
+      </div>
+    </div>
+    <div class="loading-title">Dein persönlicher Abnehmplan wird gerade erstellt.</div>
+    <div class="loading-sub">Nur noch ein paar Sekunden…</div>
+    <div class="loading-review" id="precon-loadingReview">
+      <div class="loading-review-stars">★★★★★</div>
+      <div class="loading-review-quote">„Ich habe tatsächlich wie auf meinem Diätplan abgenommen. Bin zwar erst in der 3. Woche … aber ich fühle mich so gut und kein Hungergefühl!"</div>
+      <div class="loading-review-author">— Brigitte</div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="step-card" id="precon-stepResult">
+    <div class="results-greeting" id="precon-resGreeting"></div>
+    <div class="results-intro">Hier ist Deine persönliche Auswertung – berechnet auf Basis Deiner Angaben.</div>
+    <div class="bmi-row">
+      <div class="result-block">
+        <div class="res-label">BMI aktuell</div>
+        <div class="res-value" id="precon-resBmiCurrent">–</div>
+        <div class="res-sub" id="precon-resBmiCurrentCat">–</div>
+      </div>
+      <div class="result-block">
+        <div class="res-label">BMI Zielgewicht</div>
+        <div class="res-value" id="precon-resBmiTarget">–</div>
+      </div>
+    </div>
+    <div class="bmi-gauge-wrap">
+      <div class="bmi-gauge-bar">
+        <div class="bmi-seg" style="background:#e8294c; flex:3.5"></div>
+        <div class="bmi-seg" style="background:#7cc400; flex:6.5"></div>
+        <div class="bmi-seg" style="background:#f5a623; flex:5"></div>
+        <div class="bmi-seg" style="background:#e8692c; flex:5"></div>
+        <div class="bmi-seg" style="background:#e84e2c; flex:5"></div>
+        <div class="bmi-seg" style="background:#c0392b; flex:2"></div>
+      </div>
+      <div class="bmi-gauge-ticks">
+        <span style="left:13.0%">18,5</span>
+        <span style="left:37.0%">25</span>
+        <span style="left:55.6%">30</span>
+        <span style="left:74.1%">35</span>
+        <span style="left:92.6%">40</span>
+      </div>
+      <div class="bmi-needle-wrap" id="precon-bmiNeedle" style="left:50%">
+        <div class="bmi-needle-dot"></div>
+        <div class="bmi-needle-line"></div>
+      </div>
+      <div class="bmi-labels-wrap">
+        <div class="bmi-label-item level-1" style="left:6.5%">
+          <div class="bmi-label-connector"></div>
+          <div class="bmi-label-text">Untergewicht</div>
+        </div>
+        <div class="bmi-label-item level-2" style="left:25.0%">
+          <div class="bmi-label-connector"></div>
+          <div class="bmi-label-text">Normalgewicht</div>
+        </div>
+        <div class="bmi-label-item level-1" style="left:46.3%">
+          <div class="bmi-label-connector"></div>
+          <div class="bmi-label-text">Übergewicht</div>
+        </div>
+        <div class="bmi-label-item level-2" style="left:64.8%">
+          <div class="bmi-label-connector"></div>
+          <div class="bmi-label-text">Adipositas<br>Grad 1</div>
+        </div>
+        <div class="bmi-label-item level-1" style="left:83.3%">
+          <div class="bmi-label-connector"></div>
+          <div class="bmi-label-text">Adipositas<br>Grad 2</div>
+        </div>
+        <div class="bmi-label-item level-2" style="left:96.3%">
+          <div class="bmi-label-connector"></div>
+          <div class="bmi-label-text">Adipositas<br>Grad 3</div>
+        </div>
+      </div>
+    </div>
+    <div class="secondary-row">
+      <div class="result-block">
+        <div class="res-label">Grundumsatz</div>
+        <div class="res-value" id="precon-resBmr">–<span class="res-unit">kcal</span></div>
+        <div class="res-sub">Ruhebedarf</div>
+      </div>
+      <div class="result-block">
+        <div class="res-label">Leistungsumsatz</div>
+        <div class="res-value" id="precon-resLeistung">–<span class="res-unit">kcal</span></div>
+        <div class="res-sub">Aktivitätszusatz</div>
+      </div>
+    </div>
+    <div class="result-block accent-block">
+      <div class="res-label">Dein täglicher Energiebedarf</div>
+      <div class="res-value" id="precon-resTotal">–<span class="res-unit">kcal/Tag</span></div>
+      <div class="res-sub">Grundumsatz + Leistungsumsatz</div>
+    </div>
+    <div class="result-block precon-block">
+      <div class="res-label">⭑ Precon – Deine Kochmahlzeit</div>
+      <div class="res-value" id="precon-resPrecon">–<span class="res-unit">kcal</span></div>
+      <div class="res-sub">33% Deines Gesamtbedarfs – der Anteil, den Du täglich mit einer selbst zubereiteten Mahlzeit abdeckst.</div>
+    </div>
+    <button class="btn-next" onclick="preconShowAbnehmplan()" style="margin-top: 24px;">
+      Mein Abnehmplan einsehen →
+    </button>
+  </div>
+
+  <!-- ABNEHMPLAN -->
+  <div class="step-card" id="precon-stepAbnehmplan">
+    <div class="results-greeting">Dein Abnehmplan</div>
+    <div class="plan-intro" id="precon-planIntro"></div>
+    <div class="plan-section-title">Deine persönliche Plankurve mit Precon</div>
+    <div class="chart-wrap">
+      <canvas id="precon-weightChart"></canvas>
+    </div>
+    <div class="result-block accent-block" id="precon-planHighlight" style="margin-top: 16px;">
+      <div class="res-label" id="precon-planHighlightLabel">Gewichtsabnahme</div>
+      <div class="res-value" id="precon-planHighlightValue">–<span class="res-unit">kg</span></div>
+      <div class="res-sub" id="precon-planHighlightSub">–</div>
+    </div>
+    <button class="btn-back" onclick="preconShowPage('precon-stepResult')" style="margin-top: 16px;">← Zurück zur Übersicht</button>
+    <button class="btn-next" onclick="preconShowPage('precon-stepPhasen')" style="margin-top: 12px;">
+      Mein Phasenplan einsehen →
+    </button>
+  </div>
+
+  <!-- PHASENPLAN -->
+  <div class="step-card" id="precon-stepPhasen">
+    <div class="results-greeting">Dein Phasenplan</div>
+    <div class="phase-section" style="margin-top: 24px;">
+      <div class="phase-heading">
+        <span class="phase-badge phase-badge--start">Startphase</span>
+        <span class="phase-duration">2 Tage</span>
+      </div>
+      <div class="plan-intro plain">
+        An den <strong>ersten zwei Tagen</strong> ersetzt Du Deine Mahlzeiten durch jeweils <strong>5 Portionen Precon Start Shake</strong>. Trink die Shakes am besten <strong>alle 3 bis 4 Stunden</strong> über den Tag verteilt – und vergiss nicht, dazu noch 2 bis 3 Liter kalorienfreie Getränke zu trinken!
+      </div>
+      <div class="info-box">
+        <div class="info-box-icon">i</div>
+        <div class="info-box-text">In der <strong>ersten Woche</strong> ist die Gewichtsabnahme oft etwas schneller als in den Folgewochen. Dein Körper leert zunächst seine Glykogenspeicher und scheidet dabei gebundenes Wasser aus. <strong>Ab Woche 2</strong> pendelt sich die Abnahme auf ein nachhaltiges Niveau ein.</div>
+      </div>
+    </div>
+    <div class="phase-section" style="margin-top: 0px;">
+      <div class="phase-heading">
+        <span class="phase-badge phase-badge--abnehm">Abnehmphase</span>
+        <span class="phase-duration" id="precon-phaseAbnehmDuration">–</span>
+      </div>
+      <div class="plan-intro plain">
+        <strong>Ab dem dritten Tag</strong> ersetzt Du täglich <strong>2 Mahlzeiten</strong> durch eine <strong>Precon Ersatzmahlzeit</strong> (Shake, Suppe, Riegel oder Müsli) – und die dritte Mahlzeit ist ganz normal, egal ob Frühstück, Mittag- oder Abendessen.
+      </div>
+    </div>
+    <div class="phase-section" id="precon-phaseHalteSection" style="margin-top: 8px; display: none;">
+      <div class="phase-heading">
+        <span class="phase-badge phase-badge--halte">Haltephase</span>
+        <span class="phase-duration">4 Wochen</span>
+      </div>
+      <div class="plan-intro plain">
+        Sobald Du Dein Zielgewicht erreicht hast, reduzierst Du Schritt für Schritt auf <strong>eine Precon Ersatzmahlzeit pro Tag</strong>. Dein Gewicht stabilisiert sich in dieser Phase. Wenn Dein Gewicht <strong>über einige Zeit stabil bleibt</strong>, kannst Du die Precon Produkte ganz weglassen.
+      </div>
+    </div>
+    <button class="btn-back" onclick="preconShowPage('precon-stepAbnehmplan')" style="margin-top: 20px;">← Zurück zum Abnehmplan</button>
+    <button class="btn-next" onclick="preconDownloadPDF()" style="margin-top: 12px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Abnehmplan als PDF herunterladen
+    </button>
+  </div>
+
+  <div class="footer-note" id="precon-footerNote" style="display:none;">
+    Diese Berechnung dient der Orientierung und ersetzt keine individuelle medizinische oder ernährungstherapeutische Beratung.<br>
+    © Precon – Alle Angaben berechnet nach anerkannten Formeln.
+  </div>
+
+</div><!-- /widget-wrapper -->
+</div><!-- /precon-rechner -->
+
+<script>
+(function() {
+  // ── Namespaced state object ──
+  const state = {
+    gender: null, age: null, height: null,
+    weight: null, targetWeight: null,
+    beruf: null, sport: null,
+    firstName: '', lastName: '', email: '', consent: false,
+    current: 1
+  };
+
+  // ── NAVIGATION ──
+  function preconGoStep(n, back) {
+    document.getElementById('precon-stepLoading').classList.remove('visible');
+    document.getElementById('precon-loadingBarFill').style.transition = 'none';
+    document.getElementById('precon-loadingBarFill').style.width = '0%';
+    document.getElementById('precon-loadingReview').classList.remove('visible');
+    document.querySelector('.precon-rechner').classList.remove('results-mode');
+
+    const cur = document.getElementById(
+      state.current === 8  ? 'precon-stepResult' :
+      state.current === 9  ? 'precon-stepAbnehmplan' :
+      state.current === 10 ? 'precon-stepPhasen' :
+      'precon-step' + state.current
+    );
+    cur.classList.remove('visible');
+
+    const next = document.getElementById('precon-step' + n);
+    next.classList.remove('slide-back');
+    if (back) next.classList.add('slide-back');
+    next.classList.add('visible');
+    state.current = n;
+    preconUpdateProgress(n);
+    preconScrollToTop();
+  }
+  window.preconGoStep = preconGoStep;
+
+  function preconShowPage(id) {
+    ['precon-stepResult','precon-stepAbnehmplan','precon-stepLoading','precon-stepPhasen'].forEach(p => document.getElementById(p).classList.remove('visible'));
+    for (let i = 1; i <= 7; i++) document.getElementById('precon-step'+i).classList.remove('visible');
+    document.getElementById(id).classList.add('visible');
+    const isResults = ['precon-stepResult','precon-stepAbnehmplan','precon-stepPhasen','precon-stepLoading'].includes(id);
+    document.querySelector('.precon-rechner').classList.toggle('results-mode', isResults);
+    if (id === 'precon-stepResult')     state.current = 8;
+    if (id === 'precon-stepAbnehmplan') state.current = 9;
+    if (id === 'precon-stepPhasen') {
+      state.current = 10;
+      const showWeeks  = state._showWeeks || 0;
+      const totalWeeks = state._weeksAbnehm || 0;
+      const durationTxt = totalWeeks <= 11
+        ? `${showWeeks} ${showWeeks === 1 ? 'Woche' : 'Wochen'}`
+        : `12 Wochen (von ${1 + totalWeeks} Wochen gesamt)`;
+      document.getElementById('precon-phaseAbnehmDuration').textContent = durationTxt;
+      const halteWeeks  = state._halteWeeks || 0;
+      const halteSection = document.getElementById('precon-phaseHalteSection');
+      if (halteSection) halteSection.style.display = halteWeeks ? 'block' : 'none';
+    }
+    preconScrollToTop();
+  }
+  window.preconShowPage = preconShowPage;
+
+  function preconShowResults() {
+    const cur = document.getElementById('precon-step' + state.current);
+    cur.classList.remove('visible');
+    const loader = document.getElementById('precon-stepLoading');
+    loader.classList.add('visible');
+    document.querySelector('.precon-rechner').classList.add('results-mode');
+    preconScrollToTop();
+    preconUpdateProgress(8);
+
+    const bar = document.getElementById('precon-loadingBarFill');
+    requestAnimationFrame(() => { bar.style.width = '100%'; });
+
+    setTimeout(() => {
+      document.getElementById('precon-loadingReview').classList.add('visible');
+    }, 2000);
+
+    setTimeout(() => {
+      loader.classList.remove('visible');
+      document.getElementById('precon-stepResult').classList.add('visible');
+      document.getElementById('precon-footerNote').style.display = 'block';
+      state.current = 8;
+      preconScrollToTop();
+    }, 8000);
+  }
+
+  function preconScrollToTop() {
+    const widget = document.querySelector('.precon-rechner');
+    if (widget) {
+      const top = widget.getBoundingClientRect().top + window.pageYOffset - 20;
+      window.scrollTo({ top: top, behavior: 'smooth' });
+    }
+  }
+
+  // ── PROGRESS ──
+  function preconUpdateProgress(step) {
+    for (let i = 1; i <= 7; i++) {
+      const dot = document.getElementById('precon-ps' + i);
+      dot.className = 'prog-step';
+      if (i < step) { dot.classList.add('done'); dot.innerHTML = '✓'; }
+      else if (i === step) { dot.classList.add('active'); dot.innerHTML = i; }
+      else { dot.innerHTML = i; }
+      if (i < 7) {
+        const line = document.getElementById('precon-pl' + i);
+        line.className = 'prog-line' + (i < step ? ' done' : '');
+      }
+    }
+  }
+
+  // ── SELECTIONS ──
+  function preconSelectGender(g) {
+    state.gender = g;
+    document.getElementById('precon-btn-frau').classList.toggle('selected', g === 'Frau');
+    document.getElementById('precon-btn-mann').classList.toggle('selected', g === 'Mann');
+    preconHide('precon-err-gender');
+  }
+  window.preconSelectGender = preconSelectGender;
+
+  function preconSelectBeruf(val, el) {
+    state.beruf = val;
+    document.querySelectorAll('#precon-beruf-choices .choice-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    preconHide('precon-err-beruf');
+  }
+  window.preconSelectBeruf = preconSelectBeruf;
+
+  function preconSelectSport(val, el) {
+    state.sport = val;
+    document.querySelectorAll('#precon-sport-choices .choice-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    preconHide('precon-err-sport');
+  }
+  window.preconSelectSport = preconSelectSport;
+
+  function preconToggleConsent() {
+    state.consent = !state.consent;
+    document.getElementById('precon-consentRow').classList.toggle('checked', state.consent);
+    if (state.consent) preconHide('precon-err-consent');
+  }
+  window.preconToggleConsent = preconToggleConsent;
+
+  // ── HELPERS ──
+  function preconShow(id) { document.getElementById(id).classList.add('visible'); }
+  function preconHide(id) { document.getElementById(id).classList.remove('visible'); }
+  function preconGetNum(id) { return parseFloat(document.getElementById(id).value); }
+  function preconMarkErr(id, err) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('has-error', err);
+  }
+  function preconBmiCat(bmi) {
+    if (bmi < 18.5) return 'Untergewicht';
+    if (bmi < 25)   return 'Normalgewicht';
+    if (bmi < 30)   return 'Übergewicht';
+    if (bmi < 35)   return 'Übergewicht – Adipositas Grad 1';
+    if (bmi < 40)   return 'Übergewicht – Adipositas Grad 2';
+    return 'Übergewicht – Adipositas Grad 3';
+  }
+
+  // ── STEP VALIDATORS ──
+  function preconGoStep2() {
+    if (!state.gender) { preconShow('precon-err-gender'); return; }
+    preconGoStep(2);
+  }
+  window.preconGoStep2 = preconGoStep2;
+
+  function preconGoStep3() {
+    let ok = true;
+    const age = preconGetNum('precon-age');
+    const h   = preconGetNum('precon-height');
+    if (isNaN(age) || age < 18 || age > 100) { preconShow('precon-err-age'); preconMarkErr('precon-age', true); ok = false; }
+    else { preconHide('precon-err-age'); preconMarkErr('precon-age', false); state.age = age; }
+    if (isNaN(h) || h < 140 || h > 220) { preconShow('precon-err-height'); preconMarkErr('precon-height', true); ok = false; }
+    else { preconHide('precon-err-height'); preconMarkErr('precon-height', false); state.height = h; }
+    if (ok) preconGoStep(3);
+  }
+  window.preconGoStep3 = preconGoStep3;
+
+  function preconGoStep4() {
+    let ok = true;
+    const w = preconGetNum('precon-weight');
+    const t = preconGetNum('precon-targetWeight');
+    if (isNaN(w) || w < 45 || w > 200) {
+      if (!isNaN(w) && w > 200) { preconShow('precon-err-weight-high'); preconHide('precon-err-weight-low'); }
+      else { preconShow('precon-err-weight-low'); preconHide('precon-err-weight-high'); }
+      preconMarkErr('precon-weight', true); ok = false;
+    } else { preconHide('precon-err-weight-low'); preconHide('precon-err-weight-high'); preconMarkErr('precon-weight', false); state.weight = w; }
+
+    preconHide('precon-err-target'); preconHide('precon-err-target-equal'); preconHide('precon-err-target-high'); preconHide('precon-err-target-bmi'); preconMarkErr('precon-targetWeight', false);
+    if (isNaN(t) || t < 45) {
+      preconShow('precon-err-target'); preconMarkErr('precon-targetWeight', true); ok = false;
+    } else if (!isNaN(w) && t === w) {
+      preconShow('precon-err-target-equal'); preconMarkErr('precon-targetWeight', true); ok = false;
+    } else if (!isNaN(w) && t > w) {
+      preconShow('precon-err-target-high'); preconMarkErr('precon-targetWeight', true); ok = false;
+    } else if (!isNaN(w) && state.height) {
+      const hm = state.height / 100;
+      const targetBmi = t / (hm * hm);
+      if (targetBmi < 18.5) {
+        const minWeight = Math.ceil(18.5 * hm * hm * 10) / 10;
+        document.getElementById('precon-err-target-bmi').textContent =
+          'Dein Zielgewicht würde Dich in den Untergewicht-Bereich bringen (BMI unter 18,5). ' +
+          'Bitte wähle ein Zielgewicht von mindestens ' + minWeight.toFixed(1).replace('.', ',') + ' kg.';
+        preconShow('precon-err-target-bmi'); preconMarkErr('precon-targetWeight', true); ok = false;
+      } else { state.targetWeight = t; }
+    } else { state.targetWeight = t; }
+    if (ok) preconGoStep(4);
+  }
+  window.preconGoStep4 = preconGoStep4;
+
+  function preconGoStep5() {
+    if (!state.beruf) { preconShow('precon-err-beruf'); return; }
+    preconGoStep(5);
+  }
+  window.preconGoStep5 = preconGoStep5;
+
+  function preconGoStep6() {
+    if (!state.sport) { preconShow('precon-err-sport'); return; }
+    preconGoStep(6);
+  }
+  window.preconGoStep6 = preconGoStep6;
+
+  function preconGoStep7() {
+    let ok = true;
+    const fn = document.getElementById('precon-firstName').value.trim();
+    const ln = document.getElementById('precon-lastName').value.trim();
+    if (!fn) { preconShow('precon-err-firstName'); ok = false; } else { preconHide('precon-err-firstName'); state.firstName = fn; }
+    if (!ln) { preconShow('precon-err-lastName'); ok = false; }  else { preconHide('precon-err-lastName'); state.lastName = ln; }
+    if (ok) preconGoStep(7);
+  }
+  window.preconGoStep7 = preconGoStep7;
+
+  // ── CALCULATE ──
+  function preconCalculate() {
+    let ok = true;
+    const em = document.getElementById('precon-email').value.trim();
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em);
+    if (!emailOk) { preconShow('precon-err-email'); preconMarkErr('precon-email', true); ok = false; }
+    else { preconHide('precon-err-email'); preconMarkErr('precon-email', false); state.email = em; }
+    if (!state.consent) { preconShow('precon-err-consent'); ok = false; }
+    if (!ok) return;
+
+    const w = state.weight, h = state.height / 100, a = state.age, tw = state.targetWeight;
+    let bmr;
+    if (state.gender === 'Frau') bmr = (0.047 * w - 0.01452 * a + 3.21) * 239;
+    else bmr = (0.047 * w + 1.009 - 0.01452 * a + 3.21) * 239;
+
+    const pal      = state.beruf + state.sport;
+    const leistung = (pal - 1) * bmr;
+    const total    = bmr + leistung;
+    state._total   = total;
+    state._pal     = pal;
+    state._bmiC    = w / (h * h);
+    const precon   = total * 0.33;
+    const bmiC     = w / (h * h);
+    const bmiT     = tw / (h * h);
+
+    document.getElementById('precon-resGreeting').textContent = 'Hallo, ' + state.firstName + '!';
+    document.getElementById('precon-resBmiCurrent').innerHTML = bmiC.toFixed(1);
+    document.getElementById('precon-resBmiCurrentCat').textContent = preconBmiCat(bmiC);
+    document.getElementById('precon-resBmiTarget').innerHTML = bmiT.toFixed(1);
+
+    const BMI_MIN = 15, BMI_MAX = 42;
+    const bmiPct = 2 + (Math.min(BMI_MAX, Math.max(BMI_MIN, bmiC)) - BMI_MIN) / (BMI_MAX - BMI_MIN) * 96;
+    document.getElementById('precon-bmiNeedle').style.left = bmiPct.toFixed(1) + '%';
+    document.getElementById('precon-resBmr').innerHTML     = Math.round(bmr)     + '<span class="res-unit">kcal</span>';
+    document.getElementById('precon-resLeistung').innerHTML = Math.round(leistung) + '<span class="res-unit">kcal</span>';
+    document.getElementById('precon-resTotal').innerHTML    = Math.round(total)    + '<span class="res-unit">kcal/Tag</span>';
+    document.getElementById('precon-resPrecon').innerHTML   = Math.round(precon)   + '<span class="res-unit">kcal</span>';
+
+    preconShowResults();
+  }
+  window.preconCalculate = preconCalculate;
+
+  // ── ABNEHMPLAN ──
+  let preconWeightChartInstance = null;
+
+  function preconShowAbnehmplan() {
+    const w     = state.weight;
+    const tw    = state.targetWeight;
+    const total = state._total;
+    const h     = state.height / 100;
+    const diff  = w - tw;
+    const bmiT  = (tw / (h * h)).toFixed(1);
+
+    const startDays        = 2;
+    const startIntake      = 885;
+    const startDeficitDay  = total - startIntake;
+    const startLossKg      = (startDeficitDay * startDays) / 7000;
+    const preconIntake     = 235 + 235 + (total / 3);
+    const dailyDeficit     = total - preconIntake;
+    const weeklyLossKg     = (dailyDeficit * 7) / 7000;
+    const bmiC             = state._bmiC || (w / (h * h));
+    const pal              = state._pal  || (state.beruf + state.sport);
+    const divisor          = state.gender === 'Mann' ? 20 : 25;
+    const week1TotalLoss   = (bmiC / divisor) + (pal - 1.3);
+    const weightAfterStart = w - startLossKg;
+    const weightAfterWeek1 = w - week1TotalLoss;
+    const remainingAfterW1 = weightAfterWeek1 - tw;
+    const weeksAbnehm      = remainingAfterW1 > 0 ? Math.ceil(remainingAfterW1 / weeklyLossKg) : 0;
+    const totalActiveWeeks = weeksAbnehm > 0 ? 1 + weeksAbnehm : 1;
+    const showWeeks        = totalActiveWeeks <= 12 ? totalActiveWeeks : 12;
+    const halteWeeks       = totalActiveWeeks <= 12 ? 4 : 0;
+    const lossInPeriod     = +(week1TotalLoss + weeklyLossKg * (showWeeks - 1)).toFixed(1);
+    const weightAtEnd      = +(w - lossInPeriod).toFixed(1);
+
+    state._startLossKg      = +startLossKg.toFixed(2);
+    state._weightAfterStart = +weightAfterStart.toFixed(2);
+    state._week1TotalLoss   = +week1TotalLoss.toFixed(2);
+    state._weightAfterWeek1 = +weightAfterWeek1.toFixed(2);
+    state._weeksAbnehm      = weeksAbnehm;
+    state._showWeeks        = showWeeks;
+    state._weeklyLossKg     = weeklyLossKg;
+    state._lossInPeriod     = lossInPeriod;
+    state._weightAtEnd      = weightAtEnd;
+    state._halteWeeks       = halteWeeks;
+
+    let introHTML = `Dein Zielgewicht liegt bei <strong>${tw} kg</strong>, was einer Gewichtsabnahme von <strong>${diff.toFixed(1)} kg</strong> entspricht. Dies würde Deinen BMI auf <strong>${bmiT}</strong> bringen.<br><br>`;
+    if (diff <= 12) {
+      introHTML += `Das ist ein sehr realistisches Ziel, das Du mit dem Precon-Plan <strong>innerhalb von ${totalActiveWeeks} Wochen</strong> erreichen kannst. Bleib konsequent – Du bist auf dem richtigen Weg!`;
+    } else if (diff <= 24) {
+      introHTML += `Das ist ein realistisches Ziel, das jedoch einen <strong>längeren Zeithorizont</strong> erfordert. Wir haben Dir unten einen Plan für die ersten 12 Wochen berechnet. Du kannst danach jederzeit zurückkommen und einen neuen Plan berechnen.`;
+    } else {
+      introHTML += `Das ist ein erreichbares, aber <strong>ambitioniertes Ziel</strong>. Wir haben Dir unten einen Plan für die ersten 12 Wochen berechnet. Du kannst danach jederzeit zurückkommen und einen neuen Plan berechnen.`;
+    }
+    document.getElementById('precon-planIntro').innerHTML = introHTML;
+
+    const labels = ['Woche 0'];
+    const data   = [w];
+    labels.push('Woche 1');
+    data.push(+(w - week1TotalLoss).toFixed(2));
+    for (let i = 2; i <= showWeeks; i++) {
+      labels.push('Woche ' + i);
+      data.push(+(w - week1TotalLoss - weeklyLossKg * (i - 1)).toFixed(2));
+    }
+    const weightAtHalte = data[data.length - 1];
+    for (let i = 1; i <= halteWeeks; i++) {
+      labels.push('Woche ' + (showWeeks + i));
+      data.push(weightAtHalte);
+    }
+    const totalChartWeeks = showWeeks + halteWeeks;
+
+    document.getElementById('precon-planHighlightLabel').textContent = `Gewichtsabnahme nach ${showWeeks} Wochen`;
+    document.getElementById('precon-planHighlightValue').innerHTML   = lossInPeriod + '<span class="res-unit">kg</span>';
+    document.getElementById('precon-planHighlightSub').textContent   = `Von ${w} kg auf ${weightAtEnd} kg`;
+
+    if (preconWeightChartInstance) preconWeightChartInstance.destroy();
+    const ctx = document.getElementById('precon-weightChart').getContext('2d');
+    const chartPlugins = [];
+
+    chartPlugins.push({
+      id: 'preconStartPhaseLabel',
+      afterDraw(chart) {
+        const { ctx: c, chartArea, scales } = chart;
+        const xScale = scales.x;
+        const x0 = xScale.getPixelForValue(0);
+        const x1 = xScale.getPixelForValue(1);
+        c.save();
+        const xStart = x0 + (x1 - x0) * (2/7);
+        c.strokeStyle = 'rgba(86,71,58,0.3)'; c.lineWidth = 1; c.setLineDash([3, 3]);
+        c.beginPath(); c.moveTo(xStart, chartArea.top); c.lineTo(xStart, chartArea.bottom); c.stroke();
+        c.setLineDash([]);
+        c.fillStyle = '#3DADBB'; c.font = '600 11px DM Sans, sans-serif'; c.textAlign = 'left';
+        c.fillText('Startphase', xStart + 5, chartArea.top + 14);
+        c.restore();
+      }
+    });
+
+    if (halteWeeks) {
+      chartPlugins.push({
+        id: 'preconHalteZone',
+        afterDraw(chart) {
+          const { ctx: c, chartArea, scales } = chart;
+          const x0 = scales.x.getPixelForValue(showWeeks);
+          const x1 = scales.x.getPixelForValue(totalChartWeeks);
+          c.save();
+          c.fillStyle = 'rgba(61,173,187,0.07)';
+          c.fillRect(x0, chartArea.top, x1 - x0, chartArea.bottom - chartArea.top);
+          c.strokeStyle = 'rgba(61,173,187,0.45)'; c.lineWidth = 1.5; c.setLineDash([4, 3]);
+          c.beginPath(); c.moveTo(x0, chartArea.top); c.lineTo(x0, chartArea.bottom); c.stroke();
+          c.setLineDash([]);
+          c.fillStyle = '#3DADBB'; c.font = '600 11px DM Sans, sans-serif'; c.textAlign = 'center';
+          c.fillText('Haltephase', (x0 + x1) / 2, chartArea.top + 14);
+          c.restore();
+        }
+      });
+    }
+
+    preconWeightChartInstance = new Chart(ctx, {
+      type: 'line',
+      plugins: chartPlugins,
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Gewicht (kg)',
+            data: data.map((v, i) => i <= showWeeks ? v : null),
+            borderColor: '#3DADBB', backgroundColor: 'rgba(61,173,187,0.10)',
+            borderWidth: 2.5, pointBackgroundColor: '#3DADBB',
+            pointRadius: totalChartWeeks <= 16 ? 4 : 2, pointHoverRadius: 6,
+            fill: true, tension: 0.35, spanGaps: false
+          },
+          {
+            label: 'Haltephase',
+            data: halteWeeks ? data.map((v, i) => i >= showWeeks ? v : null) : [],
+            borderColor: '#3DADBB', backgroundColor: 'transparent',
+            borderWidth: 2.5, pointBackgroundColor: 'rgba(61,173,187,0.45)',
+            pointBorderColor: '#3DADBB',
+            pointRadius: totalChartWeeks <= 16 ? 4 : 2, pointHoverRadius: 6,
+            fill: false, tension: 0, spanGaps: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(1) + ' kg' } }
+        },
+        scales: {
+          x: { ticks: { font: { family: 'DM Sans', size: 11 }, color: '#8a7b70', maxRotation: 45, autoSkip: true, maxTicksLimit: 13 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+          y: { ticks: { font: { family: 'DM Sans', size: 11 }, color: '#8a7b70', callback: v => v + ' kg' }, grid: { color: 'rgba(0,0,0,0.05)' } }
+        }
+      }
+    });
+
+    preconShowPage('precon-stepAbnehmplan');
+  }
+  window.preconShowAbnehmplan = preconShowAbnehmplan;
+
+  // ── PDF DOWNLOAD ──
+  const PRECON_LOGO_B64 = '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';
+
+  function preconDownloadPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const W = 210, margin = 18;
+    const col = '#56473A', accent = '#3DADBB', soft = '#8a7b70', beige = '#EFECE4', dark = '#56473A';
+    const firstName = state.firstName || 'Dein';
+    let y = 0;
+
+    function hexRgb(hex) { return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)]; }
+    function setFill(hex) { const [r,g,b] = hexRgb(hex); doc.setFillColor(r,g,b); }
+    function setDraw(hex) { const [r,g,b] = hexRgb(hex); doc.setDrawColor(r,g,b); }
+    function setTxt(hex)  { const [r,g,b] = hexRgb(hex); doc.setTextColor(r,g,b); }
+
+    function drawHeader() {
+      setFill(dark); doc.rect(0, 0, W, 26, 'F');
+      try { doc.addImage('data:image/png;base64,' + PRECON_LOGO_B64, 'PNG', margin, 4, 38, 9.5); }
+      catch(e) { setTxt('#FFFFFF'); doc.setFontSize(16); doc.setFont('helvetica','bold'); doc.text('precon', margin, 14); }
+      const subtitle = firstName + '\u2019s pers\u00F6nlicher Abnehmplan';
+      doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(180, 170, 165);
+      doc.text(subtitle, margin, 21);
+      doc.setFontSize(8); doc.setTextColor(180,170,165);
+      doc.text(new Date().toLocaleDateString('de-DE'), W - margin, 10, { align: 'right' });
+    }
+
+    const TILE_H = 26, GAP = 4, hw = (W - margin * 2 - GAP) / 2;
+
+    function drawTile(label, value, unit, sub, x, w, bgHex, borderHex) {
+      setFill(bgHex);
+      if (borderHex) { setDraw(borderHex); doc.roundedRect(x, y, w, TILE_H, 2.5, 2.5, 'FD'); }
+      else { setDraw(bgHex); doc.roundedRect(x, y, w, TILE_H, 2.5, 2.5, 'F'); }
+      const isDark = bgHex === dark;
+      const labelCol = isDark ? '#aaaaaa' : soft;
+      const valCol   = isDark ? '#FFFFFF' : col;
+      const unitCol  = isDark ? '#aaaaaa' : soft;
+      const subCol   = isDark ? '#aaaaaa' : soft;
+      setTxt(labelCol); doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
+      doc.text(label.toUpperCase(), x + 5, y + 6);
+      const valSize = isDark ? 20 : 17;
+      setTxt(valCol); doc.setFontSize(valSize); doc.setFont('helvetica', 'bold');
+      doc.text(value, x + 5, y + 18);
+      if (unit) {
+        doc.setFontSize(valSize);
+        const valW = doc.getTextWidth(value);
+        doc.setFontSize(8); doc.setFont('helvetica', 'normal'); setTxt(unitCol);
+        doc.text(unit, x + 5 + valW + 2, y + 18);
+      }
+      if (sub) { setTxt(subCol); doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.text(sub, x + 5, y + 23.5); }
+    }
+
+    // PAGE 1
+    drawHeader(); y = 34;
+    const salutation = state.gender === 'Mann' ? 'Lieber' : 'Liebe';
+    const thankYouLine1 = salutation + ' ' + (state.firstName || 'Dir') + ',';
+    const thankYouLine2 = 'vielen Dank, dass Du Deinen pers\u00F6nlichen Abnehmplan ausgef\u00FCllt hast! Wir freuen uns, Dich auf Deinem Weg zu Deinem Zielgewicht zu begleiten. Bei Fragen stehen wir Dir jederzeit unter team@precon.info zur Verf\u00FCgung.';
+    setTxt(col); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
+    doc.text(thankYouLine1, margin, y); y += 5.5;
+    doc.setFont('helvetica', 'normal');
+    const thankLines = doc.splitTextToSize(thankYouLine2, W - margin * 2);
+    doc.text(thankLines, margin, y); y += thankLines.length * 4.6 + 8;
+
+    setTxt(accent); doc.setFontSize(15); doc.setFont('times', 'bold');
+    doc.text('Deine Ergebnisse', margin, y); y += 10;
+
+    const bmiC  = (state.weight / Math.pow(state.height / 100, 2)).toFixed(1);
+    const bmiT2 = (state.targetWeight / Math.pow(state.height / 100, 2)).toFixed(1);
+    drawTile('BMI Aktuell',     bmiC,  '',  preconBmiCat(parseFloat(bmiC)), margin,          hw, beige, null);
+    drawTile('BMI Zielgewicht', bmiT2, '',  '',                              margin + hw + GAP, hw, beige, null);
+    y += TILE_H + GAP;
+
+    const bmrVal = document.getElementById('precon-resBmr').textContent.replace('kcal','').trim();
+    const leiVal = document.getElementById('precon-resLeistung').textContent.replace('kcal','').trim();
+    drawTile('Grundumsatz',     bmrVal, 'kcal', 'Ruhebedarf',            margin,          hw, beige, null);
+    drawTile('Leistungsumsatz', leiVal, 'kcal', 'Aktivit\u00E4tszusatz', margin + hw + GAP, hw, beige, null);
+    y += TILE_H + GAP;
+
+    const totVal = document.getElementById('precon-resTotal').textContent.replace('kcal/Tag','').trim();
+    drawTile('Dein t\u00E4glicher Energiebedarf', totVal, 'kcal/Tag', 'Grundumsatz + Leistungsumsatz', margin, W - margin * 2, dark, null);
+    y += TILE_H + GAP;
+
+    const preVal = document.getElementById('precon-resPrecon').textContent.replace('kcal','').trim();
+    setFill('#e8f7f9'); setDraw(accent);
+    doc.roundedRect(margin, y, W - margin * 2, TILE_H, 2.5, 2.5, 'FD');
+    setTxt(accent); doc.setFontSize(6.5); doc.setFont('helvetica','bold');
+    doc.text('PRECON \u2013 DEINE KOCHMAHLZEIT', margin + 5, y + 6);
+    setTxt(col); doc.setFontSize(17); doc.setFont('helvetica','bold');
+    doc.text(preVal, margin + 5, y + 18);
+    doc.setFontSize(17);
+    const preValW = doc.getTextWidth(preVal);
+    doc.setFontSize(8); doc.setFont('helvetica','normal'); setTxt(soft);
+    doc.text('kcal', margin + 5 + preValW + 2, y + 18);
+    setTxt(soft); doc.setFontSize(7); doc.setFont('helvetica','normal');
+    doc.text('33% Deines Gesamtbedarfs', margin + 5, y + 23.5);
+    y += TILE_H + GAP;
+
+    // PAGE 2
+    doc.addPage(); drawHeader(); y = 34 + 16;
+    setTxt(accent); doc.setFontSize(15); doc.setFont('times', 'bold');
+    doc.text('Dein Abnehmplan', margin, y); y += 10;
+
+    const introText = document.getElementById('precon-planIntro').innerText || '';
+    setTxt(col); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    const introLines = doc.splitTextToSize(introText, W - margin * 2);
+    doc.text(introLines, margin, y); y += introLines.length * 4.8 + 7;
+
+    const chartCanvas = document.getElementById('precon-weightChart');
+    if (chartCanvas) {
+      const naturalW = chartCanvas.width  || chartCanvas.offsetWidth  || 680;
+      const naturalH = chartCanvas.height || chartCanvas.offsetHeight || 220;
+      const aspectRatio = naturalH / naturalW;
+      const pdfChartW = W - margin * 2;
+      const pdfChartH = Math.round(pdfChartW * aspectRatio);
+      const chartImg = chartCanvas.toDataURL('image/png', 1.0);
+      doc.addImage(chartImg, 'PNG', margin, y, pdfChartW, pdfChartH);
+      y += pdfChartH + 7;
+    }
+
+    const hlLabel = document.getElementById('precon-planHighlightLabel').textContent;
+    const hlValue = document.getElementById('precon-planHighlightValue').textContent;
+    const hlSub   = document.getElementById('precon-planHighlightSub').textContent;
+    drawTile(hlLabel, hlValue, '', hlSub, margin, W - margin * 2, dark, null);
+    y += TILE_H + GAP;
+
+    // PAGE 3
+    doc.addPage(); drawHeader(); y = 34 + 16;
+    setTxt(accent); doc.setFontSize(15); doc.setFont('times', 'bold');
+    doc.text('Dein Phasenplan', margin, y); y += 12;
+
+    const [ar,ag,ab] = hexRgb(accent);
+    doc.setFillColor(ar,ag,ab);
+    doc.roundedRect(margin, y, 28, 7, 2, 2, 'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont('helvetica','bold');
+    doc.text('STARTPHASE', margin + 14, y + 4.8, { align: 'center' });
+    setTxt(soft); doc.setFontSize(9); doc.setFont('helvetica','normal');
+    doc.text('2 Tage', margin + 31, y + 4.8); y += 11;
+
+    const startText = 'An den ersten zwei Tagen ersetzt Du Deine Mahlzeiten durch jeweils 5 Portionen Precon Start Shake. Trink die Shakes am besten alle 3 bis 4 Stunden \u00FCber den Tag verteilt \u2013 und vergiss nicht, dazu noch 2 bis 3 Liter kalorienfreie Getr\u00E4nke zu trinken!';
+    setTxt(col); doc.setFontSize(9); doc.setFont('helvetica','normal');
+    const startLines = doc.splitTextToSize(startText, W - margin * 2);
+    doc.text(startLines, margin, y); y += startLines.length * 4.5 + 4;
+
+    const waterText = 'In der ersten Woche ist die Gewichtsabnahme oft etwas schneller als in den Folgewochen. Dein K\u00F6rper leert zun\u00E4chst seine Glykogenspeicher und scheidet dabei gebundenes Wasser aus. Ab Woche 2 pendelt sich die Abnahme auf ein nachhaltiges Niveau ein.';
+    setTxt(soft); doc.setFontSize(8.5); doc.setFont('helvetica','italic');
+    const waterLines = doc.splitTextToSize(waterText, W - margin * 2);
+    doc.text(waterLines, margin, y); y += waterLines.length * 4.5 + 10;
+
+    doc.setFillColor(ar,ag,ab);
+    doc.roundedRect(margin, y, 32, 7, 2, 2, 'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont('helvetica','bold');
+    doc.text('ABNEHMPHASE', margin + 16, y + 4.8, { align: 'center' });
+    const showWksPdf  = state._showWeeks || 0;
+    const totalWksPdf = state._weeksAbnehm || 0;
+    const durTxt = totalWksPdf <= 11 ? showWksPdf + ' Wochen' : '12 Wochen (von ' + (1 + totalWksPdf) + ' gesamt)';
+    setTxt(soft); doc.setFontSize(9); doc.setFont('helvetica','normal');
+    doc.text(durTxt, margin + 35, y + 4.8); y += 11;
+
+    const abnehmText = 'Ab dem dritten Tag ersetzt Du t\u00E4glich 2 Mahlzeiten durch eine Precon Ersatzmahlzeit (Shake, Suppe, Riegel oder M\u00FCsli) \u2013 und die dritte Mahlzeit ist ganz normal. Da eine Precon Ersatzmahlzeit nur etwa 220 bis 250 kcal hat, bringst Du Deinen K\u00F6rper in ein Energiedefizit und kannst so erfolgreich abnehmen!';
+    setTxt(col); doc.setFontSize(9); doc.setFont('helvetica','normal');
+    const abnehmLines = doc.splitTextToSize(abnehmText, W - margin * 2);
+    doc.text(abnehmLines, margin, y); y += abnehmLines.length * 4.5 + GAP;
+
+    // Footer on all pages
+    const totalPages = doc.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      setTxt(soft); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.text('Diese Berechnung dient der Orientierung und ersetzt keine medizinische Beratung. \u00A9 Precon', W / 2, 291, { align: 'center' });
+    }
+
+    doc.save('Precon_Abnehmplan_' + state.firstName + '_' + state.lastName + '.pdf');
+  }
+  window.preconDownloadPDF = preconDownloadPDF;
+
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Precon Rechner",
+  "settings": [],
+  "presets": [
+    {
+      "name": "Precon Rechner"
+    }
+  ]
+}
+{% endschema %}

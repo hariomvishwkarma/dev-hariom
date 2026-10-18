@@ -1,0 +1,282 @@
+{% comment %}
+  Section: Related recipes (rotating pick)
+  Metafield on Blog post:
+    - namespace: custom
+    - key: related_articles
+    - type: List -> Blog post
+  Logic:
+    • Build a list from metafield (handles)
+    • "Randomize" by rotating the list with a time-based offset, then take N
+    • If fewer than N, build a second pool from same blog (excluding current + chosen),
+      rotate with a different offset and take the remaining items
+{% endcomment %}
+{%- assign selected_list = article.metafields.custom.related_articles.value -%}
+
+{% if selected_list != blank %}
+  <section
+    class="section-{{ section.id }}-padding related-recipes"
+    style="
+      --bg: {{ section.settings.bg_color }};
+      --title: {{ section.settings.title_color }};
+      --link: {{ section.settings.link_color }};
+      --gap: {{ section.settings.gap | append: 'px' }};
+      --columns: {{ section.settings.columns_desktop }};
+      --ratio: {{ section.settings.image_ratio }};
+    "
+  >
+    <div class="container">
+      {% if section.settings.show_heading %}
+        <h2 class="rr-title" style="color:var(--title)">{{ section.settings.heading }}</h2>
+      {% endif %}
+
+      {% for block in section.blocks %}
+        {% if block.type == 'paragraph' and block.settings.content != blank %}
+          <div class="rr-paragraph" {{ block.shopify_attributes }}>
+            {{ block.settings.content }}
+          </div>
+        {% endif %}
+      {% endfor %}
+
+      {%- assign want = section.settings.force_count -%}
+      {%- if want < 1 -%}{%- assign want = 3 -%}{%- endif -%}
+
+      {%- comment -%} Seed for rotation (epoch seconds) {%- endcomment -%}
+      {%- assign seed = 'now' | date: '%s' | plus: 0 -%}
+
+      {%- comment -%} 1) Get selected article handles from metafield {%- endcomment -%}
+      {%- assign selected_handles_csv = '' -%}
+      {% if selected_list != blank %}
+        {% for a in selected_list %}
+          {% assign selected_handles_csv = selected_handles_csv | append: a.handle | append: ',' %}
+        {% endfor %}
+      {% endif %}
+      {%- assign selected_handles = selected_handles_csv | split: ',' | compact | uniq -%}
+      {%- comment -%} 2) Rotate selected list and take up to N {%- endcomment -%}
+      {%- assign chosen_csv = '' -%}
+      {%- assign chosen_count = 0 -%}
+      {% if selected_handles.size > 0 %}
+        {%- assign sel_size = selected_handles.size -%}
+        {%- assign sel_start = seed | modulo: sel_size -%}
+        {%- assign sel_tail = selected_handles | slice: sel_start, sel_size -%}
+        {%- assign sel_head = selected_handles | slice: 0, sel_start -%}
+        {%- assign sel_rotated = sel_tail | concat: sel_head -%}
+        {% for h in sel_rotated %}
+          {% if chosen_count < want %}
+            {% assign chosen_csv = chosen_csv | append: h | append: ',' %}
+            {% assign chosen_count = chosen_count | plus: 1 %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+
+      {%- comment -%} 3) If needed, fill from same blog (exclude current and duplicates), rotated {%- endcomment -%}
+      {% if chosen_count < want %}
+        {%- assign pool_csv = '' -%}
+        {% for a in blog.articles %}
+          {% if a.id != article.id %}
+            {% assign key = a.handle | append: ',' %}
+            {% unless chosen_csv contains key %}
+              {% assign pool_csv = pool_csv | append: a.handle | append: ',' %}
+            {% endunless %}
+          {% endif %}
+        {% endfor %}
+        {%- assign pool = pool_csv | split: ',' | compact | uniq -%}
+        {%- assign pool_size = pool.size -%}
+        {% if pool_size > 0 %}
+          {%- assign needed = want | minus: chosen_count -%}
+          {%- assign pool_start = seed | plus: 7 | modulo: pool_size -%}
+          {%- assign pool_tail = pool | slice: pool_start, pool_size -%}
+          {%- assign pool_head = pool | slice: 0, pool_start -%}
+          {%- assign pool_rotated = pool_tail | concat: pool_head -%}
+
+          {% for h in pool_rotated %}
+            {% if chosen_count < want %}
+              {% assign chosen_csv = chosen_csv | append: h | append: ',' %}
+              {% assign chosen_count = chosen_count | plus: 1 %}
+            {% else %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endif %}
+
+      {%- assign chosen = chosen_csv | split: ',' | compact | uniq -%}
+      {% if chosen.size > 0 %}
+        <ul class="rr-grid">
+          {% for raw in chosen limit: 12 %}
+            {% assign parts = raw | split: '/' %}
+            {% assign blog_handle = parts[0] %}
+            {% assign ra = nil %}
+
+            {% for article in blogs[blog_handle].articles %}
+              {% if article.handle == raw %}
+                {% assign ra = article %}
+                {% break %}
+              {% endif %}
+            {% endfor %}
+
+            {% if ra %}
+              <li class="rr-card">
+                <a href="{{ ra.url }}" class="rr-link" aria-label="{{ ra.title | escape }}">
+                  <div class="rr-media">
+                    {% if ra.image %}
+                      <img
+                        src="{{ ra.image | image_url: width: 860 }}"
+                        srcset="
+                          {{ ra.image | image_url: width: 430 }} 430w,
+                          {{ ra.image | image_url: width: 860 }} 860w,
+                          {{ ra.image | image_url: width: 1290 }} 1290w
+                        "
+                        sizes="(min-width: 990px) calc(100vw/var(--columns)), 100vw"
+                        alt="{{ ra.image.alt | default: ra.title | escape }}"
+                        loading="lazy"
+                        width="{{ ra.image.width }}"
+                        height="{{ ra.image.height }}"
+                      >
+                    {% else %}
+                      <div class="rr-placeholder" aria-hidden="true"></div>
+                    {% endif %}
+                  </div>
+                  <h3 class="rr-heading"><span style="color:var(--link)">{{ ra.title }}</span></h3>
+                </a>
+              </li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <style>
+      .related-recipes{background:var(--bg)}
+      .section-{{ section.id }}-padding{
+        padding-top: {{ section.settings.pt | append: 'px' }};
+        padding-bottom: {{ section.settings.pb | append: 'px' }};
+      }
+      .rr-title{margin:0 0 18px;font-weight:700;font-size:clamp(20px,2.2vw,28px)}
+      .rr-paragraph{margin:0 0 22px}
+      .rr-grid{
+        list-style:none;margin:0;padding:0;display:grid;
+        gap:var(--gap);
+        grid-template-columns:repeat(1,minmax(0,1fr));
+      }
+      @media (min-width: 750px){
+        .rr-grid{grid-template-columns:repeat(var(--columns),minmax(0,1fr))}
+      }
+      .rr-card{background:transparent}
+      .rr-link{display:block;text-decoration:none}
+      .rr-media{
+        width:100%;
+        aspect-ratio: var(--ratio);
+        overflow:hidden;border-radius:8px
+      }
+      .rr-media img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s ease}
+      .rr-link:hover .rr-media img{transform:scale(1.03)}
+      .rr-heading{margin:12px 0 0;font-size:clamp(16px,1.4vw,20px);line-height:1.35}
+      .rr-placeholder{background:#f2f2f2;width:100%;height:100%}
+      @media (max-width: 749px){
+        .section-{{ section.id }}-padding{
+          padding-top: {{ section.settings.pt | times:0.5 | append: 'px' }};
+          padding-bottom: {{ section.settings.pb | times:0.5 | append: 'px' }};
+        }
+        ul.rr-grid {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            padding-bottom: 10px;
+        }
+
+        .rr-media img {
+            height: 100%;
+        }
+        li.rr-card {
+          display: flex;
+          flex: 0 0 300px;
+          text-align: center;
+          scroll-snap-align: start;
+          scroll-snap-stop: normal;
+        }
+        ul.rr-grid::-webkit-scrollbar {
+          -webkit-appearance: none;
+          height: 2px;
+        }
+        ul.rr-grid::-webkit-scrollbar-thumb {
+          background-color: #000;
+        }
+        ul.rr-grid::-webkit-scrollbar-track {
+          background-color: #e0e0e0;
+        }
+      }
+    </style>
+
+    <script>
+    (function(){
+      var ul = document.currentScript.previousElementSibling; // the <ul class="rr-grid">
+      if (!ul || !ul.classList || !ul.classList.contains('rr-grid')) return;
+
+      var want = {{ want | json }};
+      var items = Array.prototype.slice.call(ul.children);
+      if (items.length <= want) return;
+
+      // Fisher–Yates shuffle
+      for (var i = items.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = items[i]; items[i] = items[j]; items[j] = t;
+      }
+
+      // show first `want`, hide the rest
+      items.forEach(function(li, idx){
+        li.style.display = idx < want ? '' : 'none';
+      });
+    })();
+    </script>
+  </section>
+{% endif %}
+
+  {% schema %}
+  {
+    "name": "Related recipes",
+    "settings": [
+      { "type": "checkbox", "id": "show_heading", "label": "Show heading", "default": true },
+      { "type": "text", "id": "heading", "label": "Heading", "default": "Ähnliche Rezepte" },
+
+      { "type": "color", "id": "bg_color", "label": "Background color", "default": "#F9F9F9" },
+      { "type": "color", "id": "title_color", "label": "Title color", "default": "#111111" },
+      { "type": "color", "id": "link_color", "label": "Link color", "default": "#139AD6" },
+
+      { "type": "range", "id": "pt", "label": "Padding top", "min": 0, "max": 160, "step": 4, "unit": "px", "default": 48 },
+      { "type": "range", "id": "pb", "label": "Padding bottom", "min": 0, "max": 160, "step": 4, "unit": "px", "default": 52 },
+
+      { "type": "range", "id": "gap", "label": "Grid gap", "min": 8, "max": 48, "step": 2, "unit": "px", "default": 24 },
+      { "type": "range", "id": "columns_desktop", "label": "Columns (≥750px)", "min": 2, "max": 4, "step": 1, "default": 3 },
+
+      { "type": "select", "id": "image_ratio", "label": "Image ratio", "default": "16/9",
+        "options": [
+          { "value": "16/9", "label": "16:9" },
+          { "value": "4/3",  "label": "4:3" },
+          { "value": "1/1",  "label": "1:1" },
+          { "value": "3/2",  "label": "3:2" }
+        ]
+      },
+
+      { "type": "range", "id": "force_count", "label": "Items to show", "min": 1, "max": 6, "step": 1, "default": 3 }
+    ],
+    "blocks": [
+      {
+        "type": "paragraph",
+        "name": "Paragraph",
+        "limit": 2,
+        "settings": [
+          { "type": "richtext", "id": "content", "label": "Paragraph", "default": "<p>Entdecken Sie weitere passende Rezepte.</p>" }
+        ]
+      }
+    ],
+    "presets": [
+      {
+        "name": "Related recipes",
+        "blocks": [
+          { "type": "paragraph" }
+        ]
+      }
+    ]
+  }
+  {% endschema %}

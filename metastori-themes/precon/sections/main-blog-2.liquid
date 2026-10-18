@@ -1,0 +1,366 @@
+<section>
+  {%- if blog.articles_count == 0 -%}
+    <div class="empty-state text-container">
+      <h1 class="heading h1">{{ blog.title }}</h1>
+
+      <p class="text--large">{{ 'blog.general.empty' | t }}</p>
+
+      <div class="button-wrapper">
+        <a href="{{ routes.root_url }}" class="button button--primary">{{ 'blog.general.back_to_home' | t }}</a>
+      </div>
+    </div>
+  {%- else -%}
+    {%- if section.settings.show_blog_title -%}
+      <div class="container">
+        <div class="page-header">
+          <nav aria-label="{{ 'general.breadcrumb.title' | t }}" class="breadcrumb breadcrumb--floating text--xsmall hidden-phone">
+            <ol class="breadcrumb__list" role="list">
+              <li class="breadcrumb__item">
+                <a class="breadcrumb__link" href="{{ routes.root_url }}">{{ 'general.breadcrumb.home' | t }}</a>
+              </li>
+
+              <li class="breadcrumb__item">
+                {%- if current_tags -%}
+                  <a class="breadcrumb__link" href="{{ collection.url }}">{{ blog.title }}</a>
+                {%- else -%}
+                  <span class="breadcrumb__link" aria-current="page">{{ blog.title }}</span>
+                {%- endif -%}
+              </li>
+
+              {%- if current_tags -%}
+                <li class="breadcrumb__item">
+                  <span class="breadcrumb__link" aria-current="page">{{ current_tags.first | split: '_' | last }}</span>
+                </li>
+              {%- endif -%}
+            </ol>
+          </nav>
+
+          <div class="page-header__text-wrapper text-container">
+            <h1 class="heading h1">{{ blog.title }}</h1>
+          </div>
+        </div>
+      </div>
+    {%- endif -%}
+
+    {%- if section.settings.show_tags and blog.all_tags.size > 0 -%}
+      <link-bar class="link-bar">
+        <div class="container">
+          <div class="link-bar__wrapper">
+            <span class="link-bar__title heading heading--small text--subdued">{{ 'blog.general.view' | t }}</span>
+
+            <div class="link-bar__scroller hide-scrollbar">
+              <ul class="link-bar__linklist list--unstyled" role="list">
+                <li class="link-bar__link-item {% if current_tags == blank %}link-bar__link-item--selected{% endif %}">
+                  <a href="{{ blog.url }}" class="link-bar__link link--animated {% if current_tags == blank %}text--underlined{% endif %}">{{ 'blog.general.all_posts' | t }}</a>
+                </li>
+
+                {%- for tag in blog.all_tags -%}
+                  <li class="link-bar__link-item {% if current_tags contains tag %}link-bar__link-item--selected{% endif %}">
+                    {%- capture link_to_tag_replacement -%}class="link-bar__link link--animated {% if current_tags contains tag %}text--underlined{% endif %}" title={%- endcapture -%}
+
+                    {%- if current_tags contains tag -%}
+                      {{ tag | link_to_remove_tag: tag | replace: 'title=', link_to_tag_replacement }}
+                    {%- else -%}
+                      {{- tag | link_to_tag: tag | replace: 'title=', link_to_tag_replacement -}}
+                    {%- endif -%}
+                  </li>
+                {%- endfor -%}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </link-bar>
+    {%- endif -%}
+
+    <div class="vertical-breather vertical-breather--margin vertical-breather--extra-tight">
+      <div class="container container-filter-blog">
+<div class="cus-blog-filter-left">
+  <h2 class="blog-filter-title">Suchen & filtern</h2>
+
+  <div class="blog-accordion">
+
+    <!-- Search Filter -->
+    <div class="accordion-item active">
+      <button class="accordion-header">
+        <span>Rezept Name</span>
+        <span class="icon">-</span>
+      </button>
+      <div class="accordion-content accordion-content-blogsearch">
+        <input type="text" id="blogSearch" placeholder="Rezept Name" class="filter-input">
+        <span class="input-search"></span>
+      </div>
+    </div>
+
+    <!-- Cook Time Slider -->
+    <div class="accordion-item active">
+      <button class="accordion-header">
+        <span>Zubereitungszeit</span>
+        <span class="icon">-</span>
+      </button>
+      <div class="accordion-content accordion-content-timerange">
+        <input type="range" id="cookTimeRange" min="0" max="120" step="1" value="60" />
+        <span id="cookTimeValue">60 Min.</span>
+      </div>
+    </div>
+
+    <!-- Diet Filter -->
+    <div class="accordion-item active">
+      <button class="accordion-header">
+        <span>Art des Menüs</span>
+        <span class="icon">-</span>
+      </button>
+      <div class="accordion-content">
+        {% assign all_diets = "" %}
+        {% for article in blog.articles %}
+          {% if article.metafields.custom.diat != blank %}
+            {% assign all_diets = all_diets | append: article.metafields.custom.diat | append: "," %}
+          {% endif %}
+        {% endfor %}
+        {% assign unique_diets = all_diets | split: "," | uniq %}
+        {% for diet in unique_diets %}
+          {% if diet != blank %}
+            <label for="diet-filter-{{ forloop.index }}">
+              <input id="diet-filter-{{ forloop.index }}" type="checkbox" class="diet-filter" value="{{ diet }}"> {{ diet }}
+            </label>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Season Filter -->
+    <div class="accordion-item active">
+      <button class="accordion-header">
+        <span>Saison</span>
+        <span class="icon">-</span>
+      </button>
+      <div class="accordion-content">
+        {% assign all_seasons = "" %}
+        {% for article in blog.articles %}
+          {% if article.metafields.custom.season != blank %}
+            {% assign all_seasons = all_seasons | append: article.metafields.custom.season | append: "," %}
+          {% endif %}
+        {% endfor %}
+        {% assign unique_seasons = all_seasons | split: "," | uniq %}
+        {% for season in unique_seasons %}
+          {% if season != blank %}
+            <label for="season-filter-{{ forloop.index }}">
+              <input id="season-filter-{{ forloop.index }}" type="checkbox" class="season-filter" value="{{ season }}"> {{ season }}
+            </label>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Course Filter -->
+    <div class="accordion-item active">
+      <button class="accordion-header">
+        <span>Mahlzeiten & Gänge</span>
+        <span class="icon">-</span>
+      </button>
+      <div class="accordion-content">
+        {% assign all_courses = "" %}
+        {% for article in blog.articles %}
+          {% if article.metafields.custom.course != blank %}
+            {% assign all_courses = all_courses | append: article.metafields.custom.course | append: "," %}
+          {% endif %}
+        {% endfor %}
+        {% assign unique_courses = all_courses | split: "," | uniq %}
+        {% for course in unique_courses %}
+          {% if course != blank %}
+            <label for="course-filter-{{ forloop.index }}">
+              <input id="course-filter-{{ forloop.index }}" type="checkbox" class="course-filter" value="{{ course }}"> {{ course }}
+            </label>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+        <div class="cus-blog-right">
+              {% if section.settings.article-para != blank %}
+                  <div class="article-para">
+                  {{ section.settings.article-para }}
+                  </div>
+              {% endif %}
+        {%- paginate blog.articles by section.settings.articles_per_page -%}
+          <article-list {% if settings.stagger_blog_posts_apparition %}stagger-apparition{% endif %} class="article-list article-list--stacked">
+            {%- for article in blog.articles -%}
+              {%- render 'article-item-2', article: article, heading_size: 'h4' -%}
+            {%- endfor -%}
+          </article-list>
+
+          {%- render 'pagination', paginate: paginate -%}
+        {%- endpaginate -%}
+        </div>
+      </div>
+    </div>
+  {%- endif -%}
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const searchInput = document.getElementById("blogSearch");
+  const cookTimeRange = document.getElementById("cookTimeRange");
+  const cookTimeValue = document.getElementById("cookTimeValue");
+  const filters = document.querySelectorAll(".diet-filter, .season-filter, .course-filter");
+  const articles = document.querySelectorAll(".blog-article");
+  const filterBox = document.querySelector(".blog-accordion");
+  const filterTitle = document.querySelector(".blog-filter-title");
+
+  // Mobile toggle
+  filterTitle.addEventListener("click", () => {
+    filterBox.classList.toggle("active");
+  });
+
+  // Accordion toggle
+document.querySelectorAll(".blog-accordion .accordion-header").forEach(header => {
+  header.addEventListener("click", function() {
+    const item = this.parentElement;
+    item.classList.toggle("active");
+    const icon = this.querySelector(".icon");
+    icon.textContent = item.classList.contains("active") ? "-" : "+";
+  });
+});
+
+  // Range slider value
+  cookTimeRange.addEventListener("input", function() {
+    cookTimeValue.textContent = this.value + " Min.";
+    applyFilters();
+    saveFilters();
+  });
+
+  // Search filter
+  searchInput.addEventListener("input", function() {
+    applyFilters();
+    saveFilters();
+  });
+
+  // Checkbox filters
+  filters.forEach(f => f.addEventListener("change", function() {
+    applyFilters();
+    saveFilters();
+  }));
+
+  // Save filters in localStorage
+  function saveFilters() {
+    const selectedFilters = {
+      search: searchInput.value,
+      cook: cookTimeRange.value,
+      diets: [...document.querySelectorAll(".diet-filter:checked")].map(cb => cb.value),
+      seasons: [...document.querySelectorAll(".season-filter:checked")].map(cb => cb.value),
+      courses: [...document.querySelectorAll(".course-filter:checked")].map(cb => cb.value),
+    };
+    localStorage.setItem("blogFilters", JSON.stringify(selectedFilters));
+  }
+
+  // Load filters from localStorage
+  function loadFilters() {
+    const saved = JSON.parse(localStorage.getItem("blogFilters"));
+    if (!saved) return;
+
+    if (saved.search) searchInput.value = saved.search;
+    if (saved.cook) {
+      cookTimeRange.value = saved.cook;
+      cookTimeValue.textContent = saved.cook + " Min.";
+    }
+    if (saved.diets) {
+      saved.diets.forEach(val => {
+        const cb = document.querySelector(`.diet-filter[value="${val}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+    if (saved.seasons) {
+      saved.seasons.forEach(val => {
+        const cb = document.querySelector(`.season-filter[value="${val}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+    if (saved.courses) {
+      saved.courses.forEach(val => {
+        const cb = document.querySelector(`.course-filter[value="${val}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+  }
+
+  function applyFilters() {
+    const searchVal = searchInput.value.toLowerCase();
+    const maxCook = parseInt(cookTimeRange.value);
+    const selectedDiets = [...document.querySelectorAll(".diet-filter:checked")].map(cb => cb.value);
+    const selectedSeasons = [...document.querySelectorAll(".season-filter:checked")].map(cb => cb.value);
+    const selectedCourses = [...document.querySelectorAll(".course-filter:checked")].map(cb => cb.value);
+
+    articles.forEach(article => {
+      const title = article.dataset.title.toLowerCase();
+      const cooktime = parseInt(article.dataset.cooktime || 0);
+      const diet = article.dataset.diet;
+      const season = article.dataset.season;
+      const course = article.dataset.course;
+
+      let visible = true;
+
+      if (searchVal && !title.includes(searchVal)) visible = false;
+      if (cooktime > maxCook) visible = false;
+      if (selectedDiets.length && !selectedDiets.includes(diet)) visible = false;
+      if (selectedSeasons.length && !selectedSeasons.includes(season)) visible = false;
+      if (selectedCourses.length && !selectedCourses.includes(course)) visible = false;
+
+      article.style.display = visible ? "block" : "none";
+    });
+  }
+
+  // Init
+  loadFilters();
+  applyFilters();
+});
+</script>
+{% schema %}
+{
+  "name": "Blog 2",
+  "class": "shopify-section--main-blog shopify-section--main-blog-2",
+  "settings": [
+    {
+      "type": "richtext",
+      "id": "article-para",
+      "label": "Text"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_blog_title",
+      "label": "Show blog title",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_tags",
+      "label": "Show tags",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_category",
+      "label": "Show category",
+      "info": "The first article's tag will be shown as category.",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_excerpt",
+      "label": "Show excerpt",
+      "info": "Change excerpts by editing your blog posts. [Learn more](https://help.shopify.com/en/manual/online-store/blogs/writing-blogs#display-an-excerpt-from-a-blog-post)",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "articles_per_page",
+      "label": "Blog posts per page",
+      "min": 3,
+      "max": 48,
+      "step": 3,
+      "default": 9
+    }
+  ]
+}
+{% endschema %}
