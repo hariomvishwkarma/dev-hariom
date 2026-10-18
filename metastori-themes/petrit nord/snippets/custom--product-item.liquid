@@ -1,0 +1,376 @@
+{% assign days = 30 %}
+{% assign period_time = days | times: 24 | times: 60 | times: 60 %}
+{% assign date_now = 'now' | date:'%s' %}
+{% assign image_size = 600 %}
+
+{% assign sale_active = false %}
+{% if collection.handle contains "sale" %}
+	{% assign sale_active = true %}
+{% endif %}
+
+{% if class %}
+
+  <div class="product-item {{ class }} manual-item {% if image_2 != blank %}hover{% endif %}" data-product="{{ title | replace: " ", "+" }}">
+    <div class="product-item--inner">
+      {% if customBadge != blank %}
+        <div class="product-badges">
+          <span style="margin-left: 10px;" class="badge">{{ customBadge }}</span>
+        </div>
+      {% else %}
+        {% if sale != blank %}
+        <div class="product-badges">
+          <span style="margin-left: 10px;" class="badge">{{- 'general.custom.product_item_sale' | t -}}</span>
+        </div>
+        {% endif %}       
+      {% endif %}
+      <div class="image--wrapper">
+        <a href="{{ url }}">
+        <img class="Image--lazyLoad" {% include "img_attr", image: image_1 , size: image_size %}>
+        {% if image_2 != blank %}
+          <img class="Image--lazyLoad hide image--hover" {% include "img_attr", image: featured_product.media[1], size: 600 %}>
+          {% endif %}
+        </a>
+        
+        <div class="product-options">
+          <div>
+            <div class="product-sizes">
+              <span class="title">{{- 'general.custom.product_item_options' | t -}}</span>
+              <ul class="product-variants">
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+      <h3 class="product-title"><a href="{{ url }}">{{ title }}</a></h3>
+      <a href="{{ url }}" class="product-price">
+      	{% if sale != blank %}
+        <span class="money">{{ sale }}</span> <span style="text-decoration: line-through; margin-left: 10px;">{{ price }}</span>
+        {% else %}
+        	{{ price }}
+        {% endif %}
+      </a>
+    </div>
+  </div>
+{% elsif slider == true %}
+  {% if product == blank %}
+  {%- assign featured_product = all_products[handle] -%}
+  {% else %}
+  {%- assign featured_product = product -%}
+  {% endif %}
+
+  {% assign default_handle = featured_product.handle | remove: "-1" | remove: "-2" | remove: "-3" | remove: "-4" | remove: "-5" %}
+
+  {%- assign max_width = featured_product.featured_media.preview_image.width -%}
+  {%- assign media_aspect_ratio = featured_product.featured_media.aspect_ratio | default: featured_product.featured_media.preview_image.aspect_ratio -%}
+
+  {% unless featured_product.available %}
+        {% assign other = "" %}
+    {% for tag in featured_product.tags %}
+      {% if tag contains "size:" %}
+        {% assign handle = tag | split: ":" | last %}
+        {% assign other = other | append: "," | append: handle %}
+      {% endif %}
+    {% endfor %}
+
+      {% assign other = other | remove_first: "," %}
+  {% endunless %}
+
+  <div class="product-item slider-item {% if featured_product.media[1] != blank %}hover{% endif %}" {% if featured_product.available == false and other != "" %}data-stock="{{ other }}"{% endif %} data-type="{{ featured_product.type }}" data-product="{{ featured_product.title | replace: " ", "+" }}">
+    <div class="product-item--inner">
+            
+      <div class="product-badges">
+        {% assign badge_tag = settings.badge_tag | append: ":" | strip %}
+        {% assign varies = false %}
+        
+
+   
+          {% assign show_badges = true %}
+          {% if settings.coll_badge_1 != blank and settings.coll_handles_1 != blank %}
+            {% assign splitList = settings.coll_handles_1 | split: "," %}
+            {% if splitList contains collection.handle %}
+          	{% assign show_badges = false %}
+              <span style="margin-left: 10px;" class="badge custom-badge">{{ settings.coll_badge_1 }}</span>
+            {% endif %}
+          {% endif %}
+
+          {% if settings.coll_badge_2 != blank and settings.coll_handles_2 != blank %}
+            {% assign splitList = settings.coll_handles_2 | split: "," %}
+            {% if splitList contains collection.handle %}
+          	{% assign show_badges = false %}
+              <span style="margin-left: 10px;" class="badge custom-badge">{{ settings.coll_badge_2 }}</span>
+            {% endif %}
+          {% endif %}
+
+          {% if settings.coll_badge_3 != blank and settings.coll_handles_3 != blank %}
+            {% assign splitList = settings.coll_handles_3 | split: "," %}
+            {% if splitList contains collection.handle %}
+          	{% assign show_badges = false %}
+              <span style="margin-left: 10px;" class="badge custom-badge">{{ settings.coll_badge_3 }}</span>
+            {% endif %}
+          {% endif %}
+        
+        {% if featured_product.available %}
+          {% if show_badges %}
+            {% for tag in featured_product.tags %}
+              {% if tag contains badge_tag %}
+                  <span class="badge">{{ tag | remove: badge_tag }}</span>
+              {% endif %}
+
+              {% if tag contains "size:" %}
+                  {% assign varies = true %}
+              {% endif %}
+            {% endfor %}
+
+            {% assign is_on_sale = false %}
+            {% if featured_product.price < featured_product.compare_at_price or sale_active %}
+              {% assign is_on_sale = true %}
+            {% endif %}
+            {% if is_on_sale %}
+              {% if show_sale_badge != false %}
+                <span style="margin-left: 10px;" class="badge">{{- 'general.custom.product_item_sale' | t -}}</span>
+              {% endif %}
+            {% else %}
+              {% if date_finished > date_now %}<span class="badge">{{- 'general.custom.product_item_new' | t -}}</span>{% endif %}
+            {% endif %}
+          {% endif %}
+        
+        
+        {% else %}
+        	<span class="badge sold-out">{{ 'product.labels.sold_out' | t }}</span>
+        {% endif %}
+      </div>
+      
+      <div class="image--wrapper" style="max-width: {{ max_width }}px; padding-bottom: {{ 100.0 | divided_by: media_aspect_ratio }}%;">
+
+        <a href="{{ featured_product.url }}">
+        <img class="Image--lazyLoad" {% include "img_attr", image: featured_product.featured_image, size: image_size %}>
+        {% if featured_product.media[1] != blank %}<img class="hide image--hover" src="{{ featured_product.media[1] | img_url: "600x" }}">{% endif %}
+        </a>
+
+        {% if variants != false %}
+          <div class="product-options">
+            <div>
+            {%- unless featured_product.has_only_default_variant -%}
+              <div class="product-sizes">
+                <span class="title">{{- 'general.custom.product_item_options' | t -}}</span>
+                <ul class="product-variants">
+
+                </ul>
+              </div>
+            {%- endunless -%}
+            </div>
+          </div>
+        {% endif %}
+
+      </div>
+      <h3 class="product-title"><a href="{{ featured_product.url }}">{{ featured_product.title }}</a></h3>
+      <a href="{{ featured_product.url }}" class="product-price">
+      {%- if featured_product.price_varies == false %} 
+        {% if varies %}
+        	{% if featured_product.price < featured_product.compare_at_price %}
+        		{{ featured_product.price | money }} <span style="text-decoration: line-through; margin-left: 10px;">{{ featured_product.compare_at_price | money }}</span>
+            {% else %}
+          		{{- 'general.custom.product_item_varies' | t -}} {{ featured_product.price | money }}
+            {% endif %}
+        {% else %}
+        	{% if featured_product.price < featured_product.compare_at_price %}
+        		{{ featured_product.price | money }} <span style="text-decoration: line-through; margin-left: 10px;">{{ featured_product.compare_at_price | money }}</span>
+            {% else %}
+          		{{ featured_product.price | money }}
+            {% endif %}
+        {% endif %}
+      {% else %}
+        {{ featured_product.price_min | money }} - {{ featured_product.price_max | money }}
+      {% endif -%}
+      </a>
+      {% if featured_product.metafields.loox.num_reviews > 0 %}
+        <div class="product-review">
+          <div class="loox-rating" data-id="{{ featured_product.id }}" data-rating="{{ featured_product.metafields.loox.avg_rating }}" data-raters="{{ featured_product.metafields.loox.num_reviews }}"></div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% else %}
+
+  {% if product == blank %}
+  {%- assign featured_product = all_products[handle] -%}
+  {% else %}
+  {%- assign featured_product = product -%}
+  {% endif %}
+
+  {% unless featured_product.available %}
+        {% assign other = "" %}
+    {% for tag in featured_product.tags %}
+      {% if tag contains "size:" %}
+        {% assign handle = tag | split: ":" | last %}
+        {% assign other = other | append: "," | append: handle %}
+      {% endif %}
+    {% endfor %}
+
+      {% assign other = other | remove_first: "," %}
+  {% endunless %}
+
+  {% assign default_handle = featured_product.handle | remove: "-1" | remove: "-2" | remove: "-3" | remove: "-4" | remove: "-5" %}
+
+  {%- assign max_width = featured_product.featured_media.preview_image.width -%}
+  {%- assign media_aspect_ratio = featured_product.featured_media.aspect_ratio | default: featured_product.featured_media.preview_image.aspect_ratio -%}
+
+  <div class="product-item {% if featured_product.media[1] != blank %}hover{% endif %}" data-type="{{ featured_product.type }}" {% if featured_product.available == false and other != "" %}data-stock="{{ other }}"{% endif %} data-product="{{ featured_product.title | replace: " ", "+" }}">
+    <div class="product-item--inner">
+            
+      <div class="product-badges">
+        {% assign badge_tag = settings.badge_tag | append: ":" | strip %}
+        {% assign date_finished = product.published_at | date:'%s' | plus: period_time | date:'%s' %}
+        
+
+          {% assign show_badges = true %}
+          {% if settings.coll_badge_1 != blank and settings.coll_handles_1 != blank %}
+            {% assign splitList = settings.coll_handles_1 | split: "," %}
+            {% if splitList contains collection.handle %}
+          	{% assign show_badges = false %}
+              <span style="margin-left: 10px;" class="badge custom-badge badge-1">{{ settings.coll_badge_1 }}</span>
+            {% endif %}
+          {% endif %}
+
+          {% if settings.coll_badge_2 != blank and settings.coll_handles_2 != blank %}
+            {% assign splitList = settings.coll_handles_2 | split: "," %}
+            {% if splitList contains collection.handle %}
+          	{% assign show_badges = false %}
+              <span style="margin-left: 10px;" class="badge custom-badge badge-2">{{ settings.coll_badge_2 }}</span>
+            {% endif %}
+          {% endif %}
+
+          {% if settings.coll_badge_3 != blank and settings.coll_handles_3 != blank %}
+            {% assign splitList = settings.coll_handles_3 | split: "," %}
+            {% if splitList contains collection.handle %}
+          	{% assign show_badges = false %}
+              <span style="margin-left: 10px;" class="badge custom-badge badge-3">{{ settings.coll_badge_3 }}</span>
+            {% endif %}
+          {% endif %}
+
+          {% if template contains "early_access" %}
+            {% for i in (1..2) %}
+              {% assign collection_text = "coll_badge_" | append: i %}
+              {% assign text_colour = "coll_badge_ct_" | append: i %}
+              {% assign bg_colour = "coll_badge_cb_" | append: i %}
+              {% assign collection_style = "style_" | append: i %}
+
+        
+              {% assign collection_products = "coll_products_" | append: i %}
+              {% assign filter_products = settings[collection_products] | split: "," %}
+              
+              {% assign collection_collections = "collfilter_handles_" | append: i %}
+              {% assign filter_collections = settings[collection_collections]  | map: "handle" %}
+              {% assign collection_type = "type_" | append: i %}
+
+              {% if settings[collection_type] == "collection" and filter_collections contains collection.handle %}
+                {% if settings[collection_text] != blank and filter_products contains featured_product.handle %}
+                  <span class="badge style-{{ settings[collection_style] }}" style="color: {{ settings[text_colour] }}; background: {{ settings[bg_colour] }};">{{ settings[collection_text] }}</span>
+                {% endif %}
+              {% elsif settings[collection_type] != "collection" %}               
+                {% if settings[collection_text] != blank and filter_products contains featured_product.handle %}
+                  <span class="badge style-{{ settings[collection_style] }}" style="color: {{ settings[text_colour] }}; background: {{ settings[bg_colour] }};">{{ settings[collection_text] }}</span>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+
+            {% else %}
+
+              {% if featured_product.available %}
+                {% if show_badges %}
+                  {% for tag in featured_product.tags %}
+                    {% if tag contains badge_tag %}
+                        <span class="badge">{{ tag | remove: badge_tag }}</span>
+                    {% endif %}
+      
+                    {% if tag contains "size:" %}
+                        {% assign varies = true %}
+                    {% endif %}
+                  {% endfor %}
+      
+                  {% assign is_on_sale = false %}
+                  {% if featured_product.price < featured_product.compare_at_price or sale_active %}
+                    {% assign is_on_sale = true %}
+                  {% endif %}
+                  {% if is_on_sale %}
+                    {% if show_sale_badge != false %}
+                      <span style="margin-left: 10px;" class="badge">{{- 'general.custom.product_item_sale' | t -}}</span>
+                    {% endif %}
+                  {% else %}
+                    {% if date_finished > date_now %}<span class="badge">{{- 'general.custom.product_item_new' | t -}}</span>{% endif %}
+                  {% endif %}
+                {% endif %}
+              {% else %}
+              	<span class="badge sold-out">{{ 'product.labels.sold_out' | t }}</span>
+              {% endif %}
+        
+          {% endif %}
+  
+      </div>
+      
+      <div class="image--wrapper" style="max-width: {{ max_width }}px; padding-bottom: {{ 100.0 | divided_by: media_aspect_ratio }}%;">
+
+        <a href="{{ featured_product.url }}">
+        <img class="Image--lazyLoad" {% include "img_attr", image: featured_product.featured_image, size: image_size %}>
+        {% if featured_product.media[1] != blank %}<img class="hide image--hover" src="{{ featured_product.media[1] | img_url: "600x" }}">{% endif %}
+        </a>
+
+        {% if variants != false %}
+          <div class="product-options">
+            <div>
+            {%- unless featured_product.has_only_default_variant -%}
+              <div class="product-sizes">
+                <span class="title">{{- 'general.custom.product_item_options' | t -}}</span>
+                <ul class="product-variants">
+
+                </ul>
+              </div>
+            {%- endunless -%}
+            </div>
+          </div>
+        {% endif %}
+
+      </div>
+      <h3 class="product-title"><a href="{{ featured_product.url }}">{{ featured_product.title }}</a></h3>
+      <a href="{{ featured_product.url }}" class="product-price">
+                
+      {% assign varies = false %}
+ 
+      {% for tag in featured_product.tags %}
+        {% if tag contains "size:" %}
+            {% assign varies = true %}
+        {% endif %}
+      {% endfor %}
+        
+      {%- if featured_product.price_varies == false %} 
+      
+          {% if varies %}
+        
+        	{% if featured_product.price < featured_product.compare_at_price %}
+        		{{ featured_product.price | money }} <span style="text-decoration: line-through; margin-left: 10px;">{{ featured_product.compare_at_price | money }}</span>
+            {% else %}
+          		{{ featured_product.price | money }}
+            {% endif %}
+        
+          {% else %}
+        
+        	{% if featured_product.price < featured_product.compare_at_price %}
+        		{{ featured_product.price | money }} <span style="text-decoration: line-through; margin-left: 10px;">{{ featured_product.compare_at_price | money }}</span>
+            {% else %}
+          		{{ featured_product.price | money }}
+            {% endif %}
+        
+          {% endif %}
+      {% else %}
+        {{ featured_product.price_min | money }} - {{ featured_product.price_max | money }}
+      {% endif -%}
+      </a>
+      {% if featured_product.metafields.loox.num_reviews > 0 %}
+        <div class="product-review">
+          <div class="loox-rating" data-id="{{ featured_product.id }}" data-rating="{{ featured_product.metafields.loox.avg_rating }}" data-raters="{{ featured_product.metafields.loox.num_reviews }}"></div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}

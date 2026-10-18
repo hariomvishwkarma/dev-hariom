@@ -1,0 +1,434 @@
+{{ 'section-footer.css' | asset_url | stylesheet_tag }}
+
+{% liquid
+  assign sub_heading = section.settings.sub_heading
+  assign show_form = section.settings.newsletter_show
+  assign show_icon = section.settings.show_social
+  assign footer_fixed = section.settings.footer_fixed
+  assign show_currency_selector = section.settings.show_currency_selector
+  assign show_language_selector = section.settings.show_language_selector
+  assign enable_follow_on_shop = section.settings.enable_follow_on_shop
+  assign show_payment = section.settings.show_payment
+  assign show_policy = section.settings.show_policy | default: true, allow_false: true
+
+  assign logo = section.settings.image
+  assign width_mb = section.settings.logo_width_mobile
+  assign width_dt = section.settings.logo_width_desktop
+%}
+
+<div class='footer{% if footer_fixed == 'fixed' %} footer--fixed{% endif %}'>
+  <footer {% render 'section-attr' %}>
+    <div class='footer__container'>
+      <!-- logo, social media, menu footer -->
+      <div class='footer__top'>
+        <xo-grid class='footer__grid'>
+          <div class='footer__grid-logo' style='--xl: 3; --lg: 4; --md: 12; --xs: 12'>
+            <xo-animate xo-cascade>
+              <!-- logo -->
+              <a href='{{ routes.root_url }}' class='footer__logo'>
+                {% if logo != blank %}
+                  <div class='footer__logo-image' style='--width_dt: {{ width_dt }}px; --width_md: {{ width_mb }}px;'>
+                    {% render 'image', image: logo %}
+                  </div>
+                {% elsif logo == blank %}
+                  <h4 class='footer__logo-name h4'>{{ shop.name }}</h4>
+                {% endif %}
+              </a>
+              <!-- description -->
+              {% if sub_heading != blank %}
+                <div class='footer__sub-heading'>{{ sub_heading }}</div>
+              {% endif %}
+              <!-- social media -->
+              <div class='footer__social {% if show_icon == 'hidden' %} footer__social--hidden{% endif %}'>
+                {%- render 'socials' -%}
+              </div>
+            </xo-animate>
+            {%- if shop.features.follow_on_shop? and enable_follow_on_shop == 'show' -%}
+              <xo-animate xo-cascade>
+                <div class='footer__follow-on-shop'>
+                  {{ shop | login_button: action: 'follow' }}
+                </div>
+              </xo-animate>
+            {%- endif -%}
+          </div>
+          <!-- menu -->
+          <div class='footer__grid-nav' style='--lg: 4; --md: 12; --xs: 12; --start-lg: 7'>
+            <xo-grid class='footer__nav'>
+              {% for block in section.blocks %}
+                {% case block.type %}
+                  {% when 'link_list' %}
+                    <xo-animate xo-cascade style='--lg: 6; --md: 6; --xs: 6'>
+                      <div class='footer__nav-item'>
+                        {%- if block.settings.footer_menu != blank -%}
+                          <div class='footer__nav-title'>
+                            <p>{{ block.settings.footer_menu.title }}</p>
+                          </div>
+                          <ul class='footer__nav-list'>
+                            {%- for link in block.settings.footer_menu.links -%}
+                              <li class='footer__list-item'>
+                                <a href='{{ link.url }}' class='footer__list-link'>
+                                  {{ link.title }}
+                                  <span class='footer__line-hover'></span>
+                                </a>
+                              </li>
+                            {%- endfor -%}
+                          </ul>
+                        {%- endif -%}
+                      </div>
+                    </xo-animate>
+                {% endcase %}
+              {% endfor %}
+            </xo-grid>
+          </div>
+        </xo-grid>
+      </div>
+      <!-- subcribe -->
+      <xo-animate xo-cascade>
+        <div class='footer__center'>
+          <div class='footer__input {% if settings.enable_border_radius %}footer__input--radius{% endif %} {% if show_form == 'hidden' %} footer__input--hidden{% endif %}'>
+            {%- form 'customer', id: 'ContactFooter', class: 'footer__form' -%}
+              <input type='hidden' name='contact[tags]' value='newsletter'>
+              <div class='footer__field-input'>
+                {% assign email_id = 'email--' | append: section.id %}
+                {% comment %} {% assign value = form.email %} {% endcomment %}
+                {% assign label = 'newsletter.label_placeholder_footer' | t %}
+                {% capture attr %}
+                    aria-required='true'
+                    autocorrect='off'
+                  {% if form.errors %}
+                    autofocus
+                    aria-invalid='true'
+                    aria-describedby='ContactFooter-error'
+                  {% elsif form.posted_successfully? %}
+                    aria-describedby='ContactFooter-success'
+                  {% endif %}
+                    required
+                  {% endcapture %}
+                {% render 'field-input', type: 'email', name: 'contact[email]', value: form.email, label: label, attr: attr, id: email_id %}
+                <button
+                  type='submit'
+                  class='footer__field-button {% if settings.enable_border_radius %}footer__field-button--radius{% endif %}'
+                  name='commit'
+                  id='Subscribe'
+                  aria-label='{{ 'newsletter.button_label' | t }}'
+                >
+                  {% render 'button-slide', icon: 'arrow-right', icon_size: '2.4rem', size: '3.6rem', direction: 'right', style: 'secondary' %}
+                </button>
+              </div>
+              <!-- submit error -->
+              <h6 class='footer__form-message footer__form-message--error footer__form-error' id='footer__form-message' style='display: none;'>
+                {% render 'icon', name: 'error' %}
+                <p class='footer__message'>{{ 'customer.subscribe.error_text' | t }}</p>
+              </h6>
+              {%- if form.errors -%}
+                <h6 class='footer__form-message footer__form-message--error h6' id='ContactFooter-error'>
+                  {% render 'form-error', form: form %}
+                </h6>
+              {%- endif -%}
+              <!-- submit success -->
+              {%- if form.posted_successfully? -%}
+                <h6
+                  class='footer__form-message footer__form-message--success'
+                  id='ContactFooter-success'
+                  tabindex='-1'
+                  autofocus
+                >
+                  {% render 'icon-success', size: '3rem' -%}
+                  {{- 'newsletter.success' | t }}
+                </h6>
+              {%- endif -%}
+            {%- endform -%}
+          </div>
+        </div>
+      </xo-animate>
+      <!-- policy, payment, language, curency -->
+      <xo-animate xo-cascade>
+        <div class='footer__bottom'>
+          <div class='footer__bottom-left'>
+            <div class='footer__copy-right'>
+             <p>&copy; {{ 'now' | date: '%Y' }} - {{ shop.name | link_to: routes.root_url }}</p>
+            </div>
+            <div class='footer__policy'>
+              {%- if show_policy -%}
+                <div class='footer__policy-list'>
+                  {%- for policy in shop.policies -%}
+                    {%- if policy != blank -%}
+                      <div class='footer__policy-list-item'>
+                        <div class='footer__policy-dot'></div>
+                        <a href='{{ policy.url }}'>
+                          {{ policy.title }}
+                          <span class='footer__line-hover'></span>
+                        </a>
+                      </div>
+                    {%- endif -%}
+                  {%- endfor -%}
+                </div>
+              {%- endif -%}
+            </div>
+          </div>
+          <div class='footer__bottom-right'>
+            <div class='footer__payment {% if show_payment == 'hidden' %} footer__payment--hidden{% endif %}'>
+              <ul class='footer__list-payment' role='list'>
+                {% for type in shop.enabled_payment_types %}
+                  <li class='footer__payment-item'>
+                    {{ type | payment_type_svg_tag: class: '' }}
+                  </li>
+                {%- endfor -%}
+              </ul>
+            </div>
+            <div class='footer__language-select {% if show_language_selector == 'hidden' %} footer__language-select--hidden{% endif %}'>
+              {% render 'language-select', selector_position: 'footer' %}
+            </div>
+            <div class='footer__currency-select {% if show_currency_selector == 'hidden' %} footer__currency-select--hidden{% endif %}'>
+              {% render 'currency-select', selector_position: 'footer' %}
+            </div>
+          </div>
+        </div>
+      </xo-animate>
+    </div>
+  </footer>
+</div>
+
+{% schema %}
+{
+  "name": "t:sections.footer.name",
+  "class": "section-footer",
+  "settings": [
+    {
+      "type": "select",
+      "id": "footer_fixed",
+      "label": "t:sections.footer.settings.footer_fixed.label",
+      "options": [
+        {
+          "value": "",
+          "label": "t:sections.footer.settings.footer_fixed.option__1.label"
+        },
+        {
+          "value": "fixed",
+          "label": "t:sections.footer.settings.footer_fixed.option__2.label"
+        }
+      ],
+      "default": "fixed"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.footer.settings.header_logo.content"
+    },
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "t:sections.footer.settings.image.label"
+    },
+    {
+      "type": "range",
+      "id": "logo_width_desktop",
+      "min": 50,
+      "max": 500,
+      "step": 10,
+      "default": 250,
+      "unit": "t:sections.footer.settings.logo_width_desktop.unit",
+      "label": "t:sections.footer.settings.logo_width_desktop.label"
+    },
+    {
+      "type": "range",
+      "id": "logo_width_mobile",
+      "min": 50,
+      "max": 500,
+      "step": 10,
+      "default": 250,
+      "unit": "t:sections.footer.settings.logo_width_mobile.unit",
+      "label": "t:sections.footer.settings.logo_width_mobile.label"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.footer.settings.header__1.content",
+      "info": "t:sections.footer.settings.header__1.info"
+    },
+    {
+      "type": "select",
+      "id": "newsletter_show",
+      "label": "t:sections.footer.settings.newsletter_show.label",
+      "options": [
+        {
+          "value": "hidden",
+          "label": "t:sections.footer.settings.newsletter_show.option__1.label"
+        },
+        {
+          "value": "show",
+          "label": "t:sections.footer.settings.newsletter_show.option__2.label"
+        }
+      ],
+      "default": "show"
+    },
+    {
+      "type": "richtext",
+      "id": "sub_heading",
+      "label": "t:sections.footer.settings.sub_heading.label",
+      "default": "<p>This means that once you use different template designs for actual testimonial website widgets, you can make images from them and post</p>"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.footer.settings.header__2.content",
+      "info": "t:sections.footer.settings.header__2.info"
+    },
+    {
+      "type": "select",
+      "id": "show_social",
+      "label": "t:sections.footer.settings.show_social.label",
+      "options": [
+        {
+          "value": "hidden",
+          "label": "t:sections.footer.settings.show_social.option__1.label"
+        },
+        {
+          "value": "show",
+          "label": "t:sections.footer.settings.show_social.option__2.label"
+        }
+      ],
+      "default": "show"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.footer.settings.header__5.content",
+      "info": "t:sections.footer.settings.header__5.info"
+    },
+    {
+      "type": "select",
+      "id": "enable_follow_on_shop",
+      "label": "t:sections.footer.settings.enable_follow_on_shop.label",
+      "options": [
+        {
+          "value": "hidden",
+          "label": "t:sections.footer.settings.enable_follow_on_shop.option__1.label"
+        },
+        {
+          "value": "show",
+          "label": "t:sections.footer.settings.enable_follow_on_shop.option__2.label"
+        }
+      ],
+      "default": "hidden"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.footer.settings.header__3.content",
+      "info": "t:sections.footer.settings.header__3.info"
+    },
+    {
+      "type": "select",
+      "id": "show_currency_selector",
+      "label": "t:sections.footer.settings.show_currency_selector.label",
+      "options": [
+        {
+          "value": "hidden",
+          "label": "t:sections.footer.settings.show_currency_selector.option__1.label"
+        },
+        {
+          "value": "show",
+          "label": "t:sections.footer.settings.show_currency_selector.option__2.label"
+        }
+      ],
+      "default": "show"
+    },
+    {
+      "type": "select",
+      "id": "show_language_selector",
+      "label": "t:sections.footer.settings.show_language_selector.label",
+      "options": [
+        {
+          "value": "hidden",
+          "label": "t:sections.footer.settings.show_language_selector.option__1.label"
+        },
+        {
+          "value": "show",
+          "label": "t:sections.footer.settings.show_language_selector.option__2.label"
+        }
+      ],
+      "default": "show"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.footer.settings.header__4.content"
+    },
+    {
+      "type": "select",
+      "id": "show_payment",
+      "label": "t:sections.footer.settings.show_payment.label",
+      "options": [
+        {
+          "value": "hidden",
+          "label": "t:sections.footer.settings.show_payment.option__1.label"
+        },
+        {
+          "value": "show",
+          "label": "t:sections.footer.settings.show_payment.option__2.label"
+        }
+      ],
+      "default": "show"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.all.heading.content"
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:sections.all.color_scheme.label"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "t:sections.all.bg_color.label"
+    },
+    {
+      "type": "color_background",
+      "id": "background_gradient",
+      "label": "t:sections.all.bg_gradient.label"
+    },
+    {
+      "type": "number",
+      "id": "padding_top_desktop",
+      "label": "t:sections.all.padding_top_desktop.label",
+      "default": 50
+    },
+    {
+      "type": "number",
+      "id": "padding_bottom_desktop",
+      "label": "t:sections.all.padding_bottom_desktop.label",
+      "default": 50
+    },
+    {
+      "type": "number",
+      "id": "padding_top_mobile",
+      "label": "t:sections.all.padding_top_mobile.label",
+      "default": 50
+    },
+    {
+      "type": "number",
+      "id": "padding_bottom_mobile",
+      "label": "t:sections.all.padding_bottom_mobile.label",
+      "default": 50
+    }
+  ],
+  "blocks": [
+    {
+      "name": "t:sections.footer.blocks.name",
+      "type": "link_list",
+      "limit": 2,
+      "settings": [
+        {
+          "type": "link_list",
+          "id": "footer_menu",
+          "label": "t:sections.footer.blocks.settings.footer_menu.label",
+          "info": "t:sections.footer.blocks.settings.footer_menu.info",
+          "default": "footer"
+        }
+      ]
+    }
+  ],
+  "default": {
+    "blocks": [
+
+  ]
+  }
+}
+{% endschema %}

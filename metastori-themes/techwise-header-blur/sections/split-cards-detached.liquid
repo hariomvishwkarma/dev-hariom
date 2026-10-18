@@ -1,0 +1,293 @@
+{% comment %}
+  Split cards – Detached (Stretch) met instelbare container
+  Mobielvolgorde geforceerd: media -> tekst
+{% endcomment %}
+
+<style>
+  #shopify-section-{{ section.id }} {
+    --detached-gap: {{ section.settings.gap_desktop }}px;
+    --detached-radius: {{ section.settings.radius }}px;
+    --card-shadow: {% if section.settings.show_shadow %}0 10px 30px rgba(0,0,0,.08){% else %}none{% endif %};
+    --text-card-bg: {{ section.settings.text_card_bg }};
+    --text-card-color: {{ section.settings.text_card_color }};
+    --text-card-padding: {{ section.settings.text_card_padding }}px;
+    --media-object-fit: {{ section.settings.media_object_fit }};
+    --media-aspect: {{ section.settings.media_aspect }};
+  }
+
+  /* Container – max-width + gutter via settings */
+  #shopify-section-{{ section.id }} .sc-container{
+    max-width:
+    {%- case section.settings.container_width -%}
+      {%- when 's'  -%} 720px;
+      {%- when 'm'  -%} 960px;
+      {%- when 'l'  -%} 1200px;
+      {%- when 'xl' -%} 1440px;
+      {%- when 'full' -%} 100%;
+    {%- endcase -%}
+    margin-inline: auto;
+    padding-left: {{ section.settings.container_padding }}px;
+    padding-right: {{ section.settings.container_padding }}px;
+  }
+  @media (max-width: 699px){
+    #shopify-section-{{ section.id }} .sc-container{
+      padding-left: {{ section.settings.container_padding_mobile }}px;
+      padding-right: {{ section.settings.container_padding_mobile }}px;
+    }
+  }
+
+  /* Grid lay-out met gap */
+  #shopify-section-{{ section.id }} .sc-detached {
+    display: grid;
+    gap: var(--detached-gap);
+  }
+
+  /* --- VOLGORDE --- */
+  /* Standaard (mobiel): altijd media boven tekst */
+  #shopify-section-{{ section.id }} .sc-media { order: 1; }
+  #shopify-section-{{ section.id }} .sc-text  { order: 2; }
+
+  /* Desktop 2-koloms + volgorde afhankelijk van setting */
+  @media (min-width: 700px) {
+    #shopify-section-{{ section.id }} .sc-detached {
+      grid-template-columns:
+        {%- if section.settings.content_position == 'start' -%}
+          minmax(0, {{ section.settings.text_width | divided_by: 100.0 }}fr)
+          minmax(0, {{ 100 | minus: section.settings.text_width | divided_by: 100.0 }}fr);
+        {%- else -%}
+          minmax(0, {{ 100 | minus: section.settings.text_width | divided_by: 100.0 }}fr)
+          minmax(0, {{ section.settings.text_width | divided_by: 100.0 }}fr);
+        {%- endif -%}
+    }
+
+    /* Desktop default: tekst links (start) = tekst eerst */
+    #shopify-section-{{ section.id }} .sc-text  { order: 1; }
+    #shopify-section-{{ section.id }} .sc-media { order: 2; }
+
+    /* Desktop reversed: tekst rechts = media eerst */
+    #shopify-section-{{ section.id }} .sc-detached--reverse .sc-media { order: 1; }
+    #shopify-section-{{ section.id }} .sc-detached--reverse .sc-text  { order: 2; }
+  }
+
+  /* Cards */
+  #shopify-section-{{ section.id }} .sc-card {
+    border-radius: var(--detached-radius);
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+  }
+
+  /* Tekst card */
+  #shopify-section-{{ section.id }} .sc-text {
+    background: var(--text-card-bg);
+    color: var(--text-card-color);
+    display: flex;
+  }
+  #shopify-section-{{ section.id }} .sc-text__inner {
+    width: 100%;
+    padding: var(--text-card-padding);
+    display: grid;
+    gap: 12px;
+    align-content: start;
+  }
+
+  /* Media card */
+  #shopify-section-{{ section.id }} .sc-media { background: transparent; }
+  #shopify-section-{{ section.id }} .sc-media__inner {
+    position: relative;
+    width: 100%;
+    aspect-ratio: var(--media-aspect);
+    border-radius: var(--detached-radius);
+    overflow: hidden;
+  }
+  #shopify-section-{{ section.id }} .sc-media__inner > * {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: var(--media-object-fit);
+  }
+</style>
+
+<div class="color-scheme color-scheme--{{ section.settings.color_scheme.id }}">
+  <div class="sc-container">
+    <div class="section sc-detached {% if section.settings.content_position == 'end' %}sc-detached--reverse{% endif %}">
+      <!-- Tekst card -->
+      <div class="sc-card sc-text">
+        <div class="sc-text__inner">
+          {%- for block in section.blocks -%}
+            {%- case block.type -%}
+              {%- when 'subheading' -%}
+                {%- render 'subheading', content: block.settings.text, block: block -%}
+              {%- when 'heading' -%}
+                {%- render 'heading',
+                  content: block.settings.text,
+                  style: block.settings.heading_tag,
+                  highlight_effect: block.settings.highlight_effect,
+                  highlight_accent_color: block.settings.highlight_accent_color,
+                  highlight_text_color: block.settings.highlight_text_color,
+                  block: block
+                -%}
+              {%- when 'richtext' -%}
+                {%- if block.settings.text != blank -%}
+                  <div class="prose" {{ block.shopify_attributes }}>{{ block.settings.text }}</div>
+                {%- endif -%}
+              {%- when 'icon' -%}
+                {%- if block.settings.image != blank -%}
+                  {%- render 'icon', image: block.settings.image, width: block.settings.icon_width, mobile_width: block.settings.mobile_icon_width, block: block -%}
+                {%- else -%}
+                  {%- render 'icon' with block.settings.icon, width: block.settings.icon_width, mobile_width: block.settings.mobile_icon_width, stroke_width: block.settings.icon_stroke_width, block: block -%}
+                {%- endif -%}
+              {%- when 'button' -%}
+                {%- render 'button',
+                  content: block.settings.text,
+                  href: block.settings.url,
+                  style: block.settings.style,
+                  background: block.settings.background,
+                  text_color: block.settings.text_color,
+                  block: block
+                -%}
+            {%- endcase -%}
+          {%- endfor -%}
+        </div>
+      </div>
+
+      <!-- Media card -->
+      <div class="sc-card sc-media">
+        <div class="sc-media__inner">
+          {%- liquid
+            if section.settings.primary_video != blank
+              assign show_controls = true
+              if section.settings.autoplay_video
+                assign show_controls = false
+              endif
+              render 'media', media: section.settings.primary_video, autoplay: section.settings.autoplay_video, loop: section.settings.autoplay_video, controls: show_controls
+            elsif section.settings.primary_image != blank
+              echo section.settings.primary_image | image_url: width: section.settings.primary_image.width | image_tag: sizes: '(max-width: 699px) 100vw, 50vw', widths: '400,600,800,1000,1200,1600,2000'
+            else
+              echo 'image' | placeholder_svg_tag: 'size-full'
+            endif
+          -%}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Split cards – los",
+  "class": "shopify-section--split-cards-detached",
+  "max_blocks": 10,
+  "disabled_on": { "groups": ["header", "custom.overlay"] },
+  "settings": [
+    { "type": "color_scheme", "id": "color_scheme", "label": "Kleurenschema", "default": "scheme-1" },
+
+    { "type": "header", "content": "Container" },
+    {
+      "type": "select",
+      "id": "container_width",
+      "label": "Max-width container",
+      "options": [
+        { "value": "s",   "label": "Small (720px)" },
+        { "value": "m",   "label": "Medium (960px)" },
+        { "value": "l",   "label": "Large (1200px)" },
+        { "value": "xl",  "label": "XL (1440px)" },
+        { "value": "full","label": "Volledige breedte (100%)" }
+      ],
+      "default": "l"
+    },
+    {
+      "type": "range",
+      "id": "container_padding",
+      "label": "Zij-marge desktop (gutter)",
+      "min": 0, "max": 80, "step": 2, "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "container_padding_mobile",
+      "label": "Zij-marge mobiel (gutter)",
+      "min": 0, "max": 48, "step": 2, "unit": "px",
+      "default": 16
+    },
+
+    { "type": "header", "content": "Lay-out" },
+    {
+      "type": "select",
+      "id": "content_position",
+      "label": "Positie van tekst (desktop)",
+      "options": [
+        { "value": "start", "label": "Links" },
+        { "value": "end", "label": "Rechts" }
+      ],
+      "default": "start"
+    },
+    {
+      "type": "range",
+      "id": "text_width",
+      "label": "Breedte tekstkolom (desktop)",
+      "min": 35, "max": 65, "step": 5, "unit": "%",
+      "default": 50
+    },
+    {
+      "type": "range",
+      "id": "gap_desktop",
+      "label": "Witruimte tussen blokken (gap)",
+      "min": 12, "max": 80, "step": 4, "unit": "px",
+      "default": 28
+    },
+
+    { "type": "header", "content": "Cards" },
+    {
+      "type": "range",
+      "id": "radius",
+      "label": "Border radius (beide cards)",
+      "min": 0, "max": 48, "step": 1, "unit": "px",
+      "default": 16
+    },
+    { "type": "checkbox", "id": "show_shadow", "label": "Zachte schaduw op cards", "default": true },
+
+    { "type": "header", "content": "Tekst card" },
+    { "type": "color", "id": "text_card_bg", "label": "Achtergrondkleur tekst card", "default": "#FFFFFF" },
+    { "type": "color", "id": "text_card_color", "label": "Tekstkleur", "default": "#1B1B1B" },
+    { "type": "range", "id": "text_card_padding", "label": "Binnenruimte (padding)", "min": 12, "max": 64, "step": 2, "unit": "px", "default": 28 },
+
+    { "type": "header", "content": "Media card" },
+    { "type": "image_picker", "id": "primary_image", "label": "Afbeelding" },
+    { "type": "video", "id": "primary_video", "label": "Video (ipv afbeelding)" },
+    { "type": "checkbox", "id": "autoplay_video", "label": "Video automatisch afspelen (mute + loop)", "default": true },
+    {
+      "type": "select",
+      "id": "media_object_fit",
+      "label": "Media object-fit",
+      "options": [
+        { "value": "cover", "label": "Cover (vullend)" },
+        { "value": "contain", "label": "Contain" }
+      ],
+      "default": "cover"
+    },
+    {
+      "type": "select",
+      "id": "media_aspect",
+      "label": "Aspect ratio",
+      "options": [
+        { "value": "16 / 9", "label": "16:9" },
+        { "value": "4 / 3",  "label": "4:3"  },
+        { "value": "1 / 1",  "label": "1:1 (vierkant)" },
+        { "value": "3 / 4",  "label": "3:4 (staand)" },
+        { "value": "auto",   "label": "Auto (volgt media)" }
+      ],
+      "default": "16 / 9"
+    }
+  ],
+  "blocks": [
+    { "type": "subheading", "name": "Subheading", "settings": [ { "type": "inline_richtext", "id": "text", "label": "Tekst", "default": "Subheading" } ] },
+    { "type": "heading", "name": "Heading", "settings": [ { "type": "inline_richtext", "id": "text", "label": "Tekst", "default": "Titel van je blok" } ] },
+    { "type": "richtext", "name": "Paragraaf", "settings": [ { "type": "richtext", "id": "text", "label": "Tekst", "default": "<p>Vertel hier je verhaal, USP’s of productinfo.</p>" } ] },
+    { "type": "button", "name": "Knop", "settings": [ { "type": "text", "id": "text", "label": "Knoptekst", "default": "Shop nu" }, { "type": "url", "id": "url", "label": "Link" } ] }
+  ],
+  "presets": [
+    { "name": "Split cards – los", "blocks": [ { "type": "heading" }, { "type": "richtext" }, { "type": "button" } ] }
+  ]
+}
+{% endschema %}

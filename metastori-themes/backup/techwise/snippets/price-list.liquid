@@ -1,0 +1,306 @@
+{%- comment -%}
+----------------------------------------------------------------------------------------------------------------------
+PRODUCT PRICE
+----------------------------------------------------------------------------------------------------------------------
+
+Render a list of price for a product, variant or line item.
+
+********************************************
+Supported variables
+********************************************
+
+* product: if provided, the prices are rendered for the whole product
+* variant: if provided, then only the price from this variant is rendered
+* alignment: can be "start", "center" or "end" (default to start)
+* line_item: if provided, then the price from this line item are rendered (used on cart or order)
+* hide_unit_price: if set to true unit prices are hidden (mostly useful for size constrained elements)
+* context: can be "product", "line_item" or "card". This controls how the prices are displayed (using the correct sizes)
+* discount_badge_enabled: if set to true, show discount badge near product price
+* discount_badge_label: label text shown before discount code
+* discount_badge_background: custom badge background
+* discount_badge_text_color: custom badge text color
+* discount_code_fallback: fallback discount code when metafield code is missing
+* discount_badge_enable_copy: enable copy icon for discount code
+{%- endcomment -%}
+
+{%- liquid
+  case context
+    when 'product'
+      assign regular_price_classes = 'h6 '
+      assign on_sale_price_classes = 'h6 text-on-sale'
+      assign compare_at_price_classes = 'h7 line-through'
+      assign unit_price_classes = 'subheading text-subdued'
+
+    when 'card'
+      case settings.product_card_style
+        when 'subheading'
+          assign regular_price_classes = 'subheading text-subdued'
+          assign on_sale_price_classes = 'subheading text-on-sale'
+          assign compare_at_price_classes = 'subheading text-subdued line-through'
+          assign unit_price_classes = 'subheading text-subdued'
+
+        when 'body_text'
+          assign regular_price_classes = 'text-sm text-subdued'
+          assign on_sale_price_classes = 'text-sm text-on-sale'
+          assign compare_at_price_classes = 'text-sm text-subdued line-through'
+          assign unit_price_classes = 'text-sm text-subdued'
+
+        when 'heading'
+          assign regular_price_classes = 'text-subdued'
+          assign on_sale_price_classes = 'text-on-sale'
+          assign compare_at_price_classes = 'text-subdued line-through'
+          assign unit_price_classes = 'text-subdued'
+      endcase
+
+    when 'line_item'
+      assign regular_price_classes = 'subheading text-subdued'
+      assign on_sale_price_classes = 'subheading text-on-sale'
+      assign compare_at_price_classes = 'subheading text-subdued line-through'
+      assign unit_price_classes = 'subheading text-subdued'
+  endcase
+-%}
+
+<price-list class="price-list {% if alignment %}justify-{{ alignment }}{% endif %}">
+  {%- if variant != blank -%}
+    {%- comment -%}
+    --------------------------------------------------------------------------------------------------------------------
+    VARIANT CASE (used on product page, quick view...)
+    --------------------------------------------------------------------------------------------------------------------
+    {%- endcomment -%}
+    <sale-price class="{% if variant.compare_at_price > variant.price %}{{ on_sale_price_classes }}{% else %}{{ regular_price_classes }}{% endif %}">
+      <span class="sr-only">{{ 'product.price.sale_price' | t }}</span>
+
+      {%- if settings.currency_code_enabled -%}
+        {{- variant.price | money_with_currency -}}
+      {%- else -%}
+        {{- variant.price | money -}}
+      {%- endif -%}
+    </sale-price>
+
+    {%- if variant.compare_at_price > variant.price -%}
+      <compare-at-price class="{{ compare_at_price_classes }}">
+        <span class="sr-only">{{ 'product.price.regular_price' | t }}</span>
+
+        {%- if settings.currency_code_enabled -%}
+          {{- variant.compare_at_price | money_with_currency -}}
+        {%- else -%}
+          {{- variant.compare_at_price | money -}}
+        {%- endif -%}
+      </compare-at-price>
+    {%- endif -%}
+  {%- elsif line_item != blank -%}
+    {%- comment -%}
+    --------------------------------------------------------------------------------------------------------------------
+    LINE ITEM CASE (used on cart, order page...)
+    --------------------------------------------------------------------------------------------------------------------
+    {%- endcomment -%}
+
+    <sale-price class="{% if line_item.original_price > line_item.final_price %}{{ on_sale_price_classes }}{% else %}{{ regular_price_classes }}{% endif %}">
+      <span class="sr-only">{{ 'product.price.sale_price' | t }}</span>
+
+      {%- if settings.currency_code_enabled -%}
+        {{- line_item.final_price | money_with_currency -}}
+      {%- else -%}
+        {{- line_item.final_price | money -}}
+      {%- endif -%}
+    </sale-price>
+
+    {%- if line_item.original_price > line_item.final_price -%}
+      <compare-at-price class="{{ compare_at_price_classes }}">
+        <span class="sr-only">{{ 'product.price.regular_price' | t }}</span>
+
+        {%- if settings.currency_code_enabled -%}
+          {{- line_item.original_price | money_with_currency -}}
+        {%- else -%}
+          {{- line_item.original_price | money -}}
+        {%- endif -%}
+      </compare-at-price>
+    {%- endif -%}
+  {%- elsif product != blank -%}
+    {%- comment -%}
+    --------------------------------------------------------------------------------------------------------------------
+    PRODUCT CASE (used on card)
+    --------------------------------------------------------------------------------------------------------------------
+    {%- endcomment -%}
+    {%- liquid
+      if product.price_varies and settings.product_card_price_strategy != 'from_price'
+        assign variant = product.variants | sort: 'price' | last | default: product.selected_or_first_available_variant
+      else
+        assign variant = product.variants | sort: 'price' | first | default: product.selected_or_first_available_variant
+      endif
+
+      if settings.currency_code_enabled
+        assign variant_price = variant.price | money_with_currency
+        assign variant_compare_at_price = variant.compare_at_price | money_with_currency
+      else
+        assign variant_price = variant.price | money
+        assign variant_compare_at_price = variant.compare_at_price | money
+      endif
+
+      assign is_variant_on_sale = false
+
+      if variant.price < variant.compare_at_price
+        assign is_variant_on_sale = true
+      endif
+    -%}
+
+    {%- if product.price_varies -%}
+      {%- if settings.product_card_price_strategy == 'from_price' -%}
+        <sale-price class="{% if is_variant_on_sale %}{{ on_sale_price_classes }}{% else %}{{ regular_price_classes }}{% endif %}">
+          <span class="sr-only">{{ 'product.price.sale_price' | t }}</span>
+          {{- 'product.price.from_price_html' | t: price_min: variant_price -}}
+        </sale-price>
+      {%- else -%}
+        <sale-price class="{% if is_variant_on_sale %}{{ on_sale_price_classes }}{% else %}{{ regular_price_classes }}{% endif %}">
+          <span class="sr-only">{{ 'product.price.sale_price' | t }}</span>
+          {{- variant_price -}}
+        </sale-price>
+      {%- endif -%}
+    {%- else -%}
+      <sale-price class="{% if is_variant_on_sale %}{{ on_sale_price_classes }}{% else %}{{ regular_price_classes }}{% endif %}">
+        <span class="sr-only">{{ 'product.price.sale_price' | t }}</span>
+        {{- variant_price -}}
+      </sale-price>
+    {%- endif -%}
+
+    {%- if is_variant_on_sale -%}
+      <compare-at-price class="{{ compare_at_price_classes }}">
+        <span class="sr-only">{{ 'product.price.regular_price' | t }}</span>
+        {{- variant_compare_at_price -}}
+      </compare-at-price>
+    {%- endif -%}
+  {%- else -%}
+    {%- comment -%}
+    --------------------------------------------------------------------------------------------------------------------
+    PLACEHOLDER CASE (used on featured product section for instance)
+    --------------------------------------------------------------------------------------------------------------------
+    {%- endcomment -%}
+
+    <sale-price class="{{ regular_price_classes }}">
+      <span class="sr-only">{{ 'product.price.sale_price' | t }}</span>
+
+      {%- if settings.currency_code_enabled -%}
+        {{- 4999 | money_with_currency -}}
+      {%- else -%}
+        {{- 4999 | money -}}
+      {%- endif -%}
+    </sale-price>
+  {%- endif -%}
+
+  {%- unless hide_unit_price -%}
+    {%- assign unit_price_item = variant | default: line_item | default: product.selected_or_first_available_variant -%}
+
+    {%- if unit_price_item.unit_price -%}
+      <unit-price class="{{ unit_price_classes }}">
+        ({{- unit_price_item.unit_price | unit_price_with_measurement: unit_price_item.unit_price_measurement -}})
+      </unit-price>
+    {%- endif -%}
+  {%- endunless -%}
+
+  {%- if context == 'product' and discount_badge_enabled and variant != blank -%}
+    {%- liquid
+      assign has_discount = false
+
+      if variant.compare_at_price > variant.price
+        assign has_discount = true
+      endif
+
+      assign discount_code = variant.metafields.custom.discount_code.value | default: product.metafields.custom.discount_code.value | default: discount_code_fallback
+      assign discount_label = discount_badge_label | default: 'with code'
+    -%}
+
+    {%- if has_discount -%}
+      <div
+        class="price-list__discount-badge"
+        style="--discount-badge-bg: {{ discount_badge_background | default: '#fde6eb' }}; --discount-badge-text: {{ discount_badge_text_color | default: '#5f2b33' }};"
+      >
+        <span class="price-list__discount-price">
+          {%- if settings.currency_code_enabled -%}
+            {{- variant.price | money_with_currency -}}
+          {%- else -%}
+            {{- variant.price | money -}}
+          {%- endif -%}
+        </span>
+
+        {%- if discount_code != blank -%}
+          <span class="price-list__discount-text">{{ discount_label | escape }} <strong>{{ discount_code | escape }}</strong></span>
+
+          {%- if discount_badge_enable_copy -%}
+            <button type="button" class="price-list__copy-button" data-discount-copy="{{ discount_code | escape }}" aria-label="Copy discount code {{ discount_code | escape }}">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none">
+                <path d="M9 9.75A2.25 2.25 0 0 1 11.25 7.5h7.5A2.25 2.25 0 0 1 21 9.75v7.5a2.25 2.25 0 0 1-2.25 2.25h-7.5A2.25 2.25 0 0 1 9 17.25v-7.5Z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M6 16.5H5.25A2.25 2.25 0 0 1 3 14.25v-9A2.25 2.25 0 0 1 5.25 3h9A2.25 2.25 0 0 1 16.5 5.25V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+          {%- endif -%}
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+  {%- endif -%}
+</price-list>
+
+<script>
+  if (!window.__themeDiscountCopyBound) {
+    window.__themeDiscountCopyBound = true;
+
+    document.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-discount-copy]');
+
+      if (!button) {
+        return;
+      }
+
+      var code = button.getAttribute('data-discount-copy');
+
+      if (!code || !navigator.clipboard) {
+        return;
+      }
+
+      navigator.clipboard.writeText(code).then(function () {
+        button.classList.add('is-copied');
+        window.setTimeout(function () {
+          button.classList.remove('is-copied');
+        }, 1200);
+      }).catch(function () {});
+    });
+  }
+</script>
+
+<style>
+  .price-list__discount-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.4rem;
+    padding: 0.3rem 0.55rem;
+    border-radius: 999px;
+    background: var(--discount-badge-bg);
+    color: var(--discount-badge-text);
+    line-height: 1;
+    width: fit-content;
+  }
+
+  .price-list__discount-price {
+    font-size: 0.92em;
+    font-weight: 700;
+  }
+
+  .price-list__discount-text {
+    font-size: 0.84em;
+    font-weight: 500;
+  }
+
+  .price-list__copy-button {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    line-height: 0;
+    cursor: pointer;
+    opacity: 0.85;
+  }
+
+  .price-list__copy-button.is-copied {
+    opacity: 1;
+  }
+</style>

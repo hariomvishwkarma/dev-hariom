@@ -1,0 +1,1280 @@
+<style>
+  #shopify-section-{{ section.id }} {
+    background-color: rgb(var(--section-background));
+  }
+
+  @media (min-width: 1000px) {
+    #shopify-section-{{ section.id }} #product__content {
+      padding-top: {{ section.settings.space_top -}}px;
+      margin-bottom: {{ section.settings.space_bottom -}}px;
+  }
+  }
+  @media (max-width: 999px) {
+    #shopify-section-{{ section.id }} #product__content {
+      padding-top: {{ section.settings.space_top_mobile -}}px;
+      margin-bottom: {{ section.settings.space_bottom_mobile -}}px;
+    }
+  }
+
+  .groessenfinder-pdf-embed { display: block; width: 100%; aspect-ratio: 1.414 / 1; height: auto; border: none; }
+  .groessenfinder-pdf-fallback { display: none; }
+  .groessenfinder-image { display: block; width: 100%; height: auto; }
+
+  @media (max-width: 999px) {
+    .groessenfinder-pdf-embed { display: none; }
+    .groessenfinder-pdf-fallback { display: inline-block; margin-top: 0.5rem; }
+  }
+</style>
+
+{%- assign selected_variant = product.selected_or_first_available_variant -%}
+{%- assign selected_variant_has_groessenfinder_content = false -%}
+{%- if selected_variant.metafields.custom.groessentabelle_bild1 != blank or selected_variant.metafields.custom.groessentabelle_bild2 != blank -%}
+  {%- assign selected_variant_has_groessenfinder_content = true -%}
+{%- endif -%}
+
+{%- assign product_has_groessenfinder_content = false -%}
+{%- for variant in product.variants -%}
+  {%- if variant.metafields.custom.groessentabelle_bild1 != blank or variant.metafields.custom.groessentabelle_bild2 != blank -%}
+    {%- assign product_has_groessenfinder_content = true -%}
+    {%- break -%}
+  {%- endif -%}
+{%- endfor -%}
+
+{%- capture product_content -%}
+  {%- capture product_tabs -%}
+    {%- capture product_tabs_nav_items -%}
+      {%- assign processed_blocks = 0 -%}
+
+      {%- for block in section.blocks -%}
+        {%- case block.type -%}
+          {%- when 'description' -%}
+            {%- if product.description != blank -%}
+              <button type="button" class="tabs-nav__item heading heading--small" aria-expanded="{% if processed_blocks == 0 %}true{% else %}false{% endif %}" aria-controls="block-{{ section.id }}-{{ block.id }}" data-description-nav="{{ section.id }}" {{ block.shopify_attributes }}>
+                {{- 'product.general.description' | t -}}
+              </button>
+
+              {%- assign processed_blocks = processed_blocks | plus: 1 -%}
+            {%- endif -%}
+
+          {%- when 'reviews' -%}
+            <button type="button" id="product-{{ product.id }}-reviews-desktop" class="tabs-nav__item heading heading--small anchor" aria-expanded="{% if processed_blocks == 0 %}true{% else %}false{% endif %}" aria-controls="block-{{ section.id }}-{{ block.id }}" {{ block.shopify_attributes }}>
+              {%- assign rating_count = product.metafields.reviews.rating_count.value | default: 0 -%}
+              {{- 'product.general.reviews' | t: rating_count: rating_count }}
+            </button>
+
+            {%- assign processed_blocks = processed_blocks | plus: 1 -%}
+
+          {%- when 'content' -%}
+            {%- if block.settings.page != blank -%}
+              {%- assign title = block.settings.title | default: block.settings.page.title -%}
+              {%- assign content = block.settings.page.content -%}
+            {%- else -%}
+              {%- assign title = block.settings.title -%}
+              {%- assign content = block.settings.content -%}
+            {%- endif -%}
+
+            {%- assign title_stripped = title | strip -%}
+
+            {%- if title_stripped == 'Größenfinder' -%}
+              {%- if product_has_groessenfinder_content -%}
+                <button type="button" class="tabs-nav__item heading heading--small" aria-expanded="{% if processed_blocks == 0 and selected_variant_has_groessenfinder_content %}true{% else %}false{% endif %}" aria-controls="block-{{ section.id }}-{{ block.id }}" data-groessenfinder-nav="{{ section.id }}" {% unless selected_variant_has_groessenfinder_content %}style="display:none"{% endunless %} {{ block.shopify_attributes }}>
+                  {{- title -}}
+                </button>
+              {%- endif -%}
+              {%- if selected_variant_has_groessenfinder_content -%}
+                {%- assign processed_blocks = processed_blocks | plus: 1 -%}
+              {%- endif -%}
+            {%- elsif title_stripped == 'Produktsicherheit' and product.selected_or_first_available_variant.metafields.custom.safety_notice != blank or title_stripped == 'Produktsicherheit' and product.selected_or_first_available_variant.metafields.gpsr.hersteller_name != blank or title_stripped == 'Produktsicherheit' and product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_name != blank -%}
+              <button type="button" class="tabs-nav__item heading heading--small" aria-expanded="{% if processed_blocks == 0 %}true{% else %}false{% endif %}" aria-controls="block-{{ section.id }}-{{ block.id }}" {{ block.shopify_attributes }}>
+                {{- title -}}
+              </button>
+              {%- assign processed_blocks = processed_blocks | plus: 1 -%}
+            {%- elsif title_stripped != blank -%}
+              <button type="button" class="tabs-nav__item heading heading--small" aria-expanded="{% if processed_blocks == 0 %}true{% else %}false{% endif %}" aria-controls="block-{{ section.id }}-{{ block.id }}" {{ block.shopify_attributes }}>
+                {{- title -}}
+              </button>
+              {%- assign processed_blocks = processed_blocks | plus: 1 -%}
+            {%- endif -%}
+
+          {%- when 'liquid' -%}
+            {%- if block.settings.title != blank and block.settings.liquid != blank -%}
+              <button type="button" class="tabs-nav__item heading heading--small" aria-expanded="{% if processed_blocks == 0 %}true{% else %}false{% endif %}" aria-controls="block-{{ section.id }}-{{ block.id }}" {{ block.shopify_attributes }}>
+                {{- block.settings.title | escape -}}
+              </button>
+
+              {%- assign processed_blocks = processed_blocks | plus: 1 -%}
+            {%- endif -%}
+        {%- endcase -%}
+      {%- endfor -%}
+    {%- endcapture -%}
+
+    {%- if processed_blocks > 1 -%}
+      <tabs-nav arrows class="tabs-nav tabs-nav--loose hidden-pocket">
+        <scrollable-content class="tabs-nav__scroller hide-scrollbar">
+          <div class="tabs-nav__scroller-inner">
+            <div class="tabs-nav__item-list">
+              {{- product_tabs_nav_items -}}
+            </div>
+          </div>
+        </scrollable-content>
+
+        <div class="tabs-nav__arrows">
+          <button class="tabs-nav__arrow-item">
+            <span class="visually-hidden">{{ 'general.accessibility.previous' | t }}</span>
+            {%- render 'icon' with 'product-tab-left', direction_aware: true -%}
+          </button>
+
+          <button class="tabs-nav__arrow-item">
+            <span class="visually-hidden">{{ 'general.accessibility.next' | t }}</span>
+            {%- render 'icon' with 'product-tab-right', direction_aware: true -%}
+          </button>
+        </div>
+      </tabs-nav>
+    {%- endif -%}
+
+    {% assign trust_block = section.blocks | where: 'type', 'trust' | first %}
+
+    {%- if trust_block != blank -%}
+      {%- capture trust_content -%}
+        {%- for i in (1..3) -%}
+          {%- capture icon_setting -%}icon_{{ i }}{%- endcapture -%}
+          {%- capture custom_icon_setting -%}custom_icon_{{ i }}{%- endcapture -%}
+          {%- capture title_setting -%}title_{{ i }}{%- endcapture -%}
+          {%- capture content_setting -%}content_{{ i }}{%- endcapture -%}
+
+          {%- if trust_block.settings[title_setting] != blank -%}
+            {%- assign custom_icon = trust_block.settings[custom_icon_setting] -%}
+
+            {%- capture trust_icon -%}
+              {%- if custom_icon != blank -%}
+                {{- custom_icon | image_url: width: custom_icon.width | image_tag: loading: 'lazy', sizes: '24px', widths: '24,48,72,96', class: 'product-tabs__trust-icon' -}}
+              {%- else -%}
+                {%- render 'icon' with trust_block.settings[icon_setting], class: 'product-tabs__trust-icon' -%}
+              {%- endif -%}
+            {%- endcapture -%}
+
+            {%- if trust_block.settings[content_setting] != blank -%}
+              <button is="toggle-button" class="product-tabs__trust-title icon-text link text--subdued hidden-phone" aria-controls="product-{{ section.id }}-{{ trust_block.id }}-trust-{{ forloop.index }}-drawer" aria-expanded="false">
+                {{- trust_icon -}} {{- trust_block.settings[title_setting] | escape -}}
+              </button>
+
+              <button is="toggle-button" class="product-tabs__trust-title icon-text link text--subdued hidden-tablet-and-up" aria-controls="product-{{ section.id }}-{{ trust_block.id }}-trust-{{ forloop.index }}-popover" aria-expanded="false">
+                {{- trust_icon -}} {{- trust_block.settings[title_setting] | escape -}}
+              </button>
+            {%- else -%}
+              <span class="product-tabs__trust-title icon-text text--subdued">
+                {{- trust_icon -}} {{- trust_block.settings[title_setting] | escape -}}
+              </span>
+            {%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endcapture -%}
+
+      {%- capture trust_drawer_content -%}
+        {%- for i in (1..3) -%}
+          {%- capture icon_setting -%}icon_{{ i }}{%- endcapture -%}
+          {%- capture custom_icon_setting -%}custom_icon_{{ i }}{%- endcapture -%}
+          {%- capture title_setting -%}title_{{ i }}{%- endcapture -%}
+          {%- capture content_setting -%}content_{{ i }}{%- endcapture -%}
+
+          {%- if trust_block.settings[title_setting] != blank and trust_block.settings[content_setting] != blank -%}
+            {%- assign custom_icon = trust_block.settings[custom_icon_setting] -%}
+
+            {%- capture trust_icon -%}
+              {%- if custom_icon != blank -%}
+                {{- custom_icon | image_url: width: custom_icon.width | image_tag: loading: 'lazy', sizes: '24px', widths: '24,48,72,96', class: 'product-tabs__trust-icon' -}}
+              {%- else -%}
+                {%- render 'icon' with trust_block.settings[icon_setting], class: 'product-tabs__trust-icon' -%}
+              {%- endif -%}
+            {%- endcapture -%}
+
+            {%- comment -%}Drawer is for tablet and desktop{%- endcomment -%}
+            <drawer-content id="product-{{ section.id }}-{{ trust_block.id }}-trust-{{ forloop.index }}-drawer" class="drawer drawer--large hidden-phone">
+              <span class="drawer__overlay"></span>
+
+              <header class="drawer__header">
+                <p class="drawer__title heading h6">{{- trust_icon -}} {{- trust_block.settings[title_setting] | escape -}}</p>
+
+                <button type="button" class="drawer__close-button tap-area" data-action="close" title="{{ 'general.accessibility.close' | t | escape }}">
+                  {%- render 'icon' with 'close' -%}
+                </button>
+              </header>
+
+              <div class="drawer__content drawer__content--padded-start">
+                <div class="rte">
+                  {{- trust_block.settings[content_setting] -}}
+                </div>
+              </div>
+            </drawer-content>
+
+            {%- comment -%}Popover is for mobile{%- endcomment -%}
+            <popover-content id="product-{{ section.id }}-{{ trust_block.id }}-trust-{{ forloop.index }}-popover" class="popover hidden-tablet-and-up">
+              <span class="popover__overlay"></span>
+
+              <header class="popover__header">
+                <p class="popover__title heading h6">{{- trust_icon -}} {{- trust_block.settings[title_setting] | escape -}}</p>
+
+                <button type="button" class="popover__close-button tap-area tap-area--large" data-action="close" title="{{ 'general.accessibility.close' | t | escape }}">
+                  {%- render 'icon' with 'close' -%}
+                </button>
+              </header>
+
+              <div class="popover__content">
+                <div class="rte">
+                  {{- trust_block.settings[content_setting] -}}
+                </div>
+              </div>
+            </popover-content>
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endcapture -%}
+    {%- endif -%}
+
+    {%- if product_tabs_nav_items != blank -%}
+      <div class="product-tabs__content">
+        {%- assign processed_blocks = 0 -%}
+
+        {%- for block in section.blocks -%}
+          {%- case block.type -%}
+            {%- when 'description' -%}
+              {%- if product.description != blank -%}
+                <div {% unless processed_blocks == 0 %}hidden{% endunless %} id="block-{{ section.id }}-{{ block.id }}" class="product-tabs__tab-item-wrapper" data-description-tab="{{ section.id }}">
+                  <button is="toggle-button" class="collapsible-toggle heading  hidden-lap-and-up" aria-controls="block-{{ section.id }}-{{ block.id }}-content" aria-expanded="{% if processed_blocks == 0 and section.settings.mobile_description_open_default %}true{% else %}false{% endif %}">
+                    {{- 'product.general.description' | t -}}
+                    {%- render 'icon' with 'chevron' -%}
+                  </button>
+
+                  <collapsible-content {% if processed_blocks == 0 and section.settings.mobile_description_open_default %}open{% endif %} id="block-{{ section.id }}-{{ block.id }}-content" class="collapsible">
+                    <div class="product-tabs__tab-item-content rte">
+                      {{- product.description -}}
+                    </div>
+
+                    {%- if trust_content != blank and processed_blocks == 0 -%}
+                      <div class="product-tabs__trust-list hidden-pocket">
+                        {{- trust_content -}}
+                      </div>
+                    {%- endif -%}
+                  </collapsible-content>
+                </div>
+
+                {%- assign processed_blocks = processed_blocks | plus: 1 -%}
+              {%- endif -%}
+
+          {%- when 'content' -%}
+            {%- if block.settings.page != blank -%}
+              {%- assign title = block.settings.title | default: block.settings.page.title -%}
+              {%- assign content = block.settings.page.content -%}
+            {%- else -%}
+              {%- assign title = block.settings.title -%}
+              {%- assign content = block.settings.content -%}
+            {%- endif -%}
+
+            {%- assign title_stripped = title | strip -%}
+            {%- assign gf_visible = false -%}
+            {%- if title_stripped == 'Größenfinder' -%}
+              {%- assign gf_visible = selected_variant_has_groessenfinder_content -%}
+            {% elsif title_stripped == 'Produktsicherheit' and product.selected_or_first_available_variant.metafields.custom.safety_notice != blank or title_stripped == 'Produktsicherheit' and product.selected_or_first_available_variant.metafields.gpsr.hersteller_name != blank or title_stripped == 'Produktsicherheit' and product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_name != blank %}
+              {%- assign gf_visible = true -%}
+            {% elsif title_stripped != blank %}
+              {%- assign gf_visible = true -%}
+            {%- endif -%}
+
+            {%- assign show_btn = false -%}
+            {%- if title_stripped == 'Größenfinder' -%}
+              {%- assign show_btn = product_has_groessenfinder_content -%}
+            {%- elsif title_stripped != blank -%}
+              {%- assign show_btn = true -%}
+            {%- endif -%}
+
+            {%- if show_btn -%}
+              <div {% if processed_blocks != 0 or gf_visible == false %}hidden{% endif %} id="block-{{ section.id }}-{{ block.id }}" class="product-tabs__tab-item-wrapper" {% if title_stripped == 'Größenfinder' %}data-groessenfinder-tab="{{ section.id }}"{% endif %} {{ block.shopify_attributes }}>
+                <button is="toggle-button" class="collapsible-toggle heading hidden-lap-and-up" aria-expanded="{% if processed_blocks == 0 and gf_visible %}true{% else %}false{% endif %}" aria-controls="block-{{ section.id }}-{{ block.id }}-content">
+                  {{- title -}}
+                  {%- render 'icon' with 'chevron' -%}
+                </button>
+
+                <collapsible-content {% if processed_blocks == 0 and gf_visible %}open{% endif %} id="block-{{ section.id }}-{{ block.id }}-content" class="collapsible">
+                  <div class="product-tabs__tab-item-content rte">
+                    {{- content -}}
+                    {%- if title_stripped == 'Produkteigenschaften' -%}
+                      {%- render 'variant-produkteigenschaften', product: product, section: section -%}
+                    {%- endif -%}
+                    {%- if title_stripped == 'Größenfinder' -%}
+                      {%- assign gf_bild1 = product.selected_or_first_available_variant.metafields.custom.groessentabelle_bild1 -%}
+                      {%- assign gf_bild2 = product.selected_or_first_available_variant.metafields.custom.groessentabelle_bild2 -%}
+                      <div id="groessenfinder-media-{{ section.id }}" class="groessenfinder-media">
+                        {%- if gf_bild1 != blank -%}
+                          {%- if gf_bild1 contains '.pdf' -%}
+                            <iframe src="{{ gf_bild1 }}" class="groessenfinder-pdf-embed" title="Größentabelle"></iframe>
+                            <a href="{{ gf_bild1 }}" target="_blank" rel="noopener" class="groessenfinder-pdf-fallback">Größentabelle (PDF öffnen)</a>
+                          {%- else -%}
+                            <img src="{{ gf_bild1 }}" alt="Größentabelle" class="groessenfinder-image" loading="lazy" width="1000" height="1000">
+                          {%- endif -%}
+                        {%- endif -%}
+                        {%- if gf_bild2 != blank -%}
+                          {%- if gf_bild2 contains '.pdf' -%}
+                            <iframe src="{{ gf_bild2 }}" class="groessenfinder-pdf-embed" title="Größentabelle 2" style="margin-top:1rem"></iframe>
+                            <a href="{{ gf_bild2 }}" target="_blank" rel="noopener" class="groessenfinder-pdf-fallback">Größentabelle 2 (PDF öffnen)</a>
+                          {%- else -%}
+                            <img src="{{ gf_bild2 }}" alt="Größentabelle 2" class="groessenfinder-image" loading="lazy" width="1000" height="1000" style="margin-top:1rem">
+                          {%- endif -%}
+                        {%- endif -%}
+                      </div>
+                      <script type="application/json" id="groessenfinder-data-{{ section.id }}">
+                        {
+                          {%- for variant in product.variants -%}
+                            "{{ variant.id }}": {
+                              "bild1": {{ variant.metafields.custom.groessentabelle_bild1 | json }},
+                              "bild2": {{ variant.metafields.custom.groessentabelle_bild2 | json }}
+                            }{% unless forloop.last %},{% endunless %}
+                          {%- endfor -%}
+                        }
+                      </script>
+                    {%- endif -%}
+                    {% if title_stripped == 'Produktsicherheit' and product.selected_or_first_available_variant.metafields.custom.safety_notice != blank %}
+                      {% assign safety_notice = product.selected_or_first_available_variant.metafields.custom.safety_notice %}
+                      {% if metaobjects['gpsr_safety_notices'][safety_notice] != blank %}
+                        <div class="product-tabs__safety-notice">
+                          {{ metaobjects['gpsr_safety_notices'][safety_notice].plaintext_content }}
+                        </div>
+                      {% endif %}
+                      {% if product.selected_or_first_available_variant.metafields.gpsr.hersteller_name != blank %}
+                        <div class="product-tabs-gpsr">
+                          <h3>Herstellerinformationen</h3>
+                          <div class="product-tabs__manufacturer-name">
+                            {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_name }}
+                          </div>
+                          <div class="product-tabs__manufacturer-street">
+                            {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_strasse }} {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_hausnummer }}
+                          </div>
+                          <div class="product-tabs__manufacturer-zip">
+                            {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_plz }} {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_ort }}
+                          </div>
+                          <div class="product-tabs__manufacturer-country">
+                            {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_land }}
+                          </div>
+                          <div class="product-tabs__manufacturer-mail">
+                            {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_email }}
+                          </div>
+                          <div class="product-tabs__manufacturer-website">
+                            {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_homepage }}
+                          </div>
+                        </div>
+                        {% if product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_name != blank %}
+                          <div class="product-tabs-gpsr">
+                            <h3>Verantwortliche Person</h3>
+                            <div class="product-tabs__manufacturer-name">
+                              {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_name }}
+                            </div>
+                            <div class="product-tabs__manufacturer-street">
+                              {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_strasse }} {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_hausnummer }}
+                            </div>
+                            <div class="product-tabs__manufacturer-zip">
+                              {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_plz }} {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_ort }}
+                            </div>
+                            <div class="product-tabs__manufacturer-country">
+                              {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_land }}
+                            </div>
+                            <div class="product-tabs__manufacturer-mail">
+                              {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_email }}
+                            </div>
+                            <div class="product-tabs__manufacturer-website">
+                              {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_homepage }}
+                            </div>
+                          </div>
+                        {% endif %}
+                      {% endif %}
+                      {% render 'piktogramme', show_p_s: true %}
+                    {% elsif title_stripped == 'Produktsicherheit' and product.selected_or_first_available_variant.metafields.custom.safety_notice == blank %}
+                      {% if product.selected_or_first_available_variant.metafields.gpsr.hersteller_name != blank %}
+                        <div class="product-tabs-gpsr">
+                          <h3>Herstellerinformationen</h3>
+                          <div class="product-tabs__manufacturer-name">
+                            {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_name }}
+                          </div>
+                          <div class="product-tabs__manufacturer-street">
+                            {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_strasse }} {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_hausnummer }}
+                          </div>
+                          <div class="product-tabs__manufacturer-zip">
+                            {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_plz }} {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_ort }}
+                          </div>
+                          <div class="product-tabs__manufacturer-country">
+                            {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_land }}
+                          </div>
+                          <div class="product-tabs__manufacturer-mail">
+                            {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_email }}
+                          </div>
+                          <div class="product-tabs__manufacturer-website">
+                            {{ product.selected_or_first_available_variant.metafields.gpsr.hersteller_homepage }}
+                          </div>
+                        </div>
+                        {% if product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_name != blank %}
+                          <div class="product-tabs-gpsr">
+                            <h3>Verantwortliche Person</h3>
+                            <div class="product-tabs__manufacturer-name">
+                              {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_name }}
+                            </div>
+                            <div class="product-tabs__manufacturer-street">
+                              {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_strasse }} {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_hausnummer }}
+                            </div>
+                            <div class="product-tabs__manufacturer-zip">
+                              {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_plz }} {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_ort }}
+                            </div>
+                            <div class="product-tabs__manufacturer-country">
+                              {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_land }}
+                            </div>
+                            <div class="product-tabs__manufacturer-mail">
+                              {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_email }}
+                            </div>
+                            <div class="product-tabs__manufacturer-website">
+                              {{ product.selected_or_first_available_variant.metafields.gpsr.eu_verantwortlicher_homepage }}
+                            </div>
+                          </div>
+                        {% endif %}
+                      {% endif %}
+                      {% render 'piktogramme', show_p_s: true %}
+                    {% endif %}
+                  </div>
+
+                  {%- if trust_content != blank and processed_blocks == 0 -%}
+                    <div class="product-tabs__trust-list hidden-pocket">
+                      {{- trust_content -}}
+                    </div>
+                  {%- endif -%}
+                </collapsible-content>
+              </div>
+
+              {%- if title_stripped != 'Größenfinder' or gf_visible -%}
+                {%- assign processed_blocks = processed_blocks | plus: 1 -%}
+              {%- endif -%}
+            {%- endif -%}
+
+          {%- when 'liquid' -%}
+            {%- if block.settings.title != blank and block.settings.liquid != blank -%}
+              <div {% unless processed_blocks == 0 %}hidden{% endunless %} id="block-{{ section.id }}-{{ block.id }}" class="product-tabs__tab-item-wrapper" {{ block.shopify_attributes }}>
+                <button is="toggle-button" class="collapsible-toggle heading hidden-lap-and-up" aria-expanded="{% if processed_blocks == 0 %}true{% else %}false{% endif %}" aria-controls="block-{{ section.id }}-{{ block.id }}-content">
+                  {{- block.settings.title | escape -}}
+                  {%- render 'icon' with 'chevron' -%}
+                </button>
+
+                <collapsible-content {% if processed_blocks == 0 %}open{% endif %} id="block-{{ section.id }}-{{ block.id }}-content" class="collapsible">
+                  <div class="product-tabs__tab-item-content rte">
+                    {{- block.settings.liquid -}}
+                  </div>
+
+                  {%- if trust_content != blank and processed_blocks == 0 -%}
+                    <div class="product-tabs__trust-list hidden-pocket">
+                      {{- trust_content -}}
+                    </div>
+                  {%- endif -%}
+                </collapsible-content>
+              </div>
+
+              {%- assign processed_blocks = processed_blocks | plus: 1 -%}
+            {%- endif -%}
+          {%- endcase -%}
+        {%- endfor -%}
+      </div>
+    {%- endif -%}
+
+    {%- if trust_content != blank -%}
+      <div class="product-tabs__trust-list container {% if product_tabs_nav_items != blank %}hidden-lap-and-up{% endif %}">
+        {{- trust_content -}}
+      </div>
+    {%- endif -%}
+
+    {%- comment -%}Output the various drawers for the trust badges, only once (if they exist){%- endcomment -%}
+    {{- trust_drawer_content -}}
+  {%- endcapture -%}
+
+  {%- if product_tabs != blank -%}
+    <div class="product-content__tabs anchor" id="product-{{ product.id }}-tabs">
+      <div class="product-tabs">
+        {{- product_tabs -}}
+      </div>
+    </div>
+  {%- endif -%}
+
+  {%- assign complementary_products_block = section.blocks | where: 'type', 'complementary_products' | first -%}
+
+  {%- if complementary_products_block != blank -%}
+    <product-recommendations class="product-content__featured-products" intent="complementary" recommendations-count="2" product-id="{{ product.id }}" section-id="{{ section.id }}">
+      {%- if recommendations.performed and recommendations.products_count > 0 -%}
+        {%- if complementary_products_block.settings.title != blank -%}
+          <p class="product-content__featured-products-title heading heading--small">{{ complementary_products_block.settings.title | escape }}</p>
+        {%- endif -%}
+
+        <div class="scroller">
+          <div class="scroller__inner">
+            <div class="product-content__featured-products-list">
+              {%- for product in recommendations.products -%}
+                {%- render 'product-item', product: product, reduced_content: true, reduced_font_size: true, sizes_attribute: '(max-width: 740px) 105px, 215px' -%}
+              {%- endfor -%}
+            </div>
+          </div>
+        </div>
+      {%- endif -%}
+    </product-recommendations>
+  {%- endif -%}
+{%- endcapture -%}
+
+{%- if product_content != blank -%}
+  <section id="product__content">
+    <div class="container">
+      <div id="product-{{ product.id }}-content" class="ed-product-content anchor">
+        {{- product_content -}}
+      </div>
+    </div>
+  </section>
+{%- endif -%}
+
+<script>
+(function() {
+  function buildGroessenfinder(bild1, bild2) {
+    var html = '';
+    var items = [
+      { url: bild1, label: 'Größentabelle' },
+      { url: bild2, label: 'Größentabelle 2' }
+    ];
+    items.forEach(function(item, i) {
+      if (!item.url) return;
+      var safeUrl = item.url.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      var marginStyle = i > 0 ? ' style="margin-top:1rem"' : '';
+      if (item.url.toLowerCase().indexOf('.pdf') !== -1) {
+        html += '<iframe src="' + safeUrl + '" class="groessenfinder-pdf-embed" title="' + item.label + '"' + marginStyle + '></iframe>';
+        html += '<a href="' + safeUrl + '" target="_blank" rel="noopener" class="groessenfinder-pdf-fallback">' + item.label + ' (PDF öffnen)</a>';
+      } else {
+        html += '<img src="' + safeUrl + '" alt="' + item.label + '" class="groessenfinder-image" loading="lazy" width="1000" height="1000"' + marginStyle + '>';
+      }
+    });
+    return html;
+  }
+
+  document.addEventListener('variant:changed', function(event) {
+    var variant = event.detail && event.detail.variant;
+    if (!variant || !variant.id) return;
+
+    var containers = document.querySelectorAll('[id^="groessenfinder-media-"]');
+    containers.forEach(function(container) {
+      var sectionId = container.id.replace('groessenfinder-media-', '');
+      var dataScript = document.getElementById('groessenfinder-data-' + sectionId);
+      if (!dataScript) return;
+
+      try {
+        var data = JSON.parse(dataScript.textContent);
+        var variantData = data[String(variant.id)];
+        var hasContent = variantData && (variantData.bild1 || variantData.bild2);
+
+        var navButton = document.querySelector('[data-groessenfinder-nav="' + sectionId + '"]');
+        var tabWrapper = document.querySelector('[data-groessenfinder-tab="' + sectionId + '"]');
+
+        if (hasContent) {
+          container.innerHTML = buildGroessenfinder(variantData.bild1, variantData.bild2);
+          if (navButton) navButton.style.display = '';
+          if (tabWrapper) tabWrapper.removeAttribute('hidden');
+        } else {
+          container.innerHTML = '';
+          if (navButton) {
+            if (navButton.getAttribute('aria-expanded') === 'true') {
+              var itemList = navButton.closest('.tabs-nav__item-list');
+              if (itemList) {
+                var otherBtn = itemList.querySelector('.tabs-nav__item:not([data-groessenfinder-nav])');
+                if (otherBtn) otherBtn.click();
+              }
+            }
+            navButton.style.display = 'none';
+          }
+          if (tabWrapper) tabWrapper.setAttribute('hidden', '');
+        }
+      } catch(e) {}
+    });
+  });
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Product content",
+  "class": "shopify-section--product-content",
+  "blocks": [
+    {
+      "name": "Description",
+      "type": "description",
+      "limit": 1
+    },
+    {
+      "name": "Content",
+      "type": "content",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title"
+        },
+        {
+          "type": "richtext",
+          "id": "content",
+          "label": "Content"
+        },
+        {
+          "type": "page",
+          "id": "page",
+          "label": "Content from page",
+          "info": "If specified, takes precedence over inline content."
+        }
+      ]
+    },
+    {
+      "name": "Custom Liquid",
+      "type": "liquid",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title"
+        },
+        {
+          "type": "liquid",
+          "id": "liquid",
+          "label": "Liquid",
+          "info": "Add app snippets or other Liquid code to create advanced customizations."
+        }
+      ]
+    },
+    {
+      "name": "Complementary products",
+      "type": "complementary_products",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "paragraph",
+          "content": "To select complementary products, use the Search & Discovery app. Only the first two products are visible. [Learn more](https://help.shopify.com/en/manual/online-store/search-and-discovery/product-recommendations#complementary-products)"
+        },
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Heading",
+          "default": "Featured products"
+        }
+      ]
+    },
+    {
+      "name": "Trust icons",
+      "type": "trust",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "paragraph",
+          "content": "Show extra text next to your product description to improve trust."
+        },
+        {
+          "type": "header",
+          "content": "Text 1"
+        },
+        {
+          "type": "select",
+          "id": "icon_1",
+          "label": "Icon",
+          "options": [
+            {
+              "value": "picto-coupon",
+              "label": "Coupon",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-gift",
+              "label": "Gift",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-taxes",
+              "label": "Taxes",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-warranty",
+              "label": "Warranty",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-like",
+              "label": "Like",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-store",
+              "label": "Store",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-store-pickup",
+              "label": "Store pickup",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-love",
+              "label": "Love",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-donation",
+              "label": "Donation",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-box",
+              "label": "Box",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-address",
+              "label": "Address",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-address-pin",
+              "label": "Address pin",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-fast-delivery",
+              "label": "Fast delivery",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-delivery-truck",
+              "label": "Delivery truck",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-return-box",
+              "label": "Returns",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-worldwide",
+              "label": "World",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-plane",
+              "label": "Plane",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-credit-card",
+              "label": "Credit card",
+              "group": "Payment & Security"
+            },
+            {
+              "value": "picto-lock",
+              "label": "Lock",
+              "group": "Payment & Security"
+            },
+            {
+              "value": "picto-shield",
+              "label": "Shield",
+              "group": "Payment & Security"
+            },
+            {
+              "value": "picto-secure-payment",
+              "label": "Secure payment",
+              "group": "Payment & Security"
+            },
+            {
+              "value": "picto-mobile",
+              "label": "Mobile",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-phone",
+              "label": "Phone",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-chat",
+              "label": "Chat",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-send",
+              "label": "Send",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-email",
+              "label": "Email",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-customer-support",
+              "label": "Customer support",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-operator",
+              "label": "Support operator",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-virus",
+              "label": "Virus",
+              "group": "Health"
+            },
+            {
+              "value": "picto-mask",
+              "label": "Mask",
+              "group": "Health"
+            }
+          ],
+          "default": "picto-customer-support"
+        },
+        {
+          "type": "image_picker",
+          "id": "custom_icon_1",
+          "label": "Custom icon",
+          "info": "48 x 48px .png with transparency recommended"
+        },
+        {
+          "type": "text",
+          "id": "title_1",
+          "label": "Heading",
+          "default": "Shipping & Returns"
+        },
+        {
+          "type": "richtext",
+          "id": "content_1",
+          "label": "Content",
+          "default": "<p>Add text about your shipping policy</p>"
+        },
+        {
+          "type": "header",
+          "content": "Text 2"
+        },
+        {
+          "type": "select",
+          "id": "icon_2",
+          "label": "Icon",
+          "options": [
+            {
+              "value": "picto-coupon",
+              "label": "Coupon",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-gift",
+              "label": "Gift",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-taxes",
+              "label": "Taxes",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-warranty",
+              "label": "Warranty",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-like",
+              "label": "Like",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-store",
+              "label": "Store",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-store-pickup",
+              "label": "Store pickup",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-love",
+              "label": "Love",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-donation",
+              "label": "Donation",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-box",
+              "label": "Box",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-address",
+              "label": "Address",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-address-pin",
+              "label": "Address pin",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-fast-delivery",
+              "label": "Fast delivery",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-delivery-truck",
+              "label": "Delivery truck",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-return-box",
+              "label": "Returns",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-worldwide",
+              "label": "World",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-plane",
+              "label": "Plane",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-credit-card",
+              "label": "Credit card",
+              "group": "Payment & Security"
+            },
+            {
+              "value": "picto-lock",
+              "label": "Lock",
+              "group": "Payment & Security"
+            },
+            {
+              "value": "picto-shield",
+              "label": "Shield",
+              "group": "Payment & Security"
+            },
+            {
+              "value": "picto-secure-payment",
+              "label": "Secure payment",
+              "group": "Payment & Security"
+            },
+            {
+              "value": "picto-mobile",
+              "label": "Mobile",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-phone",
+              "label": "Phone",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-chat",
+              "label": "Chat",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-send",
+              "label": "Send",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-email",
+              "label": "Email",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-customer-support",
+              "label": "Customer support",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-operator",
+              "label": "Support operator",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-virus",
+              "label": "Virus",
+              "group": "Health"
+            },
+            {
+              "value": "picto-mask",
+              "label": "Mask",
+              "group": "Health"
+            }
+          ],
+          "default": "picto-warranty"
+        },
+        {
+          "type": "image_picker",
+          "id": "custom_icon_2",
+          "label": "Custom icon",
+          "info": "48 x 48px .png with transparency recommended"
+        },
+        {
+          "type": "text",
+          "id": "title_2",
+          "label": "Heading",
+          "default": "Warranty"
+        },
+        {
+          "type": "richtext",
+          "id": "content_2",
+          "label": "Content",
+          "default": "<p>Add text about your product warranty</p>"
+        },
+        {
+          "type": "header",
+          "content": "Text 3"
+        },
+        {
+          "type": "select",
+          "id": "icon_3",
+          "label": "Icon",
+          "options": [
+            {
+              "value": "picto-coupon",
+              "label": "Coupon",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-gift",
+              "label": "Gift",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-taxes",
+              "label": "Taxes",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-warranty",
+              "label": "Warranty",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-like",
+              "label": "Like",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-store",
+              "label": "Store",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-store-pickup",
+              "label": "Store pickup",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-love",
+              "label": "Love",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-donation",
+              "label": "Donation",
+              "group": "Shop"
+            },
+            {
+              "value": "picto-box",
+              "label": "Box",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-address",
+              "label": "Address",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-address-pin",
+              "label": "Address pin",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-fast-delivery",
+              "label": "Fast delivery",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-delivery-truck",
+              "label": "Delivery truck",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-return-box",
+              "label": "Returns",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-worldwide",
+              "label": "World",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-plane",
+              "label": "Plane",
+              "group": "Shipping"
+            },
+            {
+              "value": "picto-credit-card",
+              "label": "Credit card",
+              "group": "Payment & Security"
+            },
+            {
+              "value": "picto-lock",
+              "label": "Lock",
+              "group": "Payment & Security"
+            },
+            {
+              "value": "picto-shield",
+              "label": "Shield",
+              "group": "Payment & Security"
+            },
+            {
+              "value": "picto-secure-payment",
+              "label": "Secure payment",
+              "group": "Payment & Security"
+            },
+            {
+              "value": "picto-mobile",
+              "label": "Mobile",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-phone",
+              "label": "Phone",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-chat",
+              "label": "Chat",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-send",
+              "label": "Send",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-email",
+              "label": "Email",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-customer-support",
+              "label": "Customer support",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-operator",
+              "label": "Support operator",
+              "group": "Communication"
+            },
+            {
+              "value": "picto-virus",
+              "label": "Virus",
+              "group": "Health"
+            },
+            {
+              "value": "picto-mask",
+              "label": "Mask",
+              "group": "Health"
+            }
+          ],
+          "default": "picto-secure-payment"
+        },
+        {
+          "type": "image_picker",
+          "id": "custom_icon_3",
+          "label": "Custom icon",
+          "info": "48 x 48px .png with transparency recommended"
+        },
+        {
+          "type": "text",
+          "id": "title_3",
+          "label": "Heading",
+          "default": "Secure Payment"
+        },
+        {
+          "type": "richtext",
+          "id": "content_3",
+          "label": "Content",
+          "default": "<p>Add text about your payment</p>"
+        }
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "type": "header",
+      "content": "Section spacing"
+    },
+    {
+      "type": "range",
+      "id": "space_top",
+      "min": 0,
+      "max": 200,
+      "step": 5,
+      "unit": "px",
+      "label": "Top space",
+      "default": 75
+    },
+    {
+      "type": "range",
+      "id": "space_bottom",
+      "min": 0,
+      "max": 200,
+      "step": 5,
+      "unit": "px",
+      "label": "Bottom space",
+      "default": 75
+    },
+    {
+      "type": "paragraph",
+      "content": "Section spacing (Mobile)"
+    },
+    {
+      "type": "range",
+      "id": "space_top_mobile",
+      "min": 0,
+      "max": 200,
+      "step": 2,
+      "unit": "px",
+      "label": "Top (mobile)",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "space_bottom_mobile",
+      "min": 0,
+      "max": 200,
+      "step": 2,
+      "unit": "px",
+      "label": "Bottom (mobile)",
+      "default": 60
+    },
+    {
+      "type": "checkbox",
+      "id": "mobile_description_open_default",
+      "label": "Open description default (Mobile)",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Other settings"
+    },
+    {
+      "type": "color",
+      "id": "background",
+      "label": "Background",
+      "default": "rgba(0,0,0,0)"
+    }
+  ]
+}
+{% endschema %}

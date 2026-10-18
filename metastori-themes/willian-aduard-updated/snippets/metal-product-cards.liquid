@@ -1,0 +1,266 @@
+{%- comment -%}
+  Renders metal-based product cards for collection grids.
+
+  Parameters:
+  - product {Object} - Product object
+  - custom_aspect_ratio {Number} - Image aspect ratio
+  - animate {Boolean} - Animate on load
+  - prioritised_loading {Boolean} - Eager load first images
+{%- endcomment -%}
+{%- liquid
+  assign metal_option_index = nil
+  for opt in product.options
+    if opt == 'Metal'
+      assign metal_option_index = forloop.index0
+      break
+    endif
+  endfor
+
+  unless metal_option_index
+    render 'product-block', product: product, custom_aspect_ratio: custom_aspect_ratio, animate: animate, prioritised_loading: prioritised_loading
+    break
+  endunless
+
+  assign yg_variant = blank
+  assign wg_variant = blank
+  assign ss_variant = blank
+  assign rg_variant = blank
+  assign pt_variant = blank
+
+  assign yg_price_varies = false
+  assign wg_price_varies = false
+  assign ss_price_varies = false
+  assign rg_price_varies = false
+  assign pt_price_varies = false
+
+  assign yg_has_available = false
+  assign wg_has_available = false
+  assign ss_has_available = false
+  assign rg_has_available = false
+  assign pt_has_available = false
+
+  for variant in product.variants
+    assign metal_value = variant.options[metal_option_index]
+    assign metal_down = metal_value | downcase
+    assign metal_slug = ''
+
+    if metal_down contains 'platinum'
+      assign metal_slug = 'platinum'
+    elsif metal_down contains 'rose' and metal_down contains 'gold'
+      assign metal_slug = 'rose-gold'
+    elsif metal_down contains 'white' and metal_down contains 'gold'
+      assign metal_slug = 'white-gold'
+    elsif metal_down contains 'sterling' or metal_down contains 'silver'
+      assign metal_slug = 'sterling-silver'
+    elsif metal_down contains 'yellow' and metal_down contains 'gold'
+      assign metal_slug = 'yellow-gold'
+    elsif metal_down contains 'gold'
+      assign metal_slug = 'yellow-gold'
+    endif
+
+    if metal_slug == blank
+      continue
+    endif
+
+    if metal_slug == 'yellow-gold'
+      if yg_variant == blank
+        assign yg_variant = variant
+      elsif yg_variant.price != variant.price
+        assign yg_price_varies = true
+        if variant.price < yg_variant.price
+          assign yg_variant = variant
+        endif
+      elsif variant.price < yg_variant.price
+        assign yg_variant = variant
+      endif
+      if variant.available
+        assign yg_has_available = true
+      endif
+    elsif metal_slug == 'white-gold'
+      if wg_variant == blank
+        assign wg_variant = variant
+      elsif wg_variant.price != variant.price
+        assign wg_price_varies = true
+        if variant.price < wg_variant.price
+          assign wg_variant = variant
+        endif
+      elsif variant.price < wg_variant.price
+        assign wg_variant = variant
+      endif
+      if variant.available
+        assign wg_has_available = true
+      endif
+    elsif metal_slug == 'sterling-silver'
+      if ss_variant == blank
+        assign ss_variant = variant
+      elsif ss_variant.price != variant.price
+        assign ss_price_varies = true
+        if variant.price < ss_variant.price
+          assign ss_variant = variant
+        endif
+      elsif variant.price < ss_variant.price
+        assign ss_variant = variant
+      endif
+      if variant.available
+        assign ss_has_available = true
+      endif
+    elsif metal_slug == 'rose-gold'
+      if rg_variant == blank
+        assign rg_variant = variant
+      elsif rg_variant.price != variant.price
+        assign rg_price_varies = true
+        if variant.price < rg_variant.price
+          assign rg_variant = variant
+        endif
+      elsif variant.price < rg_variant.price
+        assign rg_variant = variant
+      endif
+      if variant.available
+        assign rg_has_available = true
+      endif
+    elsif metal_slug == 'platinum'
+      if pt_variant == blank
+        assign pt_variant = variant
+      elsif pt_variant.price != variant.price
+        assign pt_price_varies = true
+        if variant.price < pt_variant.price
+          assign pt_variant = variant
+        endif
+      elsif variant.price < pt_variant.price
+        assign pt_variant = variant
+      endif
+      if variant.available
+        assign pt_has_available = true
+      endif
+    endif
+  endfor
+
+  assign style_mval = product.metafields.metal_styling.value
+  assign is_bridal = false
+  assign is_everyday = false
+
+  if style_mval != blank
+    assign style_is_iterable = false
+    for ref in style_mval
+      assign style_is_iterable = true
+      if ref.label != blank
+        assign style_slug = ref.label | downcase | replace: ' ', '-'
+      else
+        assign style_slug = ref | downcase | replace: ' ', '-'
+      endif
+      if style_slug == 'style-bridal_value' or style_slug contains 'bridal'
+        assign is_bridal = true
+      endif
+      if style_slug == 'style-everyday_value' or style_slug contains 'everyday'
+        assign is_everyday = true
+      endif
+    endfor
+    unless style_is_iterable
+      if style_mval.label != blank
+        assign style_slug = style_mval.label | downcase | replace: ' ', '-'
+      else
+        assign style_slug = style_mval | downcase | replace: ' ', '-'
+      endif
+      if style_slug == 'style-bridal_value' or style_slug contains 'bridal'
+        assign is_bridal = true
+      endif
+      if style_slug == 'style-everyday_value' or style_slug contains 'everyday'
+        assign is_everyday = true
+      endif
+    endunless
+  endif
+
+  if is_bridal == false and is_everyday == false
+    assign is_everyday = true
+  endif
+
+  assign is_platinum_only = false
+  if pt_variant != blank and yg_variant == blank and wg_variant == blank and ss_variant == blank and rg_variant == blank
+    assign is_platinum_only = true
+  endif
+-%}
+
+{%- if yg_variant != blank -%}
+  {%- render 'product-block',
+    product: product,
+    custom_aspect_ratio: custom_aspect_ratio,
+    animate: animate,
+    prioritised_loading: prioritised_loading,
+    metal_variant: yg_variant,
+    metal_card_label: 'Gold',
+    metal_slug: 'yellow-gold',
+    metal_price_varies: yg_price_varies,
+    metal_available: yg_has_available,
+    is_bridal: is_bridal,
+    is_everyday: is_everyday,
+    is_platinum_only: is_platinum_only
+  -%}
+{%- endif -%}
+
+{%- if ss_variant != blank -%}
+  {%- render 'product-block',
+    product: product,
+    custom_aspect_ratio: custom_aspect_ratio,
+    animate: animate,
+    prioritised_loading: prioritised_loading,
+    metal_variant: ss_variant,
+    metal_card_label: 'Sterling Silver',
+    metal_slug: 'sterling-silver',
+    metal_price_varies: ss_price_varies,
+    metal_available: ss_has_available,
+    is_bridal: is_bridal,
+    is_everyday: is_everyday,
+    is_platinum_only: is_platinum_only
+  -%}
+{%- endif -%}
+
+{%- if wg_variant != blank -%}
+  {%- render 'product-block',
+    product: product,
+    custom_aspect_ratio: custom_aspect_ratio,
+    animate: animate,
+    prioritised_loading: prioritised_loading,
+    metal_variant: wg_variant,
+    metal_card_label: 'Gold',
+    metal_slug: 'white-gold',
+    metal_price_varies: wg_price_varies,
+    metal_available: wg_has_available,
+    is_bridal: is_bridal,
+    is_everyday: is_everyday,
+    is_platinum_only: is_platinum_only
+  -%}
+{%- endif -%}
+
+{%- if rg_variant != blank -%}
+  {%- render 'product-block',
+    product: product,
+    custom_aspect_ratio: custom_aspect_ratio,
+    animate: animate,
+    prioritised_loading: prioritised_loading,
+    metal_variant: rg_variant,
+    metal_card_label: 'Rose Gold',
+    metal_slug: 'rose-gold',
+    metal_price_varies: rg_price_varies,
+    metal_available: rg_has_available,
+    is_bridal: is_bridal,
+    is_everyday: is_everyday,
+    is_platinum_only: is_platinum_only
+  -%}
+{%- endif -%}
+
+{%- if pt_variant != blank -%}
+  {%- render 'product-block',
+    product: product,
+    custom_aspect_ratio: custom_aspect_ratio,
+    animate: animate,
+    prioritised_loading: prioritised_loading,
+    metal_variant: pt_variant,
+    metal_card_label: 'Platinum',
+    metal_slug: 'platinum',
+    metal_price_varies: pt_price_varies,
+    metal_available: pt_has_available,
+    is_bridal: is_bridal,
+    is_everyday: is_everyday,
+    is_platinum_only: is_platinum_only
+  -%}
+{%- endif -%}

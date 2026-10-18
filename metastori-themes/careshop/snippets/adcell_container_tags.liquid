@@ -1,0 +1,52 @@
+<script>
+document.addEventListener('consentmoSignal', function(event) {
+  const consent = event.detail?.state;
+
+  if (consent && consent.ad_storage === 'granted') {
+
+    var pid = 8989;
+    var script = document.createElement('script');
+    script.async = true;
+
+    {% if template == 'index' %}
+      script.src = "https://t.adcell.com/js/inlineretarget.js?method=track&pid=" + pid + "&type=startpage";
+
+    {% elsif template contains 'collection' %}
+      script.src = "https://t.adcell.com/js/inlineretarget.js?method=category" +
+        "&pid=" + pid +
+        "&categoryName={{ collection.title | url_encode }}" +
+        "&categoryId={{ collection.id }}" +
+        "&productIds={% for p in collection.products %}{{ p.id }}{% unless forloop.last %},{% endunless %}{% endfor %}" +
+        "&productSeparator=,";
+
+    {% elsif template contains 'product' %}
+      script.src = "https://t.adcell.com/js/inlineretarget.js?method=product" +
+        "&pid=" + pid +
+        "&productId={{ product.id }}" +
+        "&productName={{ product.title | url_encode }}" +
+        "&categoryId={{ product.collections.first.id }}" +
+        "&productIds={{ product.id }}" +
+        "&productSeparator=,";
+
+    {% elsif template contains 'search' %}
+      script.src = "https://t.adcell.com/js/inlineretarget.js?method=search" +
+        "&pid=" + pid +
+        "&search={{ search.terms | url_encode }}" +
+        "&productIds={% for item in search.results %}{{ item.id }}{% unless forloop.last %},{% endunless %}{% endfor %}" +
+        "&productSeparator=,";
+
+    {% elsif template contains 'cart' %}
+      script.src = "https://t.adcell.com/js/inlineretarget.js?method=basket" +
+        "&pid=" + pid +
+        "&productIds={% for item in cart.items %}{{ item.product.id }}{% unless forloop.last %},{% endunless %}{% endfor %}" +
+        "&productSeparator=," +
+        "&quantities={% for item in cart.items %}{{ item.quantity }}{% unless forloop.last %},{% endunless %}{% endfor %}" +
+        "&basketProductCount={{ cart.item_count }}" +
+        "&basketTotal={{ cart.total_price | divided_by: 100.0 | replace: ',', '.' }}";
+
+    {% endif %}
+
+    document.body.appendChild(script);
+  }
+});
+</script>

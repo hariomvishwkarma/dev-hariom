@@ -1,0 +1,181 @@
+{%- assign related_articles = product.metafields.custom.blog_articles.value -%}
+
+{% if related_articles != blank %}
+  <section class="section-{{ section.id }}-padding" id="product-related-articles">
+    <div class="container-1320">
+      {% if section.settings.heading != blank %}
+        <h2 class="pra__heading">{{ section.settings.heading }}</h2>
+      {% endif %}
+
+      <div class="pra-grid">
+        {%- assign shown = 0 -%}
+
+        {%- for article_obj in related_articles -%}
+          {%- if article_obj == blank -%}{% continue %}{%- endif -%}
+          {%- if shown >= section.settings.limit -%}{% break %}{%- endif -%}
+          {%- assign shown = shown | plus: 1 -%}
+
+          <article class="pra-card">
+            <a class="pra-card__imglink" href="{{ article_obj.url }}">
+              {% if article_obj.image %}
+                {%- assign img_w = 800 -%}
+                {%- assign img_h = img_w | divided_by: article_obj.image.aspect_ratio | round -%}
+                <img
+                  class="pra-card__image"
+                  src="{{ article_obj.image | image_url: width: img_w }}"
+                  alt="{{ article_obj.image.alt | default: article_obj.title | escape }}"
+                  loading="lazy"
+                  width="{{ img_w }}"
+                  height="{{ img_h }}"
+                >
+              {% else %}
+                <img
+                  class="pra-card__image"
+                  src="https://cdn.shopify.com/s/files/1/0688/2403/9576/files/placeholder.avif?v=1758187107"
+                  alt="{{ article_obj.title | escape }}"
+                  loading="lazy"
+                  width="800"
+                  height="800"
+                >
+              {% endif %}
+            </a>
+
+            <div class="pra-card__content">
+              {% if section.settings.show_date or section.settings.show_author %}
+                <div class="pra-card__meta">
+                  {% if section.settings.show_date %}
+                    <span class="pra-card__date">{{ article_obj.published_at | date: '%d %b %Y' }}</span>
+                  {% endif %}
+                  {% if section.settings.show_author and article_obj.author %}
+                    <span class="pra-card__dot">•</span>
+                    <span class="pra-card__author">{{ article_obj.author }}</span>
+                  {% endif %}
+                </div>
+              {% endif %}
+
+              <h3 class="pra-card__title">
+                <a href="{{ article_obj.url }}" class="pra-card__title-link">{{ article_obj.title }}</a>
+              </h3>
+
+              {% assign excerpt_plain = article_obj.excerpt_or_content | strip_html %}
+              <p class="pra-card__excerpt">{{ excerpt_plain | truncatewords: section.settings.excerpt_words }}</p>
+
+              {% if section.settings.read_more_text != blank %}
+                <a class="pra-card__readmore" href="{{ article_obj.url }}">{{ section.settings.read_more_text }}</a>
+              {% endif %}
+            </div>
+          </article>
+        {%- endfor -%}
+      </div>
+    </div>
+  </section>
+{% endif %}
+
+<style>
+  .section-{{ section.id }}-padding {
+    padding-top: {{ section.settings.pad_top }}px;
+    padding-bottom: {{ section.settings.pad_bottom }}px;
+  }
+  @media (max-width: 989px) {
+    .section-{{ section.id }}-padding {
+      padding-top: {{ section.settings.pad_top | divided_by: 2 }}px;
+      padding-bottom: {{ section.settings.pad_bottom | divided_by: 2 }}px;
+    }
+  }
+
+  #product-related-articles .pra__heading {
+    margin: 0 0 24px;
+    font-size: 28px;
+    line-height: 1.3;
+  }
+
+  #product-related-articles .pra-grid::-webkit-scrollbar {
+    -webkit-appearance: none;
+    height: 2px;
+  }
+  #product-related-articles .pra-grid::-webkit-scrollbar-thumb {
+    background-color: #000;
+  }
+  #product-related-articles .pra-grid::-webkit-scrollbar-track {
+    background-color: #e0e0e0;
+  }
+
+  #product-related-articles .pra-grid {
+    display: flex;
+    gap: 24px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 20px;
+  }
+
+  #product-related-articles .pra-card {
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.06);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex: 0 0 290px;
+    text-align: left;
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
+  }
+
+  #product-related-articles .pra-card__image {
+    width: 100%;
+    aspect-ratio: 4/4;
+    object-fit: cover;
+    display: block;
+    height: auto;
+  }
+
+  #product-related-articles .pra-card__content {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #product-related-articles .pra-card__meta {
+    color: rgba(0,0,0,.6);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  #product-related-articles .pra-card__title {
+    font-size: 18px;
+    line-height: 1.3;
+    margin: 0;
+  }
+
+  #product-related-articles .pra-card__excerpt {
+    margin: 0;
+    color: rgba(0,0,0,.8);
+  }
+
+  #product-related-articles .pra-card__readmore {
+    margin-top: 6px;
+    text-decoration: underline;
+    font-weight: 500;
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Related articles",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading", "default": "From the blog" },
+    { "type": "range", "id": "limit", "label": "Max articles to show", "min": 1, "max": 12, "step": 1, "default": 6 },
+    { "type": "range", "id": "excerpt_words", "label": "Excerpt words", "min": 8, "max": 60, "step": 1, "default": 22 },
+    { "type": "checkbox", "id": "show_date", "label": "Show publish date", "default": true },
+    { "type": "checkbox", "id": "show_author", "label": "Show author", "default": false },
+    { "type": "text", "id": "read_more_text", "label": "Read more text", "default": "Read more" },
+    { "type": "range", "id": "pad_top", "label": "Padding top", "min": 0, "max": 120, "step": 4, "default": 48 },
+    { "type": "range", "id": "pad_bottom", "label": "Padding bottom", "min": 0, "max": 120, "step": 4, "default": 48 }
+  ],
+  "presets": [{ "name": "Related articles" }]
+}
+{% endschema %}

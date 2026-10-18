@@ -1,0 +1,120 @@
+{% doc %}
+  Renders a local Reviews.io-style product rating from configurable count and rating metafields.
+
+  @param {object} product - Product whose review metafields are rendered.
+  @param {object} block - Product page block containing display and metafield settings.
+{% enddoc %}
+
+{%- liquid
+  assign count_reference = block.settings.review_count_metafield | strip | remove: 'product.metafields.'
+  assign rating_reference = block.settings.review_rating_metafield | strip | remove: 'product.metafields.'
+
+  assign count_parts = count_reference | split: '.'
+  assign count_namespace = count_parts | first
+  assign count_key = count_parts[1]
+  if count_parts.size == 1
+    assign count_namespace = 'custom'
+    assign count_key = count_parts | first
+  endif
+
+  assign rating_parts = rating_reference | split: '.'
+  assign rating_namespace = rating_parts | first
+  assign rating_key = rating_parts[1]
+  if rating_parts.size == 1
+    assign rating_namespace = 'custom'
+    assign rating_key = rating_parts | first
+  endif
+
+  assign count_metafield = product.metafields[count_namespace][count_key]
+  assign rating_metafield = product.metafields[rating_namespace][rating_key]
+  assign count_value = count_metafield.value | default: count_metafield
+  assign rating_value = rating_metafield.value | default: rating_metafield
+  assign review_count = count_value | plus: 0 | round | at_least: 0
+  assign rating_number = rating_value | times: 1.0
+  if review_count == 0
+    assign rating_number = 0
+  endif
+  assign rating_number = rating_number | at_least: 0 | at_most: 5
+  assign rating_percentage = rating_number | times: 100
+
+  assign render_rating = true
+  if block.settings.hide_without_reviews and review_count == 0
+    assign render_rating = false
+  endif
+
+  assign popup_enabled = false
+  if review_count > 0 or block.settings.open_popup_without_reviews
+    assign popup_enabled = true
+  endif
+
+  assign rating_tag = 'div'
+  if popup_enabled
+    assign rating_tag = 'button'
+  endif
+
+  capture reviewsio_product_reference
+    echo product.variants | map: 'sku' | compact | join: ';'
+    echo ';'
+    echo product.variants | map: 'id' | join: ';'
+    echo ';'
+    echo product.id
+    echo ';'
+    echo product.handle
+  endcapture
+
+  assign rating_accessibility_label = 'general.accessibility.star_reviews_info' | t: rating_value: rating_number, rating_max: 5
+  assign reviews_accessibility_label = 'product.general.reviews_count' | t: count: review_count
+-%}
+
+{%- if render_rating -%}
+  <{{ rating_tag }}
+    class="reviewsio-ratings-meta"
+    style="display: flex; align-items: center; min-height: 27.7333px; margin: 0; padding: 0; color: #000;{% if popup_enabled %} background: transparent; border: 0; cursor: pointer; font: inherit;{% endif %}"
+    {% if popup_enabled %}
+      type="button"
+      data-reviewsio-meta-modal-trigger
+      data-reviewsio-product-reference="{{ reviewsio_product_reference | strip | escape }}"
+      data-reviewsio-modal-label="{{ 'product.general.reviews' | t: rating_count: review_count | escape }}"
+      data-reviewsio-close-label="{{ 'general.accessibility.close' | t | escape }}"
+    {% endif %}
+    data-block-type="reviewsio-ratings-meta"
+    data-block-id="{{ block.id }}"
+    data-review-count="{{ review_count }}"
+    aria-label="{{ rating_accessibility_label | escape }}, {{ reviews_accessibility_label | escape }}"
+    {% if review_count == 0 and popup_enabled == false %}role="img"{% endif %}
+    {{ block.shopify_attributes }}
+  >
+    <span class="reviewsio-ratings-meta__stars" style="display: flex; height: 22px; padding-top: 1px; box-sizing: border-box;" aria-hidden="true">
+      {%- for star_index in (1..5) -%}
+        {%- liquid
+          assign star_start = star_index | minus: 1 | times: 100
+          assign star_fill = rating_percentage | minus: star_start | at_least: 0 | at_most: 100
+          assign star_fill = star_fill | divided_by: 50.0 | round | times: 50
+        -%}
+        <span class="reviewsio-ratings-meta__star" style="display: block; flex: 0 0 18px; width: 18px; height: 16px; color: #000;">
+          <svg viewBox="0 -480 512 512" focusable="false" width="16" height="16" aria-hidden="true" style="display: block; width: 16px; height: 16px; fill: currentColor; max-width: 16px; min-width: 16px;">
+            {%- case star_fill -%}
+              {%- when 100 -%}
+                <path transform="scale(1 -1)" d="M512 284.509l-152.437-114.037 54.691-202.472-158.255 121.018-158.255-121.018 54.691 202.472-152.436 114.036h186.182l69.818 195.491 69.818-195.491h186.182z"/>
+              {%- when 75 -%}
+                <path transform="scale(1 -1)" d="M512 284.509l-152.437-114.037 54.691-202.472-158.255 121.018-158.255-121.018 54.691 202.472-152.436 114.036h186.182l69.818 195.491 69.818-195.491h186.182zM288.485 119.513l54.788-45.623-36.072 103.563 83.782 66.327-102.4-2.327-0.097-121.942z"/>
+              {%- when 50 -%}
+                <path transform="scale(1 -1)" d="M512 284.509l-152.437-114.037 54.691-202.472-158.255 121.018-158.255-121.018 54.691 202.472-152.436 114.036h186.182l69.818 195.491 69.818-195.491h186.182zM256 146.036l87.272-72.146-36.072 103.563 83.782 66.327-102.4-2.327-32.582 117.528v-212.946z"/>
+              {%- when 25 -%}
+                <path transform="scale(1 -1)" d="M512 284.509l-152.437-114.037 54.691-202.472-158.255 121.018-158.255-121.018 54.691 202.472-152.436 114.036h186.182l69.818 195.491 69.818-195.491h186.182zM224.485 120.363l31.515 25.673 87.272-72.146-36.072 103.563 83.782 66.327-102.4-2.327-32.582 117.528v-212.946z"/>
+              {%- else -%}
+                <path transform="scale(1 -1)" d="M512 284.509l-152.437-114.037 54.691-202.472-158.255 121.018-158.255-121.018 54.691 202.472-152.436 114.036h186.182l69.818 195.491 69.818-195.491h186.182zM256 146.036l87.272-72.146-36.072 103.563 83.782 66.327-102.4-2.327-32.582 117.528-31.418-117.528-102.4 2.327 82.618-66.327-36.072-103.563 87.273 72.145z"/>
+            {%- endcase -%}
+          </svg>
+        </span>
+      {%- endfor -%}
+    </span>
+    <span class="reviewsio-ratings-meta__count" style="color: #333; font-family: inherit; font-size: 12px; line-height: 22px;" aria-hidden="true">
+      ({%- if review_count == 1 -%}1 Review{%- else -%}{{ review_count }} Reviews{%- endif -%})
+    </span>
+  </{{ rating_tag }}>
+
+  {%- if popup_enabled -%}
+    <script src="{{ 'reviewsio-ratings-meta-modal.js' | asset_url }}" defer></script>
+  {%- endif -%}
+{%- endif -%}

@@ -1,0 +1,722 @@
+{% assign cross_selling_products = product.metafields.standard.cro_up_cross_selling.value %}
+
+{% if cross_selling_products != blank %}
+  {%- capture list_of_products -%}
+    {% for product in cross_selling_products %}
+      <div class="swiper-slide cro_crossselling_product">
+        <div class="cro_crossselling_product-image">
+          {% if product.featured_image != blank %}
+            {{ product.featured_image | image_url: width: 100 | image_tag }}
+          {% else %}
+            {{ 'product-1' | placeholder_svg_tag: 'cro_crossselling_product-svg' }}
+          {% endif %}
+        </div>
+
+        <div class="cro_crossselling_product-info">
+          <div class="cro_crossselling_product-info-details">
+            <a href="{{ product.url }}" class="cro_crossselling_product--title">
+              {{- product.title }}
+              {%- if product.selected_or_first_available_variant.title != 'Default Title' -%}
+                ({{ product.selected_or_first_available_variant.title }})
+              {%- endif -%}
+            </a>
+
+            <div class="cro_crossselling_product_price">
+              <span class="cro_crossselling_product_price--regular">
+                {{- product.selected_or_first_available_variant.price | money_without_currency -}}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }}
+              </span>
+
+              {% if product.selected_or_first_available_variant.compare_at_price %}
+                <span class="cro_crossselling_product_price--compare">
+                {{- product.selected_or_first_available_variant.compare_at_price | money_without_currency -}}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }}
+              </span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="cro_crossselling_product-info-cta">
+            {%- capture product_form_id -%}product-form-{{ section.id }}-{{ product.id }}{%- endcapture -%}
+
+            {%- form 'product', product, is: 'product-form', id: product_form_id -%}
+              <input
+                type="hidden"
+                disabled
+                name="id"
+                value="{{ product.selected_or_first_available_variant.id }}"
+              >
+              {% render 'kavalio-delivery-form-fields',
+                product: product,
+                form_id: product_form_id,
+                variant: product.selected_or_first_available_variant
+              %}
+
+              <button
+                is="loader-button"
+                form="{{ product_form_id }}"
+                type="submit"
+                data-product-add-to-cart-button
+                data-button-content="{{ block.settings.cro_up_cross_atc_title }}"
+                class="button button--primary cro_crossselling_product-atc-button"
+                {% unless product.selected_or_first_available_variant.available %}
+                  disabled
+                {% endunless %}
+              >
+                {{  block.settings.cro_up_cross_atc_title }}
+              </button>
+            {%- endform -%}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {%- endcapture -%}
+
+  <style>
+    {% comment %} .cro_cross_selling_wrap {
+      display: none;
+    }
+    {% endcomment %}
+    .cro_cross_selling_wrap {
+      display: block;
+    } 
+    @media (min-width:1000px) {
+       #shopify-section-{{ section.id }} .cro_cross_selling_wrap  {
+            margin-top: {{  block.settings.cross_selling_space_top -}}px;
+            margin-bottom: {{ block.settings.cross_selling_space_bottom -}}px;
+        }
+    }
+    @media (max-width:999px) {
+      #shopify-section-{{ section.id }} .cro_cross_selling_wrap  {
+            margin-top: {{  block.settings.cross_selling_space_top_mobile -}}px;
+            margin-bottom: {{ block.settings.cross_selling_space_bottom_mobile -}}px;
+        }
+    }
+
+    .cro_cross_selling__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .cro_cross_selling__header_normal {
+        text-align: center;
+    }
+
+    .cro_cross_selling__header-title {
+      margin: 0;
+      line-height: normal;
+      flex: auto;
+    }
+
+    .cro_cross_selling__header-controls {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      height: auto;
+      flex: 1 1 auto;
+      gap: 8px;
+      z-index: 1;
+    }
+
+    .swiper-button-next.croCrossSellingSwiper-next,
+    .swiper-button-prev.croCrossSellingSwiper-prev {
+      width: 24px;
+      height: 24px;
+      color: #1a1a1a;
+      background-color: #e8e8e8;
+      border-radius: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: unset;
+      margin-top: auto;
+      user-select: none;
+    }
+
+    .swiper-button-next.croCrossSellingSwiper-next {
+      order: 2;
+    }
+
+    .swiper-button-next.croCrossSellingSwiper-next:after,
+    .swiper-button-prev.croCrossSellingSwiper-prev:after {
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .swiper-button-next.croCrossSellingSwiper-next.swiper-button-disabled,
+    .swiper-button-prev.croCrossSellingSwiper-prev.swiper-button-disabled {
+      opacity: 0.5;
+    }
+    .swiper-button-next.croCrossSellingSwiper-next:not(.swiper-button-disabled):hover,
+    .swiper-button-prev.croCrossSellingSwiper-prev:not(.swiper-button-disabled):hover {
+      background-color: #1a1a1a;
+      color: #fff;
+    }
+    /* cross-selling-main */
+    .cro_crossselling_product {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      user-select: none;
+    }
+
+    .cro_crossselling_product-image {
+      flex: 0 1 auto;
+    }
+
+    .cro_crossselling_product-info {
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .cro_crossselling_product-image img {
+      width: 60px;
+      height: auto;
+    }
+
+    .cro_crossselling_product-info-details {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .cro_crossselling_product--title {
+      font-weight: bold;
+      font-size: 14px;
+      line-height: 1.5;
+      display: block;
+    }
+
+    .cro_crossselling_product_price {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      line-height: 1;
+      font-weight: 400;
+    }
+
+    span.cro_crossselling_product_price--compare {
+      position: relative;
+      color: #747474;
+    }
+
+    .cro_crossselling_product-info-cta {
+      flex: 0 0 auto;
+    }
+
+    button.cro_crossselling_product-atc-button {
+        cursor: pointer;
+        border: none;
+        font-weight: normal;
+        font-size: 14px;
+        position: relative;
+        padding: 0px 16px !important;
+        border-radius: 50px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 32px;
+    }
+    button.cro_crossselling_product-atc-button span.loader-button__text {
+        margin-top: -3px;
+    }
+    button.cro_crossselling_product-atc-button .spinner svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    span.cro_crossselling_product_price--compare:before {
+      position: absolute;
+      inset-block-start: 50%;
+      width: 100%;
+      transform: rotate(-15deg);
+      border-block-end: 1px solid #282828;
+      content: '';
+    }
+
+    .cro_cross_selling__main {
+      display: block;
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid #e3e3e3;
+      border-radius: 6px;
+    }
+
+    /* Stack layout */
+    .cro_cross_selling__main__stack .cro_crossselling_product:not(:last-child) {
+      padding-bottom: 16px;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 16px;
+    }
+    /* collapsible css */
+    .ed-collapsible-toggle {
+      user-select: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      border-bottom: 1px solid #e4e4e4;
+      padding: 21px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      overflow: visible;
+      background: none;
+      border-radius: 0;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      touch-action: manipulation;
+    }
+
+    .ed-animated-arrow-down {
+      width: 24px;
+      height: 24px;
+      background: #e8e8e8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 500px;
+    }
+
+    .ed-collapsible-toggle .ed-animated-arrow-down svg {
+      transition: transform 0.2s ease-in-out;
+    }
+
+    .ed-collapsible-toggle[aria-expanded='true'] .ed-animated-arrow-down svg {
+      transform: rotate(180deg);
+    }
+
+    .ed-collapsible-content {
+      overflow: hidden;
+      transition: height 0.5s ease, opacity 0.25s ease;
+      opacity: 1;
+    }
+
+    .ed-collapsible-content:not([data-open]) {
+      display: block;
+      height: 0;
+      opacity: 0;
+    }
+    .cro_cross_selling_wrap .ed-collapsible {
+      border: 1px solid #ddd;
+      display: block;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .cro_cross_selling_wrap button.ed-collapsible-toggle {
+      padding: 16px 16px;
+      background: #f6f6f6;
+      border-radius: 0;
+    }
+
+    .cro_cross_selling_wrap .ed-collapsible__content {
+      padding: 12px;
+    }
+
+    .cro_cross_selling_wrap button.ed-collapsible-toggle[aria-expanded='false'] {
+      border: none;
+    }
+    /* End:collapsible css */
+
+    .cro_cross_selling_wrap_normal_inner {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .cro_cross_selling_wrap_normal_inner p.heading {
+        font-weight: bold;
+        margin: 0;
+        font-size: 18px;
+        line-height: normal;
+    }
+
+    {% if block.settings.background != 'rgba(0,0,0,0)' %}
+        .cro_cross_selling_wrap_normal_inner .ed-collapsible__content {
+            background: {{ block.settings.background }};
+        }
+    {% endif %}
+
+    /* Normal */
+    product-list.product-list.cro_cross_selling_wrap_normal {
+        --section-products-per-row: 2;
+        --grid-gap: 16px;
+        margin-top: 12px;
+    }
+
+    .cro_cross_selling_wrap_normal .product-list__inner--scroller {
+        margin-inline-start: 0;
+        margin-inline-end: 0;
+    }
+    /* Normal */
+
+    /* For Kavalio  */
+    .cro_cross_selling_wrap_normal .product_badges_list,
+    .cro_cross_selling_wrap_normal .swym-wishlist-collections-v2-container,
+    .cro_cross_selling_wrap_normal .product-item-meta__swatch-list.color-swatch-list,
+    .cro_cross_selling_wrap_normal .product-item-meta__type.heading.heading--xsmall,
+    .cro_cross_selling_wrap_normal .product-item-meta__reviews-badge.text--small {
+        display: none;
+    }
+
+    .cro_cross_selling_wrap_normal .product-item__image-wrapper {
+        margin-bottom: 0;
+    }
+
+    .cro_cross_selling_wrap_normal .product-list__inner--scroller .product-item {
+        display: grid;
+        grid-template-columns: 65px 1fr;
+        column-gap: 16px;
+        padding: 16px 12px;
+    }
+
+    .cro_cross_selling_wrap_normal .product-item-meta__title {
+        font-size: calc(var(--base-font-size) - 3px);
+        margin: 0;
+    }
+
+    .cro_cross_selling_wrap_normal  .price--compare, 
+    .cro_cross_selling_wrap_normal .price.price--block.text--xsmall, 
+    .cro_cross_selling_wrap_normal .price.price--highlight, 
+    .cro_cross_selling_wrap_normal span.price.price--normal {
+        font-size: calc(var(--base-font-size) - 2px);
+    }
+
+    .cro_cross_selling_wrap_normal .price.price--highlight {
+        font-size: calc(var(--base-font-size) - 0px);
+    }
+
+
+    .cro_cross_selling_wrap_normal .ed-product-item__quick-form button.button {
+        padding: 0;
+        width: 39px;
+        height: 39px;
+        min-width: 39px;
+    }
+
+    .cro_cross_selling_wrap_normal .product-list__inner {
+        gap: 16px 24px;
+    }
+    .cro_cross_selling_wrap .product-list__prev-next {
+        position: absolute;
+        left: 6px;
+        top: 50%;
+        opacity: 1;
+        transform: translateY(-70%);
+        width: calc(100% - 12px) !important;
+        right: 6px;
+    }
+    
+    .cro_cross_selling_wrap .prev-next-button:not(.prev-next-button--small) {
+        width: 34px;
+        height: 34px;
+        padding: 7px;
+    }
+    @media (min-width: 1000px) {
+      .cro_cross_selling_wrap_normal  .no_scroller .product-list__inner {
+        grid-auto-columns: unset !important;
+        grid-auto-flow: unset !important;
+        grid-template-columns: 1fr 1fr;
+      }
+      
+      .cro_cross_selling_wrap_normal  .no_scroller + .product-list__prev-next {
+          display: none;
+      }
+    }
+    @media (max-width: 999px) {
+      .cro_cross_selling_wrap_normal .no_scroller .product-list__inner--scroller {
+        display: block;
+        padding: 0;
+      }
+      
+      .cro_cross_selling_wrap_normal .no_scroller .product-list__inner--scroller .product-item {
+          margin-bottom: 16px;
+      }
+    }
+  </style>
+
+  {%- if block.settings.cro_up_cross_selling_layout == 'slides' -%}
+    <cro-cross-selling class="cro_cross_selling_wrap" {{ block.shopify_attributes }}>
+      <div class="cro_cross_selling__header">
+        <p class="cro_cross_selling__header-title">{{ block.settings.cro_up_cross_title }}</p>
+        <div class="cro_cross_selling__header-controls">
+          <div class="swiper-button-next croCrossSellingSwiper-next"></div>
+          <div class="swiper-button-prev croCrossSellingSwiper-prev"></div>
+        </div>
+      </div>
+
+      <div class="cro_cross_selling__main">
+        <div class="swiper croCrossSellingSwiper">
+          <div class="swiper-wrapper">
+            {{ list_of_products }}
+          </div>
+        </div>
+
+        <script>
+          (function() {
+            function initCrossSellingSwiper() {
+              var slider = document.querySelector('.croCrossSellingSwiper');
+
+              if (!slider || !window.Swiper) {
+                return;
+              }
+
+              new window.Swiper(slider, {
+                slidesPerView: 1,
+                spaceBetween: 0,
+                loop: false,
+                navigation: {
+                  nextEl: '.croCrossSellingSwiper-next',
+                  prevEl: '.croCrossSellingSwiper-prev',
+                },
+              });
+            }
+
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', initCrossSellingSwiper, { once: true });
+            } else {
+              initCrossSellingSwiper();
+            }
+          })();
+        </script>
+      </div>
+    </cro-cross-selling>
+  {% elsif block.settings.cro_up_cross_selling_layout == 'stack' %}
+    <cro-cross-selling class="cro_cross_selling_wrap" {{ block.shopify_attributes }}>
+      <ed-collapsible class="ed-collapsible">
+        {% assign unique_id = section.id %}
+
+        <button
+          class="ed-collapsible-toggle"
+          aria-controls="block-id-{{ unique_id }}"
+          aria-expanded="{% if block.settings.cro_up_cross_open_stack %}true{% else %}false{% endif %}"
+        >
+          <span class="heading">{{ block.settings.cro_up_cross_title }}</span>
+          <span class="ed-animated-arrow-down">
+            <svg width="8" height="7" viewBox="0 0 8 7" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7 5.2998L4 2.2998L1 5.2998" stroke="#1A1A1A" stroke-width="1.5" />
+            </svg>
+          </span>
+        </button>
+
+        <div
+          id="block-id-{{ unique_id }}"
+          class="ed-collapsible-content"
+          {% if block.settings.cro_up_cross_open_stack %}
+            data-open
+          {% endif %}
+        >
+          <div class="ed-collapsible__content">
+            <div class="cro_cross_selling__main__stack">
+              {{ list_of_products }}
+            </div>
+          </div>
+        </div>
+      </ed-collapsible>
+
+      <script>
+        function openContent(element) {
+          element.style.overflow = 'hidden';
+          const height = element.scrollHeight;
+
+          const keyframes = {
+            height: ['0px', `${height}px`],
+            visibility: ['hidden', 'visible'],
+            opacity: element.hasAttribute('data-animate-items') ? [0, 0] : [1, 1],
+          };
+
+          const animation = element.animate(keyframes, {
+            duration: 500,
+            direction: 'normal',
+            easing: 'cubic-bezier(0.75, 0, 0.175, 1)',
+            fill: 'forwards',
+          });
+
+          animation.onfinish = () => {
+            element.style.overflow = 'visible';
+            element.style.height = `${height}px`;
+            element.setAttribute('data-open', '');
+          };
+
+          if (element.hasAttribute('data-animate-items')) {
+            element.animate(
+              {
+                opacity: [0, 1],
+                transform: ['translateY(10px)', 'translateY(0)'],
+              },
+              {
+                duration: 250,
+                delay: 250,
+                easing: 'cubic-bezier(0.75, 0, 0.175, 1)',
+                fill: 'forwards',
+              }
+            );
+          }
+        }
+
+        function closeContent(element) {
+          const height = element.scrollHeight;
+
+          element.style.overflow = 'hidden';
+
+          const animation = element.animate(
+            {
+              height: [`${height}px`, '0px'],
+              visibility: ['visible', 'hidden'],
+              opacity: element.hasAttribute('data-animate-items') ? [0, 0] : [1, 0],
+            },
+            {
+              duration: 500,
+              direction: 'normal',
+              easing: 'cubic-bezier(0.75, 0, 0.175, 1)',
+              fill: 'forwards',
+            }
+          );
+
+          animation.onfinish = () => {
+            element.style.overflow = 'hidden';
+            element.removeAttribute('data-open');
+          };
+        }
+
+        function initCollapsibleToggle(scope = document) {
+          const toggles = scope.querySelectorAll('.ed-collapsible-toggle');
+
+          toggles.forEach((toggle) => {
+            // Prevent re-initializing the same toggle
+            if (toggle.dataset.initialized === 'true') return;
+
+            toggle.dataset.initialized = 'true';
+
+            const contentId = toggle.getAttribute('aria-controls');
+            const content = scope.querySelector(`#${contentId}`);
+            if (!content) return;
+
+            toggle.addEventListener('click', () => {
+              const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+
+              toggle.setAttribute('aria-expanded', String(!isOpen));
+              toggle.classList.toggle('is-open', !isOpen);
+
+              if (!isOpen) {
+                openContent(content);
+              } else {
+                closeContent(content);
+              }
+            });
+          });
+        }
+
+        // Initialize on DOM load
+        document.addEventListener('DOMContentLoaded', () => {
+          initCollapsibleToggle();
+        });
+
+        // Re-initialize on Shopify section load
+        if (typeof Shopify !== 'undefined' && Shopify.designMode) {
+          document.addEventListener('shopify:section:load', function (e) {
+            const section = e.target;
+            initCollapsibleToggle(section);
+          });
+        }
+      </script>
+    </cro-cross-selling>
+  {% elsif block.settings.cro_up_cross_selling_layout == 'normal' %}
+    <cro-cross-selling class="cro_cross_selling_wrap" {{ block.shopify_attributes }}>
+      <header class="cro_cross_selling__header_normal">
+        <h6 class="heading h3">{{ block.settings.cro_up_cross_title }}</h6>
+      </header>
+
+      <product-list
+        {% if settings.stagger_products_apparition %}
+          stagger-apparition
+        {% endif %}
+        class="product-list product-list--left cro_cross_selling_wrap_normal"
+      >
+        {%- assign smallest_image_aspect_ratio = 0 -%}
+
+        
+        <div class="{% if scroller %} scroller{% else %}no_scroller{% endif %}">
+          <div class="product-list__inner product-list__inner--scroller hide-scrollbar">
+            {% assign cross_products_count = 0 %}
+            {%- for product in cross_selling_products -%}
+              {%- assign smallest_image_aspect_ratio = smallest_image_aspect_ratio
+                | at_least: product.featured_media.aspect_ratio
+              -%}
+              {% assign cross_products_count = cross_products_count | plus: 1 %}
+
+              {%- capture sizes_attribute -%}(max-width: 740px) 75vw, min({{ 100.0 | divided_by: 4 | ceil }}vw, {{ 1520.0 | divided_by: 4 | ceil }}px){%- endcapture -%}
+              {%- render 'product-item',
+                product: product,
+                sizes_attribute: sizes_attribute,
+                reveal: settings.stagger_products_apparition,
+                show_cta: false,
+                button_small: true,
+                button_icon: true
+              -%}
+            {%- endfor -%}
+          </div>
+        </div>
+
+        {%- if cross_products_count > 2 -%}
+          <prev-next-buttons
+            class="product-list__prev-next hidden-pocket"
+            style="--smallest-image-aspect-ratio: {{ smallest_image_aspect_ratio }}"
+          >
+            <button class="product-list__arrow prev-next-button prev-next-button--prev" disabled data-action="prev">
+              <span class="visually-hidden">{{ 'general.accessibility.previous' | t }}</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="size-6"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+
+            <button class="product-list__arrow prev-next-button prev-next-button--next" data-action="next">
+              <span class="visually-hidden">{{ 'general.accessibility.next' | t }}</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="size-6"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+          </prev-next-buttons>
+        {%- endif -%}
+      </product-list>
+    </cro-cross-selling>
+  {%- endif -%}
+{% comment %} 
+  <script>
+    document.addEventListener('cart:updated', function () {
+      const crossSelling = document.querySelector('cro-cross-selling.cro_cross_selling_wrap');
+      if (crossSelling) {
+        crossSelling.classList.add('active');
+      }
+    });
+
+    document.addEventListener('variant:added', function () {
+      const crossSelling = document.querySelector('cro-cross-selling.cro_cross_selling_wrap');
+      if (crossSelling) {
+        crossSelling.classList.add('active');
+      }
+    });
+  </script> {% endcomment %}
+{% endif %}

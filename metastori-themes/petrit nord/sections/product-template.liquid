@@ -1,0 +1,820 @@
+{%- capture section_settings -%}
+{
+  "enableHistoryState": true,
+  "templateSuffix": {{ product.template_suffix | json }},
+  "showInventoryQuantity": {{ section.settings.show_inventory_quantity | json }},
+  "showSku": {{ section.settings.show_sku | json }},
+  "stackProductImages": {{ section.settings.stack_images | json }},
+  "showThumbnails": {{ section.settings.show_thumbnails | json }},
+  "enableVideoLooping": {{ section.settings.enable_video_looping | json }},
+  "inventoryQuantityThreshold": {{ section.settings.inventory_quantity_threshold }},
+  "showPriceInButton": {{ section.settings.show_price_in_button | json }},
+  "enableImageZoom": {{ section.settings.enable_image_zoom | json }},
+  "showPaymentButton": {{ section.settings.show_payment_button | json }},
+  "useAjaxCart": {% if settings.cart_type == 'drawer' %}true{% else %}false{% endif %}
+}
+{%- endcapture -%}
+
+{% assign show_preorder = false %}
+{% if product.tags contains settings.preorder_tag  %}
+  {% assign show_preorder = true %}
+{% endif %}
+
+{% assign show_sale = false %}
+{% if product.tags contains settings.sale_tag  %}
+  {% assign show_sale = true %}
+{% endif %}
+
+{%- assign show_colour_section = 0 -%}
+{% capture colour_products %}
+  {% for tag in product.tags %}
+    {% if tag contains "color:" %}
+      {% assign handle = tag | split: ":" | last %}
+      {%- assign variant_product = all_products[handle] -%}
+      {%- assign temp_product_handle = variant_product.handle | replace: "-a", "-selector" | replace: "-b", "-selector" -%}
+      {%- assign temp_tag_handle = product.handle | replace: "-a", "-selector" | replace: "-b", "-selector" -%}
+  
+      {% unless product.handle contains handle or variant_product == blank or temp_product_handle == temp_tag_handle %}
+    	{%- assign show_colour_section = show_colour_section | plus: 1 -%}
+        <li>
+          <a class="product-card" href="{{ variant_product.url }}">
+            <span>{{ variant_product.title | split: " - " | last }}</span>
+            <div class="image--wrapper">
+                <img src="{{ variant_product.featured_image | img_url: "172x172", crop: 'center' }}" alt="{{ variant_product.title }}" />
+            </div>
+          </a>
+        </li>
+      {% endunless %}
+    {% endif %}
+  {% endfor %}
+
+  {% if show_colour_section > 0 %}
+  <li style="order: -1;">
+    <a class="product-card product-current" href="{{ product.url }}">
+      <span>{{ product.title | split: " - " | last }}</span>
+      <div class="image--wrapper">
+          <img src="{{ product.featured_image | img_url: "172x172", crop: 'center' }}" alt="{{ product.title }}" />
+      </div>
+    </a>
+  </li>
+  {% else %}
+    <style>.ProductForm__Colours { display: none; }</style>
+  {% endif %}
+{% endcapture %}
+{%- assign show_colour_section = 100 -%}
+
+{% assign ss = section.settings %}
+
+{% liquid
+  for block in section.blocks
+    if block.type != "form_content" 
+      continue
+    endif
+
+    assign current_style = product.handle
+    assign styles = block.settings.styles | strip | split: ","
+
+    assign form_text = ""
+    assign button_text = ""
+
+    if styles contains current_style
+      assign form_text = block.settings.text | strip
+      assign button_text = block.settings.button | strip
+    endif
+  endfor
+%}
+
+
+<section class="Product Product--{{ section.settings.image_size }} {% if template contains "product.gift-card" %}product-gift_card{% endif %}" data-section-id="{{ section.id }}" data-section-type="product" data-section-settings='{{ section_settings }}'>
+  <div class="container--product">
+  <div class="Product__Wrapper">
+    {%- capture action_list_items -%}
+      {%- if section.settings.enable_image_zoom -%}
+        <div class="Product__ActionItem hidden-lap-and-up">
+          <button class="RoundButton RoundButton--small RoundButton--flat" aria-label="{{ 'product.slideshow.zoom' | t | escape }}" data-action="open-product-zoom">{% render 'icon' with 'plus' %}</button>
+        </div>
+      {%- endif -%}
+
+      {%- if section.settings.show_share_buttons -%}
+        <div class="Product__ActionItem hidden-lap-and-up">
+          <button class="RoundButton RoundButton--small RoundButton--flat" data-action="toggle-social-share" data-animate-bottom aria-expanded="false">
+            <span class="RoundButton__PrimaryState">{% render 'icon' with 'share' %}</span>
+            <span class="RoundButton__SecondaryState">{% render 'icon' with 'close' %}</span>
+          </button>
+
+          {%- assign share_url = shop.url | append: product.url -%}
+          {%- assign twitter_text = product.title -%}
+          {%- assign pinterest_description = product.description | strip_html | truncatewords: 15 | url_param_escape -%}
+          {%- assign pinterest_image = product.featured_media | img_url: '1024x' | prepend: 'https:' -%}
+
+          <div class="Product__ShareList" aria-hidden="true">
+            <a class="Product__ShareItem" href="https://www.facebook.com/sharer.php?u={{ share_url }}" target="_blank" rel="noopener">{%- render 'icon' with 'facebook' -%} Facebook</a>
+            <a class="Product__ShareItem" href="https://pinterest.com/pin/create/button/?url={{ share_url }}{% if pinterest_image != blank %}&media={{ pinterest_image }}{% endif %}&description={{ pinterest_description }}" target="_blank" rel="noopener">{%- render 'icon' with 'pinterest' -%} Pinterest</a>
+            <a class="Product__ShareItem" href="https://twitter.com/share?{% if twitter_text != blank %}text={{twitter_text}}&{% endif %}url={{ share_url }}" target="_blank" rel="noopener">{%- render 'icon' with 'twitter' -%} Twitter</a>
+          </div>
+        </div>
+      {%- endif -%}
+    {%- endcapture -%}
+
+    {%- comment -%}
+    --------------------------------------------------------------------------------------------------------------------
+    PRODUCT GALLERY
+    --------------------------------------------------------------------------------------------------------------------
+    {%- endcomment -%}
+
+    {% render "custom--product_gallery" %}
+
+    {%- capture product_aside -%}
+      {%- comment -%}
+      --------------------------------------------------------------------------------------------------------------------
+      PRODUCT TABS
+      --------------------------------------------------------------------------------------------------------------------
+      {%- endcomment -%}
+
+  
+      {% if section.settings.featured_review != blank %}
+        {%- render 'product-featured_review', featured_review_content: section.settings.featured_review -%}
+      {% endif %}
+      {% comment %} {% if product.metafields.custom.featured_review != blank %}
+       {% assign featured_review_content = product.metafields.custom.featured_review | metafield_tag %}
+        {%- render 'product-featured_review', featured_review_content:featured_review_content -%}
+      {% endif %} {% endcomment %}
+      
+      {%- render 'product-tabs', description: section.settings.description_below_add_to_cart -%}
+
+      {%- comment -%}
+      --------------------------------------------------------------------------------------------------------------------
+      PRODUCT WEAR IT WITH
+
+      We allow merchants to add a tag that looks like __with:product-handle to feature an additional product
+      --------------------------------------------------------------------------------------------------------------------
+      {%- endcomment -%}
+
+      {%- for tag in product.tags -%}
+        {%- if tag contains '__with' -%}
+          {%- assign product_handle = tag | split: '__with:' | last -%}
+          {%- assign associated_product = all_products[product_handle] -%}
+
+          {%- if associated_product != empty -%}
+            <div class="Section Section--spacingNormal">
+              <header class="SectionHeader SectionHeader--center">
+                <h3 class="SectionHeader__Heading Heading u-h4">{{ 'product.buy_it_with.title' | t }}</h3>
+              </header>
+
+              {% render 'product-item', product: associated_product, use_horizontal: true, show_labels: false, show_product_info: true, show_vendor: false, show_price_on_hover: false %}
+            </div>
+
+            {%- break -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endcapture -%}
+
+    <div class="Product__InfoWrapper">
+      <div class="Product__Info {% if media_count == 0 %}Product__Info--noGallery{% endif %}">
+        <div class="">
+          {% if template contains "pre-order-active" and settings.preorder_template == true %}
+            {%- render 'product-meta', product: product, show_description: true -%}
+            {%- render 'product-form-disabled', product: product, colour_products: colour_products, show_colour_section: show_colour_section -%}
+          {% elsif template contains "pre-order-active" and settings.preorder_template_active == true %}   
+            <div class="preorder-badge--wrapper">
+              <span class="badge-custom">PRE-ORDER</span>
+            </div>
+            {%- render 'product-meta', product: product, show_description: true -%}
+            {%- render 'product-form', product: product, colour_products: colour_products, show_colour_section: show_colour_section, form_text: form_text, button_text: button_text -%}
+          {% else %}
+            {%- if product.template_suffix != 'coming-soon' -%}
+          	  {%- render 'product-meta', product: product, show_description: true -%}
+              {%- render 'product-form', product: product, colour_products: colour_products, show_colour_section: show_colour_section, form_text: form_text, button_text: button_text -%}
+            {%- endif -%}
+          {% endif %}
+
+           {% render "custom-related-products", tags: product.tags, show_colour_section: show_colour_section %}
+          
+          {% if ss.icon_1 != blank or ss.icon_2 != blank or ss.icon_3 != blank or ss.icon_4 != blank %}
+          <div class="Product__Icons">
+            <div class="grid--outer">
+              <ul class="grid--wrapper">
+                {% for i in (1..8) %}
+                  {% assign icon = "icon_" | append: forloop.index %}
+                  {% assign tag = "tag_" | append: forloop.index %}
+                  {% assign show = "show_" | append: forloop.index %}
+                  {% assign label = "label_" | append: forloop.index %}
+                  
+                  {% if ss[icon] and product.tags contains ss[tag] or ss[show] %}
+                    <li class="grid--item">
+                      <div>
+                        <img class="Image--lazyLoad" {% include "img_attr", image: ss[icon] %} />
+                        {% if ss[label] != blank %}<span>{{ ss[label] }}</span>{% endif %}
+                      </div>
+                    </li>
+                  {% endif %}
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+          {% endif %}
+
+          {%- if product_aside != blank -%}
+            <div class="Product__Aside">
+              <span id="ProductAside" class="Anchor"></span>
+              {{- product_aside -}}
+            </div>
+          {%- endif -%}
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+</section>
+
+{%- comment -%}
+--------------------------------------------------------------------------------------------------------------------
+FEATURED IMAGE
+
+We allow merchants to use one image as a "featured image" by adding the alt tag "featured"
+--------------------------------------------------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- for media in product.media -%}
+  {%- if media.alt == 'featured' -%}
+    {%- assign desk_featured_media = media.preview_image -%}
+  {%- endif -%}
+
+  {%- if media.alt == 'featured mobile' -%}
+    {%- assign mobile_featured_media = media.preview_image -%}
+  {%- endif -%}
+{%- endfor -%}
+
+{%- if desk_featured_media or mobile_featured_media -%}
+  {%- assign mobile_featured_media = mobile_featured_media | default: desk_featured_media -%}
+  {%- assign desk_featured_media = desk_featured_media | default: mobile_featured_media -%}
+
+  <div class="Product__FeatureImageWrapper" style="background: url({{ desk_featured_media | img_url: '1x1', format: 'jpg' }})">
+    <div class="Product__FeatureImage Product__FeatureImage--{{ section.settings.featured_image_size }} Image--lazyLoad Image--zoomOut hide-no-js" data-expand="-25" data-bgset="{{ mobile_featured_media | img_url: 'x850' }} [(max-width: 640px)] | {{ desk_featured_media | img_url: '1500x' }}"></div>
+
+    <noscript>
+      <div class="Product__FeatureImage Product__FeatureImage--{{ section.settings.featured_image_size }}" style="background-image: url({{ desk_featured_media | img_url: '1500x' }})"></div>
+    </noscript>
+  </div>
+
+  <style>
+    #shopify-section-{{ section.id }} + .shopify-section--bordered {
+      border-top: 0;
+    }
+  </style>
+{%- else -%}
+  <style>
+    /* This is a bit hacky but allows to circumvent the complete independency of section (as next section included in the page does not know anything about this page) */
+
+    @media screen and (max-width: 640px) {
+      #shopify-section-{{ section.id }} + .shopify-section--bordered {
+        border-top: 0;
+      }
+
+      #shopify-section-{{ section.id }} + .shopify-section--bordered > .Section {
+        padding-top: 0;
+      }
+    }
+  </style>
+{%- endif -%}
+
+{%- comment -%}
+--------------------------------------------------------------------------------------------------------------------
+PHOTO SWIPE
+
+This is the root container for the zoom functionality. Must not be removed, as order element is important.
+--------------------------------------------------------------------------------------------------------------------
+{%- endcomment -%}
+
+{%- if section.settings.enable_image_zoom -%}
+  <div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+    <!-- Background of PhotoSwipe -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+      <!-- Container that holds slides. Do not remove as content is dynamically added -->
+      <div class="pswp__container">
+        <div class="pswp__item"></div>
+        <div class="pswp__item"></div>
+        <div class="pswp__item"></div>
+      </div>
+
+      <!-- Main UI bar -->
+      <div class="pswp__ui pswp__ui--hidden">
+        <button class="pswp__button pswp__button--prev RoundButton" data-animate-left title="{{ 'product.slideshow.previous' | t }}">{% render 'icon' with 'arrow-left' %}</button>
+        <button class="pswp__button pswp__button--close RoundButton RoundButton--large" data-animate-bottom title="{{ 'product.slideshow.close' | t }}">{% render 'icon' with 'close' %}</button>
+        <button class="pswp__button pswp__button--next RoundButton" data-animate-right title="{{ 'product.slideshow.next' | t }}">{% render 'icon' with 'arrow-right' %}</button>
+      </div>
+    </div>
+  </div>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Product page",
+  "class": "shopify-section--bordered",
+  "settings": [
+    {
+      "label": "Shipping image",
+      "id": "shipping_text",
+      "type": "html"
+    },
+    {
+      "label": "Pre-order Text",
+      "id": "text_preorder",
+      "type": "textarea"
+    },
+    {
+      "label": "Featured product Text",
+      "id": "text_featured",
+      "type": "richtext"
+    },
+    {
+      "label": "Featured tab header",
+      "id": "featured_tab_heading",
+      "type": "text"
+    },
+    {
+      "label": "Featured tab body",
+      "id": "featured_tab_body",
+      "type": "richtext"
+    },
+    {
+      "type": "collection",
+      "id": "usell_collection",
+      "label": "Upsell Collection"
+    },
+    {
+      "type": "collection",
+      "id": "usell_collection2",
+      "label": "Upsell Collection (Selected)"
+    },
+    {
+      "label": "Product collection",
+      "id": "product_collections",
+      "type": "textarea",
+      "info": "Separate with '//'"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_share_buttons",
+      "label": "Show social sharing buttons",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_vendor",
+      "label": "Show vendor",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_sku",
+      "label": "Show SKU",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_taxes_included",
+      "label": "Show price taxes notice",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "description_below_add_to_cart",
+      "label": "Description below add to cart",
+      "default": false
+    },
+    {
+      "type": "select",
+      "id": "selector_mode",
+      "label": "Selector type",
+      "options": [
+        {
+          "value": "block",
+          "label": "Block"
+        },
+        {
+          "value": "dropdown",
+          "label": "Dropdown"
+        }
+      ],
+      "default": "dropdown"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_color_swatch",
+      "label": "Show color swatch",
+      "default": false,
+      "info": "Some colors appear white? [Learn more](http://support.maestrooo.com/article/80-product-uploading-custom-color-for-color-swatch)."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_color_carousel",
+      "label": "Show color carousel",
+      "info": "A pop-up selector with variant images for choosing colors. Only enables when color swatch is disabled.",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_quantity_selector",
+      "label": "Show quantity selector",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_inventory_quantity",
+      "label": "Show inventory quantity",
+      "info": "Make sure that your inventory is tracked. [Learn more](https://help.shopify.com/manual/products/inventory#set-up-inventory-tracking).",
+      "default": false
+    },
+    {
+      "type": "range",
+      "id": "inventory_quantity_threshold",
+      "label": "Inventory quantity threshold",
+      "info": "Only show inventory quantity if below threshold. Choose 0 to always show.",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "default": 0
+    },
+    {
+      "type": "checkbox",
+      "id": "show_price_in_button",
+      "label": "Show price in add to cart button",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_payment_button",
+      "label": "Show dynamic checkout button",
+      "info": "Each customer will see their preferred payment method from those available on your store, such as PayPal or Apple Pay. [Learn more](https://help.shopify.com/manual/using-themes/change-the-layout/dynamic-checkout)",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_pickup_availability",
+      "label": "Show local pickup availability",
+      "info": "Show customers where they can pick up the product. [Learn more](https://help.shopify.com/en/manual/shipping/setting-up-and-managing-your-shipping/local-methods/local-pickup#show-pickup-availability-to-your-customers)",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Media"
+    },
+    {
+      "type": "paragraph",
+      "content": "Learn more about [media types](https://help.shopify.com/en/manual/products/product-media)"
+    },
+    {
+      "type": "select",
+      "id": "image_size",
+      "label": "Size",
+      "options": [
+        {
+          "value": "small",
+          "label": "Small"
+        },
+        {
+          "value": "medium",
+          "label": "Medium"
+        },
+        {
+          "value": "large",
+          "label": "Large"
+        },
+        {
+          "value": "fill",
+          "label": "Fill screen"
+        }
+      ],
+      "default": "large"
+    },
+    {
+      "type": "checkbox",
+      "id": "stack_images",
+      "label": "Stack images on desktop",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_thumbnails",
+      "label": "Show thumbnails on desktop",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_image_zoom",
+      "label": "Enable zoom",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_video_looping",
+      "label": "Enable video looping",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Tabs"
+    },
+    {
+      "type": "page",
+      "id": "tab_page_1_handle",
+      "label": "First page"
+    },
+    {
+      "type": "page",
+      "id": "tab_page_2_handle",
+      "label": "Second page"
+    },
+    {
+      "type": "page",
+      "id": "tab_page_3_handle",
+      "label": "Third page"
+    },
+    {
+      "type": "header",
+      "content": "Icons"
+    },
+    {
+      "label": "Icon 1",
+      "id": "icon_1",
+      "type": "image_picker"
+    },
+    {
+      "label": "Label 1",
+      "id": "label_1",
+      "type": "text"
+    },
+    {
+      "label": "Tag 1",
+      "id": "tag_1",
+      "type": "text",
+      "default": "icon:"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_1",
+      "label": "Display without tag",
+      "default": false
+    },
+    {
+      "label": "Icon 2",
+      "id": "icon_2",
+      "type": "image_picker"
+    },
+    {
+      "label": "Label 2",
+      "id": "label_2",
+      "type": "text"
+    },
+    {
+      "label": "Tag 2",
+      "id": "tag_2",
+      "type": "text",
+      "default": "icon:"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_2",
+      "label": "Display without tag",
+      "default": false
+    },
+    {
+      "label": "Icon 3",
+      "id": "icon_3",
+      "type": "image_picker"
+    },
+    {
+      "label": "Label 3",
+      "id": "label_3",
+      "type": "text"
+    },
+    {
+      "label": "Tag 3",
+      "id": "tag_3",
+      "type": "text",
+      "default": "icon:"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_3",
+      "label": "Display without tag",
+      "default": false
+    },
+    {
+      "label": "Icon 4",
+      "id": "icon_4",
+      "type": "image_picker"
+    },
+    {
+      "label": "Label 4",
+      "id": "label_4",
+      "type": "text"
+    },
+    {
+      "label": "Tag 4",
+      "id": "tag_4",
+      "type": "text",
+      "default": "icon:"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_4",
+      "label": "Display without tag",
+      "default": false
+    },
+    {
+      "label": "Icon 5",
+      "id": "icon_5",
+      "type": "image_picker"
+    },
+    {
+      "label": "Label 5",
+      "id": "label_5",
+      "type": "text"
+    },
+    {
+      "label": "Tag 5",
+      "id": "tag_5",
+      "type": "text",
+      "default": "icon:"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_5",
+      "label": "Display without tag",
+      "default": false
+    },
+    {
+      "label": "Icon 6",
+      "id": "icon_6",
+      "type": "image_picker"
+    },
+    {
+      "label": "Label 6",
+      "id": "label_6",
+      "type": "text"
+    },
+    {
+      "label": "Tag 6",
+      "id": "tag_6",
+      "type": "text",
+      "default": "icon:"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_6",
+      "label": "Display without tag",
+      "default": false
+    },
+    {
+      "label": "Icon 7",
+      "id": "icon_7",
+      "type": "image_picker"
+    },
+    {
+      "label": "Label 7",
+      "id": "label_7",
+      "type": "text"
+    },
+    {
+      "label": "Tag 7",
+      "id": "tag_7",
+      "type": "text",
+      "default": "icon:"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_7",
+      "label": "Display without tag",
+      "default": false
+    },
+    {
+      "label": "Icon 8",
+      "id": "icon_8",
+      "type": "image_picker"
+    },
+    {
+      "label": "Label 8",
+      "id": "label_8",
+      "type": "text"
+    },
+    {
+      "label": "Tag 8",
+      "id": "tag_8",
+      "type": "text",
+      "default": "icon:"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_8",
+      "label": "Display without tag",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Featured Review"
+    },
+    {
+      "label": "Review content",
+      "id": "featured_review",
+      "type": "richtext"
+    },
+    {
+      "type": "paragraph",
+      "content": "The theme also allows you to add specific tabs for a given product only. [Learn more about this feature](http://support.maestrooo.com/article/83-product-adding-different-tabs-per-product)."
+    },
+    {
+      "type": "header",
+      "content": "Reviews"
+    },
+    {
+      "type": "paragraph",
+      "content": "You need to install [Shopify's free Product Reviews](https://apps.shopify.com/product-reviews) app before enabling this option."
+    },
+    {
+      "type": "checkbox",
+      "id": "reviews_enabled",
+      "label": "Enable",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Featured image"
+    },
+    {
+      "type": "paragraph",
+      "content": "You can highlight an image after product tabs by adding the ALT tag \"featured\" to a given image. [Learn more](http://support.maestrooo.com/article/152-product-highlight-a-featured-image)."
+    },
+    {
+      "type": "select",
+      "id": "featured_image_size",
+      "label": "Section size",
+      "options": [
+        {
+          "value": "small",
+          "label": "Small"
+        },
+        {
+          "value": "normal",
+          "label": "Normal"
+        },
+        {
+          "value": "large",
+          "label": "Large"
+        }
+      ],
+      "default": "large"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "video",
+      "name": "Video",
+      "settings": [
+        {
+          "type": "product_list",
+          "id": "product_list",
+          "label": "Products"
+        },
+        {
+          "label": "Video",
+          "id": "video",
+          "type": "url"
+        },
+        {
+          "label": "Thumbnail",
+          "id": "thumbnail",
+          "type": "image_picker"
+        }
+      ]
+    },
+    {
+      "type": "form_content",
+      "name": "Product form content",
+      "settings": [
+        {
+          "label": "Styles",
+          "id": "styles",
+          "type": "textarea"
+        },
+        {
+          "label": "Text",
+          "id": "text",
+          "type": "richtext"
+        },
+        {
+          "label": "Button",
+          "id": "button",
+          "type": "text"
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

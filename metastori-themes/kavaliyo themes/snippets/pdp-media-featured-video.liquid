@@ -1,0 +1,125 @@
+<ed-video-popup class="ed-video-popup">
+    <div class="ed-video-popup-container">
+      {% if product.metafields.standard.featured_video %}
+        {% assign ed_video_popup_url = product.metafields.standard.featured_video | file_url %}
+      {% endif %}
+      <video src="{{ ed_video_popup_url }}" muted playsinline controls preload="metadata"></video>
+
+      <span class="btn-close">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="size-6"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+        </svg>
+      </span>
+    </div>
+  </ed-video-popup>
+
+  <script>
+    (function () {
+      function bindEdFeaturedProductMedia(root) {
+        if (!root || root.dataset.edFeaturedVideoBound === 'true') return;
+
+        var videoPopup = root.querySelector('.ed-video-popup');
+        if (!videoPopup) return;
+
+        var video = videoPopup.querySelector('video');
+        var closeBtn = videoPopup.querySelector('.btn-close');
+        if (!video || !closeBtn) return;
+
+        root.dataset.edFeaturedVideoBound = 'true';
+
+        if (video) video.pause();
+
+        var formId = root.getAttribute('form-id');
+        var form = formId ? document.getElementById(formId) : null;
+
+        function closePopup() {
+          videoPopup.classList.remove('open');
+          if (video) {
+            video.pause();
+            video.currentTime = 0;
+          }
+        }
+
+        function openPopup() {
+          videoPopup.classList.add('open');
+          if (video) {
+            video.muted = false;
+            video.play().catch(function () {});
+          }
+        }
+
+        function isThumbnailTrigger(target) {
+          var btn = target && target.closest && target.closest('.ed-video-thumbnail');
+          return !!(btn && root.contains(btn));
+        }
+
+        root.addEventListener(
+          'click',
+          function (e) {
+            if (!e.isTrusted) return;
+            if (!isThumbnailTrigger(e.target)) return;
+            e.preventDefault();
+            e.stopPropagation();
+            openPopup();
+          },
+          false
+        );
+
+        var isTouch =
+          typeof window !== 'undefined' &&
+          ('ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
+
+        if (isTouch) {
+          root.addEventListener(
+            'touchend',
+            function (e) {
+              if (!e.isTrusted) return;
+              if (!isThumbnailTrigger(e.target)) return;
+              e.preventDefault();
+              e.stopPropagation();
+              openPopup();
+            },
+            { passive: false }
+          );
+        }
+
+        closeBtn.addEventListener('click', function () {
+          closePopup();
+        });
+
+        videoPopup.addEventListener('click', function (event) {
+          if (video.contains(event.target)) return;
+          if (isThumbnailTrigger(event.target)) return;
+          closePopup();
+        });
+
+        if (form) {
+          form.addEventListener('variant:change', function () {
+            closePopup();
+          });
+        }
+      }
+
+      var scriptEl = document.currentScript;
+      var rootFromScript = scriptEl && scriptEl.closest('product-media');
+      bindEdFeaturedProductMedia(rootFromScript);
+
+      if (typeof Shopify !== 'undefined' && Shopify.designMode) {
+        document.addEventListener('shopify:section:load', function (event) {
+          if (!event.target || typeof event.target.querySelectorAll !== 'function') return;
+          event.target.querySelectorAll('product-media').forEach(function (pm) {
+            if (pm.querySelector('.ed-video-popup')) {
+              bindEdFeaturedProductMedia(pm);
+            }
+          });
+        });
+      }
+    })();
+  </script>

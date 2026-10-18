@@ -1,0 +1,780 @@
+Planet wash - easy subscription bundle code
+  {%- assign total_combinations = 1 -%}
+  {%- for option in product.options_with_values -%}
+    {%- assign total_combinations = total_combinations | times: option.values.size -%}
+  {%- endfor -%}
+  {% unless product.has_only_default_variant %}
+    <custom-variant-selection>
+      
+      {% assign current_variant = product.selected_or_first_available_variant %}
+      {% assign current_variant_arr = current_variant.title | split: " / " %}
+      {% assign temp_title = current_variant_arr[0] | append: ' / ' | append: current_variant_arr[1] | append: ' / ' | append: 'Eenmalig' %}
+      
+      {% assign matched_price = '' %}
+      
+      {% for variant in product.variants %}
+        {% if variant.title == temp_title %}
+          {% assign matched_price = variant.price | money %}
+        {% endif %}
+      {% endfor %}
+      
+      {% assign count = 0 %}
+      {% for option in product.options_with_values %}
+        {% assign option_name = option.name | downcase %}
+        {% assign option_key = 'option' | append: forloop.index %}
+        {% assign current_variant = product.selected_or_first_available_variant %}
+        {% assign count = count | plus: 1 %}
+        <div class="variant-option-wrapper option--{{ option_name }}">
+          
+          <label class="variant-option-label">{{ count }}. Kies je {{ option_name }}: </label>
+          <div class="option-values-wrapper">
+            {% for value in option.values %}
+              {% if option_name == 'geur' or option_name == 'bundel' %}
+                <div class="option-value-inner" id="{{ value | handleize }}-value">
+                  {% if option_name == 'bundel' %}
+                    {% assign remove_chars = "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z, ," | split: "," %}
+                    {% assign number_value = value %}
+                        {% for ch in remove_chars %}
+                          {% assign number_value = number_value | remove: ch %}
+                        {% endfor %}
+                  {% endif %}
+                  <input type="radio" value="{{ value }}" main-var-value="{{ number_value }}" name="option-{{ option_name }}" id="option-{{ option_name }}-{{ value | handleize }}"{% if current_variant[option_key] == value %} checked{% endif %}{% if option_name == 'geur' and forloop.index == 2 %} disabled{% endif %}>
+                  {% if option_name == 'geur' %}
+                    {% for variant in product.variants %}
+                      {% if variant[option_key] == value %}
+                        {%- liquid
+                          if variant.metafields.custom.variant_image != blank
+                            assign swatch_image = variant.metafields.custom.variant_image | image_url
+                          endif
+                        -%}
+                        {% break %}
+                      {% endif %}
+                    {% endfor %}
+                    <label class="option-value" for="option-{{ option_name }}-{{ value | handleize }}" title="{{ value }}">
+                      <span class="scent-image-swatch">
+                        <img src="{{ swatch_image }}" alt="">
+                      {% if forloop.index == 2 %}
+                        <img class="new-variant-badge" src="https://cdn.shopify.com/s/files/1/0914/0633/6264/files/download.svg?v=1750771789" width="40" height="40">
+                      {% endif %}
+                      </span>
+                    </label>
+                  {% endif %}
+                  {% if option_name == 'bundel' %}
+                    <label class="option-value" for="option-{{ option_name }}-{{ value | handleize }}">
+                      {% if forloop.first %}
+                        <span class="value-badge">BESTE DEAL</span>
+                      {% endif %}
+                      <span class="value-text">{{ value }}</span>
+                      {% for variant in product.variants %}
+                        {% if forloop.first %}
+                          {% assign vari_price = variant.price | money %}
+                          {% assign vari_unit_price = variant.unit_price | money %}
+                          
+                        {% endif %}
+                          {% assign list_price = variant.compare_at_price %}
+                          {% assign seling_price = variant.price %}
+                          {% assign discount_percent = list_price | minus: seling_price  | times:100 | divided_by:list_price %}
+                          {% assign vari_org_price = variant.compare_at_price | money %}
+                        {% if variant[option_key] == value %}
+                          {% if forloop.first %}
+                            {% assign discount_percent_1 = list_price | minus: seling_price  | times:100 | divided_by:list_price %}
+                            {% assign vari_org_price_1 = variant.compare_at_price | money %}
+                          {% endif %}
+                          <span class="value-price" var-compare-price="{{ vari_org_price }}" var-discount="{{ discount_percent }}%" var-price="{{ variant.price | money }}">{{ variant.unit_price | money }} / wasje</span>
+                          {% break %}
+                        {% endif %}
+                      {% endfor %}
+                    </label>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endfor %}
+            {% if option_name == 'levering' %}
+              <div class="option-value-inner">
+                <div class="delivery_option-container">
+                  <div class="delivery_option-subscription delivery-box">
+                    <span class="float_badge">ABONNEER EN BESPAAR <span class="discount-percent">{{ discount_percent_1 }}%</span></span>
+                    <input type="radio" name="purchase-option" value="Abonneer" id="option-subscription" checked />
+                    <label class="purchase-option-label purchase-option-sub" for="option-subscription">
+                      <span class="purchase-text">Abonneer & Bespaar</span>
+                      <span class="purchase-text-price main-price">{{ vari_price }}</span>
+                    </label>
+                    <div class="option-value-inner-month-plan">
+                      {% assign remove_chars = "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z, ," | split: "," %}
+                      {% for value in option.values %}
+                          {% assign number_value = value %}
+                          {% for ch in remove_chars %}
+                            {% assign number_value = number_value | remove: ch %}
+                          {% endfor %}
+                        <div class="option-value-inner">
+                          <input type="radio" var-value="{{ number_value }}" value="{{ value }}" name="option-{{ option_name }}" id="option-{{ option_name }}-{{ value | handleize }}"{% if current_variant[option_key] == value %} checked{% endif %}>
+                          <label class="option-value" for="option-{{ option_name }}-{{ value | handleize }}" {% if forloop.last %}hidden{% endif %}>
+                            {% for variant in product.variants %}
+                              {% if variant[option_key] == value %}
+                                <span class="value-text" data-var-price="{{ variant.price | money }}" data-unit-var-price="{{ variant.unit_price | money }}">{{ number_value }}</span>
+                                {% break %}
+                              {% endif %}
+                            {% endfor %}
+                          </label>
+                        </div>
+                      {% endfor %}
+                    </div>
+                    <div class="month-plan-label">
+                      Levering elke <span>1</span> Maanden
+                    </div>
+                    <div class="month-plan-check-lebel">
+                      <ul>
+                        <li>
+                          <svg height="20" width="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" data-id="508817723126055272">
+                            <path fill="currentColor" strokelinecap="round" strokelinejoin="round" d="M243.31,90.91l-128.4,128.4a16,16,0,0,1-22.62,0l-71.62-72a16,16,0,0,1,0-22.61l20-20a16,16,0,0,1,22.58,0L104,144.22l96.76-95.57a16,16,0,0,1,22.59,0l19.95,19.54A16,16,0,0,1,243.31,90.91Z"></path>
+                          </svg>
+                          <span><b>Elk moment</b> annuleren</li></span>
+                        <li>
+                          <svg height="20" width="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor" data-id="508817723126055272">
+                            <path fill="currentColor" strokelinecap="round" strokelinejoin="round" d="M243.31,90.91l-128.4,128.4a16,16,0,0,1-22.62,0l-71.62-72a16,16,0,0,1,0-22.61l20-20a16,16,0,0,1,22.58,0L104,144.22l96.76-95.57a16,16,0,0,1,22.59,0l19.95,19.54A16,16,0,0,1,243.31,90.91Z"></path>
+                          </svg>
+                          <span><b>RISICOVRIJE</b> wasgarantie</li></span>
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <div class="delivery_option-oneTime delivery-box">
+                    <input type="radio" name="purchase-option" value="Eenmalig" id="option-oneTime" />
+                    <label class="purchase-option-label purchase-option-OT" for="option-oneTime">
+                      <span class="purchase-text">Eenmalige aankoop</span>
+                      <span class="one-time-price main-price">{{ matched_price }}</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    <noscript>
+      {{ product | json }}
+    </noscript>
+      <div class="final-price-and-unit-price">
+        <span class="total-product-unit-price">{{ vari_unit_price }} Per Wasje</span>
+        <div>
+          <span class="total-product-price">{{ vari_price }}</span>
+          <span class="total-original-price">{{ vari_org_price_1 }}</span>
+          <span class="discount-percent">{{ discount_percent_1 }}%</span>
+        </div>
+      </div>
+      <form method="post" action="/cart/add" id="dynamic-add-to-cart-form">
+        <input type="hidden" name="id" id="selected-variant-id" value="">
+        <button type="submit" class="btn add-to-cart-button">Toevoegen aan winkelwagen - <span class="main-cart-price">{{ vari_price }}</span></button>
+      </form>
+
+    </custom-variant-selection>
+  {% endunless %}
+  <style>
+    custom-variant-selection {
+      font-family: 'Nunito';
+      font-size: 16px;
+      color: #25213f;
+    }
+    .variant-option-label {
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      line-height: 1;
+    }
+    .option-values-wrapper {
+      display: flex;
+      align-items: center;
+      column-gap: 12px;
+      row-gap: 12px;
+      flex-wrap: wrap;
+    }
+    .option-value-inner {
+      display: inline-flex;
+    }
+    .option-values-wrapper input {
+      display: none;
+    }
+    .option-value {
+      cursor: pointer;
+    }
+    .variant-option-wrapper.option--geur .option-value {
+      width: 64px;
+      height: 64px;
+      border: 2px solid transparent;
+      border-radius: 50%;
+    }
+    .option-value-inner input:checked + .option-value {
+      border-color: #ff790c;
+    }
+    .option-value-inner input:checked + .option-value .value-text {
+      color: black;
+    }
+    .option-value .value-text {
+        font-weight: bold;
+        color: gray;
+        font-size: 14px;
+    }
+    .option-value .value-price {
+        font-weight: bold;
+        color: gray;
+    }
+    .variant-option-wrapper.option--bundel .option-values-wrapper {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .variant-option-wrapper.option--bundel .option-value-inner, .option-value-inner-month-plan .option-value-inner label {
+      background: transparent;
+      font-weight: 600;
+      border: 2px solid #D9D9D9;
+      border-radius: 12px;
+      position: relative;
+      text-align: center;
+      cursor: pointer;
+      font-size: 12px;
+      justify-content: center;
+      transition: 0.3s all;
+    }
+    .variant-option-wrapper.option--bundel .option-value {
+      padding: 17px;
+      width: 100%;
+    }
+    .variant-option-wrapper.option--bundel .variant-option-label {
+      margin-bottom: 30px;
+    }
+    .variant-option-wrapper {
+      margin: 24px 0;
+    }
+    .value-price {
+      display: block;
+    }
+    .variant-option-wrapper.option--bundel .option-value-inner:has(input:checked), .option-value-inner-month-plan .option-value-inner:has(input:checked) label {
+      border-color: #ff8927;
+      background-color: rgb(255 137 39 / 30%);
+    }
+    .value-badge {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      width: fit-content;
+      transform: translateY(-100%);
+      padding: 2px 12px;
+      border-radius: 4px 4px 0 0;
+      background: #C8202F;
+      color: #fff;
+      margin: 0 auto;
+      text-transform: uppercase;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .delivery-box label {
+      display: flex;
+      width: 100%;
+      background: transparent;
+      padding: 1.7rem;
+      border-width: 2px !important;
+      font-weight: 600;
+      border: 2px solid #D9D9D9;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+    .variant-option-wrapper.option--levering .option-value-inner {
+      width: 100%;
+    }
+    .delivery_option-container {
+      width: 100%;
+    }
+    .delivery-box:has(input[name="purchase-option"]:checked) .purchase-option-label {
+      border-color: #ff8927;
+      background-color: rgb(255 137 39 / 30%);
+    }
+    .float_badge {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      width: fit-content;
+      transform: translateY(-100%);
+      padding: 2px 12px;
+      border-radius: 4px 4px 0 0;
+      margin: 0 auto;
+      text-transform: uppercase;
+      font-weight: 700;
+      background: #ff8927;
+      color: #fff;
+      font-size: 12px;
+    }
+    .variant-option-wrapper.option--levering .variant-option-label {
+      margin-bottom: 35px;
+    }
+    .option-value-inner-month-plan {
+        display: none;
+        gap: 12px;
+        justify-content: center;
+        font-weight: bold;
+    }
+    .month-plan-label {
+        display: none;
+        text-align: center;
+        margin-bottom: 1rem;
+        justify-content: center;
+    }
+    .option-value-inner-month-plan label.option-value {
+        padding: 6px;
+        width: 70px;
+        font-weight: bold;
+    }
+    .delivery-box:has(input[name="purchase-option"]:checked) .month-plan-label {
+      display: flex;
+      align-items: center;
+    }
+    .month-plan-label span {
+        background: #f6d8be;
+        padding: 5px;
+        border-radius: 50px;
+        width: 26px;
+        height: 26px;
+        display: block;
+        border: 2px solid #ff8927;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 6px;
+    }
+    .delivery-box:has(input[name="purchase-option"]:checked) .option-value-inner-month-plan {
+        display: flex;
+    }
+    .option-value-inner-month-plan .option-value-inner {
+        width: auto !important;
+    }
+    label.purchase-option-label.purchase-option-sub {
+      justify-content: space-between;
+      position: relative;
+    }
+    button.btn.add-to-cart-button {
+        background: #ff8927;
+        color: white;
+        width: 100%;
+        padding: 10px;
+        border-radius: 13px;
+    }
+    label.purchase-option-label.purchase-option-OT {
+        justify-content: space-between;
+      margin-bottom: 0;
+    }
+    .month-plan-check-lebel {
+      display: none;
+      margin-bottom: 1rem;
+    }
+    .delivery-box:has(input[name="purchase-option"]:checked) .month-plan-check-lebel {
+      display: block;
+    }
+    button.btn.add-to-cart-button[disabled] {
+        opacity: .5;
+    }
+    .delivery-box label {
+        cursor: pointer;
+    }
+    .month-plan-check-lebel ul {
+        display: flex;
+        justify-content: space-between;
+    }
+    .month-plan-check-lebel ul li {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .month-plan-check-lebel ul li svg {
+        color: #00B67A;
+    }
+    .delivery_option-subscription.delivery-box {
+        position: relative;
+    }
+    .final-price-and-unit-price {
+        display: flex;
+        justify-content: space-between;
+        font-weight: bold;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    .final-price-and-unit-price span {
+        font-size: 18px;
+    }
+    input#option-geur-geurloos[disabled] + label {
+        cursor: not-allowed;
+        opacity: 0.6; /* optional: visual cue */
+    }
+    img.new-variant-badge {
+        position: absolute;
+        top: 0;
+        right: 0;
+        transform: translate(44%, -40%);
+    }
+    span.scent-image-swatch {
+        position: relative;
+    }
+    span.discount-percent {
+        background: #00b67a;
+        padding: 4px 10px;
+        border-radius: 30px;
+        color: white;
+        margin-left: 4px;
+        font-weight: bold;
+    }
+    span.float_badge span.discount-percent {
+        background: none;
+        padding: 0;
+    }
+    .final-price-and-unit-price span.discount-percent {
+        position: relative;
+        padding-left: 20px;
+    }
+    .final-price-and-unit-price span.discount-percent:before {
+        content: '-';
+        position: absolute;
+        left: 10px;
+    }
+    span.total-original-price {
+        color: #011e24;
+        text-align: center;
+        font-size: 16px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 16px;
+        text-decoration: line-through;
+        text-transform: capitalize;
+    }
+    @media only screen and (max-width: 749px){
+      .option-value-inner-month-plan {
+          text-align: center;
+      }
+      .month-plan-check-lebel ul li {
+          gap: 8px;
+          align-items: start;
+      }
+      .month-plan-check-lebel ul li span {
+          line-height: 1.4;
+      }
+    }
+  </style>
+<script type="module">
+  class VariantSelectorSync extends HTMLElement {
+    constructor() {
+      super();
+    }
+
+    connectedCallback() {
+      this.init();
+    }
+
+    init() {
+      const productData = {{ product | json }};
+      const bundelInputs = this.querySelectorAll('input[name^="option-bundel"]');
+      const leveringInputs = this.querySelectorAll('input[name^="option-levering"][var-value]');
+      const priceTarget = this.querySelector('.purchase-text-price');
+      const discount_percent = this.querySelectorAll('.discount-percent');
+      const total_original_price = this.querySelector('.total-original-price');
+      const monthPlanSpan = this.querySelector('.month-plan-label span');
+      const subscriptionRadio = this.querySelector('#option-subscription');
+      const oneTimeRadio = this.querySelector('#option-oneTime');
+      const monthPlanContainer = this.querySelector('.option-value-inner-month-plan');
+      const monthPlanRadios = monthPlanContainer?.querySelectorAll('input[type="radio"]');
+      const selectedPriceContainers = this.querySelectorAll('.product-selected-variant-price, .purchase-text-price');
+      const variantIdInput = this.querySelector('#selected-variant-id');
+      const addToCartButton = this.querySelector('.add-to-cart-button');
+      const total_price = document.querySelector('.total-product-price');
+      const total_product_unit_price = document.querySelector('.total-product-unit-price');
+      const variantInputs = this.querySelectorAll('input[type="radio"][name^="option-"]');
+      const float_badge = document.querySelector(".float_badge");
+      // Handle levering options toggle
+      const toggleDeliveryOptions = () => {
+        if (oneTimeRadio?.checked) {
+          if (monthPlanContainer) monthPlanContainer.style.display = 'none';
+          if (total_original_price) total_original_price.style.display = 'none';
+          if (float_badge) float_badge.style.background = 'grey';
+          if (discount_percent && discount_percent.length > 0) {
+            discount_percent.forEach(el => el.style.display = 'none');
+          }
+
+          if (monthPlanRadios && monthPlanRadios.length > 0) {
+            const lastRadio = monthPlanRadios[monthPlanRadios.length - 1];
+            lastRadio.checked = true;
+            lastRadio.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        } else if (subscriptionRadio?.checked) {
+          if (monthPlanContainer) monthPlanContainer.style.display = 'flex';
+          if (total_original_price) total_original_price.style.display = 'inline';
+          if (float_badge) float_badge.style.background = '#ff8927';
+          if (discount_percent && discount_percent.length > 0) {
+            discount_percent.forEach(el => el.style.display = 'inline-block');
+          }
+
+          if (monthPlanRadios && monthPlanRadios.length > 0) {
+            const firstRadio = monthPlanRadios[0];
+            firstRadio.checked = true;
+            firstRadio.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+      };
+
+      // Bind toggle delivery
+      oneTimeRadio?.addEventListener('change', toggleDeliveryOptions);
+      subscriptionRadio?.addEventListener('change', toggleDeliveryOptions);
+      toggleDeliveryOptions();
+
+      // Update price and check levering option from bundel
+      bundelInputs.forEach(input => {
+        input.addEventListener('change', () => {
+          // Update price from selected bundel
+          const label = this.querySelector(`label[for="${input.id}"]`);
+          if (label) {
+            const priceSpan = label.querySelector('.value-price');
+            if (priceSpan && priceTarget) {
+              const newPrice = priceSpan.getAttribute('var-price');
+              if (newPrice) priceTarget.textContent = newPrice;
+            }
+            if (priceSpan && total_original_price) {
+              const newComparePrice = priceSpan.getAttribute('var-compare-price');
+              if (newComparePrice) total_original_price.textContent = newComparePrice;
+            }
+            if (priceSpan && discount_percent.length) {
+              const newDiscount = priceSpan.getAttribute('var-discount');
+              if (newDiscount) {
+                discount_percent.forEach(el => {
+                  el.textContent = newDiscount;
+                });
+              }
+            }
+          }
+
+          // Sync levering only if "Abonneer" is selected
+          const mainVarValue = input.getAttribute('main-var-value');
+          if (mainVarValue && subscriptionRadio?.checked) {
+            leveringInputs.forEach(leveringInput => {
+              if (leveringInput.getAttribute('var-value') === mainVarValue) {
+                leveringInput.checked = true;
+                leveringInput.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            });
+          }
+        });
+      });
+
+      // Update levering label on change
+      leveringInputs.forEach(input => {
+        input.addEventListener('change', () => {
+          const selectedValue = input.getAttribute('var-value');
+          if (monthPlanSpan && selectedValue) {
+            monthPlanSpan.textContent = selectedValue;
+          }
+        });
+      });
+
+      // Get selected variant
+      const getSelectedOptions = () => {
+        const selectedOptions = [];
+        for (let i = 0; i < productData.options.length; i++) {
+          const name = productData.options[i].toLowerCase();
+          const selected = this.querySelector(`input[name="option-${name}"]:checked`);
+          selectedOptions.push(selected ? selected.value : null);
+        }
+        return selectedOptions;
+      };
+
+      const findMatchingVariant = () => {
+        const selectedOptions = getSelectedOptions();
+        return productData.variants.find(variant =>
+          selectedOptions.every((value, index) => variant.options[index] === value)
+        );
+      };
+
+      const updatePriceAndVariantId = () => {
+      const matchedVariant = findMatchingVariant();
+    
+      const getSelectedPrice = () => {
+        const subInput = document.querySelector('#option-subscription');
+        const oneTimeInput = document.querySelector('#option-oneTime');
+    
+        if (subInput?.checked) {
+          const subPrice = document.querySelector('.delivery_option-subscription .main-price');
+          return subPrice?.textContent.trim() || '';
+        }
+    
+        if (oneTimeInput?.checked) {
+          const oneTimePrice = document.querySelector('.delivery_option-oneTime .main-price');
+          return oneTimePrice?.textContent.trim() || '';
+        }
+    
+        return '';
+      };
+    
+      const selectedPrice = getSelectedPrice();
+    
+      if (matchedVariant) {
+        const price = Shopify.formatMoney(matchedVariant.price, "{{ shop.money_format }}");
+        const unit_price = Shopify.formatMoney(matchedVariant.unit_price, "{{ shop.money_format }}");
+        // const compareAt = matchedVariant.compare_at_price;
+        // let discountPercent = null;
+    
+        // if (compareAt && compareAt > matchedVariant.price) {
+        //   discountPercent = Math.round(((compareAt - matchedVariant.price) / compareAt) * 100);
+        // }
+      // console.log(price);
+        // Update variant ID
+        if (variantIdInput) {
+          variantIdInput.value = matchedVariant.id;
+        }
+    
+        // Enable/Disable Add to Cart Button with price
+        if (addToCartButton) {
+          if (matchedVariant.available) {
+            addToCartButton.disabled = false;
+            addToCartButton.textContent = `Toevoegen aan winkelwagen – ${selectedPrice}`;
+          } else {
+            addToCartButton.disabled = true;
+            addToCartButton.textContent = `Niet beschikbaar – ${selectedPrice}`;
+          }
+        }
+        
+        total_price.textContent = `${selectedPrice}`;
+        total_product_unit_price.textContent = `${unit_price}` + ' Per Wasje';
+        // const discountEls = document.querySelectorAll('.discount-percent');
+        // discountEls.forEach(el => {
+        //   if (discountPercent !== null) {
+        //     el.textContent = `${discountPercent}%`;
+        //     el.style.display = 'inline';
+        //   } else {
+        //     el.style.display = 'none';
+        //   }
+        // });
+
+      } else {
+        // No matched variant
+        if (addToCartButton) {
+          addToCartButton.disabled = true;
+          addToCartButton.textContent = "Selecteer opties";
+        }
+      }
+    };
+
+      // Update on change
+      variantInputs.forEach(input => {
+        input.addEventListener('change', updatePriceAndVariantId);
+      });
+
+      // const bundleInputs = document.querySelectorAll('.variant-option-wrapper.option--bundel input');
+
+      // bundleInputs.forEach(input => {
+      //   input.addEventListener('change', () => {
+      //     const getSelectedOptions = () => {
+      //       const selectedOptions = [];
+      //       for (let i = 0; i < productData.options.length; i++) {
+      //         const name = productData.options[i].toLowerCase();
+      //         const selected = document.querySelector(`input[name="option-${name}"]:checked`);
+      //         selectedOptions.push(selected ? selected.value : null);
+      //       }
+      //       return selectedOptions;
+      //     };
+      
+      //     const selectedOptions = getSelectedOptions();
+      //     var selectedVariant = selectedOptions.join(' / ');
+      
+      //     productData.variants.forEach(variant => {
+      //       if(variant.title == selectedVariant) {
+      //         // console.log(variant.price);
+      //       }
+      //     });
+      //   });
+      // });
+
+      const monthPlanInputs = document.querySelectorAll('.option-value-inner-month-plan input');
+      
+      monthPlanInputs.forEach(input => {
+        input.addEventListener('change', () => {
+          const selectedLevering = document.querySelector('input[name="option-levering"]:checked')?.value;
+          const bundelInputs = document.querySelectorAll('.variant-option-wrapper.option--bundel input');
+      
+          bundelInputs.forEach(bundelInput => {
+            const bundelValue = bundelInput.value;
+            const bundelWrapper = bundelInput.closest('.option-value-inner');
+            const priceSpan = bundelWrapper.querySelector('.value-price');
+      
+            const matchedVariant = productData.variants.find(variant => {
+              const bundelIndex = productData.options.findIndex(opt => opt.toLowerCase() === 'bundel');
+              const leveringIndex = productData.options.findIndex(opt => opt.toLowerCase() === 'levering');
+      
+              return (
+                variant.options[bundelIndex] === bundelValue &&
+                variant.options[leveringIndex] === selectedLevering
+              );
+            });
+      
+            if (matchedVariant && priceSpan) {
+              const formattedPrice = Shopify.formatMoney(matchedVariant.unit_price, "{{ shop.money_format }}");
+              // console.log(formattedPrice);
+              priceSpan.textContent = formattedPrice + " / wasje";
+            }
+          });
+        });
+      });
+      function updateOneTimePrice() {
+        const selectedBundelInput = document.querySelector('.variant-option-wrapper.option--bundel input:checked');
+        const leveringInput = document.querySelector('#option-levering-eenmalig');
+        const leveringValue = leveringInput?.value;
+      
+        if (!selectedBundelInput || !leveringValue) return;
+      
+        const selectedBundel = selectedBundelInput.value;
+      
+        const matchedVariant = productData.variants.find(variant => {
+          const bundelIndex = productData.options.findIndex(opt => opt.toLowerCase() === 'bundel');
+          const leveringIndex = productData.options.findIndex(opt => opt.toLowerCase() === 'levering');
+      
+          return (
+            variant.options[bundelIndex] === selectedBundel &&
+            variant.options[leveringIndex] === leveringValue
+          );
+        });
+      
+        if (matchedVariant) {
+          const formattedPrice = Shopify.formatMoney(matchedVariant.price, "{{ shop.money_format }}");
+          const formattedUnitPrice = Shopify.formatMoney(matchedVariant.unit_price, "{{ shop.money_format }}");
+      
+          const oneTimePriceEl = document.querySelector('.one-time-price');
+          if (oneTimePriceEl) {
+            oneTimePriceEl.textContent = `${formattedPrice}`;
+          }
+      
+          // 👉 Update Add to Cart button if One-Time option is selected
+          const oneTimeRadio = document.querySelector('#option-oneTime');
+          const addToCartBtn = document.querySelector('.btn.add-to-cart-button');
+          const total_product_price = document.querySelector('.total-product-price');
+          const total_product_unit_price = document.querySelector('.total-product-unit-price');
+      
+          if (oneTimeRadio?.checked && addToCartBtn) {
+            addToCartBtn.textContent = `Toevoegen aan winkelwagen – ${formattedPrice}`;
+            total_product_price.textContent = `${formattedPrice}`;
+            total_product_unit_price.textContent = `${formattedUnitPrice}` + ` Per Wasje`;
+          }
+
+        }
+      }
+
+      
+      // Run on bundel input change
+      const bundleInputs = document.querySelectorAll('.variant-option-wrapper.option--bundel input');
+      bundleInputs.forEach(input => {
+        input.addEventListener('change', updateOneTimePrice);
+      });
+      
+      // ✅ Run once on page load
+      updateOneTimePrice();
+
+      // Initial update
+      updatePriceAndVariantId();
+    }
+  }
+
+  customElements.define('custom-variant-selection', VariantSelectorSync);
+</script>

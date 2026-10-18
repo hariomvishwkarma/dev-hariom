@@ -1,0 +1,245 @@
+{%- comment -%}
+  Product Guarantee Block
+{%- endcomment -%}
+
+{%- assign guarantee_handle = block.settings.product | strip -%}
+
+{%- if guarantee_handle != blank -%}
+  {%- assign guarantee_product = all_products[guarantee_handle] -%}
+  {%- assign guarantee_variant = guarantee_product.selected_or_first_available_variant -%}
+  {%- assign current_variant = product.selected_or_first_available_variant -%}
+
+  {%- assign show_guarantee = false -%}
+  {%- if current_variant.metafields.plenty.garantie == "Ja" -%}
+    {%- assign show_guarantee = true -%}
+  {%- endif -%}
+
+
+  {%- assign variant_price_cents = current_variant.price -%}
+  {%- if variant_price_cents >= 40000 -%}
+    {%- assign guarantee_rate_per_mille = 10 -%}
+  {%- elsif variant_price_cents >= 20000 -%}
+    {%- assign guarantee_rate_per_mille = 15 -%}
+  {%- elsif variant_price_cents >= 10000 -%}
+    {%- assign guarantee_rate_per_mille = 20 -%}
+  {%- elsif variant_price_cents >= 5000 -%}
+    {%- assign guarantee_rate_per_mille = 30 -%}
+  {%- else -%}
+    {%- assign guarantee_rate_per_mille = 35 -%}
+  {%- endif -%}
+  {%- assign guarantee_price_cents = variant_price_cents | times: guarantee_rate_per_mille | divided_by: 1000.0 | round -%}
+
+
+  <div
+    id="guarantee-block-{{ section.id }}-{{ block.id }}"
+    class="product-guarantee-block"
+    {{ block.shopify_attributes }}
+    {% unless show_guarantee %}style="display: none;"{% endunless %}
+  >
+    <div class="product-guarantee-block__content">
+      <!-- Top row: Checkbox, Title, Info Icon, Price -->
+      <div class="product-guarantee-block__top-row">
+        <!-- Checkbox -->
+        <div class="product-guarantee-block__checkbox-container">
+          <input
+            type="checkbox"
+            id="guarantee-checkbox-{{ section.id }}-{{ block.id }}"
+            class="product-guarantee-block__checkbox"
+            data-guarantee-product-id="{{ guarantee_variant.id }}"
+            data-guarantee-product-handle="{{ guarantee_product.handle }}"
+            data-guarantee-sku="{{ current_variant.sku }}"
+            form="{{ product_form_id }}"
+          >
+          <label
+            for="guarantee-checkbox-{{ section.id }}-{{ block.id }}"
+            class="product-guarantee-block__checkbox-label visually-hidden"
+          >
+            <span class="visually-hidden">Add guarantee to cart</span>
+          </label>
+        </div>
+
+        <!-- Title -->
+        <div class="product-guarantee-block__title-container">
+          <label for="guarantee-checkbox-{{ section.id }}-{{ block.id }}" class="product-guarantee-block__title">
+            {{- guarantee_product.title | default: '3 Jahre kavalio Garantie' -}}
+          </label>
+        </div>
+
+        <!-- Price -->
+        <div class="product-guarantee-block__price">
+          <span
+            id="guarantee-price-amount-{{ section.id }}-{{ block.id }}"
+            class="product-guarantee-block__price-amount"
+          >
+            {{ guarantee_price_cents | money_without_currency -}}
+            {{- shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Bottom row: Description + link to product -->
+      <div class="product-guarantee-block__bottom-row">
+        <div class="product-guarantee-block__description">
+           {% if block.settings.link_textarea != blank %}
+      <a href="{{ block.settings.link_textarea }}">
+          {{
+            guarantee_product.description
+            | default: 'Rundum abgesichert - kostenlose Reparatur, Umtausch oder Ersatz bei Materialfehlern.'
+          }}
+        </a>
+            {% else %}
+                    {{
+        guarantee_product.description
+        | default: 'Rundum abgesichert - kostenlose Reparatur, Umtausch oder Ersatz bei Materialfehlern.'
+      }}
+    {% endif %}
+        </div>
+
+        {% if block.settings.link_text != blank %}
+          <a href="{{ guarantee_product.url }}" class="product-guarantee-block__link">
+            {{ block.settings.link_text }}
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+
+  </div>
+
+  <style>
+    .product-guarantee-block {
+      margin: 35px 0;
+    }
+
+    .product-guarantee-block__content {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .product-guarantee-block__top-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .product-guarantee-block__checkbox-container {
+      flex-shrink: 0;
+      display: flex;
+    }
+
+    .product-guarantee-block__checkbox {
+      width: 16px;
+      height: 16px;
+      border: 1px solid #55576a;
+      border-radius: 4px;
+      cursor: pointer;
+      appearance: none;
+      position: relative;
+    }
+
+    .product-guarantee-block__checkbox:checked {
+      background: #59c6b4;
+      border-color: #59c6b4;
+    }
+
+    .product-guarantee-block__checkbox:checked::after {
+      content: '✓';
+      position: absolute;
+      top: 64%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .product-guarantee-block__checkbox-label {
+      cursor: pointer;
+    }
+
+    .product-guarantee-block__title-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .product-guarantee-block__title {
+      font-weight: 600;
+      cursor: pointer;
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .product-guarantee-block__price {
+      flex-shrink: 0;
+    }
+
+    .product-guarantee-block__price-amount {
+      font-weight: 600;
+    }
+
+    .product-guarantee-block__bottom-row {
+      margin-left: 30px; /* Align with title text */
+    }
+
+    .product-guarantee-block__description {
+      margin: 0;
+      font-weight: 300;
+      font-size: calc(var(--base-font-size) - 3px);
+      max-width: 340px;
+      line-height: 1.4;
+    }
+    .product-guarantee-block__description a {
+      text-underline-offset: 1.5px !important;
+      text-decoration-thickness: 1px !important;
+      text-decoration-color: rgba(var(--text-color), 0.6) !important;
+    }
+
+    .product-guarantee-block__link {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: calc(var(--base-font-size) - 3px);
+      font-weight: 400;
+      color: rgb(var(--text-color));
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .product-guarantee-block__link:hover {
+      opacity: 0.8;
+    }
+  </style>
+
+  <script>
+    (function () {
+      // Script läuft sofort — kein DOMContentLoaded-Wrapper, weil das Theme nach
+      // Variantenwechsel die Section per AJAX neu rendert und DOMContentLoaded
+      // danach nicht mehr feuert. Das Script wird im neuen HTML erneut ausgeführt.
+
+      var blockId = '{{ section.id }}-{{ block.id }}';
+      var guaranteeBlock    = document.getElementById('guarantee-block-'        + blockId);
+      var guaranteeCheckbox = document.getElementById('guarantee-checkbox-'     + blockId);
+      var priceAmountEl     = document.getElementById('guarantee-price-amount-' + blockId);
+      var skuInput          = document.getElementById('guarantee-sku-'          + blockId);
+
+
+      if (!guaranteeBlock) {
+        return;
+      }
+
+      // Visuelles Feedback für Checkbox
+      if (guaranteeCheckbox) {
+        guaranteeCheckbox.addEventListener('change', function () {
+          var block = document.getElementById('guarantee-block-' + blockId);
+          if (!block) return;
+          if (this.checked) {
+            block.classList.add('guarantee-selected');
+          } else {
+            block.classList.remove('guarantee-selected');
+          }
+        });
+      }
+    })();
+  </script>
+{%- endif -%}

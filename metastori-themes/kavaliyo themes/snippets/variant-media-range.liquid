@@ -1,0 +1,136 @@
+{% doc %}
+  Resolves the unambiguous media range for the selected color variant.
+  Returns `valid::start::end` or `fallback::1::media_count`.
+
+  @param {product} product - The current product.
+  @param {variant} variant - The currently selected variant.
+{% enddoc %}
+
+{%- assign group_data_valid = true -%}
+{%- assign color_option_index = -1 -%}
+{%- assign color_option_property = '' -%}
+{%- assign color_option = nil -%}
+{%- assign group_records = '' -%}
+{%- assign group_start_markers = '|' -%}
+{%- assign first_group_start = product.media.size | plus: 1 -%}
+{%- assign selected_group_start = 0 -%}
+{%- assign selected_group_index = -1 -%}
+
+{%- if product.media.size != product.images.size -%}
+  {%- assign group_data_valid = false -%}
+{%- endif -%}
+
+{%- for option in product.options_with_values -%}
+  {%- assign normalized_option_name = option.name | strip | downcase -%}
+  {%- if normalized_option_name == 'farbe' or normalized_option_name == 'color' or normalized_option_name == 'colour' -%}
+    {%- assign color_option_index = forloop.index0 -%}
+    {%- assign color_option_property = 'option' | append: forloop.index -%}
+    {%- assign color_option = option -%}
+    {%- break -%}
+  {%- endif -%}
+{%- endfor -%}
+
+{%- if color_option_index < 0 or color_option.values.size < 2 or color_option.values.size > 50 -%}
+  {%- assign group_data_valid = false -%}
+{%- endif -%}
+
+{%- if group_data_valid -%}
+  {%- assign selected_color_option = variant.options[color_option_index] -%}
+  {%- assign selected_color = selected_color_option.name | default: selected_color_option -%}
+
+  {%- for color_option_value in color_option.values -%}
+    {%- assign color_value = color_option_value.name | default: color_option_value -%}
+    {%- assign color_variants = product.variants | where: color_option_property, color_value -%}
+    {%- assign color_group_start = product.media.size | plus: 1 -%}
+    {%- assign color_group_has_media = false -%}
+
+    {%- if color_variants.size > 50 -%}
+      {%- assign group_data_valid = false -%}
+    {%- else -%}
+      {%- for color_variant in color_variants -%}
+        {%- if color_variant.featured_media -%}
+          {%- assign color_group_has_media = true -%}
+          {%- assign variant_media_position = color_variant.featured_media.position | plus: 0 -%}
+          {%- if variant_media_position < color_group_start -%}
+            {%- assign color_group_start = variant_media_position -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+
+    {%- unless color_group_has_media -%}
+      {%- assign group_data_valid = false -%}
+    {%- endunless -%}
+
+    {%- assign color_group_marker = '|' | append: color_group_start | append: '|' -%}
+    {%- if group_start_markers contains color_group_marker -%}
+      {%- assign group_data_valid = false -%}
+    {%- else -%}
+      {%- assign group_start_markers = group_start_markers | append: color_group_start | append: '|' -%}
+    {%- endif -%}
+
+    {%- if group_records != blank -%}
+      {%- assign group_records = group_records | append: '||' -%}
+    {%- endif -%}
+    {%- assign group_records = group_records | append: color_group_start | append: '::' | append: forloop.index0 -%}
+
+    {%- if color_group_start < first_group_start -%}
+      {%- assign first_group_start = color_group_start -%}
+    {%- endif -%}
+
+    {%- if selected_color == color_value -%}
+      {%- assign selected_group_start = color_group_start -%}
+      {%- assign selected_group_index = forloop.index0 -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
+
+{%- if first_group_start != 1 or selected_group_start < 1 or selected_group_index < 0 -%}
+  {%- assign group_data_valid = false -%}
+{%- endif -%}
+
+{%- if group_data_valid -%}
+  {%- assign group_record_list = group_records | split: '||' -%}
+  {%- assign selected_group_end = product.media.size -%}
+
+  {%- for group_record in group_record_list -%}
+    {%- assign group_record_parts = group_record | split: '::' -%}
+    {%- assign candidate_group_start = group_record_parts.first | plus: 0 -%}
+    {%- if candidate_group_start > selected_group_start and candidate_group_start <= selected_group_end -%}
+      {%- assign selected_group_end = candidate_group_start | minus: 1 -%}
+    {%- endif -%}
+  {%- endfor -%}
+
+  {%- for group_record in group_record_list -%}
+    {%- assign group_record_parts = group_record | split: '::' -%}
+    {%- assign current_group_start = group_record_parts.first | plus: 0 -%}
+    {%- assign current_group_index = group_record_parts.last | plus: 0 -%}
+    {%- assign current_group_end = product.media.size -%}
+
+    {%- for next_group_record in group_record_list -%}
+      {%- assign next_group_record_parts = next_group_record | split: '::' -%}
+      {%- assign next_group_start = next_group_record_parts.first | plus: 0 -%}
+      {%- if next_group_start > current_group_start and next_group_start <= current_group_end -%}
+        {%- assign current_group_end = next_group_start | minus: 1 -%}
+      {%- endif -%}
+    {%- endfor -%}
+
+    {%- assign current_color_option_value = color_option.values[current_group_index] -%}
+    {%- assign current_color_value = current_color_option_value.name | default: current_color_option_value -%}
+    {%- assign current_color_variants = product.variants | where: color_option_property, current_color_value -%}
+    {%- for current_color_variant in current_color_variants -%}
+      {%- if current_color_variant.featured_media -%}
+        {%- assign current_variant_position = current_color_variant.featured_media.position | plus: 0 -%}
+        {%- if current_variant_position < current_group_start or current_variant_position > current_group_end -%}
+          {%- assign group_data_valid = false -%}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endfor -%}
+{%- endif -%}
+
+{%- if group_data_valid -%}
+  {{- 'valid::' | append: selected_group_start | append: '::' | append: selected_group_end -}}
+{%- else -%}
+  {{- 'fallback::1::' | append: product.media.size -}}
+{%- endif -%}

@@ -1,0 +1,563 @@
+<style>
+  .vacancy-filter-section {
+    max-width: 700px;
+    margin: 0 auto;
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: {{ section.settings.padding_top }}px; 
+    padding-bottom: {{ section.settings.padding_bottom }}px;
+  }
+  .vacancy-filters {
+    display: flex;
+    justify-content: center;
+  }
+  .vacancy-filter-section h2.main-heading {
+    text-align: center;
+    padding-bottom: 60px;
+    font-size: 30px;
+  }
+  .vacancy-filters-container {
+    padding-bottom: 40px;
+    position: relative;
+  }
+  span.arrow {
+    font-size: 20px;
+  }
+  .business_unit-items {
+    padding-bottom: 28px;
+    padding-top: 20px;
+  }
+  .business_unit-items .vacancy-item {
+    padding: 16px 20px;
+    background-color: #fafafa;
+    margin-bottom: 12px;
+    display: block;
+  }
+  .filter-heading {
+    font-size: 18px;
+    padding-bottom: 8px;
+  }
+  .business_unit-name {
+    font-size: 24px;
+  }
+  .business_unit-items .vacancy-item h3:hover {
+    color: #143447;
+    transition: .5s;
+  }
+  .business_unit-items .vacancy-item a p{
+    opacity: .7;
+  }
+  .custom-dropdown{
+    position:relative;
+    width: 50%;
+    cursor:pointer;
+  }
+
+  .dropdown-options{
+    position:absolute;
+    top:100%;
+    left:0;
+    width:100%;
+    background:#fff;
+    border:1px solid #ddd;
+    display:none;
+    z-index:5;
+  }
+
+  .dropdown-options div{
+    padding:10px 14px;
+  }
+
+  .dropdown-options div:hover{
+    background:#f5f5f5;
+  }
+
+  .custom-dropdown.active .dropdown-options{
+    display:block;
+  }
+
+  .arrow{
+    font-size:12px;
+  }
+  .dropdown-selected{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    padding: 10px 14px;
+  }
+
+  .dropdown-selected{
+    white-space: nowrap;
+  }
+
+  .dropdown-selected span:first-child,
+  .dropdown-selected{
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .custom-dropdown {
+    position: relative;
+    width: calc(% - 6.66px);
+    cursor: pointer;
+    border: 1px solid #ddd;
+    background: #fff;
+    margin-right: 10px;
+  }
+  button.filter-reset {
+    position: absolute;
+    right: 0;
+    top: 0;
+    display: flex;
+    gap: 2px;
+    align-items: center;
+  }
+  .custom-dropdown:last-child {
+    margin: 0;
+  }
+  @media only screen and (max-width: 749px) {
+    .vacancy-filters {
+      flex-direction: column;
+    }
+    .custom-dropdown {
+      width: 100%;
+    }
+    .vacancy-filter-section {
+      max-width: 700px;
+      margin: 0 auto;
+      padding-left: 20px;
+      padding-right: 20px;
+      padding-top: {{ section.settings.padding_top | divided_by: 2 }}px; 
+      padding-bottom: {{ section.settings.padding_bottom | divided_by: 2 }}px;
+    }
+  }
+</style>
+{% assign bussiness_units = '' %}
+{% assign departments = '' %}
+{% assign contract_types = '' %}
+{% assign meta_main = shop.metaobjects.vacancy_post.values %}
+<div class="container vacancy-filter-section">
+  <h2 class="main-heading">{{ section.settings.heading }} <span id="vacancy-count">({{ meta_main.size }})</span></h2>
+  <div class="vacancy-filters-container">
+    <p class="filter-heading">{{ 'page.vacancy.filter_text' | t }}</p>
+    <button class="filter-reset">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none"><rect width="18" height="18" fill="white" fill-opacity="0.01" style="mix-blend-mode: multiply;"></rect><path d="M7.7334 3.22559C8.87538 2.75261 10.1324 2.62897 11.3447 2.87012C12.557 3.11133 13.67 3.70707 14.5439 4.58105C15.4179 5.45504 16.0137 6.56805 16.2549 7.78027C16.496 8.99258 16.3724 10.2496 15.8994 11.3916C15.4264 12.5335 14.6253 13.5095 13.5977 14.1963C12.709 14.7901 11.6849 15.1444 10.625 15.2295V15.1035C11.6601 15.0187 12.6602 14.6728 13.5283 14.0928C14.5354 13.4198 15.3206 12.4628 15.7842 11.3438C16.2477 10.2246 16.3681 8.99271 16.1318 7.80469C15.8954 6.61673 15.3125 5.52543 14.4561 4.66895C13.5996 3.81246 12.5083 3.22956 11.3203 2.99316C10.1323 2.75685 8.90037 2.87734 7.78125 3.34082C6.66217 3.80436 5.70524 4.58958 5.03223 5.59668C4.3592 6.60393 4 7.78859 4 9V13.6943L4.85352 12.8408L6.52441 11.1689L6.60547 11.25L3.9375 13.918L1.26953 11.25L1.34961 11.1689L3.875 13.6943V9C3.875 7.76387 4.24195 6.55515 4.92871 5.52734C5.61545 4.49974 6.59152 3.69857 7.7334 3.22559Z" fill="currentColor" stroke="currentColor"></path></svg>
+      <span>{{ 'page.vacancy.reset' | t }}</span>
+    </button>
+    <div class="vacancy-filters">
+      {% for item in meta_main %}
+        {% unless bussiness_units contains item.bussiness_unit %}
+          {% assign bussiness_units = bussiness_units | append: item.bussiness_unit | append: '||' %}
+        {% endunless %}
+
+        {% unless departments contains item.department %}
+          {% assign departments = departments | append: item.department | append: '||' %}
+        {% endunless %}
+
+        {% unless contract_types contains item.contract_type %}
+          {% assign contract_types = contract_types | append: item.contract_type | append: '||' %}
+        {% endunless %}
+
+      {% endfor %}
+
+      {% assign bussiness_units = bussiness_units | split: '||' %}
+      {% assign departments = departments | split: '||' %}
+      {% assign contract_types = contract_types | split: '||' %}
+      {% if section.settings.business_title != blank %}
+        <div class="custom-dropdown" data-filter="business" data-label="Business unit">
+          <div class="dropdown-selected">{{ section.settings.business_title }} <span class="arrow">▾</span></div>
+          <div class="dropdown-options">
+            <div data-value="all">{{ 'page.vacancy.everything' | t }}</div>
+            {% for item in bussiness_units %}
+              {% if item != blank %}
+
+                {% assign count = 0 %}
+                {% for job in meta_main %}
+                  {% if job.bussiness_unit == item %}
+                    {% assign count = count | plus: 1 %}
+                  {% endif %}
+                {% endfor %}
+
+                <div data-value="{{ item }}">
+                  {{ item }} ({{ count }})
+                </div>
+
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="custom-dropdown" data-filter="department" data-label="Department">
+        <div class="dropdown-selected">{{ section.settings.department_title }} <span class="arrow">▾</span></div>
+        <div class="dropdown-options">
+          <div data-value="all">{{ 'page.vacancy.everything' | t }}</div>
+            {% for item in departments %}
+              {% if item != blank %}
+
+                {% assign count = 0 %}
+                {% for job in meta_main %}
+                  {% if job.department == item %}
+                    {% assign count = count | plus: 1 %}
+                  {% endif %}
+                {% endfor %}
+
+                <div data-value="{{ item }}">
+                  {{ item }} ({{ count }})
+                </div>
+
+              {% endif %}
+            {% endfor %}
+        </div>
+      </div>
+
+      <div class="custom-dropdown" data-filter="contract" data-label="Contract type">
+        <div class="dropdown-selected">{{ section.settings.contract_title }} <span class="arrow">▾</span></div>
+        <div class="dropdown-options">
+          <div data-value="all">{{ 'page.vacancy.everything' | t }}</div>
+            {% for item in contract_types %}
+              {% if item != blank %}
+
+                {% assign count = 0 %}
+                {% for job in meta_main %}
+                  {% if job.contract_type == item %}
+                    {% assign count = count | plus: 1 %}
+                  {% endif %}
+                {% endfor %}
+
+                <div data-value="{{ item }}">
+                  {{ item }} ({{ count }})
+                </div>
+
+              {% endif %}
+            {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="vacancy-list">
+    <div class="business_unit-items">
+      {% for item in meta_main %}
+          <div 
+            class="vacancy-item"
+            data-department="{{ item.department }}"
+            data-contract="{{ item.contract_type }}"
+          >
+            <a href="{{ item.system.url }}">
+              <h3>{{ item.heading }}</h3>
+              <p>{{ item.subheading }}</p>
+            </a>
+          </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+<script>
+  const businessFilter = document.getElementById('filter-business');
+  const departmentFilter = document.getElementById('filter-department');
+  const contractFilter = document.getElementById('filter-contract');
+  const items = document.querySelectorAll('.vacancy-item');
+
+  function filterJobs(){
+
+    let business = businessFilter.value;
+    let department = departmentFilter.value;
+    let contract = contractFilter.value;
+
+    items.forEach(item => {
+      let itemBusiness = item.dataset.business;
+      let itemDepartment = item.dataset.department;
+      let itemContract = item.dataset.contract;
+      let show = true;
+      if(business !== 'all' && business !== itemBusiness){
+        show = false;
+      }
+      if(department !== 'all' && department !== itemDepartment){
+        show = false;
+      }
+
+      if(contract !== 'all' && contract !== itemContract){
+        show = false;
+      }
+      item.style.display = show ? 'block' : 'none';
+    });
+
+  }
+  businessFilter.addEventListener('change', filterJobs);
+  departmentFilter.addEventListener('change', filterJobs);
+  contractFilter.addEventListener('change', filterJobs);
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+
+    const dropdowns = document.querySelectorAll('.custom-dropdown');
+    const items = document.querySelectorAll('.vacancy-item');
+    const vacancyCount = document.getElementById('vacancy-count');
+    const resetBtn = document.querySelector('.filter-reset');
+
+    let filters = {
+      department: 'all',
+      contract: 'all'
+    };
+
+    resetBtn.style.display = "none";
+
+    dropdowns.forEach(drop => {
+
+      const selected = drop.querySelector('.dropdown-selected');
+      const options = drop.querySelectorAll('.dropdown-options div');
+      const filterType = drop.dataset.filter;
+
+      selected.addEventListener('click', function(e){
+
+        e.stopPropagation();
+
+        dropdowns.forEach(d => {
+          if(d !== drop){
+            d.classList.remove('active');
+          }
+        });
+
+        drop.classList.toggle('active');
+
+      });
+
+      options.forEach(option => {
+
+        option.addEventListener('click', function(e){
+
+          e.stopPropagation();
+
+          let value = this.dataset.value;
+          let label;
+
+          if(value === "all"){
+            label = drop.dataset.label; // default title
+          }else{
+            label = this.textContent.replace(/\(\d+\)/, '').trim();
+          }
+
+          selected.innerHTML = `<span class="dropdown-text">${label}</span><span class="arrow">▾</span>`;
+
+          filters[filterType] = value;
+
+          drop.classList.remove('active');
+
+          filterJobs();
+          updateAvailableOptions();
+          toggleReset();
+
+        });
+
+      });
+
+    });
+
+    document.addEventListener('click', function(){
+      dropdowns.forEach(drop => drop.classList.remove('active'));
+    });
+
+
+    function filterJobs(){
+
+      let visibleCount = 0;
+
+      items.forEach(item => {
+
+        let show = true;
+
+        if(filters.department !== 'all' && filters.department !== item.dataset.department){
+          show = false;
+        }
+
+        if(filters.contract !== 'all' && filters.contract !== item.dataset.contract){
+          show = false;
+        }
+
+        item.style.display = show ? 'block' : 'none';
+
+        if(show) visibleCount++;
+
+      });
+
+      vacancyCount.textContent = '(' + visibleCount + ')';
+
+      document.querySelectorAll('.business_unit-items').forEach(group => {
+
+        const visibleItems = group.querySelectorAll('.vacancy-item:not([style*="display: none"])');
+        const heading = group.previousElementSibling;
+
+        if(visibleItems.length === 0){
+          group.style.display = 'none';
+          if(heading) heading.style.display = 'none';
+        }else{
+          group.style.display = 'block';
+          if(heading) heading.style.display = 'block';
+        }
+
+      });
+
+    }
+
+
+    function updateAvailableOptions(){
+
+      dropdowns.forEach(drop => {
+
+        const type = drop.dataset.filter;
+
+        {% comment %} if(type === "business"){
+          drop.querySelectorAll('.dropdown-options div').forEach(option=>{
+            option.style.display = "block";
+          });
+          return;
+        } {% endcomment %}
+
+        const options = drop.querySelectorAll('.dropdown-options div');
+
+        options.forEach(option => {
+
+          const value = option.dataset.value;
+
+          if(value === "all"){
+            option.style.display = "block";
+            return;
+          }
+
+          let available = false;
+
+          items.forEach(item => {
+
+            if(
+              (filters.business === 'all' || item.dataset.business === filters.business) &&
+              (filters.department === 'all' || item.dataset.department === filters.department) &&
+              (filters.contract === 'all' || item.dataset.contract === filters.contract)
+            ){
+
+              if(item.dataset[type] === value){
+                available = true;
+              }
+
+            }
+
+          });
+
+          option.style.display = available ? "block" : "none";
+
+        });
+
+      });
+
+    }
+
+
+    function toggleReset(){
+
+      if(
+        filters.business !== 'all' ||
+        filters.department !== 'all' ||
+        filters.contract !== 'all'
+      ){
+        resetBtn.style.display = "flex";
+      }else{
+        resetBtn.style.display = "none";
+      }
+
+    }
+
+
+    resetBtn.addEventListener('click', function(){
+
+      filters = {
+        business: 'all',
+        department: 'all',
+        contract: 'all'
+      };
+
+      dropdowns.forEach(drop => {
+
+        const label = drop.dataset.label;
+
+        drop.querySelector('.dropdown-selected').innerHTML =
+          `<span class="dropdown-text">${label}</span><span class="arrow">▾</span>`;
+
+        drop.querySelectorAll('.dropdown-options div').forEach(opt=>{
+          opt.style.display="block";
+        });
+
+      });
+
+      filterJobs();
+      toggleReset();
+
+    });
+
+  });
+</script>
+{% schema %}
+{
+  "name": "Vacany filter section",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    {
+        "type": "inline_richtext",
+        "id": "heading",
+        "label": "Heading",
+        "default": "Vacatures"
+    },
+    {
+      "type": "text",
+      "id": "business_title",
+      "label": "Business unit",
+      "default": "Business unit"
+    },
+    {
+      "type": "text",
+      "id": "department_title",
+      "label": "Department",
+      "default": "Department"
+    },
+    {
+      "type": "text",
+      "id": "contract_title",
+      "label": "Contract type",
+      "default": "Contract type"
+    },
+    {
+        "type": "header",
+        "content": "Spacing"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding Top",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding Bottom",
+      "default": 60
+    }
+  ],
+  "blocks": [
+    {
+      "type": "@app"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Vacany filter section"
+    }
+  ]
+}
+{% endschema %}

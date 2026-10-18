@@ -1,0 +1,30 @@
+{%- comment -%}
+  Whether plenty_tags should be treated as Auslaufartikel.
+
+  Priority:
+  1. If Auslaufartikel is present → Auslaufartikel (wins even when Classic-Artikel is also present)
+  2. If only Classic-Artikel (no Auslaufartikel) → NOT Auslaufartikel (normal OOS / Back in Stock)
+  3. Blank / empty / any other value → Auslaufartikel
+
+  @param variant {Variant} required
+{%- endcomment -%}
+
+{%- assign is_auslaufartikel_tag = true -%}
+{%- assign plenty_tags_raw = variant.metafields.custom.plenty_tags.value
+  | default: variant.metafields.custom.plenty_tags
+-%}
+
+{%- unless plenty_tags_raw == blank -%}
+  {%- assign plenty_tags_json = plenty_tags_raw | json | downcase -%}
+  {%- if plenty_tags_json contains 'classic-artikel' -%}
+    {%- if plenty_tags_json contains 'auslaufartikel' -%}
+      {%- comment -%} Both tags: Auslaufartikel wins {%- endcomment -%}
+      {%- assign is_auslaufartikel_tag = true -%}
+    {%- else -%}
+      {%- comment -%} Classic only: normal sold-out / Back in Stock {%- endcomment -%}
+      {%- assign is_auslaufartikel_tag = false -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endunless -%}
+
+{%- if is_auslaufartikel_tag -%}true{%- else -%}false{%- endif -%}

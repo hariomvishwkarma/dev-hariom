@@ -1,0 +1,227 @@
+{% comment %}
+  Article Product Injector (move cards into <div id="product_1"></div> etc.)
+  - Expects Article metafield: custom.product_list (List > Product)
+  - No visible grid; cards are rendered hidden, then MOVED (not cloned) into placeholders inside the article.
+{% endcomment %}
+
+{%- liquid
+  assign product_list = nil
+  if article and article.metafields and article.metafields.custom and article.metafields.custom.product_list
+    assign product_list = article.metafields.custom.product_list.value
+  endif
+-%}
+
+<section id="article-product-injector-{{ section.id }}" class="section-{{ section.id }}-padding">
+  <div class="page-width">
+    {%- if section.settings.heading != blank -%}
+      <h2 class="section-heading">{{ section.settings.heading }}</h2>
+    {%- endif -%}
+
+    {%- if product_list != blank -%}
+      {%- comment -%} Hidden stash: not displayed; source for moving cards into placeholders {%- endcomment -%}
+      <div class="product-stash" hidden aria-label="hidden">
+        {%- for p in product_list -%}
+          <div class="product-stash__card" data-id="product_{{ forloop.index }}" data-product-handle="{{ p.handle }}">
+            {% render 'MS-product-card',
+              product_card_product: p
+            %}
+          </div>
+        {%- endfor -%}
+      </div>
+    {%- else -%}
+      <div class="article-product-empty">
+        {{ section.settings.empty_text }}
+      </div>
+    {%- endif -%}
+  </div>
+
+  <style>
+    
+    .section-heading { margin: 0 0 1rem; }
+
+    .blog_card_product > div:not(.blog_card_product .slick-list){
+      display: flex;
+      justify-content: center;
+      width: 30%;
+    }
+    .blog_card_product .product-item, .sidebar-inner .blog_card_product > div:not(.blog_card_product .slick-list) {
+      width: 100%;
+    }
+    .blog_card_product .slick-list{
+      width: 30%;
+    }
+
+    .blog_card_product {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .blog_card_product .product-stash__card {
+      width: 100%;
+    }
+    .blog_card_product .product-stash__card .button.button-ATC {
+        margin-top: 0 !important;
+        position: relative;
+        padding: 4px 16px !important;
+    }
+    .article-advanced .content img {
+        max-width: 100%;
+        height: 100%;
+    }
+    .blog_card_product .product-stash__card .price_action {
+      margin-top: 5px;
+    }
+    button.blog-card-arrow.slick-arrow {
+        position: relative;
+        height: 35px !important;
+        width: 35px !important;
+        left: unset;
+        transform: unset;
+        right: unset;
+        display: flex;
+        top: unset;
+        background: #52543C;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        border-radius: 50%;
+        border: none; 
+    }
+
+    .blog-card-arrows {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: center;
+    }
+    button.blog-card-arrow.slick-arrow path {
+        fill: #fff;
+    }
+
+    button.blog-card-arrow.slick-arrow svg {
+        width: 12px;
+        height: 12px;
+    }
+    @media (min-width: 768px) {
+      .blog_card_product .product-stash__card .card-information__wrapper {
+        min-height: unset;
+      }
+    }
+    .product-stash[hidden] { display: none !important; }
+
+    @media (max-width: 768px) {
+      .blog_card_product {
+        gap: 10px;
+      }
+      .blog_card_product > div:not(.blog_card_product .slick-list) {
+          display: flex;
+          justify-content: center;
+          width: 48%;
+      }
+      .blog_card_product .slick-list{
+          width: 48%;
+      }
+      .blog_card_product .product-stash__card .button.button-ATC {
+        margin-top: 0 !important;
+        position: relative;
+        padding: 2px 16px !important;
+      }
+    }
+  </style>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll('.product-stash__card').forEach(function(card) {
+      var key = card.getAttribute('data-id'); // e.g. "product_1"
+      if (!key) return;
+
+      // Targets by class ".product_1" (works for multiple placements)
+      var selector = '.' + (window.CSS && CSS.escape ? CSS.escape(key) : key);
+      var targets = document.querySelectorAll(selector);
+
+      if (!targets.length) {
+        // Optional: backward-compat if someone still uses id="product_1"
+        var legacy = document.getElementById(key);
+        if (legacy) targets = [legacy];
+      }
+
+      targets.forEach(function(target) {
+        // CLONE (not move) so it can appear multiple times
+        var clone = card.cloneNode(true);
+        clone.classList.add('injected-product-card');
+        target.appendChild(clone);
+      });
+    });
+
+    // Guard: jQuery + Slick
+    if (!window.jQuery || !jQuery.fn || !jQuery.fn.slick) return;
+    var $ = jQuery;
+
+    $('.blog_card_product').each(function(index, el) {
+      var $slider = $(el);
+      var slideCount = $slider.children().length;
+
+      if (slideCount <= 1) {
+        $('#blog-card-arrows-' + index).remove();
+        return;
+      }
+
+      var arrowsId = 'blog-card-arrows-' + index;
+      var $arrows = $('<div/>', { id: arrowsId, class: 'blog-card-arrows' }).insertAfter($slider);
+
+      var $prev = $('<button/>', {
+        type: 'button',
+        class: 'blog-card-arrow blog-card-prev',
+        html: '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 66.91 122.88"><g><path d="M64.96,111.2c2.65,2.73,2.59,7.08-0.13,9.73c-2.73,2.65-7.08,2.59-9.73-0.14L1.97,66.01l4.93-4.8l-4.95,4.8 c-2.65-2.74-2.59-7.1,0.15-9.76c0.08-0.08,0.16-0.15,0.24-0.22L55.1,2.09c2.65-2.73,7-2.79,9.73-0.14 c2.73,2.65,2.78,7.01,0.13,9.73L16.5,61.23L64.96,111.2z"></path></g></svg>'
+      });
+      var $next = $('<button/>', {
+        type: 'button',
+        class: 'blog-card-arrow blog-card-next',
+        html: '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 66.91 122.88"><g><path d="M1.95,111.2c-2.65,2.72-2.59,7.08,0.14,9.73c2.72,2.65,7.08,2.59,9.73-0.14L64.94,66l-4.93-4.79l4.95,4.8 c2.65-2.74,2.59-7.11-0.15-9.76c-0.08-0.08-0.16-0.15-0.24-0.22L11.81,2.09c-2.65-2.73-7-2.79-9.73-0.14 C-0.64,4.6-0.7,8.95,1.95,11.68l48.46,49.55L1.95,111.2z"></path></g></svg>'
+      });
+
+      $arrows.append($prev, $next);
+
+      $slider.on('init reInit afterChange', function(event, slick) {
+        var hasMultiple = slick && slick.slideCount > 1;
+        $('#' + arrowsId).toggle(hasMultiple);
+      });
+
+      $slider.slick({
+        slidesToShow: 1,
+        slidesToScroll: 1,
+        infinite: true,
+        adaptiveHeight: true,
+        arrows: true,
+        prevArrow: $prev,
+        nextArrow: $next,
+        appendArrows: '#' + arrowsId,
+        autoplay: true,
+        autoplaySpeed: 10000,
+        pauseOnHover: true,
+        pauseOnFocus: false
+      });
+    });
+  });
+</script>
+
+
+ 
+</section>
+
+{% schema %}
+{
+  "name": "Article Product Injector",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Product injector",
+      "info": "Add products in article metafield to show in article."
+    }
+  ],
+  "presets": [
+    { "name": "Article Product Injector" }
+  ]
+}
+{% endschema %}

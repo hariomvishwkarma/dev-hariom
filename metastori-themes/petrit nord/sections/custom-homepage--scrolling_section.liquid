@@ -1,0 +1,293 @@
+{% assign ss = section.settings %}
+
+{%- capture container_class -%}
+  {%- case ss.width -%}
+    {%- when 'default' -%}
+	{%- if template contains "product" -%}container--product{%- else -%}container{%- endif -%}
+    {%- when 'full' -%}
+	container--full
+    {%- when 'wide' -%}
+	container--wide
+    {%- when 'full_with' -%}
+	container--full_width
+  {%- endcase -%}
+{%- endcapture -%}
+
+{%- capture section_style -%}
+  {% if ss.section_background_image != blank %}background-image: linear-gradient(rgba(34, 44, 38, 0.55), rgba(34, 44, 38, 0.55)), url({{ ss.section_background_image | img_url: "1500x" }});{% endif %}
+  {% if ss.section_background != blank %}background-color: {{ ss.section_background }};{% endif %}
+  {% if ss.section_padding != blank %}--section-padding: {{ ss.section_padding }}rem;{% endif %}
+  {% if ss.section_margin != blank %}--section-margin: {{ ss.section_margin }}rem;{% endif %} 
+  {% if ss.section_background != blank %}--section-background: {{ ss.section_background }};{% endif %}  
+  {% if ss.content_padding != blank %}--content-padding: {{ ss.content_padding }}rem;{% endif %} 
+  {% if ss.content_margin != blank %}--content-margin: {{ ss.content_margin }}rem;{% endif %} 
+  {% if ss.content_background != blank %}--content-background: {{ ss.content_background }};{% endif %}
+  {% if ss.content_text != blank %}--content-colour: {{ ss.content_text }};{% endif %}
+  {% if ss.content_accent != blank %}--content-accent: {{ ss.content_accent }};{% endif %}
+  {%- if ss.mobile_mod != blank -%}--section-mobile-modifier: {{ ss.mobile_mod }};{%- endif -%}
+  {%- if ss.button_text != blank -%}--section-button-text: {{ ss.button_text }};{%- endif %}
+  {%- if ss.button_background != blank -%}--section-button-background: {{ ss.button_background }};{%- endif %}
+{%- endcapture -%}
+
+<style>
+  #section--{{ section.id }} .bg-bar, #section--{{ section.id }} .dot-step {
+    border-color: {{ ss.content_accent }} !important;
+  }
+  
+  #section--{{ section.id }} .bg-bar, #section--{{ section.id }} h2 {
+    color: {{ ss.content_accent }} !important;
+  }
+  
+  {% if ss.text_width != 0 %}
+  #section--{{ section.id }} .items-container, #section--{{ section.id }} h2, #section--{{ section.id }} h4  {
+    max-width: {{ ss.text_width }}px !important;
+  }
+  {% endif %}
+</style>
+
+<section id="section--{{ section.id }}" data-section="scrolling" style="background-color: {{ ss.section_background }}; {{ section_style | remove: " " | strip_newlines }}" class="index-section section--wrapper section--updated">
+  <div class="{{ container_class }}">
+    <div style="background-color: {{ ss.content_background }}; color: {{ ss.content_text }};" class="section--inner padding--{{ ss.content_padding | remove: "." }}">
+      <div class="section-content">
+        <div class="grid--wrapper">
+          <div class="grid--item image-item hide--mobile">
+            <figure class="image">
+              <img {% if ss.image_width != 0 %}style="max-width: {{ ss.image_width }}px;"{% endif %} width="{{ ss.image_width }}" height="{{ ss.image_width  | divided_by: ss.image.aspect_ratio  }}" class="magic-image feature--image Image--lazyLoad" {% include "img_attr", image: ss.image, size: ss.image_width  %}>
+            </figure>
+          </div>
+          <div class="grid--item text-item">
+              {% if ss.subheading %}<h4>{{ ss.subheading }}</h4>{% endif %}
+              {% if ss.heading %}<h2>{{ ss.heading | newline_to_br | replace: "</p><p>", "<br>" }}</h2>{% endif %}
+            
+              <div class="items-container">
+                {% for block in section.blocks %}
+                	{% assign bs = block.settings %}
+                    <div class="feature-item  feature--item ">
+                      <span class="dot-step {% if bs.icon != blank %}style--image{% endif %}">
+                      {% if bs.icon != blank %}<div class="image--wrapper"><img src="{{ bs.icon | img_url: "80x" }}" /></div>{% endif %}
+                      {% if bs.html != blank and bs.icon == blank %}<div class="svg--wrapper">{{ bs.html }}</div>{% endif %}
+                      </span>
+                      {% if forloop.last != true %}<span class="bg-bar"></span>{% endif %}
+                      {% if bs.heading != blank %}<h3>{{ bs.heading }}</h3>{% endif %}
+                      <div class="text--wrapper">{{ bs.text }}</div>
+                    </div>
+                {% endfor %}
+
+              </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const tl = gsap.timeline()
+      .to('#section--{{ section.id }} .dot-step', {
+        background: {{ ss.content_accent | json }},
+        color: "#fff",
+        ease: "none",
+        duration: 1,
+        opacity: 1,
+        stagger: 1.15
+      }, 0)
+      .to('#section--{{ section.id }} .feature-item', {
+        opacity: 1,
+        ease: "linear",
+        duration: 1,
+        stagger: 1.15
+      }, 0)
+
+      .from('#section--{{ section.id }} .bg-bar', {
+        height: 0,
+        ease: "linear",
+        duration: 1,
+        stagger: 1
+      }, 1)
+
+    const controller = new ScrollMagic.Controller();
+    const scene = new ScrollMagic.Scene({
+        triggerElement: '#section--{{ section.id }} .items-container',
+        triggerHook: .5,
+        offset: 0,
+      	duration: {{ ss.duration | json }}
+      })
+      .setTween(tl)
+      .addTo(controller)
+
+      scene.setPin('#section--{{ section.id }} .pin-image')
+
+
+  });
+</script>
+
+{% schema %}
+  {
+    "name": "Article (Scrolling)",
+	"max_blocks": 6,
+    "settings": [
+
+      {
+        "type": "header",
+        "content": "Content"
+      },
+      {
+        "type": "range",
+        "id": "duration",
+        "label": "Scroll duration",
+        "min": 0,
+        "max": 1000,
+        "step": 25,
+        "default": 425
+      },
+      {
+        "label": "Image",
+        "id": "image",
+        "type": "image_picker"
+      },
+
+      {
+        "type": "range",
+        "id": "image_width",
+        "label": "Max image width (desktop)",
+        "min": 0,
+        "max": 1000,
+        "step": 10,
+        "default": 590,
+        "info": "0 - full width"
+      },
+      {
+        "label": "Heading",
+        "id": "heading",
+        "type": "richtext"
+      },
+      {
+        "label": "Subheading",
+        "id": "subheading",
+        "type": "text"
+      },
+
+      {
+        "type": "range",
+        "id": "text_width",
+        "label": "Max text width (desktop)",
+        "min": 0,
+        "max": 1000,
+        "step": 10,
+        "default": 590,
+        "info": "0 - full width"
+      },
+      {
+        "type": "header",
+        "content": "Colours"
+      },
+      {
+        "type": "color",
+        "id": "section_background",
+        "label": "Section Background"
+      },
+      {
+        "type": "color",
+        "id": "content_background",
+        "label": "Content Background"
+      },
+      {
+        "type": "color",
+        "id": "content_text",
+        "label": "Content Text"
+      },
+      {
+        "type": "color",
+        "id": "content_accent",
+        "label": "Accent"
+      },
+      {
+        "type": "header",
+        "content": "Spacing"
+      },
+      {
+         "type":      "radio",
+         "id":        "width",
+         "label":     "Width:",
+         "options": [
+           { "value": "default", "label": "Default" },
+           { "value": "wide", "label": "Wide" },
+           { "value": "full", "label": "Full" },
+           { "value": "full_with", "label": "Full with padding" }
+         ],
+        "default":   "default"
+      },
+      {
+        "type": "range",
+        "id": "section_margin",
+        "label": "Section Margin: Bottom",
+        "min": 0,
+        "max": 5,
+        "step": 0.5,
+        "default": 0
+      },
+      {
+        "type": "range",
+        "id": "section_padding",
+        "label": "Section Padding: Top/Bottom",
+        "min": 0,
+        "max": 5,
+        "step": 0.5,
+        "default": 0
+      },
+      {
+        "type": "range",
+        "id": "content_padding",
+        "label": "Content Padding: All",
+        "min": 0,
+        "max": 5,
+        "step": 0.5,
+        "default": 0
+      },
+      {
+        "type": "range",
+        "id": "mobile_mod",
+        "label": "Mobile Modifier",
+        "min": 1,
+        "max": 5,
+        "step": 0.1,
+        "default": 2
+      }
+	],
+    "blocks": [
+      {
+        "type": "block",
+        "name": "Block",
+        "settings": [
+          {
+            "label": "Icon",
+            "id": "icon",
+            "type": "image_picker"
+          },
+          {
+            "label": "SVG icon",
+            "id": "html",
+            "type": "html"
+          },
+          {
+            "label": "Heading",
+            "id": "heading",
+            "type": "text"
+          },
+          {
+            "label": "Text",
+            "id": "text",
+            "type": "richtext"
+          }
+        ]
+      }
+    ],
+    "presets": [
+      {
+        "name": "Article (Scrolling)",
+        "category": "Custom Sections"
+      }
+    ]
+  }
+{% endschema %}

@@ -1,0 +1,285 @@
+{% comment %}
+  Renders a media element for the product gallery.
+  Media types include: image, video, external_video and model.
+  Accepts:
+  - media: {Object} Media Liquid object (required)
+  - featured_media: {Object} Media Liquid object (required) - featured media of a given product or variant
+  - preload {Boolean}
+  - loading {String}
+  - sizes
+  - sizeVariable
+  - fallback
+  - mobile_layout{% endcomment %}
+
+{%- liquid
+  assign is_featured = false
+  if featured_media == media
+    assign is_featured = true
+  endif
+
+  assign has_video = false
+  assign video_type = ''
+  assign video_modal = false
+
+  assign image_set = false
+  assign image_set_group = ''
+  if media.alt contains '#'
+    assign image_set_full = media.alt | split: '#' | last
+    if image_set_full contains '_'
+      assign image_set = true
+      assign image_set_group = image_set_full | split: '_' | first
+    endif
+  endif
+
+  case media.media_type
+    when 'external_video'
+      assign has_video = true
+      assign video_type = media.host
+      assign video_id = media.external_id
+    when 'video'
+      assign has_video = true
+      assign video_type = 'mp4'
+  endcase
+
+  if has_video and video_style == 'unmuted'
+    assign video_modal = true
+  endif
+
+  assign media_aspect_ratio = media.aspect_ratio
+  assign media_width = media.width
+  assign media_height = media.height
+
+  if media.media_type != 'image'
+    assign media_width = media.preview_image.width
+    assign media_height = media.preview_image.height
+  endif
+
+  assign set_image_size = false
+  if image_size != 'natural'
+    assign set_image_size = true
+  endif
+-%}
+
+<div
+  class="product-main-slide {% if is_featured %}starting-slide{% else %}secondary-slide{% endif %}"
+  data-index="{{ loopIndex0 }}"
+  {% if image_set %}
+    data-set-name="{{ image_set_group }}"
+    data-group="{{ image_set_full }}"
+  {% endif %}>
+
+  <div data-product-image-main class="product-image-main" {% if set_image_size %}data-size="{{ image_size }}"{% endif %}>
+    {%- if media.media_type == 'model' -%}
+      {%- liquid
+        if media.preview_image.aspect_ratio
+          assign media_aspect_ratio = media.preview_image.aspect_ratio
+        endif
+      -%}
+      <div
+        class="image-wrap" style="height: 0; padding-bottom: {{ 100 | divided_by: media_aspect_ratio }}%;"
+        data-product-media-type-model
+        data-media-id="{{ section_id }}-{{ media.id }}">
+        {{ media | model_viewer_tag: image_size: product_zoom_size, reveal: 'interaction', toggleable: true, data-model-id: media.id }}
+        {%- capture image_classes -%}
+          hide {% if product_zoom_enable %}photoswipe__image{% endif %}
+        {%- endcapture -%}
+        {%- render 'image-element',
+          img: media.preview_image,
+          type: 'photoswipe',
+          classes: image_classes,
+          alt: media.alt | escape | split: '#' | first,
+          widths: '900',
+          product_zoom_size: product_zoom_size,
+          loopIndex: loopIndex,
+          media: media,
+          media_width: media_width,
+          media_height: media_height,
+          sizes: sizes,
+          loading: loading,
+          fetchpriority: 'high',
+          sizeVariable: sizeVariable,
+          fallback: fallback,
+        -%}
+      </div>
+      <button class="hide btn btn--circle btn--static product-single__close-media">
+        <svg aria-hidden="true" focusable="false" role="presentation" class="icon icon-close" viewBox="0 0 64 64"><defs><style>.cls-1{fill:none;stroke:#000;stroke-miterlimit:10;stroke-width:2px}</style></defs><path class="cls-1" d="M19 17.61l27.12 27.13m0-27.13L19 44.74"/></svg>
+      </button>
+    {%- else -%}
+      {%- liquid
+        if has_video and video_style == 'unmuted'
+          assign media_aspect_ratio = media.preview_image.aspect_ratio
+        endif
+      -%}
+      <div class="image-wrap{% if has_video and video_modal == false %} hide{% endif %}" style="height: 0; padding-bottom: {{ 100 | divided_by: media_aspect_ratio }}%;">
+        {%- capture image_classes -%}
+          {% if product_zoom_enable %}photoswipe__image{% endif %}
+        {%- endcapture -%}
+        {%- liquid
+          if mobile_layout == 'partial'
+            assign fallback = '75vw'
+          endif
+        -%}
+        {%- render 'image-element',
+          img: media.preview_image,
+          type: 'photoswipe',
+          classes: image_classes,
+          alt: media.alt | escape | split: '#' | first,
+          widths: '360, 540, 720, 900, 1080',
+          product_zoom_size: product_zoom_size,
+          loopIndex: loopIndex,
+          media: media,
+          media_width: media_width,
+          media_height: media_height,
+          sizes: sizes,
+          fetchpriority: 'high',
+          loading: loading,
+          sizeVariable: sizeVariable,
+          fallback: fallback,
+        -%}
+
+        {%- if product_zoom_enable and media.media_type == 'image' -%}
+          <button type="button" class="btn btn--secondary btn--circle js-photoswipe__zoom product__photo-zoom" aria-label="Zoom">
+            <svg aria-hidden="true" focusable="false" role="presentation" class="icon icon-search" viewBox="0 0 64 64"><defs><style>.cls-1{fill:none;stroke:#000;stroke-miterlimit:10;stroke-width:2px}</style></defs><path class="cls-1" d="M47.16 28.58A18.58 18.58 0 1 1 28.58 10a18.58 18.58 0 0 1 18.58 18.58zM54 54L41.94 42"/></svg>
+          </button>
+        {%- endif -%}
+      </div>
+
+      {%- if has_video and video_modal -%}
+        {%- if video_type == 'youtube' -%}
+          <a href="https://youtube.com/watch?v={{ media.external_id }}"
+            class="btn btn--circle btn--large btn--static product-video-trigger"
+            data-video-id="{{ media.external_id }}"
+          >
+            <svg aria-hidden="true" focusable="false" role="presentation" class="icon icon-play" viewBox="18.24 17.35 24.52 28.3"><path fill="#323232" d="M22.1 19.151v25.5l20.4-13.489-20.4-12.011z"/></svg>
+          </a>
+        {%- endif -%}
+        {%- if video_type == 'vimeo' -%}
+          <a href="https://player.vimeo.com/video/{{ media.external_id }}"
+            class="btn btn--circle btn--large btn--static product-video-trigger"
+            data-video-id="{{ media.external_id }}"
+            data-video-loop="{{ video_looping }}"
+          >
+            <svg aria-hidden="true" focusable="false" role="presentation" class="icon icon-play" viewBox="18.24 17.35 24.52 28.3"><path fill="#323232" d="M22.1 19.151v25.5l20.4-13.489-20.4-12.011z"/></svg>
+          </a>
+        {%- endif -%}
+        {%- if video_type == 'mp4' -%}
+          <button type="button" class="btn btn--circle btn--large btn--static product-video-trigger product-video-trigger--mp4">
+            <svg aria-hidden="true" focusable="false" role="presentation" class="icon icon-play" viewBox="18.24 17.35 24.52 28.3"><path fill="#323232" d="M22.1 19.151v25.5l20.4-13.489-20.4-12.011z"/></svg>
+          </button>
+
+          {% comment %}
+            Hidden video element that gets placed in the video modal
+          {% endcomment %}
+          <video
+            playsinline
+            {% if video_looping %}loop{% endif %}
+            controls
+            controlsList="nodownload"
+            poster="{{ media.preview_image | img_url: '740x' }}"
+            class="hide product-video-mp4-sound">
+            {%- for source in media.sources -%}
+              <source src="{{ source.url }}" type="{{ source.mime_type }}">
+            {%- endfor -%}
+            Your browser does not support the video tag.
+          </video>
+        {%- endif -%}
+      {%- endif -%}
+
+      {%- if has_video -%}
+        {%- unless video_modal -%}
+          <div
+            data-video-type="{{ video_type }}"
+            class="product__video-wrapper{% if video_type == 'youtube' or video_type == 'vimeo' %} loading{% endif %}"
+            data-video-style="{{ video_style }}"
+            style="padding-bottom: {% if product_image_size == "square" %}{{ 100 }}{% else %}{{ 100 | divided_by: media_aspect_ratio }}{% endif %}%;">
+            {%- if video_type == 'youtube' or video_type == 'vimeo' -%}
+              <div
+                id="ProductVideo-{{ section_id }}-{{ loopIndex }}"
+                class="product__video"
+                data-image-count="{{ product.media.size }}"
+                data-video-type="{{ video_type }}"
+                data-video-style="{{ video_style }}"
+                data-video-loop="{{ video_looping }}"
+                data-video-id="{{ video_id }}"
+              >
+              </div>
+            {%- endif -%}
+            {%- if video_type == 'mp4' -%}
+              <video
+                playsinline
+                {% if video_looping %}loop{% endif %}
+                {% if video_style == 'muted' %}muted{% endif %}
+                {% if video_style == 'unmuted' %}controls{% endif %}
+                controlsList="nodownload"
+                poster="{{ media.preview_image | img_url: '740x' }}"
+                data-image-count="{{ product.media.size }}"
+                data-video-type="{{ video_type }}"
+                data-video-style="{{ video_style }}"
+                id="ProductVideo-{{ section_id }}-{{ loopIndex }}"
+                class="product__video">
+                {%- for source in media.sources -%}
+                  <source src="{{ source.url }}" type="{{ source.mime_type }}">
+                {%- endfor -%}
+                Your browser does not support the video tag.
+              </video>
+            {%- endif -%}
+          </div>
+        {%- endunless -%}
+      {%- endif -%}
+    {%- endif -%}
+  </div>
+
+  {% for count in (1..3) %}
+    {% assign title_key = 'info_button_title_' | append:count %}
+    {% assign content_key = 'info_button_content_' | append:count %}
+    {% assign meta_title = product.metafields.global[title_key] %}
+    {% assign meta_content = product.metafields.global[content_key] %}
+    {% if forloop.index == loopIndex %}
+      {% if meta_title != blank and meta_content != blank %}
+          <div class="info_button_item">
+            <div class="info_button-title">{{ meta_title }}</div>
+            <div class="info_button-data">
+              <span class="info_button-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
+                  <path d="M8 2C6.71442 2 5.45772 2.38122 4.3888 3.09545C3.31988 3.80968 2.48676 4.82484 1.99479 6.01256C1.50282 7.20028 1.37409 8.50721 1.6249 9.76809C1.8757 11.029 2.49477 12.1872 3.40381 13.0962C4.31285 14.0052 5.47104 14.6243 6.73192 14.8751C7.99279 15.1259 9.29973 14.9972 10.4874 14.5052C11.6752 14.0132 12.6903 13.1801 13.4046 12.1112C14.1188 11.0423 14.5 9.78558 14.5 8.5C14.4982 6.77665 13.8128 5.12441 12.5942 3.90582C11.3756 2.68722 9.72335 2.00182 8 2ZM8 14C6.91221 14 5.84884 13.6774 4.94437 13.0731C4.0399 12.4687 3.33495 11.6098 2.91867 10.6048C2.50238 9.59977 2.39347 8.4939 2.60568 7.427C2.8179 6.36011 3.34173 5.3801 4.11092 4.61091C4.8801 3.84172 5.86011 3.3179 6.92701 3.10568C7.9939 2.89346 9.09977 3.00238 10.1048 3.41866C11.1098 3.83494 11.9687 4.53989 12.5731 5.44436C13.1774 6.34883 13.5 7.4122 13.5 8.5C13.4983 9.95818 12.9184 11.3562 11.8873 12.3873C10.8562 13.4184 9.45819 13.9983 8 14ZM9 11.5C9 11.6326 8.94732 11.7598 8.85356 11.8536C8.75979 11.9473 8.63261 12 8.5 12C8.23479 12 7.98043 11.8946 7.7929 11.7071C7.60536 11.5196 7.5 11.2652 7.5 11V8.5C7.36739 8.5 7.24022 8.44732 7.14645 8.35355C7.05268 8.25979 7 8.13261 7 8C7 7.86739 7.05268 7.74021 7.14645 7.64645C7.24022 7.55268 7.36739 7.5 7.5 7.5C7.76522 7.5 8.01957 7.60536 8.20711 7.79289C8.39465 7.98043 8.5 8.23478 8.5 8.5V11C8.63261 11 8.75979 11.0527 8.85356 11.1464C8.94732 11.2402 9 11.3674 9 11.5ZM7 5.75C7 5.60166 7.04399 5.45666 7.1264 5.33332C7.20881 5.20999 7.32595 5.11386 7.46299 5.05709C7.60003 5.00032 7.75083 4.98547 7.89632 5.01441C8.04181 5.04335 8.17544 5.11478 8.28033 5.21967C8.38522 5.32456 8.45665 5.4582 8.48559 5.60368C8.51453 5.74917 8.49968 5.89997 8.44291 6.03701C8.38615 6.17406 8.29002 6.29119 8.16668 6.3736C8.04334 6.45601 7.89834 6.5 7.75 6.5C7.55109 6.5 7.36032 6.42098 7.21967 6.28033C7.07902 6.13968 7 5.94891 7 5.75Z" fill="black"/>
+                </svg>
+              </span>
+              <div class="info_button-content">{{ meta_content }}
+                <svg class="into_btn_notch" xmlns="http://www.w3.org/2000/svg" width="13" height="7" viewBox="0 0 13 7" fill="none">
+                  <path d="M6.5 6.5L13 0H0L6.5 6.5Z" fill="white"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {% comment %}
+  {% assign info_buttons_meta = product.metafields.custom.info_buttons.value %}
+  {% if info_buttons_meta != blank %}
+    {% for item in info_buttons_meta %}
+      {% if forloop.index == loopIndex %}
+        {% if item.title != blank and item.content != blank %}
+            <div class="info_button_item">
+              <div class="info_button-title">{{ item.title }}</div>
+              <div class="info_button-data">
+                <span class="info_button-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
+                    <path d="M8 2C6.71442 2 5.45772 2.38122 4.3888 3.09545C3.31988 3.80968 2.48676 4.82484 1.99479 6.01256C1.50282 7.20028 1.37409 8.50721 1.6249 9.76809C1.8757 11.029 2.49477 12.1872 3.40381 13.0962C4.31285 14.0052 5.47104 14.6243 6.73192 14.8751C7.99279 15.1259 9.29973 14.9972 10.4874 14.5052C11.6752 14.0132 12.6903 13.1801 13.4046 12.1112C14.1188 11.0423 14.5 9.78558 14.5 8.5C14.4982 6.77665 13.8128 5.12441 12.5942 3.90582C11.3756 2.68722 9.72335 2.00182 8 2ZM8 14C6.91221 14 5.84884 13.6774 4.94437 13.0731C4.0399 12.4687 3.33495 11.6098 2.91867 10.6048C2.50238 9.59977 2.39347 8.4939 2.60568 7.427C2.8179 6.36011 3.34173 5.3801 4.11092 4.61091C4.8801 3.84172 5.86011 3.3179 6.92701 3.10568C7.9939 2.89346 9.09977 3.00238 10.1048 3.41866C11.1098 3.83494 11.9687 4.53989 12.5731 5.44436C13.1774 6.34883 13.5 7.4122 13.5 8.5C13.4983 9.95818 12.9184 11.3562 11.8873 12.3873C10.8562 13.4184 9.45819 13.9983 8 14ZM9 11.5C9 11.6326 8.94732 11.7598 8.85356 11.8536C8.75979 11.9473 8.63261 12 8.5 12C8.23479 12 7.98043 11.8946 7.7929 11.7071C7.60536 11.5196 7.5 11.2652 7.5 11V8.5C7.36739 8.5 7.24022 8.44732 7.14645 8.35355C7.05268 8.25979 7 8.13261 7 8C7 7.86739 7.05268 7.74021 7.14645 7.64645C7.24022 7.55268 7.36739 7.5 7.5 7.5C7.76522 7.5 8.01957 7.60536 8.20711 7.79289C8.39465 7.98043 8.5 8.23478 8.5 8.5V11C8.63261 11 8.75979 11.0527 8.85356 11.1464C8.94732 11.2402 9 11.3674 9 11.5ZM7 5.75C7 5.60166 7.04399 5.45666 7.1264 5.33332C7.20881 5.20999 7.32595 5.11386 7.46299 5.05709C7.60003 5.00032 7.75083 4.98547 7.89632 5.01441C8.04181 5.04335 8.17544 5.11478 8.28033 5.21967C8.38522 5.32456 8.45665 5.4582 8.48559 5.60368C8.51453 5.74917 8.49968 5.89997 8.44291 6.03701C8.38615 6.17406 8.29002 6.29119 8.16668 6.3736C8.04334 6.45601 7.89834 6.5 7.75 6.5C7.55109 6.5 7.36032 6.42098 7.21967 6.28033C7.07902 6.13968 7 5.94891 7 5.75Z" fill="black"/>
+                  </svg>
+                </span>
+                <div class="info_button-content">{{ item.content }}
+                  <svg class="into_btn_notch" xmlns="http://www.w3.org/2000/svg" width="13" height="7" viewBox="0 0 13 7" fill="none">
+                    <path d="M6.5 6.5L13 0H0L6.5 6.5Z" fill="white"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+  {% endcomment %}
+
+</div>

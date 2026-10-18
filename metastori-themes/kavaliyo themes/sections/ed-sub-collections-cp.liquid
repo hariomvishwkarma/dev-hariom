@@ -1,0 +1,784 @@
+{%- assign level_01_meta = collection.metafields.standard.level_01_collection_list.value -%}
+{%- assign level_01_collections = level_01_meta.collections.value | default: level_01_meta.collections -%}
+{%- assign level_01_collections_count = level_01_collections.size | default: level_01_collections.count | default: 0 -%}
+<style>
+  #shopify-section-{{ section.id }} {
+    {%- if section.settings.background == 'rgba(0,0,0,0)' -%}
+      {%- assign section_background = settings.background -%}
+    {%- else -%}
+      {%- assign section_background = section.settings.background -%}
+    {%- endif -%}
+
+    {%- if section.settings.text_color == 'rgba(0,0,0,0)' -%}
+      {%- assign heading_color = settings.heading_color -%}
+      {%- assign text_color = settings.text_color -%}
+    {%- else -%}
+      {%- assign heading_color = section.settings.text_color -%}
+      {%- assign text_color = section.settings.text_color -%}
+    {%- endif -%}
+
+    --heading-color: {{ heading_color.red }}, {{ heading_color.green }}, {{ heading_color.blue }};
+    --text-color: {{ text_color.red }}, {{ text_color.green }}, {{ text_color.blue }};
+    --prev-next-button-background: {{ settings.background.red }}, {{ settings.background.green }}, {{ settings.background.blue }};
+    --prev-next-button-color: {{ settings.text_color.red }}, {{ settings.text_color.green }}, {{ settings.text_color.blue }};
+
+    --section-background: {{ section_background.red }}, {{ section_background.green }}, {{ section_background.blue }};
+  }
+
+  #shopify-section-{{ section.id }}{
+    background-color: {{ section.settings.background }};
+  }
+  @media (min-width: 1000px) {
+    #shopify-section-{{ section.id }} {
+      margin-top: {{ section.settings.space_top -}}px;
+      margin-bottom: {{ section.settings.space_bottom -}}px;
+    }
+  }
+  @media (max-width: 999px) {
+    #shopify-section-{{ section.id }} {
+      margin-top: {{ section.settings.space_top_mobile -}}px;
+      margin-bottom: {{ section.settings.space_bottom_mobile -}}px;
+    }
+  }
+</style>
+
+<style>
+  .sub_collections_section .multi-column__item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    padding: 10px 20px;
+    background: #DEF4F0;
+    gap: 8px;
+    border-radius: 8px;
+    width: max-content;
+    border: 1.5px solid transparent;
+    transition: opacity 0.3s ease, transform 0.3s ease, background-color 0.3s ease, color 0.3s ease, border-color 0.2s ease;
+    height: 100%;
+  }
+
+
+  /* Active border so active is always visible */
+  .sub_collections_section .multi-column__item.active {
+    border-color: #1D1D1D;
+    {% if section.settings.item_border_color_active != 'rgba(0,0,0,0)' and section.settings.item_border_color_active != blank %}
+      border-color: {{ section.settings.item_border_color_active }};
+    {% endif %}
+    {% if section.settings.item_text_color_active != 'rgba(0,0,0,0)' and section.settings.item_text_color_active != blank %}
+      color: {{ section.settings.item_text_color_active }};
+    {% endif %}
+    {% if section.settings.item_background_active != 'rgba(0,0,0,0)' and section.settings.item_background_active != blank %}
+      background: {{ section.settings.item_background_active }};
+    {% endif %}
+  }
+
+  .sub_collections_section .multi-column__image-wrapper {
+    margin: 0;
+  }
+
+  .sub_collections_section .multi-column__text-container .ed_sub_collections_title {
+    font-size: var(--base-font-size);
+    line-height: 1;
+  }
+
+  .sub_collections_section span.sub_collection_icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: {{ section.settings.item_icon_background }};
+    border-radius: 360px;
+    padding: 5px;
+  }
+
+  .sub_collections_section  span.sub_collection_icon img, span.sub_collection_icon svg {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  /* full-width scroller css */
+  .full_width_scroller_section .scroller {
+      scroll-snap-type: x mandatory;
+      margin-inline: calc(-1 * var(--container-gutter));
+      scrollbar-width: none;
+      overflow: auto hidden;
+  }
+
+  @media screen and (min-width: 1000px) {
+      .full_width_scroller_section .multi-column__inner--scroller {
+          overflow: unset;
+      }
+  }
+
+  .full_width_scroller_section .multi-column__inner--scroller {
+      display: grid;
+      min-width: min-content;
+      grid-auto-columns: auto;
+      gap: 16px;
+      justify-content: center;
+  }
+
+  .full_width_scroller_section {
+      overflow: hidden;
+  }
+
+  .full_width_scroller_section .scroller {
+      margin-left: 0;
+      margin-right: -10%;
+  }
+
+  @media (min-width: 1850px) {
+      .full_width_scroller_section .scroller {
+          margin-right: -20%;
+      }
+  }
+
+  .full_width_scroller_section .multi-column__inner--scroller {
+      padding-left: 0;
+      padding-right: 9%;
+      grid-auto-flow: column;
+      grid-template-columns: none !important;
+  }
+  .sub_collections_section drag-cursor.custom-drag-cursor {
+      display: none;
+  }
+
+  @media screen and (min-width: 1000px) {
+      .full_width_scroller_section .multi-column__inner:not(.is-scrollable)+.multi-column__prev-next {
+          display: flex;
+          top: calc(50% - 18.5px);
+          width: 100%;
+          left: 0;
+      }
+    section.sub_collections_section.full_width_scroller_section multi-column.multi-column {
+        overflow: hidden;
+    }
+    
+    section.sub_collections_section.full_width_scroller_section multi-column.multi-column .multi-column__arrow:not([disabled]) {
+        opacity: 1;
+        visibility: visible;
+        transform: scale(1);
+    }
+    
+    section.sub_collections_section.full_width_scroller_section .scroller {
+        margin-right: unset !important;
+    }
+    
+    section.sub_collections_section.full_width_scroller_section .multi-column__inner--scroller {
+        padding-right: 0 !important;
+    }
+    
+    
+    section.sub_collections_section.full_width_scroller_section .multi-column__inner:not(.is-scrollable)+.multi-column__prev-next {
+        left: 10px !important;
+    }
+    
+    section.sub_collections_section.full_width_scroller_section  multi-column.collection_menu_multi-column.collection_menu_multi-column--level-3 {
+        
+    }
+    
+    .full_width_scroller_section .collection_menu_multi-column--level-3 .multi-column__inner:not(.is-scrollable)+.multi-column__prev-next {
+        top: calc(50% + 15px);
+    }
+  }
+  @media screen and (min-width: 741px) {
+    .sub_collections_section .prev-next-button:not(.prev-next-button--small) {
+        width: 35px;
+        height: 35px;
+        border-radius: 360px;
+    }
+    .sub_collections_section .prev-next-button:not(.prev-next-button--small) svg {
+        width: 18px;
+        height: auto;
+    }
+  }
+
+  @media (max-width: 740px) {
+    .sub_collections_section .multi-column__text-container p.heading {
+      font-size: calc(var(--base-font-size) - 3px);
+    }
+
+    .sub_collections_section span.sub_collection_icon {
+        width: 34px;
+        height: 34px;
+    }
+
+    .sub_collections_section .multi-column__item {
+        padding: 10px 12px;
+    }
+
+  }
+  /* full-width scroller css */
+  .sub_collections_section .multi-column__inner--scroller {
+    cursor: grab;
+  }
+  .sub_collections_section .custom-drag-cursor {
+    display: none;
+  }
+  .scroller.collection_menu_wrap {
+        margin-top: 32px;
+    }
+  /* Level 02: hide items until reveal animation runs */
+  .sub_collections_section .collection_menu_multi-column .collection_menu-item.multi-column__item {
+    opacity: 0;
+  }
+  multi-column.collection_menu_multi-column--level-3 .multi-column__item.active {
+    border: none;background: #1D1D1D !important;
+      color: #fff !important;
+  }
+
+
+  multi-column.collection_menu_multi-column--level-3 .multi-column__item.active  .heading.ed_sub_collections_title {
+      color: #fff !important;
+  }
+
+  @media screen and (min-width: 1000px) {
+    .sub_collections_section .multi-column__inner--scroller {
+          grid-auto-columns: auto;
+          overflow: hidden;
+      }
+      .sub_collections_section  .multi-column__prev-next--no-image {
+        top: calc(50%);
+        transform: translateY(-50%);
+    }
+  }
+</style>
+
+<section class="sub_collections_section {% unless section.settings.stack_items %}full_width_scroller_section{% endunless %}">
+  <div class="section__color-wrapper">
+    <div class="container">
+      {%- if level_01_collections != blank and level_01_collections_count > 0 -%}
+        <multi-column
+          {% if section.settings.stack_items %}
+            stack
+          {% endif %}
+          {% if section.settings.reveal_on_scroll %}
+            stagger-apparition
+          {% endif %}
+          class="multi-column multi-column--pocket-medium multi-column--medium multi-column--spacing-{{ section.settings.spacing }}"
+         >
+          {%- assign align_arrows_on_image = true -%}
+          {%- assign smallest_image_aspect_ratio = 0 -%}
+
+          <div
+            {% unless section.settings.stack_items %}
+              class="scroller"
+            {% endunless %}
+          >
+            <scrollable-content
+              data-sub-collection-list
+              data-cp-level="1"
+              {% if section.settings.enable_drag %}draggable{% endif %}
+              class="multi-column__inner is-scrollable {% unless section.settings.stack_items %} multi-column__inner--scroller{% endunless %}"
+             >
+              {%- assign desktop_items_per_row = 7 -%}
+              {%- case section.settings.desktop_item_size -%}
+                {%- when 'pico' -%}
+                  {%- assign desktop_items_per_row = 8 -%}
+
+                {%- when 'small' -%}
+                  {%- assign desktop_items_per_row = 7 -%}
+
+                {%- when 'medium' -%}
+                  {%- assign desktop_items_per_row = 7 -%}
+
+                {%- when 'large' -%}
+                  {%- assign desktop_items_per_row = 3 -%}
+              {%- endcase -%}
+
+              {%- if section.settings.stack_items -%}
+                {%- case section.settings.mobile_item_size -%}
+                  {%- when 'small' -%}
+                    {%- assign mobile_calculated_size = 'calc(50vw - 48px)' -%}
+                    {%- assign tablet_calculated_size = 'calc(20vw - 80px)' -%}
+
+                  {%- when 'medium' -%}
+                    {%- assign mobile_calculated_size = 'calc(100vw - 48px)' -%}
+                    {%- assign tablet_calculated_size = 'calc(25vw - 80px)' -%}
+
+                  {%- when 'large' -%}
+                    {%- assign mobile_calculated_size = 'calc(100vw - 48px)' -%}
+                    {%- assign tablet_calculated_size = 'calc(33vw - 80px)' -%}
+                {%- endcase -%}
+              {%- else -%}
+                {%- case section.settings.mobile_item_size -%}
+                  {%- when 'small' -%}
+                    {%- assign mobile_calculated_size = '25vw' -%}
+                    {%- assign tablet_calculated_size = '20vw' -%}
+
+                  {%- when 'medium' -%}
+                    {%- assign mobile_calculated_size = '35vw' -%}
+                    {%- assign tablet_calculated_size = '26vw' -%}
+
+                  {%- when 'large' -%}
+                    {%- assign mobile_calculated_size = '56vw' -%}
+                    {%- assign tablet_calculated_size = '36vw' -%}
+                {%- endcase -%}
+              {%- endif -%}
+
+              {%- case section.settings.spacing -%}
+                {%- when 'tight' -%}
+                  {%- assign desktop_item_gap = 24 -%}
+
+                {%- when 'normal' -%}
+                  {%- assign desktop_item_gap = 40 -%}
+
+                {%- when 'loose' -%}
+                  {%- assign desktop_item_gap = 60 -%}
+              {%- endcase -%}
+
+              {%- assign desktop_items_per_row_minus_one = desktop_items_per_row | minus: 1 -%}
+              {%- assign gap_width = desktop_item_gap
+                | divided_by: desktop_items_per_row
+                | times: desktop_items_per_row_minus_one
+              -%}
+
+              {%- for ref in level_01_collections -%}
+                {%- assign col = ref.value | default: ref -%}
+                {%- if col == blank or col.title == blank -%}
+                  {%- continue -%}
+                {%- endif -%}
+                {%- assign collection_icon_alt = col.image.alt | default: col.title | strip_html | strip -%}
+                {%- if col.image != blank -%}
+                  {%- assign smallest_image_aspect_ratio = smallest_image_aspect_ratio | at_least: col.image.aspect_ratio -%}
+                {%- else -%}
+                  {%- assign align_arrows_on_image = false -%}
+                {%- endif -%}
+
+                {%- capture item_content -%}
+                  <div class="multi-column__image-wrapper">
+                    {%- if col.image != blank -%}
+                      <span class="sub_collection_icon">
+                        {{- col.image | image_url: width: col.image.width | image_tag: sizes: '100vw', widths: '25,50,75,100', alt: collection_icon_alt, title: collection_icon_alt -}}
+                      </span>
+                    {%- endif -%}
+                  </div>
+
+                  {%- if col.title != blank -%}
+                    <div class="multi-column__text-container text--left text-container">
+                      <div class="heading ed_sub_collections_title" {% if col.metafields.standard.badge_text_color.value != blank %} style="color: {{ col.metafields.standard.badge_text_color.value }};" {% endif %}>
+                        {{ col.title }}
+                      </div>
+                    </div>
+                  {%- endif -%}
+                {%- endcapture -%}
+
+                {%- assign is_active = false -%}
+                {%- if request.page_type == 'collection' and col.url == collection.url -%}
+                  {%- assign is_active = true -%}
+                {%- endif -%}
+
+                <a href="{{ col.url }}">
+                  <div
+                    id="item-{{ section.id }}-{{ col.id }}"
+                    class="multi-column__item multi-column__item--align-start {% if section.settings.stack_items %}multi-column__item--stack{% endif %} {% if is_active %}active{% endif %}"
+                    {% if section.settings.reveal_on_scroll %}
+                      reveal
+                    {% endif %}
+                    style="background: {{ col.metafields.standard.badge_background.value | default: '#DEF4F0' }};"
+                  >
+                    {{- item_content -}}
+                  </div>
+                </a>
+              {%- endfor -%}
+            </scrollable-content>
+
+            {%- unless section.settings.stack_items -%}
+              <prev-next-buttons
+                class="multi-column__prev-next {% unless align_arrows_on_image %}multi-column__prev-next--no-image{% endunless %} hidden-pocket"
+                {% if align_arrows_on_image %}
+                  style="--smallest-image-aspect-ratio: {{ smallest_image_aspect_ratio }}"
+                {% endif %}
+              >
+                <button class="multi-column__arrow prev-next-button prev-next-button--prev" disabled aria-label="{{ 'general.accessibility.previous' | t | default: 'Previous' | escape }}">
+                  <span class="visually-hidden">{{ 'general.accessibility.previous' | t }}</span>
+                  {%- render 'icon' with 'chevron-left' -%}
+                </button>
+
+                <button class="multi-column__arrow prev-next-button prev-next-button--next" aria-label="{{ 'general.accessibility.next' | t | default: 'Next' | escape }}">
+                  <span class="visually-hidden">{{ 'general.accessibility.next' | t }}</span>
+                  {%- render 'icon' with 'chevron-right' -%}
+                </button>
+              </prev-next-buttons>
+            {%- endunless -%}
+          </div>
+        </multi-column>
+      {%- endif -%}
+
+      {%- assign level_02_meta = collection.metafields.standard.level_02_collection_list.value -%}
+      {%- assign level_02_collections = level_02_meta.collections.value | default: level_02_meta.collections -%}
+      {%- assign level_02_count = level_02_collections.size | default: level_02_collections.count | default: 0 -%}
+
+      {%- if level_02_collections != blank and level_02_count > 0 -%}
+        {%- if section.settings.reveal_on_scroll -%}
+          <multi-column stack {% if section.settings.reveal_on_scroll %}stagger-apparition{% endif %} class="collection_menu_multi-column">
+        {%- endif -%}
+        <div class="scroller collection_menu_wrap">
+          <ul class="collection_menu scrollable-content" data-cp-level="2">
+            {%- for ref in level_02_collections -%}
+              {%- assign sub_col = ref.value | default: ref -%}
+              {%- if sub_col == blank or sub_col.title == blank -%}
+                {%- continue -%}
+              {%- endif -%}
+              {%- assign is_active = false -%}
+              {%- if request.page_type == 'collection' and sub_col.url == collection.url -%}
+                {%- assign is_active = true -%}
+              {%- endif -%}
+              <li class="collection_menu-item multi-column__item {% if is_active %}active{% endif %}">
+                <a href="{{ sub_col.url }}">{{ sub_col.title }}</a>
+              </li>
+            {%- endfor -%}
+          </ul>
+        </div>
+        {%- if section.settings.reveal_on_scroll -%}
+          </multi-column>
+        {%- endif -%}
+      {%- endif -%}
+
+      {%- assign level_03_meta = collection.metafields.custom.level_03_sub_collections.value -%}
+      {%- if level_03_meta != blank -%}
+        {%- if level_03_meta.collections != blank -%}
+          {%- assign level_03_collections = level_03_meta.collections.value | default: level_03_meta.collections -%}
+        {%- else -%}
+          {%- assign level_03_collections = level_03_meta -%}
+        {%- endif -%}
+      {%- else -%}
+        {%- assign level_03_collections = nil -%}
+      {%- endif -%}
+      {%- assign level_03_count = level_03_collections.size | default: level_03_collections.count | default: 0 -%}
+
+      {%- if level_03_collections != blank and level_03_count > 0 -%}
+        <multi-column 
+            {% if section.settings.stack_items %}
+            stack
+          {% endif %} 
+          {% if section.settings.reveal_on_scroll %}
+            stagger-apparition
+          {% endif %} 
+          class="collection_menu_multi-column collection_menu_multi-column--level-3 multi-column multi-column--pocket-medium multi-column--medium multi-column--spacing-{{ section.settings.spacing }}"
+        >
+          {%- assign align_arrows_on_image = true -%}
+          {%- assign smallest_image_aspect_ratio = 0 -%}
+
+          <div
+            {% unless section.settings.stack_items %}
+              class="scroller collection_menu_wrap"
+            {% else %}
+              class="collection_menu_wrap"
+            {% endunless %}
+          >
+            <scrollable-content
+              data-sub-collection-list
+              data-cp-level="3"
+              {% if section.settings.enable_drag %}draggable{% endif %}
+              class="multi-column__inner is-scrollable {% unless section.settings.stack_items %} multi-column__inner--scroller{% endunless %}"
+             >
+          {%- assign desktop_items_per_row = 7 -%}
+          {%- case section.settings.desktop_item_size -%}
+            {%- when 'pico' -%}
+              {%- assign desktop_items_per_row = 8 -%}
+
+            {%- when 'small' -%}
+              {%- assign desktop_items_per_row = 7 -%}
+
+            {%- when 'medium' -%}
+              {%- assign desktop_items_per_row = 7 -%}
+
+            {%- when 'large' -%}
+              {%- assign desktop_items_per_row = 3 -%}
+          {%- endcase -%}
+
+          {%- if section.settings.stack_items -%}
+            {%- case section.settings.mobile_item_size -%}
+              {%- when 'small' -%}
+                {%- assign mobile_calculated_size = 'calc(50vw - 48px)' -%}
+                {%- assign tablet_calculated_size = 'calc(20vw - 80px)' -%}
+
+              {%- when 'medium' -%}
+                {%- assign mobile_calculated_size = 'calc(100vw - 48px)' -%}
+                {%- assign tablet_calculated_size = 'calc(25vw - 80px)' -%}
+
+              {%- when 'large' -%}
+                {%- assign mobile_calculated_size = 'calc(100vw - 48px)' -%}
+                {%- assign tablet_calculated_size = 'calc(33vw - 80px)' -%}
+            {%- endcase -%}
+          {%- else -%}
+            {%- case section.settings.mobile_item_size -%}
+              {%- when 'small' -%}
+                {%- assign mobile_calculated_size = '25vw' -%}
+                {%- assign tablet_calculated_size = '20vw' -%}
+
+              {%- when 'medium' -%}
+                {%- assign mobile_calculated_size = '35vw' -%}
+                {%- assign tablet_calculated_size = '26vw' -%}
+
+              {%- when 'large' -%}
+                {%- assign mobile_calculated_size = '56vw' -%}
+                {%- assign tablet_calculated_size = '36vw' -%}
+            {%- endcase -%}
+          {%- endif -%}
+
+          {%- case section.settings.spacing -%}
+            {%- when 'tight' -%}
+              {%- assign desktop_item_gap = 24 -%}
+
+            {%- when 'normal' -%}
+              {%- assign desktop_item_gap = 40 -%}
+
+            {%- when 'loose' -%}
+              {%- assign desktop_item_gap = 60 -%}
+          {%- endcase -%}
+
+          {%- assign desktop_items_per_row_minus_one = desktop_items_per_row | minus: 1 -%}
+          {%- assign gap_width = desktop_item_gap
+            | divided_by: desktop_items_per_row
+            | times: desktop_items_per_row_minus_one
+          -%}
+
+          {%- for ref in level_03_collections -%}
+            {%- assign col = ref.value | default: ref -%}
+            {%- if col == blank or col.title == blank -%}
+              {%- continue -%}
+            {%- endif -%}
+            {%- assign collection_icon_alt = col.image.alt | default: col.title | strip_html | strip -%}
+            {%- if col.image != blank -%}
+              {%- assign smallest_image_aspect_ratio = smallest_image_aspect_ratio | at_least: col.image.aspect_ratio -%}
+            {%- else -%}
+              {%- assign align_arrows_on_image = false -%}
+            {%- endif -%}
+
+            {%- capture item_content -%}
+              <div class="multi-column__image-wrapper">
+                {%- if col.image != blank -%}
+                  <span class="sub_collection_icon">
+                    {{- col.image | image_url: width: col.image.width | image_tag: sizes: '100vw', widths: '25,50,75,100', alt: collection_icon_alt, title: collection_icon_alt -}}
+                  </span>
+                {%- endif -%}
+              </div>
+
+              {%- if col.title != blank -%}
+                <div class="multi-column__text-container text--left text-container">
+                  <div class="heading ed_sub_collections_title" {% if col.metafields.standard.badge_text_color.value != blank %} style="color: {{ col.metafields.standard.badge_text_color.value }};" {% endif %}>
+                    {{ col.title }}
+                  </div>
+                </div>
+              {%- endif -%}
+            {%- endcapture -%}
+
+            {%- assign is_active = false -%}
+            {%- if request.page_type == 'collection' and col.url == collection.url -%}
+              {%- assign is_active = true -%}
+            {%- endif -%}
+
+            <a href="{{ col.url }}">
+              <div
+                id="item-{{ section.id }}-{{ col.id }}"
+                class="multi-column__item multi-column__item--align-start {% if section.settings.stack_items %}multi-column__item--stack{% endif %} {% if is_active %}active{% endif %}"
+                {% if section.settings.reveal_on_scroll %}
+                  reveal
+                {% endif %}
+                style="background: {{ col.metafields.standard.badge_background.value | default: '#DEF4F0' }};"
+              >
+                {{- item_content -}}
+              </div>
+            </a>
+          {%- endfor -%}
+            </scrollable-content>
+
+            {%- unless section.settings.stack_items -%}
+              <prev-next-buttons
+                class="multi-column__prev-next {% unless align_arrows_on_image %}multi-column__prev-next--no-image{% endunless %} hidden-pocket"
+                {% if align_arrows_on_image %}
+                  style="--smallest-image-aspect-ratio: {{ smallest_image_aspect_ratio }}"
+                {% endif %}
+              >
+                <button class="multi-column__arrow prev-next-button prev-next-button--prev" disabled aria-label="{{ 'general.accessibility.previous' | t | default: 'Previous' | escape }}">
+                  <span class="visually-hidden">{{ 'general.accessibility.previous' | t }}</span>
+                  {%- render 'icon' with 'chevron-left' -%}
+                </button>
+
+                <button class="multi-column__arrow prev-next-button prev-next-button--next" aria-label="{{ 'general.accessibility.next' | t | default: 'Next' | escape }}">
+                  <span class="visually-hidden">{{ 'general.accessibility.next' | t }}</span>
+                  {%- render 'icon' with 'chevron-right' -%}
+                </button>
+              </prev-next-buttons>
+            {%- endunless -%}
+          </div>
+        </multi-column>
+        
+      {%- endif -%}
+
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "CP sub-collections",
+  "class": "shopify-section--sub-collections",
+  "disabled_on": {
+    "groups": ["header", "custom.overlay"]
+  },
+  "settings": [
+    {
+      "type": "header",
+      "content": "Section spacing"
+    },
+    {
+      "type": "range",
+      "id": "space_top",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "label": "Top space",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "space_bottom",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "label": "Bottom space",
+      "default": 60
+    },
+    {
+      "type": "paragraph",
+      "content": "Section spacing (Mobile)"
+    },
+    {
+      "type": "range",
+      "id": "space_top_mobile",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "label": "Top (mobile)",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "space_bottom_mobile",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "label": "Bottom (mobile)",
+      "default": 32
+    },
+    {
+      "type": "header",
+      "content": "Other settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "reveal_on_scroll",
+      "label": "Reveal on scroll",
+      "info": "Show animation when section becomes visible.",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "stack_items",
+      "label": "Stack items",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_drag",
+      "label": "Enable drag functionality",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_next_prev",
+      "label": "Navigation",
+      "default": true
+    },
+    {
+      "type": "select",
+      "id": "spacing",
+      "label": "Spacing",
+      "options": [
+        {
+          "value": "tight",
+          "label": "Small"
+        },
+        {
+          "value": "normal",
+          "label": "Medium"
+        },
+        {
+          "value": "loose",
+          "label": "Large"
+        }
+      ],
+      "default": "normal"
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background",
+      "label": "Background",
+      "default": "rgba(0,0,0,0)"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "rgba(0,0,0,0)"
+    },
+    {
+      "type": "color",
+      "id": "item_icon_background",
+      "label": "Icon Background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "item_background",
+      "label": "Background",
+      "default": "#DEF4F0"
+    },
+    {
+      "type": "color",
+      "id": "item_border_color",
+      "label": "Border color",
+      "default": "rgba(0,0,0,0)"
+    },
+    {
+      "type": "paragraph",
+      "content": "Active colors"
+    },
+    {
+      "type": "color",
+      "id": "item_text_color_active",
+      "label": "Active color",
+      "default": "rgba(0,0,0,0)"
+    },
+    {
+      "type": "color",
+      "id": "item_background_active",
+      "label": "Active Background",
+      "default": "rgba(0,0,0,0)"
+    },
+    {
+      "type": "color",
+      "id": "item_border_color_active",
+      "label": "Active Border color",
+      "default": "#1D1D1D"
+    }
+  ],
+  "presets": [
+    {
+      "name": "CP sub-collections",
+    }
+  ]
+}
+{% endschema %}

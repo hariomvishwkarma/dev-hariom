@@ -1,0 +1,288 @@
+{% comment %}
+  Section: Mosaic tiles — simpel (alleen titel per tegel)
+  - Videotegel zonder tekst
+  - Mobiel (≤749px): video eerst, volle breedte; afbeeldingen in 2 kolommen
+  - Tablet (≥750px <990px): 2 kolommen (video NIET full-width)
+  - Desktop (≥990px): bestaand mozaïek
+  - Border-radius: 14px voor alle tegels
+{% endcomment %}
+
+{%- assign mode = section.settings.width_mode -%}
+{%- assign is_center = false -%}
+{%- assign is_full_pad = false -%}
+{%- assign is_full_nopad = false -%}
+{%- case mode -%}
+  {%- when 'center' -%}{%- assign is_center = true -%}
+  {%- when 'full_pad' -%}{%- assign is_full_pad = true -%}
+  {%- when 'full_nopad' -%}{%- assign is_full_nopad = true -%}
+{%- endcase -%}
+
+<section id="Section-{{ section.id }}"
+  class="mosaic-tiles"
+  data-section-id="{{ section.id }}"
+  style="
+    --overlay-color: {{ section.settings.overlay_color }};
+    --overlay-o: {{ section.settings.overlay_opacity | divided_by: 100.0 }};
+    --txt: {{ section.settings.text_color }};
+    --pad-m: {% if is_full_nopad %}0px{% else %}{{ section.settings.pad_mobile }}px{% endif %};
+    --pad-d: {% if is_full_nopad %}0px{% else %}{{ section.settings.pad_desktop }}px{% endif %};
+    margin-bottom: {{ section.settings.section_margin_bottom }}px;
+  "
+>
+  <div
+    class="mosaic-tiles__outer{% if is_full_nopad %} mt--full-nopad{% elsif is_full_pad %} mt--full-pad{% else %} mt--center{% endif %}"
+    {% if is_center %}style="max-width: {{ section.settings.max_width }}px;"{% endif %}
+  >
+    {% if section.settings.show_heading and section.settings.heading != blank %}
+      <h2 class="mosaic-tiles__heading">{{ section.settings.heading }}</h2>
+    {% endif %}
+
+    {% assign hero = section.blocks | where: 'type', 'hero_video' | first %}
+    {% assign tiles = section.blocks | where: 'type', 'tile' %}
+
+    <div class="mosaic-tiles__grid">
+      {%- if hero -%}
+        <div class="mosaic-tiles__item area-hero" {{ hero.shopify_attributes }}>
+          {% assign poster = hero.settings.poster %}
+          {% assign has_video = false %}
+          {% if hero.settings.video != blank or hero.settings.mp4_url != blank %}{% assign has_video = true %}{% endif %}
+          <div class="mosaic-tiles__box">
+            {% if has_video %}
+              <video class="mosaic-tiles__media" playsinline muted loop autoplay preload="auto" {% if poster %}poster="{{ poster | image_url: width: 1400 }}"{% endif %}>
+                {% if hero.settings.video != blank %}
+                  {% for source in hero.settings.video.sources %}
+                    {% if source.url != blank %}<source src="{{ source.url }}" type="{{ source.mime_type }}">{% endif %}
+                  {% endfor %}
+                {% endif %}
+                {% if hero.settings.mp4_url != blank %}<source src="{{ hero.settings.mp4_url }}" type="video/mp4">{% endif %}
+              </video>
+            {% elsif poster %}
+              <img class="mosaic-tiles__media"
+                   alt="{{ hero.settings.alt | escape }}"
+                   src="{{ poster | image_url: width: 1200 }}"
+                   srcset="{{ poster | image_url: width: 600 }} 600w, {{ poster | image_url: width: 1200 }} 1200w, {{ poster | image_url: width: 1800 }} 1800w"
+                   sizes="(min-width: 990px) 50vw, 100vw"
+                   loading="eager">
+            {% endif %}
+            <div class="mosaic-tiles__shade"></div>
+            {% if hero.settings.link != blank %}
+              <a class="mosaic-tiles__coverlink" href="{{ hero.settings.link }}" aria-label="Video"></a>
+            {% endif %}
+          </div>
+        </div>
+      {%- endif -%}
+
+      {%- for block in tiles -%}
+        {% assign area = 'area-extra' %}
+        {% case forloop.index %}
+          {% when 1 %}{% assign area = 'area-t1' %}
+          {% when 2 %}{% assign area = 'area-t2' %}
+          {% when 3 %}{% assign area = 'area-t3' %}
+          {% when 4 %}{% assign area = 'area-t4' %}
+          {% when 5 %}{% assign area = 'area-t5' %}
+          {% when 6 %}{% assign area = 'area-t6' %}
+          {% when 7 %}{% assign area = 'area-b1' %}
+          {% when 8 %}{% assign area = 'area-b2' %}
+        {% endcase %}
+
+        {% assign tile_title = block.settings.label | default: block.settings.alt | default: 'Titel' %}
+
+        <div class="mosaic-tiles__item {{ area }}" {{ block.shopify_attributes }}>
+          <div class="mosaic-tiles__box">
+            {% if block.settings.image %}
+              <img class="mosaic-tiles__media"
+                   alt="{{ block.settings.alt | escape }}"
+                   src="{{ block.settings.image | image_url: width: 600, height: 600, crop: 'center' }}"
+                   srcset="{{ block.settings.image | image_url: width: 300, height: 300, crop: 'center' }} 300w, {{ block.settings.image | image_url: width: 600, height: 600, crop: 'center' }} 600w, {{ block.settings.image | image_url: width: 900, height: 900, crop: 'center' }} 900w"
+                   sizes="(min-width: 990px) 18vw, 50vw"
+                   loading="lazy">
+            {% else %}
+              <div class="mosaic-tiles__placeholder">Upload afbeelding</div>
+            {% endif %}
+
+            <div class="mosaic-tiles__shade"></div>
+
+            <div class="mosaic-tiles__titlebar" style="padding:0 16px {{ section.settings.title_bottom }}px 16px;">
+              <div class="mosaic-tiles__title" style="font-size: {{ section.settings.tile_title_size }}px;">{{ tile_title }}</div>
+            </div>
+
+            {% if block.settings.link != blank %}
+              <a class="mosaic-tiles__coverlink" href="{{ block.settings.link }}" aria-label="{{ tile_title }}"></a>
+            {% endif %}
+          </div>
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var section = document.getElementById('Section-{{ section.id }}');
+      if (!section) return;
+      var video = section.querySelector('video.mosaic-tiles__media');
+      if (!video) return;
+
+      function tryPlay() {
+        if (!video.paused) return;
+        var p = video.play();
+        if (p && p.catch) p.catch(function() {});
+      }
+
+      // Try immediately (works when script runs after video is ready)
+      tryPlay();
+
+      // Try once video has buffered enough data — critical for iOS
+      video.addEventListener('loadedmetadata', tryPlay);
+      video.addEventListener('canplay', tryPlay);
+
+      // Re-trigger on page restore from iOS back/forward cache
+      window.addEventListener('pageshow', tryPlay);
+      document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) tryPlay();
+      });
+
+      // IntersectionObserver for sections below the fold
+      if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function(entries) {
+          if (entries[0].isIntersecting) tryPlay();
+        });
+        io.observe(video);
+      }
+
+      // iOS last-resort: first touch anywhere unlocks autoplay
+      document.addEventListener('touchstart', function handler() {
+        tryPlay();
+        document.removeEventListener('touchstart', handler);
+      }, { passive: true });
+    })();
+  </script>
+
+  <style>
+    /* ---------- Wrapper & paddings ---------- */
+    #Section-{{ section.id }} .mosaic-tiles__outer{
+      margin:0 auto;
+      padding-left:var(--pad-m);
+      padding-right:var(--pad-m);
+    }
+    @media (min-width: 990px){
+      #Section-{{ section.id }} .mosaic-tiles__outer{
+        padding-left:var(--pad-d);
+        padding-right:var(--pad-d);
+      }
+    }
+    #Section-{{ section.id }} .mosaic-tiles__heading{margin:0 0 1rem;line-height:1.2}
+
+    /* ---------- Grid ---------- */
+    #Section-{{ section.id }} .mosaic-tiles__grid{display:grid;gap:12px;grid-template-columns:repeat(2,1fr)}
+    @media (max-width: 749px){
+      #Section-{{ section.id }} .area-hero{grid-column:1 / -1;}
+    }
+    @media (min-width: 990px){
+      #Section-{{ section.id }} .mosaic-tiles__grid{
+        grid-template-columns:repeat(4,1fr);
+        grid-template-rows:repeat(3,1fr);
+        grid-template-areas:
+          "hero hero t1 t2"
+          "hero hero t3 t4"
+          "b1   b2   t5 t6";
+      }
+      .area-hero{grid-area:hero}
+      .area-t1{grid-area:t1}.area-t2{grid-area:t2}.area-t3{grid-area:t3}.area-t4{grid-area:t4}
+      .area-t5{grid-area:t5}.area-t6{grid-area:t6}.area-b1{grid-area:b1}.area-b2{grid-area:b2}
+      .area-extra{grid-column:span 1}
+    }
+
+    /* ---------- Tiles ---------- */
+    .mosaic-tiles__box{
+      position:relative;
+      width:100%;
+      aspect-ratio:1/1;
+      overflow:hidden;
+      border-radius:14px; /* <<< aangepast */
+    }
+    .mosaic-tiles__media{width:100%;height:100%;object-fit:cover;display:block}
+    .mosaic-tiles__placeholder{display:flex;align-items:center;justify-content:center;background:#f2f2f2;color:#888;height:100%}
+
+    .mosaic-tiles__shade{position:absolute;inset:0;background:linear-gradient(180deg, rgba(0,0,0,0) 55%, var(--overlay-color));opacity:var(--overlay-o);pointer-events:none}
+
+    .mosaic-tiles__titlebar{position:absolute;left:0;right:0;bottom:0;z-index:1;pointer-events:none}
+    .mosaic-tiles__title{color:var(--txt);font-weight:800;line-height:1.2}
+
+    .mosaic-tiles__coverlink{position:absolute;inset:0;z-index:1}
+
+    .mosaic-tiles__item:hover .mosaic-tiles__media{transform:scale(1.03);transition:transform .45s ease}
+    .mosaic-tiles__box{transition:box-shadow .2s ease}
+    .mosaic-tiles__item:hover .mosaic-tiles__box{box-shadow:0 12px 28px rgba(0,0,0,.18)}
+  </style>
+</section>
+
+{% schema %}
+{
+  "name": "Mosaic tiles",
+  "settings": [
+    { "type": "checkbox", "id": "show_heading", "label": "Sectietitel tonen", "default": true },
+    { "type": "text", "id": "heading", "label": "Sectietitel", "default": "Mosaic" },
+
+    { "type": "select", "id": "width_mode", "label": "Breedte modus", "default": "full_pad",
+      "options": [
+        { "value": "center", "label": "Gecentreerd (max + pad)" },
+        { "value": "full_pad", "label": "Volledige breedte + pad" },
+        { "value": "full_nopad", "label": "Volledige breedte (geen pad)" }
+      ]
+    },
+    { "type": "range", "id": "max_width", "min": 900, "max": 1800, "step": 10, "unit": "px", "label": "Max-breedte desktop", "default": 1200 },
+    { "type": "range", "id": "pad_mobile", "min": 0, "max": 80, "step": 1, "unit": "px", "label": "Zij-padding mobiel", "default": 22 },
+    { "type": "range", "id": "pad_desktop", "min": 0, "max": 100, "step": 1, "unit": "px", "label": "Zij-padding desktop", "default": 30 },
+
+    { "type": "range", "id": "section_margin_bottom", "min": 0, "max": 200, "step": 4, "unit": "px", "label": "Witruimte onder sectie", "default": 60 },
+
+    { "type": "range", "id": "title_bottom", "min": 0, "max": 80, "step": 1, "unit": "px", "label": "Titel onderafstand", "default": 24 },
+    { "type": "range", "id": "tile_title_size", "min": 12, "max": 56, "step": 1, "unit": "px", "label": "Titel grootte (tegel)", "default": 22 },
+
+    { "type": "color", "id": "text_color", "label": "Tekstkleur", "default": "#ffffff" },
+    { "type": "color", "id": "overlay_color", "label": "Overlay-kleur", "default": "#000000" },
+    { "type": "range", "id": "overlay_opacity", "label": "Overlay-dekking", "min": 0, "max": 95, "step": 5, "unit": "%", "default": 35 }
+  ],
+  "blocks": [
+    {
+      "type": "hero_video",
+      "name": "Video",
+      "limit": 1,
+      "settings": [
+        { "type": "video", "id": "video", "label": "Video (Shopify upload)" },
+        { "type": "url", "id": "mp4_url", "label": "MP4 URL (extern)" },
+        { "type": "image_picker", "id": "poster", "label": "Poster/fallback" },
+        { "type": "url", "id": "link", "label": "Optionele link" },
+        { "type": "text", "id": "alt", "label": "Alt-tekst", "default": "Video" }
+      ]
+    },
+    {
+      "type": "tile",
+      "name": "Tegel",
+      "limit": 8,
+      "settings": [
+        { "type": "image_picker", "id": "image", "label": "Afbeelding" },
+        { "type": "text", "id": "label", "label": "Titel", "default": "Titel" },
+        { "type": "url", "id": "link", "label": "Optionele link" },
+        { "type": "text", "id": "alt", "label": "Alt-tekst", "default": "Afbeelding" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Mosaic tiles",
+      "blocks": [
+        { "type": "hero_video" },
+        { "type": "tile" },
+        { "type": "tile" },
+        { "type": "tile" },
+        { "type": "tile" },
+        { "type": "tile" },
+        { "type": "tile" },
+        { "type": "tile" },
+        { "type": "tile" }
+      ]
+    }
+  ]
+}
+{% endschema %}

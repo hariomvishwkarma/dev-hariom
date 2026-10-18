@@ -1,0 +1,64 @@
+{% comment %} {%- if product.selected_or_first_available_variant.unit_price_measurement -%}
+  <div class="price">
+    <div class="unit-price-measurement">
+      <span class="unit-price-measurement__price">{{ product.selected_or_first_available_variant.unit_price | money_without_currency }}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }}</span>
+      <span class="unit-price-measurement__separator">/</span>
+
+      
+      <span class="unit-price-measurement__reference-value">{{ product.selected_or_first_available_variant.unit_price_measurement.reference_value }}</span>
+
+      <span class="unit-price-measurement__reference-unit">{{ product.selected_or_first_available_variant.unit_price_measurement.reference_unit }}</span>
+    </div>
+  </div>
+{%- endif -%} {% endcomment %}
+
+
+{%- comment -%}
+  Plenty variant metafields: plenty.grundpreis, plenty.grundpreis-einheit, plenty.grundpreis-inhalt
+
+  Usage:
+    {%- render 'plenty-grundpreis-unit-price', variant: product.selected_or_first_available_variant, wrapper_class: 'price' -%}
+    {%- render 'plenty-grundpreis-unit-price', variant: line_item.variant, wrapper_class: 'price text--subdued' -%}
+{%- endcomment -%}
+
+{%- liquid
+  assign plenty_variant = variant
+  assign wrapper_class = wrapper_class | default: 'price'
+-%}
+
+{%- if plenty_variant != blank -%}
+  {%- assign grundpreis = plenty_variant.metafields.plenty['grundpreis'] -%}
+  {%- assign grundpreis_einheit = plenty_variant.metafields.plenty['grundpreis-einheit'] -%}
+  {%- assign grundpreis_inhalt = plenty_variant.metafields.plenty['grundpreis-inhalt'] -%}
+
+  {%- if grundpreis != blank and grundpreis_einheit != blank and grundpreis_inhalt != blank -%}
+    {%- liquid
+      assign grundpreis_raw = grundpreis.value | default: grundpreis | strip
+      assign grundpreis_parts = grundpreis_raw | split: '.'
+      assign grundpreis_int = grundpreis_parts[0]
+      assign grundpreis_dec = grundpreis_parts[1] | default: ''
+
+      if grundpreis_dec == blank
+        assign grundpreis_dec = '00'
+      elsif grundpreis_dec.size == 1
+        assign grundpreis_dec = grundpreis_dec | append: '0'
+      else
+        assign grundpreis_dec = grundpreis_dec | slice: 0, 2
+      endif
+
+      assign grundpreis_formatted = grundpreis_int | append: ',' | append: grundpreis_dec
+    -%}
+    <div class="{{ wrapper_class }}">
+      <div class="unit-price-measurement">
+        <span class="unit-price-measurement__price">
+          {{ grundpreis_formatted }}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }}
+        </span>
+        <span class="unit-price-measurement__separator">/</span>
+
+        <span class="unit-price-measurement__reference-value">
+          {{ grundpreis_einheit.value | default: grundpreis_einheit }} <span class="unit-price-measurement__reference-unit">{{ grundpreis_inhalt.value | default: grundpreis_inhalt }}</span>
+        </span>
+      </div>
+    </div>
+  {%- endif -%}
+{%- endif -%}

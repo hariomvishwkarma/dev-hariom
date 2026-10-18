@@ -1,0 +1,162 @@
+{%- liquid
+  assign sold_out = false
+  if product.available == false
+    assign sold_out = true
+  endif
+
+  assign variantCount = product.variants | size
+  assign option_name = product.options_with_values[0].name | downcase
+  assign product_swatch_option = settings.swatch | downcase
+
+  assign has_popup = false
+
+  if product.options_with_values.size == 1 and product_swatch_option contains option_name and settings.quick_shop_type == '1'
+    if settings.show_swatch
+      assign has_popup = false
+    else
+      assign has_popup = true
+    endif
+  else
+    assign has_popup = true
+  endif
+-%}
+<form
+  action="{{ routes.cart_url }}/add"
+  method="post"
+  class="variants"
+  id="{{ id }}-{{ product.id }}-{{ sectionId }}{% if check %}-list{% endif %}"
+  data-product-id="{{ product.id }}"
+  enctype="multipart/form-data"
+>
+  {%- if sold_out -%}
+    {%- if settings.show_notify_form -%}
+      <a class="rr button button-ATC is-notify-me" href="{{ product.url }}" data-btn-addToCart>
+        {{- 'notify_form.general.label' | t -}}
+      </a>
+    {%- else -%}
+      <a class="tt button button-ATC" href="{{ product.url }}" disabled="disabled">
+        {{- 'products.product.out_of_stock' | t -}}
+      </a>
+    {%- endif -%}
+  {%- else -%}
+    {%- if variantCount > 1 and product.variants.first.title != 'Default Title' -%}
+      {%- if settings.show_quick_shop -%}
+        {%- if product.options_with_values.size == 1
+          and product_swatch_option contains option_name
+          and settings.quick_shop_type == '1'
+        -%}
+          <input type="hidden" name="id" value="{{ product.variants[0].id }}">
+          <input type="hidden" name="quantity" value="1">
+          <button
+            class="button nn button-ATC"
+            type="submit"
+            data-form-id="#{{ id }}-{{ product.id }}-{{ sectionId }}"
+            data-btn-addToCart
+          >
+            {%- unless settings.product_card_layout == '06' -%}
+              {{ 'products.product.add_to_cart' | t }}
+            {%- else -%}
+              {{ 'products.product.select_options_plus' | t }}
+            {%- endunless -%}
+          </button>
+        {%- else -%}
+          <a
+            class="mm button button-ATC"
+            href="{{ product.url }}"
+            data-quickshop-popup
+            data-product-handle="{{ product.handle }}"
+          >
+            {%- unless settings.product_card_layout == '06' -%}
+              Add
+
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17 18C17.5304 18 18.0391 18.2107 18.4142 18.5858C18.7893 18.9609 19 19.4696 19 20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22C16.4696 22 15.9609 21.7893 15.5858 21.4142C15.2107 21.0391 15 20.5304 15 20C15 18.89 15.89 18 17 18ZM1 2H4.27L5.21 4H20C20.2652 4 20.5196 4.10536 20.7071 4.29289C20.8946 4.48043 21 4.73478 21 5C21 5.17 20.95 5.34 20.88 5.5L17.3 11.97C16.96 12.58 16.3 13 15.55 13H8.1L7.2 14.63L7.17 14.75C7.17 14.8163 7.19634 14.8799 7.24322 14.9268C7.29011 14.9737 7.3537 15 7.42 15H19V17H7C6.46957 17 5.96086 16.7893 5.58579 16.4142C5.21071 16.0391 5 15.5304 5 15C5 14.65 5.09 14.32 5.24 14.04L6.6 11.59L3 4H1V2ZM7 18C7.53043 18 8.03914 18.2107 8.41421 18.5858C8.78929 18.9609 9 19.4696 9 20C9 20.5304 8.78929 21.0391 8.41421 21.4142C8.03914 21.7893 7.53043 22 7 22C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20C5 18.89 5.89 18 7 18ZM16 11L18.78 6H6.14L8.5 11H16Z" fill="white"/>
+              </svg>
+
+            {%- else -%}
+              {{ 'products.product.select_options_plus' | t }}
+            {%- endunless -%}
+          </a>
+        {%- endif -%}
+      {%- else -%}
+        <a class="nnr button button-ATC" href="{{ product.url }}">
+          {%- unless settings.product_card_layout == '06' -%}
+            {{ 'products.product.select_options' | t }}
+          {%- else -%}
+            {{ 'products.product.select_options_plus' | t }}
+          {%- endunless -%}
+        </a>
+      {%- endif -%}
+    {%- else -%}
+      <input type="hidden" name="id" value="{{ product.variants[0].id }}">
+      <input type="hidden" name="quantity" value="1">
+      {%- liquid
+        assign current_variant_grid = product.selected_or_first_available_variant
+        assign first_inventory_grid = current_variant_grid.inventory_quantity
+      -%}
+      {%- if current_variant_grid.inventory_management -%}
+        <button
+          type="submit"
+          name="add"
+          direct_atc
+          data-btn-addToCart
+          data-available="{{ allowOutStockSale }}"
+          class="product-form__submit button button--primary an-{{ atc_animation }}{% if first_inventory_grid == 0 %} button-text-change{% else %}{% if show_subtotal_text %} button-text-change{% endif %}{% endif %}"
+          id="product-add-to-cart"
+        >
+          {%- if first_inventory_grid > 0 -%}
+            {%- if show_subtotal_text and subtotal_style == '2' -%}
+              {%- assign subtotal = subtotal | strip_html -%}
+              {{ 'products.product.sub_total' | t: value: subtotal }}
+            {%- else -%}
+              {%- unless settings.product_card_layout == '06' -%}
+                Add
+                {% comment %} {{ 'products.product.add_to_cart' | t }} {% endcomment %}
+              {%- else -%}
+                {{ 'products.product.select_options_plus' | t }}
+              {%- endunless -%}
+            {%- endif -%}
+          {%- else -%}
+            {{ 'products.product.pre_order' | t }}
+          {%- endif -%}
+        </button>
+      {%- else -%}
+        <button
+          type="submit"
+          name="add"
+          jjj
+          data-btn-addToCart
+          class="product-form__submit button button--secondary an-{{ atc_animation }}{% if show_subtotal_text %} button-text-change{% endif %}"
+          id="product-add-to-cart"
+        >
+          {%- if show_subtotal_text and subtotal_style == '2' -%}
+            {%- assign subtotal = subtotal | strip_html -%}
+            {{ 'products.product.sub_total' | t: value: subtotal }}
+          {%- else -%}
+            {%- unless settings.product_card_layout == '06' -%}
+              Add
+              {% comment %} {{ 'products.product.add_to_cart' | t}} {% endcomment %}
+            {%- else -%}
+              {{ 'products.product.select_options_plus' | t }}
+            {%- endunless -%}
+          {%- endif -%}
+        </button>
+      {%- endif -%}
+    {%- endif -%}
+  {%- endif -%}
+</form>
+{%- if settings.show_quick_shop and product.available -%}
+  {%- if variantCount > 1 and product.variants.first.title != 'Default Title' -%}
+    {%- if has_popup -%}
+      <div class="variants-popup custom-scrollbar">
+        {% render 'product-quick-shop-popup',
+          product: product,
+          id: id,
+          list: list,
+          position: position,
+          sectionId: sectionId
+        %}
+      </div>
+    {%- endif -%}
+  {%- endif -%}
+{%- endif -%}

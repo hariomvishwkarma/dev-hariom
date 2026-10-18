@@ -1,0 +1,76 @@
+<cart-drawer-recommendations section-id="{{ section.id }}" product-id="{{ cart.items.first.product_id }}" class="mini-cart__recommendations">
+    <div class="mini-cart__recommendations-inner">
+        {%- if section.settings.recommendations_title != blank -%}
+            <p class="mini-cart__recommendations-heading heading heading--small hidden-pocket">{{ section.settings.recommendations_title | escape }}</p>
+            <p class="mini-cart__recommendations-heading heading heading--xsmall text--subdued hidden-lap-and-up">{{ section.settings.recommendations_title | escape }}</p>
+        {%- endif -%}
+
+        {%- assign shown_products_count = 0 -%}
+
+        {% comment %}find out all upsells{% endcomment %}
+        {% assign ed_upsell_product_handles = '' %}
+        {% for item in cart.items %}
+            {%- if shown_products_count >= 6 -%}
+                {%- break -%}
+            {%- endif -%}
+
+            {% if section.settings.show_upsell_product != blank and section.settings.show_upsell_product.available %}
+                {% assign recommended_first_product_is_in_cart = false %}
+
+                {% for item in cart.items %}
+                    {% if item.product_id == section.settings.show_upsell_product.id %}
+                        {% assign recommended_first_product_is_in_cart = true %}
+                        {% break %}
+                    {% endif %}
+                {% endfor %}
+
+                {% unless recommended_first_product_is_in_cart  %}
+                    {%- assign shown_products_count = shown_products_count | plus: 1 -%}
+                    {% assign ed_upsell_product_handles = ed_upsell_product_handles | append: section.settings.show_upsell_product.handle | append: ',' %}
+                {%- endunless -%}
+            {%- endif -%}
+
+            {%- for product in item.product.metafields.standard.upsells.value -%}
+                {% assign recommended_product_is_in_cart = false %}
+
+                {% for item in cart.items %}
+                    {% if item.product_id == product.id %}
+                        {% assign recommended_product_is_in_cart = true %}
+                        {% break %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if recommended_product_is_in_cart or product.available == false %}
+                    {% continue %}
+                {% else %}
+                    {%- assign shown_products_count = shown_products_count | plus: 1 -%}
+                    {% assign ed_upsell_product_handles = ed_upsell_product_handles | append: product.handle | append: ',' %}
+                {%- endif -%}
+            {%- endfor -%}
+        {%- endfor -%}
+        {% comment %}end: find out all upsells{% endcomment %}
+
+        {% comment %}remove all duplicates in upsells{% endcomment %}
+        {% assign ed_upsell_product_handles = ed_upsell_product_handles | split: ',' | uniq %}
+
+        {% comment %}show all upsells{% endcomment %}
+        <div class="scroller">
+            <div class="scroller__inner">
+                <div class="mini-cart__recommendations-list">
+                    {% for ed_upsell_product_handle in ed_upsell_product_handles %}
+                        {% assign upsell_product = all_products[ed_upsell_product_handle] %}
+                        {%- render 'product-item', product: upsell_product, reduced_content: true, reduced_font_size: true, hide_secondary_image: true, sizes_attribute: '(max-width: 740px) 65px, 92px' -%}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if shown_products_count == 0  %}
+       <style>
+           cart-drawer-recommendations {
+               display: none !important;
+           }
+       </style>
+    {% endif %}
+</cart-drawer-recommendations>

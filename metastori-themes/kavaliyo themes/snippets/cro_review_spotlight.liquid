@@ -1,0 +1,955 @@
+{% comment %} Reviews.io: use unique container so app floating widget is not affected. Load script only if app has not. {% endcomment %}
+<div id="CroReviewsWidget" aria-hidden="true"></div>
+<script>
+  window.CRO_REVIEWS_SPOTLIGHT_CONFIG = {
+    //Your REVIEWS.io Store ID and widget type:
+    store: 'kavalio',
+    widget: 'polaris',
+
+    //Content settings (store_review,product_review,third_party_review,questions). Choose what to display in this widget:
+    options: {
+        types: 'product_review',
+        enable_sentiment_analysis: true,
+        lang: 'de',
+        //Possible layout options: bordered, large and reverse.
+        layout: '',
+        //How many reviews & questions to show per page?
+        per_page: 15,
+        store_review:{
+          hide_if_no_results: false,
+        },
+        third_party_review:{
+          hide_if_no_results: false,
+        },
+        product_review: {
+          sku: "{{ product.variants | map: 'sku' | join: ';' }};{{ product.variants | map: 'id' | join: ';' }}",
+          /* aggregateRating is server-rendered in microdata-schema.liquid from reviewscouk metafields */
+          enable_rich_snippets: false,
+
+          /* Your custom Structured Data */
+          structured_data: {
+
+            category: {{ product.type | json }},
+
+            {% capture gtin_length %}{{ product.variants.first.barcode | size }}{% endcapture %}
+            {% if gtin_length == "14" %}
+              gtin14: "{{ product.variants.first.barcode }}",
+            {% elsif gtin_length == "13" %}
+              gtin13: "{{ product.variants.first.barcode }}",
+            {% elsif gtin_length == "12" %}
+              gtin12: "{{ product.variants.first.barcode }}",
+            {% endif %}
+
+            url: "{{ shop.url }}{{ product.url }}",
+
+            {%- if product.featured_image -%}
+              image: "https:{{ product.featured_image | image_url: width: 1920 }}",
+            {%- endif -%}
+
+            description: "{{ product.description | strip_html | strip_newlines | escape }}",
+
+            {% assign ruk_current_variant = product.selected_or_first_available_variant %}
+
+            {% if product.variants %}
+              offers: [{
+                type: "Offer",
+                priceCurrency: "{{ cart.currency.iso_code }}",
+                price: "{{ ruk_current_variant.price | divided_by: 100.0 }}",
+                itemCondition: "http://schema.org/NewCondition",
+                availability: "http://schema.org/{% if product.available %}InStock{% else %}OutOfStock{% endif %}",
+                url: "{{ shop.url }}{{ ruk_current_variant.url }}",
+
+                {% if ruk_current_variant.image %}
+                  image: "https:{{ ruk_current_variant.image | image_url: width: 1920 }}",
+                {% elsif product.featured_image %}
+                  image: "https:{{ product.featured_image | image_url: width: 1920 }}",
+                {% endif %}
+
+                {% if ruk_current_variant.title != 'Default Title' %}
+                  name: "{{ product.title | strip_html | escape }} - {{ ruk_current_variant.title | escape }}",
+                {% else %}
+                  name: "{{ product.title | strip_html | escape }}",
+                {% endif %}
+
+                {% if ruk_current_variant.barcode.size == 12 %}
+                  gtin12: "{{ ruk_current_variant.barcode }}",
+                {% elsif ruk_current_variant.barcode.size == 13 %}
+                  gtin13: "{{ ruk_current_variant.barcode }}",
+                {% elsif ruk_current_variant.barcode.size == 14 %}
+                  gtin14: "{{ ruk_current_variant.barcode }}",
+                {% endif %}
+
+                {% if ruk_current_variant.sku != blank %}
+                  sku: "{{ ruk_current_variant.sku }}",
+                {% else %}
+                  sku: "{{ ruk_current_variant.id }}",
+                {% endif %}
+
+                priceValidUntil: "{{ 'now' | date: '%s' | plus: 31536000 | date: '%Y-%m-%d' }}"
+              }],
+            {% endif %}
+
+            brand: {
+              type: 'Brand',
+              name: '{{ product.vendor | escape }}',
+            },
+          },
+
+        /* Toggle Options */
+        questions:{
+              hide_if_no_results:false,
+              enable_ask_question:true,
+              show_dates:true,
+              grouping:"{{ product.variants | map: 'sku' | join: ';' }};{{ product.variants | map: 'id' | join: ';' }}"
+        },
+
+        //Header settings:
+        header:{
+            enable_summary: true, //Show overall rating & review count
+            enable_ratings: true,
+            enable_attributes: false,
+            enable_image_gallery: false, //Show photo & video gallery
+            enable_percent_recommended: false, //Show what percentage of reviewers recommend it
+            enable_write_review: false, //Show "Write Review" button
+            enable_ask_question: false, //Show "Ask Question" button
+            enable_sub_header: false, //Show subheader
+            rating_decimal_places: 2,
+            use_write_review_button:  false, //Show "be the first to leave a review" text as a button
+            enable_if_no_results:  false, //Show header when there are no results
+            show_review_title_field:  false, //Show review title field in write review form
+        },
+
+        //AI summary settings
+        sentiment:{
+            badge_text: 'Our Customers Say'
+        },
+
+        //Filtering settings:
+        filtering:{
+            enable: false, //Show filtering options
+            enable_text_search: false, //Show search field
+            enable_sorting: false, //Show sorting options (most recent, most popular)
+            enable_product_filter: false, //Show product options filter
+            enable_media_filter: false, //Show reviews with images/video/media options
+            enable_overall_rating_filter: false, //Show overall rating breakdown filter
+            enable_language_filter: false, // Filter by review language
+            enable_language_filter_language_change: false, // Update widget language based on language selected
+            enable_ratings_filters: false, //Show product attributes filter
+            enable_attributes_filters: false, //Show author attributes filter
+            enable_expanded_filters: false, //Show filters as a section instead of dropdown
+        },
+
+        //Review settings:
+        reviews:{
+            enable_avatar: false, //Show author avatar
+            enable_reviewer_name:  true, //Show author name
+            enable_reviewer_address:  false, //Show author location
+            reviewer_address_format: 'city, country', //Author location display format
+            enable_verified_badge: true, //Show "Verified Customer" badge
+            enable_subscriber_badge: true, //Show "Verified Subscriber" badge
+            review_content_filter: 'undefined', //Filter content
+            enable_reviewer_recommends: true, //Show "I recommend it" badge
+            enable_attributes: false, //Show author attributes
+            enable_product_name: false, //Show display product name
+            enable_link_product: false, //Link review to product page
+            enable_review_title: undefined, //Show review title
+            enable_replies: false, //Show review replies
+            enable_images: false, //Show display review photos
+            enable_ratings: true, //Show product attributes (additional ratings)
+            enable_share: false, //Show share buttons
+            enable_helpful_vote: false, //Show "was this helpful?" section
+            enable_helpful_display: false, //Show how many times times review upvoted
+            enable_report: false, //Show report button
+            enable_date: false, //Show when review was published
+            date_format: 'undefined', ////Review date format (undefined, 'DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY/MM/DD')
+            date_location: 'undefined', //Review date location (undefined, 'top-right')
+            enable_third_party_source: true, //Show third party source
+            enable_duplicate_reviews: undefined, //Show multiple reviews from the same user
+            combine_title_stars: true, //Combine review title and star rating in a single line
+
+        },
+    },
+    //Translation settings
+    translations: {
+        'Verified Customer': 'Verified Customer'
+    },
+    //Style settings:
+    styles: {
+        //Base font size is a reference size for all text elements. When base value gets changed, all TextHeading and TexBody elements get proportionally adjusted.
+        '--base-font-size': '16px',
+
+        //Button styles (shared between buttons):
+        '--common-button-font-family': 'inherit',
+        '--common-button-font-size':'16px',
+        '--common-button-font-weight':'500',
+        '--common-button-letter-spacing':'0',
+        '--common-button-text-transform':'none',
+        '--common-button-vertical-padding':'10px',
+        '--common-button-horizontal-padding':'20px',
+        '--common-button-border-width':'2px',
+        '--common-button-border-radius':'0px',
+
+        //Primary button styles:
+        '--primary-button-bg-color': '#0E1311',
+        '--primary-button-border-color': '#0E1311',
+        '--primary-button-text-color': '#ffffff',
+
+        //Secondary button styles:
+        '--secondary-button-bg-color': 'transparent',
+        '--secondary-button-border-color': '#0E1311',
+        '--secondary-button-text-color': '#0E1311',
+
+        //Star styles:
+        '--common-star-color': '#0E1311',
+        '--common-star-disabled-color': 'rgba(0,0,0,0.25)',
+        '--medium-star-size': '22px',
+        '--small-star-size': '19px',
+
+        //Heading styles:
+        '--heading-text-color': '#0E1311',
+        '--heading-text-font-weight': '600',
+        '--heading-text-font-family': 'inherit',
+        '--heading-text-line-height': '1.4',
+        '--heading-text-letter-spacing': '0',
+        '--heading-text-transform': 'none',
+
+        //Body text styles:
+        '--body-text-color': '#0E1311',
+        '--body-text-font-weight': '400',
+        '--body-text-font-family': 'inherit',
+        '--body-text-line-height': '1.4',
+        '--body-text-letter-spacing': '0',
+        '--body-text-transform': 'none',
+
+        //Input field styles:
+        '--inputfield-text-font-family': 'inherit',
+        '--input-text-font-size': '14px',
+        '--inputfield-text-font-weight': '400',
+        '--inputfield-text-color': '#0E1311',
+        '--inputfield-border-color': 'rgba(0,0,0,0.2)',
+        '--inputfield-background-color': 'transparent',
+        '--inputfield-border-width': '1px',
+        '--inputfield-border-radius': '0px',
+
+        '--common-border-color': 'rgba(0,0,0,0.15)',
+        '--common-border-width': '1px',
+        '--common-sidebar-width': '190px',
+
+        //Filters panel styles:
+        '--filters-panel-bg-color': 'transparent',
+        '--filters-panel-font-size': '16px',
+        '--filters-panel-text-color': '16px',
+        '--filters-panel-horizontal-padding': '0',
+        '--filters-panel-vertical-padding': '0',
+
+        //Slider indicator (for attributes) styles:
+        '--slider-indicator-bg-color': 'rgba(0,0,0,0.1)',
+        '--slider-indicator-button-color': '#0E1311',
+        '--slider-indicator-width': '190px',
+
+        //Badge styles:
+        '--badge-icon-color': '#0E1311',
+        '--badge-icon-font-size': 'inherit',
+        '--badge-text-color': '#0E1311',
+        '--badge-text-font-size': 'inherit',
+        '--badge-text-letter-spacing': 'inherit',
+        '--badge-text-transform': 'inherit',
+
+        //Author styles:
+        '--author-font-size': 'inherit',
+        '--author-text-transform': 'none',
+
+        //Author avatar styles:
+        '--avatar-thumbnail-size': '60px',
+        '--avatar-thumbnail-border-radius': '100px',
+        '--avatar-thumbnail-text-color': '#0E1311',
+        '--avatar-thumbnail-bg-color': 'rgba(0,0,0,0.1)',
+
+        //Product photo or review photo styles:
+        '--photo-video-thumbnail-size': '80px',
+        '--photo-video-thumbnail-border-radius': '0px',
+
+        //Media (photo & video) slider styles:
+        '--mediaslider-scroll-button-icon-color': '#0E1311',
+        '--mediaslider-scroll-button-bg-color': 'rgba(255, 255, 255, 0.85)',
+        '--mediaslider-overlay-text-color': '#ffffff',
+        '--mediaslider-overlay-bg-color': 'rgba(0, 0, 0, 0.8))',
+        '--mediaslider-item-size': '110px',
+
+        //Pagination & tabs styles (normal):
+        '--pagination-tab-text-color': '#0E1311',
+        '--pagination-tab-text-transform': 'none',
+        '--pagination-tab-text-letter-spacing': '0',
+        '--pagination-tab-text-font-size': '16px',
+        '--pagination-tab-text-font-weight': '600',
+
+        //Pagination & tabs styles (active):
+        '--pagination-tab-active-text-color': '#0E1311',
+        '--pagination-tab-active-text-font-weight': '600',
+        '--pagination-tab-active-border-color': '#0E1311',
+        '--pagination-tab-border-width': '3px',
+
+        //AI summary styles
+        '--sentiment-base-font-size': '15px',
+        '--sentiment-panel-bg-color': 'transparent',
+        '--sentiment-panel-border-size': '1px',
+        '--sentiment-panel-border-color': 'rgba(0, 0, 0, 0.1)',
+        '--sentiment-panel-border-radius': '0px',
+        '--sentiment-panel-shadow-size': '0px',
+        '--sentiment-panel-shadow-color': 'rgba(0, 0, 0, 0.1)',
+        '--sentiment-heading-text-color': '#0E1311',
+        '--sentiment-heading-text-font-weight': '600',
+        '--sentiment-heading-text-font-family': 'inherit',
+        '--sentiment-heading-text-line-height': '1.4',
+        '--sentiment-heading-text-letter-spacing': '0',
+        '--sentiment-heading-text-transform': 'none',
+        '--sentiment-body-text-color': '#0E1311',
+        '--sentiment-body-text-font-weight': '400',
+        '--sentiment-body-text-font-family': 'inherit',
+        '--sentiment-body-text-line-height': '1.4',
+        '--sentiment-body-text-letter-spacing': '0',
+        '--sentiment-body-text-transform': 'none',
+        '--sentiment-panel-vertical-padding': '25px',
+        '--sentiment-panel-horizontal-padding': '20px',
+        '--sentiment-header-text-color': 'inherit',
+        '--sentiment-header-text-font-size': '12px',
+        '--sentiment-header-text-font-weight': 'inherit',
+        '--sentiment-header-bg-color': 'rgba(0, 0, 0, 0.04)',
+        '--sentiment-header-border-radius': '50px',
+        '--sentiment-header-shadow-size': '0px',
+        '--sentiment-header-shadow-color': 'rgba(0, 0, 0, 0.1)',
+        '--sentiment-header-vertical-padding': '7px',
+        '--sentiment-header-horizontal-padding': '10px',
+        '--sentiment-pagination-tab-text-font-size': '13px',
+        '--sentiment-pagination-tab-text-font-weight': '600',
+        '--sentiment-pagination-tab-text-color': '#0E1311',
+        '--sentiment-pagination-tab-text-transform': 'none',
+        '--sentiment-pagination-tab-text-letter-spacing': '0',
+        '--sentiment-pagination-tab-active-text-color': '#0E1311',
+        '--sentiment-pagination-tab-active-text-font-weight': '600',
+        '--sentiment-pagination-tab-active-border-color': '#0E1311',
+        '--sentiment-pagination-tab-border-width': '3px',
+    }
+  };
+  (function initCroReviewsWidget() {
+    var container = document.getElementById('CroReviewsWidget');
+    if (!container) return;
+    if (typeof window.ReviewsWidget !== 'undefined') {
+      try { new window.ReviewsWidget('#CroReviewsWidget', window.CRO_REVIEWS_SPOTLIGHT_CONFIG); } catch (e) {}
+      return;
+    }
+    var attempts = 0;
+    function wait() {
+      if (typeof window.ReviewsWidget !== 'undefined') {
+        try { new window.ReviewsWidget('#CroReviewsWidget', window.CRO_REVIEWS_SPOTLIGHT_CONFIG); } catch (e) {}
+        return;
+      }
+      if (++attempts < 50) setTimeout(wait, 100);
+      else {
+        var s = document.createElement('script');
+        s.src = 'https://widget.reviews.io/polaris/build.js';
+        s.onload = function() { try { new window.ReviewsWidget('#CroReviewsWidget', window.CRO_REVIEWS_SPOTLIGHT_CONFIG); } catch (e) {} };
+        document.head.appendChild(s);
+      }
+    }
+    setTimeout(wait, 200);
+  })();
+</script>
+{% comment %} END Reviews.io {% endcomment %}
+
+<script>
+  (function () {
+    var reviewsioHeader = {
+      ratingValue: '',
+      starsHtml: '',
+      countText: '',
+    };
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      var div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function readFromReviewsWidget() {
+      var root = document.getElementById('CroReviewsWidget');
+      if (!root) return false;
+      var headerLeft = root.querySelector('.header__group.header__group--left');
+      if (!headerLeft) return false;
+
+      var ratingEl = headerLeft.querySelector('.R-TextHeading.R-TextHeading--md.R-TextHeading--inline');
+      var starsEl = headerLeft.querySelector('.R-RatingStars');
+      var countBodies = headerLeft.querySelectorAll('.R-TextBody.R-TextBody--xs.u-textLeft--all.u-marginBottom--xs');
+      var countEl =
+        countBodies.length > 0
+          ? countBodies[countBodies.length - 1]
+          : headerLeft.querySelector('.R-TextBody.R-TextBody--xs');
+
+      if (ratingEl) reviewsioHeader.ratingValue = (ratingEl.textContent || '').trim();
+      if (starsEl) reviewsioHeader.starsHtml = starsEl.outerHTML;
+      if (countEl) reviewsioHeader.countText = (countEl.textContent || '').trim();
+
+      return reviewsioHeader.ratingValue || reviewsioHeader.starsHtml || reviewsioHeader.countText;
+    }
+
+    function applyToOurHeader(skipStars) {
+      var starsSlot = document.querySelector('.hr_cro_review_spotlight_section [data-reviewsio-stars]');
+      var countSlot = document.querySelector('.hr_cro_review_spotlight_section [data-reviewsio-count]');
+      if (!starsSlot && !countSlot) return;
+
+      if (!skipStars && reviewsioHeader.starsHtml && starsSlot) starsSlot.innerHTML = reviewsioHeader.starsHtml;
+      if (countSlot) {
+        var rating = reviewsioHeader.ratingValue || '';
+        var countText = reviewsioHeader.countText || '';
+        countSlot.innerHTML =
+          '<strong>' + escapeHtml(rating) + (rating ? '/5.0</strong> ' : '</strong> ') + escapeHtml(countText);
+      }
+    }
+
+    var reviewsioReviewsList = [];
+
+    function getReviewsListFromWidget() {
+      var root = document.getElementById('CroReviewsWidget');
+      if (!root) return [];
+      var items = root.querySelectorAll('.R-ContentList__item');
+      var list = [];
+      items.forEach(function (item) {
+        var nameEl =
+          item.querySelector('.cssVar-authorName') ||
+          item.querySelector('.c-meta__authorName span') ||
+          item.querySelector('.c-meta__authorName');
+        var bodyEl =
+          item.querySelector('.item__review .R-TextBody.u-whiteSpace--prewrap') ||
+          item.querySelector('.item__review .R-TextBody') ||
+          item.querySelector('.item__review [class*="TextBody"]');
+        var author = nameEl ? (nameEl.textContent || '').trim() : '';
+        var content = bodyEl ? (bodyEl.textContent || '').trim() : '';
+        if (content) list.push({ author: author || 'Customer', content: content });
+      });
+      return list;
+    }
+
+    var verifiedIconSvg =
+      '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.1163 6.42625C13.8806 6.18 13.6369 5.92625 13.545 5.70312C13.46 5.49875 13.455 5.16 13.45 4.83187C13.4406 4.22187 13.4306 3.53062 12.95 3.05C12.4694 2.56937 11.7781 2.55937 11.1681 2.55C10.84 2.545 10.5013 2.54 10.2969 2.455C10.0744 2.36312 9.82 2.11937 9.57375 1.88375C9.1425 1.46937 8.6525 1 8 1C7.3475 1 6.85812 1.46937 6.42625 1.88375C6.18 2.11937 5.92625 2.36312 5.70312 2.455C5.5 2.54 5.16 2.545 4.83187 2.55C4.22187 2.55937 3.53062 2.56937 3.05 3.05C2.56937 3.53062 2.5625 4.22187 2.55 4.83187C2.545 5.16 2.54 5.49875 2.455 5.70312C2.36312 5.92562 2.11937 6.18 1.88375 6.42625C1.46937 6.8575 1 7.3475 1 8C1 8.6525 1.46937 9.14187 1.88375 9.57375C2.11937 9.82 2.36312 10.0737 2.455 10.2969C2.54 10.5013 2.545 10.84 2.55 11.1681C2.55937 11.7781 2.56937 12.4694 3.05 12.95C3.53062 13.4306 4.22187 13.4406 4.83187 13.45C5.16 13.455 5.49875 13.46 5.70312 13.545C5.92562 13.6369 6.18 13.8806 6.42625 14.1163C6.8575 14.5306 7.3475 15 8 15C8.6525 15 9.14187 14.5306 9.57375 14.1163C9.82 13.8806 10.0737 13.6369 10.2969 13.545C10.5013 13.46 10.84 13.455 11.1681 13.45C11.7781 13.4406 12.4694 13.4306 12.95 12.95C13.4306 12.4694 13.4406 11.7781 13.45 11.1681C13.455 10.84 13.46 10.5013 13.545 10.2969C13.6369 10.0744 13.8806 9.82 14.1163 9.57375C14.5306 9.1425 15 8.6525 15 8C15 7.3475 14.5306 6.85812 14.1163 6.42625ZM10.8538 6.85375L7.35375 10.3538C7.30731 10.4002 7.25217 10.4371 7.19147 10.4623C7.13077 10.4874 7.06571 10.5004 7 10.5004C6.93429 10.5004 6.86923 10.4874 6.80853 10.4623C6.74783 10.4371 6.69269 10.4002 6.64625 10.3538L5.14625 8.85375C5.05243 8.75993 4.99972 8.63268 4.99972 8.5C4.99972 8.36732 5.05243 8.24007 5.14625 8.14625C5.24007 8.05243 5.36732 7.99972 5.5 7.99972C5.63268 7.99972 5.75993 8.05243 5.85375 8.14625L7 9.29313L10.1462 6.14625C10.1927 6.09979 10.2479 6.06294 10.3086 6.0378C10.3692 6.01266 10.4343 5.99972 10.5 5.99972C10.5657 5.99972 10.6308 6.01266 10.6914 6.0378C10.7521 6.06294 10.8073 6.09979 10.8538 6.14625C10.9002 6.1927 10.9371 6.24786 10.9622 6.30855C10.9873 6.36925 11.0003 6.4343 11.0003 6.5C11.0003 6.5657 10.9873 6.63075 10.9622 6.69145C10.9371 6.75214 10.9002 6.8073 10.8538 6.85375Z" fill="#1D1D1D"></path></svg>';
+
+    var carouselFilled = false;
+
+    function initFlickityOnContainer(container) {
+      if (container._croFlickityInit) return;
+      var configRaw = container.getAttribute('data-flickity-config');
+      if (!configRaw) return;
+      var config = {};
+      try {
+        config = JSON.parse(configRaw);
+      } catch (e) {
+        return;
+      }
+      config.cellSelector = '.hr_review_spotlight-item';
+      config.initialIndex = 0;
+      if (window.themeVariables && window.themeVariables.settings) {
+        config.rightToLeft = window.themeVariables.settings.direction === 'rtl';
+      }
+      config.on = config.on || {};
+      config.on.ready = function () {
+        container.dispatchEvent(new CustomEvent('flickity:ready'));
+      };
+      config.on.change = function () {
+        container.dispatchEvent(new CustomEvent('flickity:slide-changed'));
+      };
+      config.on.settle = function () {
+        container.dispatchEvent(new CustomEvent('flickity:slide-settled'));
+      };
+      if (typeof window.ThemeFlickity !== 'undefined') {
+        var instance = new window.ThemeFlickity(container, config);
+        container.flickity = Promise.resolve(instance);
+        container.flickityInstance = container.flickity;
+        container.next = function () {
+          instance.next();
+        };
+        container.previous = function () {
+          instance.previous();
+        };
+        container.select = function (sel) {
+          instance.selectCell(sel);
+        };
+
+        setTimeout(function () {
+          if (instance && typeof instance.resize === 'function') {
+            instance.resize();
+          }
+          if (typeof instance.reposition === 'function') {
+            instance.reposition();
+          }
+        }, 100);
+
+        container._croFlickityInit = true;
+      }
+    }
+
+    function loadFlickityAndInit(containers) {
+      function run() {
+        containers.forEach(initFlickityOnContainer);
+      }
+      if (typeof window.ThemeFlickity !== 'undefined') {
+        run();
+        return;
+      }
+      var src = window.themeVariables && window.themeVariables.libs && window.themeVariables.libs.flickity;
+      if (!src) {
+        run();
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = src;
+      s.onload = run;
+      document.head.appendChild(s);
+    }
+
+    function fillCarouselFromReviewsList() {
+      if (carouselFilled) return;
+      var list = getReviewsListFromWidget();
+      if (list.length === 0) return;
+      carouselFilled = true;
+      reviewsioReviewsList = list;
+      var sections = document.querySelectorAll('.hr_cro_review_spotlight_section');
+      var containersToInit = [];
+      sections.forEach(function (section) {
+        var container =
+          section.querySelector('.hr_review_spotlight-list') || section.querySelector('[id^="flickity-"]');
+        if (!container) return;
+        while (container.firstChild) container.removeChild(container.firstChild);
+        reviewsioReviewsList.forEach(function (r) {
+          var slide = document.createElement('div');
+          slide.className = 'hr_review_spotlight-item';
+          slide.innerHTML =
+            '<div class="hr_review_spotlight-item-content"><p>' +
+            escapeHtml(r.content) +
+            '</p></div><div class="hr_review_spotlight-item-title">' +
+            verifiedIconSvg +
+            '<p>' +
+            escapeHtml(r.author) +
+            '</p></div>';
+          container.appendChild(slide);
+        });
+        containersToInit.push(container);
+      });
+      if (containersToInit.length > 0) {
+        loadFlickityAndInit(containersToInit);
+      }
+    }
+
+    var applied = false;
+    function run() {
+      var list = getReviewsListFromWidget();
+      document.querySelectorAll('.hr_cro_review_spotlight_section').forEach(function (section) {
+        section.classList.toggle('ed_no_reviews', list.length === 0);
+        section.classList.toggle('ed_has_reviews', list.length > 0);
+      });
+      if (!readFromReviewsWidget()) return false;
+      if (!applied) {
+        applyToOurHeader(false);
+        applied = true;
+      } else {
+        applyToOurHeader(true);
+      }
+      fillCarouselFromReviewsList();
+      return true;
+    }
+
+    var root = document.getElementById('CroReviewsWidget');
+    if (root && typeof MutationObserver !== 'undefined') {
+      var obs = new MutationObserver(function () {
+        run();
+      });
+      obs.observe(root, { childList: true, subtree: true });
+    }
+
+    var attempts = 0;
+    var maxAttempts = 30;
+    function poll() {
+      if (run() || attempts >= maxAttempts) return;
+      attempts++;
+      setTimeout(poll, 500);
+    }
+    setTimeout(poll, 1000);
+  })();
+</script>
+
+<style>
+    .hr_cro_review_spotlight_section {
+        {% if block.settings.text_color != 'rgba(0,0,0,0)' %}
+            color: {{ block.settings.text_color }};
+        {% endif %}
+
+        {% if block.settings.background != 'rgba(0,0,0,0)' %}
+            background-color: {{ block.settings.background }};
+        {% endif %}
+        border-radius: {{ block.settings.rounded }}px;
+        padding: 26px 40px;
+        border: 1px solid #F3F4F9;
+        box-shadow: 0px 84px 34px rgba(156, 162, 176, 0.01), 0px 47px 28px rgba(156, 162, 176, 0.05), 0px 21px 21px rgba(156, 162, 176, 0.09), 0px 5px 12px rgba(156, 162, 176, 0.1);
+
+    }
+    .hr_review_spotlight-list {
+        display: block;
+        min-width: 100%;
+        text-align: left;
+    }
+
+    .hr_review_spotlight-item {
+        width: 100%;
+    }
+
+    header.hr_review__header {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 8px;
+      margin-bottom: 16px;
+  }
+
+  header.hr_review__header p {
+      margin: 0;
+      line-height: 1;
+      padding-top: 6px;
+  }
+
+    .hr_review_spotlight-item-content {
+        font-size: {{ block.settings.content_font_size }}px;
+        line-height: 1.5;
+        font-weight: {{ block.settings.content_font_weight }};
+        font-style: {{ block.settings.content_font_style }};
+    }
+    .hr_review_spotlight-item-stars {
+      gap: 2px;
+      display: flex;
+    }
+
+    .hr_review_spotlight-item-stars svg {
+      width: {{ block.settings.heading_font_size }}px;;
+      height: {{ block.settings.heading_font_size }}px;;
+      color: {{ block.settings.rating_color }};
+    }
+    .hr_review_spotlight-item-title {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 4px;
+      margin: 16px 0 0;
+    }
+
+    .hr_review_spotlight-item-title p {
+      margin: 0;
+      padding-top: 3px;
+      font-size: {{ block.settings.heading_font_size }}px;
+      font-weight: {{ block.settings.heading_font_weight }};
+      font-style: {{ block.settings.heading_font_style }};
+    }
+
+    ol.flickity-page-dots {
+        display: flex;
+        gap: 2px;
+        padding: 0;
+        margin: 0;
+    }
+    ol.flickity-page-dots li.dot {
+        width: 4px;
+        height: 4px;
+        font-size: 0;
+        background: {{ block.settings.pagination }};
+        border-radius: 50px;
+    }
+    .hr_cro_review_spotlight_section ol.flickity-page-dots li.dot {
+        margin: 0 4px !important;
+    }
+
+    ol.flickity-page-dots li.dot.is-selected {
+        background: {{ block.settings.active_pagination }};
+    }
+    @media (max-width: 741px) {
+        .hr_review_spotlight-item-title * {
+            font-size: {{ block.settings.heading_font_size_mobile }}px;
+        }
+        .hr_review_spotlight-item-content {
+            font-size: {{ block.settings.content_font_size_mobile }}px;
+        }
+    }
+    flickity-controls.ed_pdp_reviews_spotlight_nav {
+        position: absolute;
+        left: 8px;
+        width: calc(100% - 16px);
+        right: 8px;
+        top: calc(50%  + 8px);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-height: 1px;
+    }
+
+    .hr_cro_review_spotlight_section {
+        position: relative;
+    }
+
+    .ed_pdp_reviews_spotlight_nav .ed-product__media-prev-next[disabled] svg {
+        color: unset;
+    }
+
+    .hr_cro_review_spotlight_section.ed_no_reviews .hr_cro_review_spotlight_no_reviews {
+        display: block !important;
+    }
+
+    @media (max-width: 999px) {
+      header.hr_review__header {
+        flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
+      }
+    }
+
+    .hr_review_spotlight-item-stars {
+      --base-font-size: 16px;
+        --common-button-font-family: inherit;
+        --common-button-font-size: 16px;
+        --common-button-font-weight: 500;
+        --common-button-letter-spacing: 0;
+        --common-button-text-transform: none;
+        --common-button-vertical-padding: 10px;
+        --common-button-horizontal-padding: 20px;
+        --common-button-border-width: 2px;
+        --common-button-border-radius: 0px;
+        --primary-button-bg-color: #0E1311;
+        --primary-button-border-color: #0E1311;
+        --primary-button-text-color: #ffffff;
+        --secondary-button-bg-color: transparent;
+        --secondary-button-border-color: #0E1311;
+        --secondary-button-text-color: #0E1311;
+        --common-star-color: #0E1311;
+        --common-star-disabled-color: rgba(0, 0, 0, 0.25);
+        --medium-star-size: 22px;
+        --small-star-size: 19px;
+        --heading-text-color: #0E1311;
+        --heading-text-font-weight: 600;
+        --heading-text-font-family: inherit;
+        --heading-text-line-height: 1.4;
+        --heading-text-letter-spacing: 0;
+        --heading-text-transform: none;
+        --body-text-color: #0E1311;
+        --body-text-font-weight: 400;
+        --body-text-font-family: inherit;
+        --body-text-line-height: 1.4;
+        --body-text-letter-spacing: 0;
+        --body-text-transform: none;
+        --inputfield-text-font-family: inherit;
+        --input-text-font-size: 14px;
+        --inputfield-text-font-weight: 400;
+        --inputfield-text-color: #0E1311;
+        --inputfield-border-color: rgba(0, 0, 0, 0.2);
+        --inputfield-background-color: transparent;
+        --inputfield-border-width: 1px;
+        --inputfield-border-radius: 0px;
+        --common-border-color: rgba(0, 0, 0, 0.15);
+        --common-border-width: 1px;
+        --common-sidebar-width: 190px;
+        --filters-panel-bg-color: transparent;
+        --filters-panel-font-size: 16px;
+        --filters-panel-text-color: 16px;
+        --filters-panel-horizontal-padding: 0;
+        --filters-panel-vertical-padding: 0;
+        --slider-indicator-bg-color: rgba(0, 0, 0, 0.1);
+        --slider-indicator-button-color: #0E1311;
+        --slider-indicator-width: 190px;
+        --badge-icon-color: #0E1311;
+        --badge-icon-font-size: inherit;
+        --badge-text-color: #0E1311;
+        --badge-text-font-size: inherit;
+        --badge-text-letter-spacing: inherit;
+        --badge-text-transform: inherit;
+        --author-font-size: inherit;
+        --author-text-transform: none;
+        --avatar-thumbnail-size: 60px;
+        --avatar-thumbnail-border-radius: 100px;
+        --avatar-thumbnail-text-color: #0E1311;
+        --avatar-thumbnail-bg-color: rgba(0, 0, 0, 0.1);
+        --photo-video-thumbnail-size: 80px;
+        --photo-video-thumbnail-border-radius: 0px;
+        --mediaslider-scroll-button-icon-color: #0E1311;
+        --mediaslider-scroll-button-bg-color: rgba(255, 255, 255, 0.85);
+        --mediaslider-overlay-text-color: #ffffff;
+        --mediaslider-item-size: 110px;
+        --pagination-tab-text-color: #0E1311;
+        --pagination-tab-text-transform: none;
+        --pagination-tab-text-letter-spacing: 0;
+        --pagination-tab-text-font-size: 16px;
+        --pagination-tab-text-font-weight: 600;
+        --pagination-tab-active-text-color: #0E1311;
+        --pagination-tab-active-text-font-weight: 600;
+        --pagination-tab-active-border-color: #0E1311;
+        --pagination-tab-border-width: 3px;
+        --sentiment-base-font-size: 15px;
+        --sentiment-panel-bg-color: transparent;
+        --sentiment-panel-border-size: 1px;
+        --sentiment-panel-border-color: rgba(0, 0, 0, 0.1);
+        --sentiment-panel-border-radius: 0px;
+        --sentiment-panel-shadow-size: 0px;
+        --sentiment-panel-shadow-color: rgba(0, 0, 0, 0.1);
+        --sentiment-heading-text-color: #0E1311;
+        --sentiment-heading-text-font-weight: 600;
+        --sentiment-heading-text-font-family: inherit;
+        --sentiment-heading-text-line-height: 1.4;
+        --sentiment-heading-text-letter-spacing: 0;
+        --sentiment-heading-text-transform: none;
+        --sentiment-body-text-color: #0E1311;
+        --sentiment-body-text-font-weight: 400;
+        --sentiment-body-text-font-family: inherit;
+        --sentiment-body-text-line-height: 1.4;
+        --sentiment-body-text-letter-spacing: 0;
+        --sentiment-body-text-transform: none;
+        --sentiment-panel-vertical-padding: 25px;
+        --sentiment-panel-horizontal-padding: 20px;
+        --sentiment-header-text-color: inherit;
+        --sentiment-header-text-font-size: 12px;
+        --sentiment-header-text-font-weight: inherit;
+        --sentiment-header-bg-color: rgba(0, 0, 0, 0.04);
+        --sentiment-header-border-radius: 50px;
+        --sentiment-header-shadow-size: 0px;
+        --sentiment-header-shadow-color: rgba(0, 0, 0, 0.1);
+        --sentiment-header-vertical-padding: 7px;
+        --sentiment-header-horizontal-padding: 10px;
+        --sentiment-pagination-tab-text-font-size: 13px;
+        --sentiment-pagination-tab-text-font-weight: 600;
+        --sentiment-pagination-tab-text-color: #0E1311;
+        --sentiment-pagination-tab-text-transform: none;
+        --sentiment-pagination-tab-text-letter-spacing: 0;
+        --sentiment-pagination-tab-active-text-color: #0E1311;
+        --sentiment-pagination-tab-active-text-font-weight: 600;
+        --sentiment-pagination-tab-active-border-color: #0E1311;
+        --sentiment-pagination-tab-border-width: 3px;
+     }
+
+
+      .R-RatingStars .R-RatingStars__stars .stars__icon {
+         color: var(--common-star-color);
+         font-size: var(--medium-star-size, 22px);
+         line-height: 1
+     }
+
+      .R-RatingStars .R-RatingStars__stars .stars__icon--disabled {
+         color: var(--common-star-disabled-color)
+     }
+
+     @media only screen and (-ms-high-contrast: active), (-ms-high-contrast: none) {
+         .R-RatingStars .R-RatingStars__stars .stars__icon {
+             color: #0E1311;
+             font-size: 22px
+         }
+     }
+
+     .R-RatingStars .R-RatingStars__stars .stars__icon--0 {
+         color: var(--common-star-disabled-color);
+         background-image: linear-gradient(to right, var(--common-star-color) 0%, var(--common-star-disabled-color) .1%);
+         background-size: 100%;
+         -webkit-background-clip: text;
+         -moz-background-clip: text;
+         -webkit-text-fill-color: transparent;
+         -moz-text-fill-color: transparent
+     }
+
+     .R-RatingStars .R-RatingStars__stars .stars__icon--25 {
+         background-image: linear-gradient(to right, var(--common-star-color) 38%, var(--common-star-disabled-color) 38.1%);
+         background-size: 100%;
+         -webkit-background-clip: text;
+         -moz-background-clip: text;
+         -webkit-text-fill-color: transparent;
+         -moz-text-fill-color: transparent
+     }
+
+      .R-RatingStars .R-RatingStars__stars .stars__icon--50 {
+         background-image: linear-gradient(to right, var(--common-star-color) 50%, var(--common-star-disabled-color) 50.1%);
+         background-size: 100%;
+         -webkit-background-clip: text;
+         -moz-background-clip: text;
+         -webkit-text-fill-color: transparent;
+         -moz-text-fill-color: transparent
+     }
+
+      .R-RatingStars .R-RatingStars__stars .stars__icon--75 {
+         background-image: linear-gradient(to right, var(--common-star-color) 60%, var(--common-star-disabled-color) 60.1%);
+         background-size: 100%;
+         -webkit-background-clip: text;
+         -moz-background-clip: text;
+         -webkit-text-fill-color: transparent;
+         -moz-text-fill-color: transparent
+     }
+      .R-RatingStars .R-RatingStars__stars .stars__icon--100 {
+         background-image: linear-gradient(to right, var(--common-star-color) 99.9%, var(--common-star-color) 100%);
+         background-size: 100%;
+         -webkit-background-clip: text;
+         -moz-background-clip: text;
+         -webkit-text-fill-color: transparent;
+         -moz-text-fill-color: transparent
+     }
+
+     #CroReviewsWidget {
+        display: none;
+    }
+
+    .R-RatingStars__stars {
+        display: flex;
+    }
+
+    .R-RatingStars__stars > span {
+        display: flex;
+    }
+</style>
+{%- capture flickity_config -%}
+          {
+              "adaptiveHeight": true,
+              "cellSelector": ".hr_review_spotlight-item",
+              "draggable": {{ block.settings.draggable }},
+              "initialIndex": 0,
+              "fade": {{ block.settings.fade }},
+              "autoPlay": {{ block.settings.autoplay }},
+              "pauseAutoPlayOnHover": true,
+              "pageDots": {{ block.settings.pagedots }},
+              "wrapAround": {{ block.settings.loop }},
+              "prevNextButtons": true
+          }
+      {%- endcapture -%}
+
+<div class="hr_cro_review_spotlight_section">
+  <div class="hr_cro_review_spotlight_no_reviews" aria-hidden="true" style="display: none;">
+    <p>{{ 'product.reviews.no_reviews_yet' | t | default: '- Für dieses Produkt wurden noch keine Bewertungen abgegeben -' }}</p>
+  </div>
+
+
+  <header class="hr_review__header" data-reviewsio-header>
+    <span class="hr_review_spotlight-item-stars" data-reviewsio-stars></span>
+    <p class="hr_review_spotlight-count" data-reviewsio-count></p>
+  </header>
+
+  <div
+    id="flickity-{{ section.id }}"
+    class="hr_review_spotlight-list"
+    data-flickity-config="{{ flickity_config | escape }}"
+    aria-label="Reviews Carousel"
+  ></div>
+
+  <flickity-controls controls="flickity-{{ section.id }}" class="ed_pdp_reviews_spotlight_nav">
+    <button
+      class="ed-product__media-prev-next"
+      aria-label="{{ 'general.accessibility.previous' | t }}"
+      data-action="prev"
+    >
+      {%- render 'icon' with 'chevron-left' -%}
+    </button>
+
+    <button
+      class="ed-product__media-prev-next"
+      aria-label="{{ 'general.accessibility.next' | t }}"
+      data-action="next"
+    >
+      {%- render 'icon' with 'chevron-right' -%}
+    </button>
+  </flickity-controls>
+</div>

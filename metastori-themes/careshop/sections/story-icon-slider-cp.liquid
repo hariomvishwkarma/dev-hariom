@@ -1,0 +1,162 @@
+ <link rel="stylesheet" href="{{ 'story-icon.css' | asset_url }}">
+
+
+{% assign collection_handle = collection.handle %}
+{% assign matched_menu = null %}
+{% assign matched_level = null %}
+{% assign fallback_menu = null %}
+
+{% for link in linklists.main-menu.links %}
+  {% if matched_menu == null and link.url == collection.url %}
+    {% assign matched_menu = link %}
+    {% assign matched_level = 1 %}
+    {% if link.links.size > 0 %}
+      {% break %}
+    {% endif %}
+  {% endif %}
+
+  {% for sub_link in link.links %}
+    {% if matched_menu == null and sub_link.url == collection.url %}
+      {% assign matched_menu = sub_link %}
+      {% assign matched_level = 2 %}
+      {% if sub_link.links.size > 0 %}
+        {% break %}
+      {% endif %}
+    {% endif %}
+
+    {% for sub_sub_link in sub_link.links %}
+      {% if sub_sub_link.url == collection.url %}
+        {% assign fallback_menu = sub_sub_link %}
+        {% assign matched_level = 3 %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+{% endfor %}
+
+{% if matched_menu and matched_menu.links.size == 0 %}
+  {% assign matched_menu = null %}
+{% endif %}
+
+{% if matched_menu == null and fallback_menu %}
+  {% assign matched_menu = fallback_menu %}
+  {% assign matched_level = 3 %}
+{% endif %}
+
+
+
+
+
+
+
+{% assign story_items_quantity = 0 %}
+{% for block in section.blocks %}
+    {% if block.type == 'story-item' and block.settings.link != blank %}
+        {% assign story_items_quantity = story_items_quantity | plus: 1 %}
+    {% endif %}
+{% endfor %}
+
+{% if matched_menu and matched_menu.links.size > 0 %}
+    <div class="ed-section stories-wrapper stories-wrapper-{{ section.settings.section_story_icon_slider }}"
+         {% if section.settings.stories_bg_color != blank %}style="background-color: {{ section.settings.stories_bg_color }}"{% endif %}
+    >
+        <div class="inner">
+            <nav class="stories-nav {% if story_items_quantity <= 4 %}center-items{% endif %}">
+
+ {% for sub_link in matched_menu.links %}
+
+              
+                   
+                        <div class="story-item story-item-{{ section.settings.section_story_icon_slider }}">
+                          {% assign link = block.settings.link | downcase %}
+                          {% assign requestpath = request.path | downcase %}
+                            <a  class="story-link{% if link == requestpath %} active{% endif %}" href="{{ sub_link.url }}">
+                            
+                                {% if section.settings.section_story_icon_slider == 'show_bubbles' %}
+                                <div style="background-color:{{ section.settings.bubble-bg }};" class="image-wrapper">
+                                    {% if block.settings.svg_story_icon != blank %}
+                                        {{ block.settings.svg_story_icon }}
+                                    {% else %}
+                                        <img src="{{ block.settings.icon | img_url: '100x' }}"/>
+                                    {% endif %}
+                                </div>
+                                <div class="label-wrapper"
+                                     {% if section.settings.stories_text_color != blank %}style="color: {{ section.settings.stories_text_color }}"{% endif %}
+                                >
+                                    {{ sub_link.title }}
+                                </div>
+                                {% else %}
+                                    <div class="title__container"  style="border-color: {{ section.settings.stories_text_color }};background-color:{{ section.settings.bubble-bg }};">
+                                        <div class="label-wrapper"
+                                             {% if section.settings.stories_text_color != blank %}style="color: {{ section.settings.stories_text_color }}"{% endif %}
+                                        >
+                                          <span class="story-bubble-icon">{% render 'icon' with 'story-round'  %}</span>  {{ sub_link.title }}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </a>
+                        </div>
+                
+               {% endfor %}
+            </nav>
+        </div>
+    </div>
+{% endif %}
+
+<style>
+
+    {% if section.settings.section_story_icon_slider == 'show__titles' %}
+    .stories-wrapper .inner:after {
+        width: 0 !important;
+    }
+    {% endif %}
+</style>
+
+{% schema %}
+{
+"name": "Story-Icon-Slider cp",
+  "class": "section-shopify-icons-story",
+"tag": "section",
+"settings": [
+{
+"type": "header",
+"content": "Stories"
+},
+{
+"type": "select",
+"id": "section_story_icon_slider",
+"label": "Style",
+"options": [
+{
+"value": "show_bubbles",
+"label": "Show bubbles"
+},
+{
+"value": "show_titles",
+"label": "Show titles"
+}
+]
+},
+{
+"type": "color",
+"id": "stories_bg_color",
+"label": "Background Color"
+},
+  {
+"type": "color",
+"id": "bubble-bg",
+"label": "bubbles Background Color"
+},
+  
+{
+"type": "color",
+"id": "stories_text_color",
+"label": "Text Color"
+}
+],
+"presets": [
+{
+"name": "Story-Icon-Slider cp"
+}
+]
+}
+{% endschema %}

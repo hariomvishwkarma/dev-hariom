@@ -1,0 +1,222 @@
+{%- if localization.language.iso_code == 'en' -%}
+  {%- assign success_heading = 'Message received!' -%}
+  {%- capture success_message -%}
+    We will contact you within <strong class="formstack-success__highlight">24 hours</strong>.
+  {%- endcapture -%}
+{%- else -%}
+  {%- assign success_heading = 'Bericht ontvangen!' -%}
+  {%- capture success_message -%}
+    We nemen binnen <strong class="formstack-success__highlight">24 uur</strong> contact met je op.
+  {%- endcapture -%}
+{%- endif -%}
+
+<style>
+  #formstack-success[hidden] {
+    display: none !important;
+  }
+
+  @keyframes formstack-pop {
+    0% { transform: scale(0); opacity: 0; }
+    70% { transform: scale(1.15); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes formstack-draw {
+    to { stroke-dashoffset: 0; }
+  }
+
+  @keyframes formstack-fadein {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  #formstack-success .fs-circle {
+    animation: formstack-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.1s both;
+  }
+
+  #formstack-success .fs-check {
+    stroke-dasharray: 30;
+    stroke-dashoffset: 30;
+    animation: formstack-draw 0.35s ease-out 0.45s forwards;
+  }
+
+  #formstack-success .fs-text {
+    animation: formstack-fadein 0.4s ease-out 0.6s both;
+  }
+
+  #formstack-success .formstack-success__highlight {
+    color: #111;
+  }
+</style>
+
+<div id="formstack-success" hidden style="padding: 44px 32px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+  <div class="fs-circle" style="width: 52px; height: 52px; border-radius: 50%; background: #153145; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+      <path class="fs-check" d="M4.5 11l5 5L17.5 6" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <div class="fs-text">
+    <h3 style="margin: 0 0 10px; font-size: 22px; font-weight: 700; color: #111; letter-spacing: -0.3px;">{{ success_heading }}</h3>
+    <p style="margin: 0 auto; font-size: 15px; color: #555; line-height: 1.65; max-width: 300px;">
+      {{ success_message }}
+    </p>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var IGNORED_PARAMS = {
+      hcUrl: true,
+      utm_source: true,
+      utm_medium: true,
+      utm_campaign: true,
+      utm_term: true,
+      utm_content: true,
+      gclid: true,
+      fbclid: true
+    };
+
+    function isFormstackRedirect() {
+      var params = new URLSearchParams(window.location.search);
+      var keys = [];
+
+      params.forEach(function (_value, key) {
+        if (!IGNORED_PARAMS[key]) {
+          keys.push(key);
+        }
+      });
+
+      return keys.length > 0;
+    }
+
+    function findFormstackRoot() {
+      return document.querySelector('[id^="fsForm-"]') || document.querySelector('[id^="fsform-container-"]');
+    }
+
+    function cleanSubmitUrl() {
+      var params = new URLSearchParams(window.location.search);
+      var hcUrl = params.get('hcUrl');
+      var cleanUrl = window.location.pathname;
+
+      if (hcUrl) {
+        cleanUrl += '?hcUrl=' + encodeURIComponent(hcUrl);
+      }
+
+      window.history.replaceState({}, '', cleanUrl);
+    }
+
+    function hideFormstackEmbed(embed) {
+      if (!embed) {
+        return;
+      }
+
+      embed.querySelectorAll('[id^="fsForm-"], [id^="fsform-container-"]').forEach(function (node) {
+        node.hidden = true;
+        node.style.display = 'none';
+      });
+    }
+
+    function isSuccessInView(el) {
+      var rect = el.getBoundingClientRect();
+      var vh = window.innerHeight || document.documentElement.clientHeight;
+      var visibleHeight = Math.min(rect.bottom, vh) - Math.max(rect.top, 0);
+
+      return visibleHeight >= Math.min(el.offsetHeight * 0.5, 120);
+    }
+
+    function scrollToSuccess(success, smooth) {
+      success.scrollIntoView({
+        behavior: smooth ? 'smooth' : 'auto',
+        block: 'center'
+      });
+    }
+
+    function watchSuccessScroll(success) {
+      var watchEnd = Date.now() + 5000;
+      var hasScrolled = false;
+
+      function checkScroll() {
+        if (!success || Date.now() >= watchEnd) {
+          return;
+        }
+
+        if (!isSuccessInView(success)) {
+          scrollToSuccess(success, !hasScrolled);
+          hasScrolled = true;
+        }
+      }
+
+      checkScroll();
+
+      var scrollPoll = window.setInterval(function () {
+        if (Date.now() >= watchEnd) {
+          window.clearInterval(scrollPoll);
+          return;
+        }
+
+        checkScroll();
+      }, 250);
+    }
+
+    function showSuccess() {
+      var formRoot = findFormstackRoot();
+      var success = document.getElementById('formstack-success');
+      var embed = document.querySelector('[data-contact-form-embed]');
+
+      if (!success) {
+        return;
+      }
+
+      if (formRoot) {
+        formRoot.hidden = true;
+        formRoot.style.display = 'none';
+        formRoot.parentNode.insertBefore(success, formRoot);
+      } else if (embed) {
+        hideFormstackEmbed(embed);
+        embed.appendChild(success);
+      }
+
+      success.hidden = false;
+      success.removeAttribute('hidden');
+
+      watchSuccessScroll(success);
+      cleanSubmitUrl();
+    }
+
+    function init() {
+      if (!isFormstackRedirect()) {
+        return;
+      }
+
+      var shown = false;
+      var pollEnd = Date.now() + 5000;
+
+      function tryShowSuccess() {
+        if (shown) {
+          return;
+        }
+
+        shown = true;
+        showSuccess();
+      }
+
+      if (findFormstackRoot()) {
+        tryShowSuccess();
+        return;
+      }
+
+      var formPoll = window.setInterval(function () {
+        if (findFormstackRoot() || Date.now() >= pollEnd) {
+          window.clearInterval(formPoll);
+          tryShowSuccess();
+        }
+      }, 200);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+</script>

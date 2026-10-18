@@ -1,0 +1,280 @@
+{%- liquid
+  comment
+    Use the main product page's product instead of a separate selector
+    This ensures the Buy Now button (Gokwik) reads the correct product
+  endcomment
+  assign sticky_product = product
+ 
+  if sticky_product == blank or section.settings.enable_sticky_bar == false
+    assign render_bar = false
+  else
+    assign render_bar = true
+    assign current_variant = sticky_product.selected_or_first_available_variant
+    assign variant_count = sticky_product.variants.size
+  endif
+-%}
+
+{%- if render_bar -%}
+  {%- liquid
+    if current_variant.image
+      assign sticky_image = current_variant.image
+    else
+      assign sticky_image = sticky_product.featured_image
+    endif
+
+    assign compare_price = current_variant.compare_at_price
+    assign price = current_variant.price
+    assign product_form_id = 'page-sticky-form-' | append: section.id
+  -%}
+
+  {{ 'component-page-sticky-product-bar.css' | asset_url | stylesheet_tag }}
+
+  <page-sticky-product-bar
+    id="page-sticky-product-bar-{{ section.id }}"
+    class="page-sticky-product-bar{% if section.settings.show_on_scroll %} page-sticky-product-bar--scroll{% endif %}"
+    data-page-sticky-product-bar
+    data-section-id="{{ section.id }}"
+    data-scroll-offset="{{ section.settings.scroll_offset }}"
+    data-show-price-after-faq="{{ section.settings.show_price_after_faq }}"
+    data-faq-selector="{{ section.settings.faq_selector | escape }}"
+    style="--pspb-accent: {{ section.settings.accent_color }}; --pspb-bg: {{ section.settings.bar_background }};"
+  >
+    <div class="page-sticky-product-bar__inner">
+      <div class="page-sticky-product-bar__main">
+        {%- if section.settings.show_image and sticky_image != blank -%}
+          <div class="page-sticky-product-bar__media" data-pspb-image>
+            {{
+              sticky_image
+              | image_url: width: 160
+              | image_tag:
+                class: 'page-sticky-product-bar__image',
+                loading: 'lazy',
+                widths: '80, 120, 160',
+                sizes: '72px',
+                alt: sticky_image.alt | default: sticky_product.title | escape
+            }}
+          </div>
+        {%- endif -%}
+
+        <div class="page-sticky-product-bar__info">
+          <h2 class="page-sticky-product-bar__title">{{ sticky_product.title | escape }}</h2>
+
+          {%- if variant_count > 1 -%}
+            <div class="page-sticky-product-bar__variant-wrap">
+              <label class="visually-hidden" for="pspb-variant-{{ section.id }}">
+                {{ 'products.product.select_options' | t }}
+              </label>
+              <select
+                id="pspb-variant-{{ section.id }}"
+                class="page-sticky-product-bar__variant-select"
+                data-pspb-variant-select
+                aria-label="{{ 'products.product.select_options' | t }}"
+              >
+                {%- for variant in sticky_product.variants -%}
+                  <option
+                    value="{{ variant.id }}"
+                    {% if variant.id == current_variant.id %}selected{% endif %}
+                    {% unless variant.available %}disabled{% endunless %}
+                    data-title="{{ variant.title | escape }}"
+                    data-price="{{ variant.price }}"
+                    data-compare-price="{{ variant.compare_at_price | default: 0 }}"
+                    data-available="{{ variant.available }}"
+                    {% if variant.image %}data-image-url="{{ variant.image | image_url: width: 160 }}"{% endif %}
+                  >
+                    {{ variant.title }}
+                    {%- unless variant.available -%} — {{ 'products.product.sold_out' | t }}{%- endunless -%}
+                  </option>
+                {%- endfor -%}
+              </select>
+            </div>
+          {%- else -%}
+            <span class="page-sticky-product-bar__variant-badge" data-pspb-variant-badge>
+              {{ current_variant.title | escape }}
+            </span>
+          {%- endif -%}
+
+          <div class="page-sticky-product-bar__price{% if compare_price > price %} page-sticky-product-bar__price--sale{% endif %}{% if section.settings.show_price_after_faq %} is-hidden{% endif %}" data-pspb-price>
+            {%- if compare_price > price -%}
+              <s class="page-sticky-product-bar__compare" data-pspb-compare>
+                <span class="money">{{ compare_price | money }}</span>
+              </s>
+            {%- endif -%}
+            <span class="page-sticky-product-bar__current" data-pspb-current>
+              <span class="money">{{ price | money }}</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="page-sticky-product-bar__actions">
+          {%- comment -%} Use the main product page form instead of creating a separate form {%- endcomment -%}
+          <div class="page-sticky-product-bar__form form" data-pspb-form="">
+            <input type="hidden" name="id" value="{{ current_variant.id }}" data-pspb-variant-input>
+
+            {%- if section.settings.show_quantity -%}
+              <div class="page-sticky-product-bar__quantity" data-pspb-quantity>
+                <div class="quantity__container">
+                  <button type="button" name="minus" class="minus btn-quantity" data-pspb-qty-minus aria-label="{{ 'products.product.quantity.decrease' | t: product: sticky_product.title | escape }}">
+                    <span aria-hidden="true">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="2" viewBox="0 0 14 2" fill="none">
+                        <path d="M12.9375 0.995361L0.994463 0.99536" stroke="black" stroke-width="2.5" stroke-linecap="round"/>
+                      </svg>
+                    </span>
+                  </button>
+                  <input
+                    class="form-input quantity__input"
+                    type="number"
+                    name="quantity"
+                    min="1"
+                    value="1"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    id="pspb-quantity-{{ section.id }}"
+                    data-pspb-qty-input
+                    data-price="{{ current_variant.price }}"
+                  >
+                  <button type="button" name="plus" class="plus btn-quantity" data-pspb-qty-plus aria-label="{{ 'products.product.quantity.increase' | t: product: sticky_product.title | escape }}">
+                    <span aria-hidden="true">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M6.96582 0.248779C7.37802 0.248779 7.71184 0.582689 7.71191 0.994873V6.22046H12.9375C13.3496 6.22064 13.6836 6.55442 13.6836 6.96655C13.6834 7.37853 13.3495 7.71246 12.9375 7.71265H7.71191V12.9382C7.71174 13.3503 7.37796 13.6843 6.96582 13.6843C6.55375 13.6842 6.2199 13.3503 6.21973 12.9382V7.71265H0.994141C0.582157 7.71247 0.248234 7.37853 0.248047 6.96655C0.248047 6.55441 0.582041 6.22063 0.994141 6.22046H6.21973V0.994873C6.2198 0.582736 6.55368 0.248856 6.96582 0.248779Z" fill="black"/>
+                        <path d="M6.96582 0.248779V-3.39895e-05H6.96577L6.96582 0.248779ZM7.71191 0.994873H7.96073V0.994828L7.71191 0.994873ZM7.71191 6.22046H7.4631V6.46927H7.71191V6.22046ZM12.9375 6.22046L12.9376 5.97165H12.9375V6.22046ZM13.6836 6.96655L13.9324 6.96667V6.96655H13.6836ZM12.9375 7.71265V7.96146H12.9376L12.9375 7.71265ZM7.71191 7.71265V7.46383H7.4631V7.71265H7.71191ZM7.71191 12.9382L7.96073 12.9383V12.9382H7.71191ZM6.96582 13.6843L6.96577 13.9331H6.96582V13.6843ZM6.21973 12.9382H5.97091V12.9383L6.21973 12.9382ZM6.21973 7.71265H6.46854V7.46383H6.21973V7.71265ZM0.994141 7.71265L0.994035 7.96146H0.994141V7.71265ZM0.248047 6.96655H-0.000766441L-0.000766382 6.96667L0.248047 6.96655ZM0.994141 6.22046V5.97165H0.994035L0.994141 6.22046ZM6.21973 6.22046V6.46927H6.46854V6.22046H6.21973ZM6.21973 0.994873L5.97091 0.994828V0.994873H6.21973ZM6.96582 0.248779V0.497593C7.24056 0.497593 7.46305 0.72007 7.4631 0.994918L7.71191 0.994873L7.96073 0.994828C7.96063 0.445308 7.51548 -3.39597e-05 6.96582 -3.39895e-05V0.248779ZM7.71191 0.994873H7.4631V6.22046H7.71191H7.96073V0.994873H7.71191ZM7.71191 6.22046V6.46927H12.9375V6.22046V5.97165H7.71191V6.22046ZM12.9375 6.22046L12.9374 6.46927C13.2123 6.46939 13.4348 6.69195 13.4348 6.96655H13.6836H13.9324C13.9324 6.41689 13.4869 5.97189 12.9376 5.97165L12.9375 6.22046ZM13.6836 6.96655L13.4348 6.96644C13.4347 7.24109 13.212 7.46371 12.9374 7.46383L12.9375 7.71265L12.9376 7.96146C13.4869 7.96122 13.9322 7.51597 13.9324 6.96667L13.6836 6.96655ZM12.9375 7.71265V7.46383H7.71191V7.71265V7.96146H12.9375V7.71265ZM7.71191 7.71265H7.4631V12.9382H7.71191H7.96073V7.71265H7.71191ZM7.71191 12.9382L7.4631 12.9381C7.46298 13.213 7.24044 13.4355 6.96582 13.4355V13.6843V13.9331C7.51548 13.9331 7.96049 13.4877 7.96073 12.9383L7.71191 12.9382ZM6.96582 13.6843L6.96587 13.4355C6.69123 13.4355 6.46866 13.2129 6.46854 12.9381L6.21973 12.9382L5.97091 12.9383C5.97115 13.4877 6.41626 13.933 6.96577 13.9331L6.96582 13.6843ZM6.21973 12.9382H6.46854V7.71265H6.21973H5.97091V12.9382H6.21973ZM6.21973 7.71265V7.46383H0.994141V7.71265V7.96146H6.21973V7.71265ZM0.994141 7.71265L0.994246 7.46383C0.719603 7.46372 0.496985 7.2411 0.49686 6.96644L0.248047 6.96655L-0.000766382 6.96667C-0.000516921 7.51597 0.44471 7.96123 0.994035 7.96146L0.994141 7.71265ZM0.248047 6.96655H0.49686C0.49686 6.69193 0.719375 6.46939 0.994246 6.46927L0.994141 6.22046L0.994035 5.97165C0.444707 5.97188 -0.000766367 6.41689 -0.000766411 6.96655H0.248047ZM0.994141 6.22046V6.46927H6.21973V6.22046V5.97165H0.994141V6.22046ZM6.21973 6.22046H6.46854V0.994873H6.21973H5.97091V6.22046H6.21973ZM6.21973 0.994873L6.46854 0.994918C6.46859 0.720164 6.69111 0.497644 6.96587 0.497593L6.96582 0.248779L6.96577 -3.39895e-05C6.41626 6.86049e-05 5.97101 0.445309 5.97091 0.994828L6.21973 0.994873Z" fill="black"/>
+                      </svg>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            {%- endif -%}
+
+            <div class="page-sticky-product-bar__buttons">
+              {%- if section.settings.show_buy_now and settings.goBuynowEnable -%}
+                <div class="page-sticky-product-bar__buy-now" data-pspb-buy-now-wrap>
+                  {% render 'gokwik-buy-now' %}
+                </div>
+              {%- endif -%}
+
+              <button
+                type="submit"
+                name="add"
+                class="page-sticky-product-bar__atc button button--primary"
+                data-pspb-atc
+                {% unless current_variant.available %}disabled{% endunless %}
+              >
+                {%- if current_variant.available -%}
+                  {%- if section.settings.atc_label != blank -%}
+                    {{ section.settings.atc_label }}
+                  {%- else -%}
+                    {{ 'products.product.add_to_cart' | t }}
+                  {%- endif -%}
+                {%- else -%}
+                  {{ 'products.product.sold_out' | t }}
+                {%- endif -%}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </page-sticky-product-bar>
+
+  <script src="{{ 'page-sticky-product-bar.js' | asset_url }}" defer="defer"></script>
+
+  <style>
+    body.template-page:has(#page-sticky-product-bar-{{ section.id }}.is-visible) {
+      padding-bottom: var(--page-sticky-bar-offset, 7.5rem);
+    }
+  </style>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Page sticky product bar",
+  "class": "shopify-section-page-sticky-product-bar",
+  "limit": 1,
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_sticky_bar",
+      "label": "Show sticky product bar",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Display"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_image",
+      "label": "Show product image",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_quantity",
+      "label": "Show quantity selector",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_buy_now",
+      "label": "Show Buy Now button (Gokwik)",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "atc_label",
+      "label": "Add to cart button label",
+      "info": "Leave blank to use theme default translation."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_price_after_faq",
+      "label": "Show price only after FAQ section",
+      "default": true,
+      "info": "Sticky bar stays visible. Price appears after the full FAQ section has scrolled past the ATC button."
+    },
+    {
+      "type": "text",
+      "id": "faq_selector",
+      "label": "FAQ section CSS selector",
+      "default": ".faqs-section"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_on_scroll",
+      "label": "Only show bar after scrolling (px)",
+      "default": false,
+      "info": "When off, the sticky bar is always visible at the bottom."
+    },
+    {
+      "type": "range",
+      "id": "scroll_offset",
+      "min": 100,
+      "max": 1200,
+      "step": 50,
+      "unit": "px",
+      "label": "Scroll distance before showing",
+      "default": 300
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "bar_background",
+      "label": "Bar background",
+      "default": "#f3f3f3"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent (buttons & borders)",
+      "default": "#2cb67d"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Page sticky product bar"
+    }
+  ]
+}
+{% endschema %}

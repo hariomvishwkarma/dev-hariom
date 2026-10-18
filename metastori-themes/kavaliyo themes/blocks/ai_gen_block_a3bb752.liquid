@@ -1,0 +1,199 @@
+{% doc %}
+  @prompt
+    Erstelle mir einen benutzerdefinierten Shopify-Abschnitt namens "Button",
+    der ausschließlich einen einzelnen Button darstellt – ohne Überschrift,
+    ohne Logos, ohne weitere Elemente.
+    
+    LAYOUT & DESIGN:
+    - Ein zentrierter Button mit Text und einem Pfeil rechts daneben (→).
+      Standardtext: "Alle Marken entdecken"
+    - Der Button soll wahlweise im Outline-Stil (transparenter Hintergrund,
+      farbiger Rahmen, farbiger Text) oder im gefüllten Stil (farbiger
+      Hintergrund, andersfarbiger Text) dargestellt werden können.
+    - Beim Hover färbt sich der Button dezent um: Im Outline-Stil füllt er
+      sich mit der Button-Farbe und der Text wechselt zur Hover-Textfarbe;
+      der Pfeil bewegt sich leicht nach rechts.
+    - Abgerundete Ecken, angenehmer Innenabstand.
+    - Klick auf den Button führt zur hinterlegten Kollektion.
+    
+    ANPASSBARE EINSTELLUNGEN (Schema):
+    - Button-Text (Textfeld), Standard: "Alle Marken entdecken"
+    - Button-Kollektion (Collection-Auswahl) – Ziel beim Klick
+    - Button-Stil (Auswahl: Outline / Gefüllt), Standard: Outline
+    - Button-Farbe (Farbauswahl, per Hexcode eingebbar), Standard: #1F1F45
+      (Rahmen im Outline-Stil, Hintergrund im gefüllten Stil, Füllfarbe beim Hover)
+    - Textfarbe (Farbauswahl, per Hexcode eingebbar), Standard: #1F1F45
+    - Hover-Textfarbe (Farbauswahl, per Hexcode eingebbar), Standard: #FFFFFF
+    
+    WICHTIG:
+    - Der Abschnitt enthält NUR den Button, sonst nichts.
+    - Alle Farben müssen frei über einen Hexcode anpassbar sein.
+    - Der Abschnitt soll vollständig responsiv sein.
+    - Erstelle den passenden {% schema %}-Block inklusive presets,
+      damit ich alles bequem im Theme-Editor bearbeiten kann.
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-button-container-{{ ai_gen_id }} {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  .ai-button-link-{{ ai_gen_id }} {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 28px;
+    font-size: 16px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+  }
+
+  {% if block.settings.button_style == 'outline' %}
+    .ai-button-link-{{ ai_gen_id }} {
+      background-color: transparent;
+      border: 2px solid {{ block.settings.button_color }};
+      color: {{ block.settings.text_color }};
+    }
+
+    .ai-button-link-{{ ai_gen_id }}:hover {
+      background-color: {{ block.settings.button_color }};
+      color: {{ block.settings.hover_text_color }};
+    }
+  {% else %}
+    .ai-button-link-{{ ai_gen_id }} {
+      background-color: {{ block.settings.button_color }};
+      border: 2px solid {{ block.settings.button_color }};
+      color: {{ block.settings.text_color }};
+    }
+
+    .ai-button-link-{{ ai_gen_id }}:hover {
+      background-color: {{ block.settings.button_color }};
+      opacity: 0.9;
+      color: {{ block.settings.hover_text_color }};
+    }
+  {% endif %}
+
+  .ai-button-arrow-{{ ai_gen_id }} {
+    display: inline-block;
+    transition: transform 0.3s ease;
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .ai-button-link-{{ ai_gen_id }}:hover .ai-button-arrow-{{ ai_gen_id }} {
+    transform: translateX(4px);
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-button-link-{{ ai_gen_id }} {
+      padding: 12px 24px;
+      font-size: 15px;
+    }
+  }
+{% endstyle %}
+
+<button-block-{{ ai_gen_id }} class="ai-button-container-{{ ai_gen_id }}" {{ block.shopify_attributes }}>
+  {% if block.settings.button_collection != blank %}
+    <a href="{{ block.settings.button_collection.url }}" class="ai-button-link-{{ ai_gen_id }}">
+      <span>{{ block.settings.button_text }}</span>
+      <span class="ai-button-arrow-{{ ai_gen_id }}">→</span>
+    </a>
+  {% else %}
+    <a href="#" class="ai-button-link-{{ ai_gen_id }}">
+      <span>{{ block.settings.button_text }}</span>
+      <span class="ai-button-arrow-{{ ai_gen_id }}">→</span>
+    </a>
+  {% endif %}
+</button-block-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class ButtonBlock{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+      }
+
+      connectedCallback() {
+        const link = this.querySelector('.ai-button-link-{{ ai_gen_id }}');
+        if (link && link.getAttribute('href') === '#') {
+          link.addEventListener('click', (e) => {
+            e.preventDefault();
+          });
+        }
+      }
+    }
+
+    customElements.define('button-block-{{ ai_gen_id }}', ButtonBlock{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Button",
+  "settings": [
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button text",
+      "default": "Alle Marken entdecken"
+    },
+    {
+      "type": "collection",
+      "id": "button_collection",
+      "label": "Collection"
+    },
+    {
+      "type": "header",
+      "content": "Style"
+    },
+    {
+      "type": "select",
+      "id": "button_style",
+      "label": "Button style",
+      "options": [
+        {
+          "value": "outline",
+          "label": "Outline"
+        },
+        {
+          "value": "filled",
+          "label": "Filled"
+        }
+      ],
+      "default": "outline"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button color",
+      "default": "#1F1F45"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#1F1F45"
+    },
+    {
+      "type": "color",
+      "id": "hover_text_color",
+      "label": "Hover text color",
+      "default": "#FFFFFF"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Button"
+    }
+  ]
+}
+{% endschema %}

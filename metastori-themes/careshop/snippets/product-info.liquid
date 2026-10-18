@@ -1,0 +1,431 @@
+{%- capture product_form_id -%}product-form-{{ section.id }}-{{ product.id }}{%- endcapture -%}
+
+{% if section.settings.show_application_steps %}
+  <div class="ed-application-steps-snippet">
+    {% render 'ed-application-steps',
+            application_steps_image_1: section.settings.application_steps_image_1,
+            application_steps_image_2: section.settings.application_steps_image_2,
+            application_steps_image_3: section.settings.application_steps_image_3,
+            application_steps_image_4: section.settings.application_steps_image_4,
+            application_steps_text_1: section.settings.application_steps_text_1,
+            application_steps_text_2: section.settings.application_steps_text_2,
+            application_steps_text_3: section.settings.application_steps_text_3,
+            application_steps_text_4: section.settings.application_steps_text_4,
+            application_steps_background: section.settings.application_steps_background,
+            application_steps_color: section.settings.application_steps_color,
+            font_size_application_steps: section.settings.font_size_application_steps
+    %}
+  </div>
+{% endif %}
+
+<div class="product__info {% if section.settings.enable_buy_box %}ed-buy-box{% endif %}"
+{% if section.settings.enable_buy_box  %}
+        style="
+                border-color: {{ section.settings.buy_box_border_color }};
+                background-color: {{ section.settings.buy_box_bg_color }};
+                border-radius: {{ section.settings.buy_box_border_radius | append: 'px' }};
+                "
+{% endif %}>
+
+  {% comment %} ELBDEV: BUY BOX {% endcomment %}
+
+  {% if section.settings.enable_social_proof %}
+    <div class="ed-social-proof-banner"
+         style="background-color: {{ section.settings.social_proof_background }};
+                 {% if section.settings.enable_buy_box %}
+                         border-top-left-radius: {{ section.settings.buy_box_border_radius | append: 'px' }};
+                         border-top-right-radius: {{ section.settings.buy_box_border_radius | append: 'px' }};
+                 {% else %}
+                 border-radius: {{ section.settings.social_proof_box_style }};
+                 {% endif %}">
+    {% render 'ed-social-proof-banner',
+            img_1: section.settings.social_proof_image_1,
+            img_2: section.settings.social_proof_image_2,
+            text_social_proof: section.settings.text_social_proof,
+            ppl_social_proof: section.settings.ppl_social_proof,
+            enable_text_bold: section.settings.enable_text_bold,
+            enable_insta_checkmark: section.settings.enable_insta_checkmark,
+            social_proof_text: section.settings.social_proof_text
+    %}
+  </div>
+  {% endif %}
+
+
+  {% if section.settings.show_brand and product.vendor %}
+          <div class="custom-brand">
+{% assign vendor = product.vendor | downcase | replace:' ','-' %}
+          {% if shop.metaobjects['brand_images'][vendor].url.value != blank   %}
+             <div class="brand-info">
+                <p>Brand:</p>
+                <a href="/collections/vendors?q={{ product.vendor | url_encode }}">
+                  <img src="{{ shop.metaobjects['brand_images'][vendor].url.value }}" alt="{{ product.vendor }}">
+                </a>
+              </div>
+            {% endif %}
+           
+          </div>
+        {% endif %}
+
+{% assign data_herstellerangaben = settings.data-herstellerangaben | newline_to_br | split: '<br />' %}
+  
+{% assign vendor = product.vendor %}
+{% assign vendor_handle = vendor %}  
+
+{% unless shop.metaobjects['hersteller_bilder'][vendor] %}
+  {% assign vendor_handle = '' %}
+
+  {% for entry in data_herstellerangaben %}
+    {% assign parts = entry | strip | split: ':' %}
+    {% assign mapped_vendor = parts[0] | strip %}
+    {% assign handle = parts[1] | strip %}
+    
+    {% if vendor == mapped_vendor %}
+      {% assign vendor_handle = handle %}
+      {% break %}
+    {% endif %}
+  {% endfor %}
+{% endunless %}
+
+{% if vendor_handle != '' and shop.metaobjects['hersteller_bilder'][vendor_handle] %}
+  <div class="custom-manufacture-outer">
+    <div style="background-color: {{ section.settings.manufacture_background }};
+      {% if section.settings.enable_buy_box %}
+        border-top-left-radius: {{ section.settings.buy_box_border_radius | append: 'px' }};
+        border-top-right-radius: {{ section.settings.buy_box_border_radius | append: 'px' }};
+      {% else %}
+        border-radius: {{ section.settings.manufacture_border }};
+      {% endif %}"
+      class="inner-manufacture">
+      <div class="inner-manufacture-content">
+        <h3 style="color:{{ section.settings.manufacture_text_color }};" class="manufacture-heading">
+          {{ section.settings.manufacture_text }}
+        </h3>
+
+        
+        {% if shop.metaobjects['hersteller_bilder'][vendor_handle].hersteller_bild.value %}
+          <img class="manfacturere-image-custom{% if shop.metaobjects['hersteller_bilder'][vendor_handle].big_logo_size.value == true %} big-img-logo-hersteller{% endif %}" sizes="(max-width: 740px) calc(100vw - 96px), (max-width: 999px) calc(100vw - 160px), 600px"
+            {% render 'image-attributes', image: shop.metaobjects['hersteller_bilder'][vendor_handle].hersteller_bild.value, sizes: '600' %}>                            
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+
+  
+
+
+  
+
+  <!-- PRODUCT META -->
+  <product-meta form-id="{{ product_form_id }}" price-class="price--large" class="product-meta">
+    {%- if section.settings.show_vendor -%}
+      <h2 class="product-meta__vendor heading heading--small">
+        {%- assign vendor_handle = product.vendor | handle -%}
+        {%- assign vendor_collection = collections[vendor_handle] -%}
+
+        {%- if vendor_collection != blank -%}
+          <a href="{{ vendor_collection.url }}">{{ product.vendor }}</a>
+        {%- else -%}
+          <a href="{{ product.vendor | url_for_vendor }}">{{ product.vendor }}</a>
+        {%- endif -%}
+      </h2>
+    {%- endif -%}
+
+    {% if settings.enable_badge_pdp %}
+      <div class="ed-badge-pdp">
+        {% render 'ed-badge',
+                product: product,
+                color_badge: settings.color_badge_pdp,
+                color_badge_text: settings.color_badge_text_pdp
+        %}
+      </div>
+
+    {% endif %}
+
+    {% unless featured %}
+      <h1 class="product-meta__title heading h3">{{ product.title }}</h1>
+    {% else %}
+      <h2 class="product-meta__title heading h3">
+        <a href="{{ product.url }}">{{ product.title }}</a>
+      </h2>
+    {% endunless %}
+
+    {% if settings.show_teaser_on_pdp %}
+      {% if product.metafields.standard.product_teaser != blank %}
+        <div class="product__teaser" {% if settings.color_teaser_on_product != 'rgba(0,0,0,0)' %} style="color: {{ settings.color_teaser_on_product }}" {% endif %}>{{  product.metafields.standard.product_teaser }}</div>
+      {%- endif -%}
+    {% endif %}
+
+    <div class="product-meta__price-list-container" role="region" aria-live="polite">
+      <div class="price-list" data-product-price-list>
+        {%- if product.selected_or_first_available_variant.compare_at_price > product.selected_or_first_available_variant.price -%}
+          <span class="price price--highlight price--large" data-ed-price="{{ product.selected_or_first_available_variant.price }}">
+            <span class="visually-hidden">{{ 'product.general.sale_price' | t }}</span>
+
+            {%- if settings.currency_code_enabled -%}
+              {{- product.selected_or_first_available_variant.price | money_with_currency -}}
+            {%- else -%}
+              {{- product.selected_or_first_available_variant.price | money -}}
+            {%- endif -%}
+          </span>
+
+          <span class="price price--compare" data-ed-compare-price="{{ product.selected_or_first_available_variant.compare_at_price }}">
+            <span class="visually-hidden">{{ 'product.general.regular_price' | t }}</span>
+
+            {%- if settings.currency_code_enabled -%}
+              {{- product.selected_or_first_available_variant.compare_at_price | money_with_currency -}}
+            {%- else -%}
+              {{- product.selected_or_first_available_variant.compare_at_price | money -}}
+            {%- endif -%}
+          </span>
+        {%- else -%}
+          <span class="price price--large" data-ed-price="{{ product.selected_or_first_available_variant.price }}">
+            <span class="visually-hidden">{{ 'product.general.sale_price' | t }}</span>
+            {%- if settings.currency_code_enabled -%}
+              {{- product.selected_or_first_available_variant.price | money_with_currency -}}
+            {%- else -%}
+              {{- product.selected_or_first_available_variant.price | money -}}
+            {%- endif -%}
+          </span>
+        {%- endif -%}
+
+        {%- if product.selected_or_first_available_variant.unit_price_measurement -%}
+          <div class="price text--subdued">
+            <div class="unit-price-measurement">
+              <span class="unit-price-measurement__price">({{ product.selected_or_first_available_variant.unit_price | money }}</span>
+              <span class="unit-price-measurement__separator">/</span>
+
+              {%- if product.selected_or_first_available_variant.unit_price_measurement.reference_value != 1 -%}
+                <span class="unit-price-measurement__reference-value">{{ product.selected_or_first_available_variant.unit_price_measurement.reference_value }}</span>
+              {%- endif -%}
+
+              <span class="unit-price-measurement__reference-unit">{{ product.selected_or_first_available_variant.unit_price_measurement.reference_unit }})</span>
+            </div>
+          </div>
+        {%- endif -%}
+      </div>
+
+      <div class="product-meta__label-list label-list" data-product-label-list>
+        {%- unless product.selected_or_first_available_variant.available -%}
+          <span class="label label--subdued">{{ 'collection.product.sold_out' | t }}</span>
+        {%- elsif product.selected_or_first_available_variant.compare_at_price > product.selected_or_first_available_variant.price -%}
+          {%- if settings.discount_mode == 'percentage' -%}
+            {%- assign savings = product.selected_or_first_available_variant.compare_at_price | minus: product.selected_or_first_available_variant.price | times: 100.0 | divided_by: product.selected_or_first_available_variant.compare_at_price | round | append: '%' -%}
+          {%- else -%}
+            {%- capture savings -%}{{ product.selected_or_first_available_variant.compare_at_price | minus: product.selected_or_first_available_variant.price | money }}{%- endcapture -%}
+          {%- endif -%}
+
+          <span class="label label--highlight">{{ 'collection.product.discount_html' | t: savings: savings }}</span>
+        {%- endunless -%}
+      </div>
+    </div>
+
+<div id="variant-info-wrapper">
+  {% for variant in product.variants %}
+    {% if variant.metafields.variant.pack_size_variant != blank %}
+    <div 
+      class="variant-info-unit-price custom-unit-price-trigger-{{ variant.id }}  {% if product.selected_or_first_available_variant.id == variant.id %} active{% endif %}" 
+      data-variant-id="{{ variant.id }}" 
+    >
+{% assign pack_size = variant.metafields.variant.pack_size_variant | default: 1 %}
+{% assign per_piece_price_cents = variant.price | times: 1.0 | divided_by: pack_size %}
+{% assign per_piece_price = per_piece_price_cents | money_without_trailing_zeros %}
+
+
+      <p><strong>Inhalt:</strong> {{ pack_size }} Stück ({{ per_piece_price }} / 1 Stück)</p>
+    </div>
+      {% endif %}
+  {% endfor %}
+</div>
+
+<script>
+  document.addEventListener('variant:changed', function(event) {
+    let variant = event.detail.variant;
+
+    // All variant info divs
+    let allUnits = document.querySelectorAll('.variant-info-unit-price');
+    let targetUnit = document.querySelector('.custom-unit-price-trigger-' + variant.id);
+
+    // Remove 'active' class from all
+    allUnits.forEach(function(unit) {
+      unit.classList.remove('active');
+    });
+
+    // Add 'active' only if the matching div exists
+    if (targetUnit) {
+      targetUnit.classList.add('active');
+    } else {
+      // Optional: handle the case where no matching variant info is found
+      console.log('No matching variant info found for variant ID:', variant.id);
+      // You could show a message, hide a container, etc.
+    }
+  });
+</script>
+
+
+<style>
+  .variant-info-unit-price {
+    display:none;
+  }
+  .variant-info-unit-price.active {
+    display:block;
+  }
+  </style>
+
+    
+    {%- if section.settings.show_taxes_included -%}
+      {%- if cart.taxes_included or shop.shipping_policy.body != blank -%}
+        <p class="product-meta__taxes-included text--small">
+          
+          {%- if cart.taxes_included -%}
+            {{ 'product.general.include_taxes' | t }}
+          {%- endif -%}
+
+          {%- if shop.shipping_policy.body != blank -%}
+            {{ 'product.general.shipping_policy_html' | t: link: shop.shipping_policy.url }}
+          {%- endif -%}
+        </p>
+      {%- endif -%}
+    {%- endif -%}
+
+    <product-payment-terms form-id="{{ product_form_id }}">
+      {%- assign product_installment_form_id = 'product-installment-form-' | append: section.id | append: '-' | append: product.id -%}
+
+      {%- form 'product', product, id: product_installment_form_id -%}
+        <input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}">
+        {{- form | payment_terms -}}
+      {%- endform -%}
+    </product-payment-terms>
+
+    {%- if section.settings.show_product_rating or section.settings.show_sku -%}
+      <div class="product-meta__reference">
+        {%- if section.settings.show_product_rating -%}
+        <!-- Begin eTrusted product-star tag -->
+<etrusted-product-review-list-widget-product-star-extension></etrusted-product-review-list-widget-product-star-extension>
+<!-- End eTrusted product-star tag -->
+        {%- endif -%}
+
+        {%- if section.settings.show_sku -%}
+          <span class="product-meta__sku text--subdued text--xxsmall" {% if product.selected_or_first_available_variant.sku == blank %}style="display: none"{% endif %} data-product-sku-container>
+            {{- 'product.general.sku' | t }}
+            <span class="product-meta__sku-number" data-product-sku-number>{{ product.selected_or_first_available_variant.sku }}</span>
+          </span>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+  </product-meta>
+
+  {%- render 'product-form', product: product, update_url: update_url -%}
+
+  {%- assign help_page = section.settings.help_page -%}
+
+  {%- if section.settings.show_share_buttons or help_page != blank -%}
+    <div class="product-meta__aside">
+      {%- if section.settings.show_share_buttons -%}
+        <div class="product-meta__share text--subdued">
+          {%- assign share_url = shop.url | append: product.url -%}
+          {%- assign twitter_text = product.title | url_param_escape -%}
+          {%- assign pinterest_description = product.description | strip_html | truncatewords: 15 | url_param_escape -%}
+          {%- assign pinterest_image = product.featured_image | img_url: '800x' | prepend: 'https:' -%}
+
+          <button is="share-toggle-button" share-url="{{ share_url | escape }}" share-title="{{ product.title | escape }}" class="product-meta__share-label link hidden-tablet-and-up" aria-controls="mobile-share-buttons-{{ section.id }}" aria-expanded="false">{{ 'product.general.share' | t }}</button>
+          <div class="product-meta__share-label hidden-phone">{{ 'product.general.share' | t }}</div>
+
+          <popover-content id="mobile-share-buttons-{{ section.id }}" class="popover hidden-tablet-and-up">
+            <span class="popover__overlay"></span>
+
+            <header class="popover__header">
+              <span class="popover__title heading h6">{{- 'article.general.share' | t -}}</span>
+
+              <button type="button" class="popover__close-button tap-area tap-area--large" data-action="close" title="{{ 'general.accessibility.close' | t | escape }}">
+                {%- render 'icon' with 'close' -%}
+              </button>
+            </header>
+
+            <div class="mobile-share-buttons">
+              <a class="mobile-share-buttons__item mobile-share-buttons__item--facebook" href="https://www.facebook.com/sharer.php?u={{ share_url }}" target="_blank" rel="noopener" aria-label="{{ 'general.social.facebook_share' | t }}">
+                {%- render 'icon' with 'facebook-share-mobile' -%} Facebook
+              </a>
+
+              <a class="mobile-share-buttons__item mobile-share-buttons__item--pinterest" href="https://pinterest.com/pin/create/button/?url={{ share_url }}{% if pinterest_image != blank %}&media={{ pinterest_image }}{% endif %}&description={{ pinterest_description }}" target="_blank" rel="noopener" aria-label="{{ 'general.social.pinterest_pin' | t }}">
+                {%- render 'icon' with 'pinterest-share-mobile' -%} Pinterest
+              </a>
+
+              <a class="mobile-share-buttons__item mobile-share-buttons__item--twitter" href="https://twitter.com/share?{% if twitter_text != blank %}text={{twitter_text}}&{% endif %}url={{ share_url }}" target="_blank" rel="noopener" aria-label="{{ 'general.social.twitter_tweet' | t }}">
+                {%- render 'icon' with 'twitter-share-mobile' -%} Twitter
+              </a>
+
+              <a class="mobile-share-buttons__item mobile-share-buttons__item--mail" href="mailto:?&subject={{ article.title | escape }}&body={{ share_url }}" aria-label="{{ 'general.social.email_share' | t }}">
+                {%- render 'icon' with 'email-share-mobile' -%} {{ 'general.social.email_label' | t }}
+              </a>
+            </div>
+          </popover-content>
+
+          <div class="product-meta__share-button-list hidden-phone">
+            <a class="product-meta__share-button-item product-meta__share-button-item--facebook link tap-area" href="https://www.facebook.com/sharer.php?u={{ share_url }}" target="_blank" rel="noopener" aria-label="{{ 'general.social.facebook_share' | t }}">
+              {%- render 'icon' with 'facebook', width: 8, height: 14 -%}
+            </a>
+
+            <a class="product-meta__share-button-item product-meta__share-button-item--pinterest link tap-area" href="https://pinterest.com/pin/create/button/?url={{ share_url }}{% if pinterest_image != blank %}&media={{ pinterest_image }}{% endif %}&description={{ pinterest_description }}" target="_blank" rel="noopener" aria-label="{{ 'general.social.pinterest_pin' | t }}">
+              {%- render 'icon' with 'pinterest', width: 10, height: 14 -%}
+            </a>
+
+            <a class="product-meta__share-button-item product-meta__share-button-item--twitter link tap-area" href="https://twitter.com/share?{% if twitter_text != blank %}text={{ twitter_text }}&{% endif %}url={{ share_url }}" target="_blank" rel="noopener" aria-label="{{ 'general.social.twitter_tweet' | t }}">
+              {%- render 'icon' with 'twitter', width: 17, height: 14 -%}
+            </a>
+
+            <a class="product-meta__share-button-item product-meta__share-button-item--mail link tap-area" href="mailto:?&subject={{ product.title | escape }}&body={{ share_url }}" aria-label="{{ 'general.social.email_share' | t }}">
+              {%- render 'icon' with 'share', width: 13, height: 13 -%}
+            </a>
+          </div>
+        </div>
+      {%- endif -%}
+
+      {%- if help_page != blank -%}
+        <button is="toggle-button" class="product-meta__help link text--subdued hidden-tablet-and-up" aria-controls="product-{{ section.id }}-help-popover" aria-expanded="false">{{ 'product.general.need_help' | t }}</button>
+        <button is="toggle-button" class="product-meta__help link text--subdued hidden-phone" aria-controls="product-{{ section.id }}-help-drawer" aria-expanded="false">{{ 'product.general.need_help' | t }}</button>
+      {%- endif -%}
+    </div>
+  {%- endif -%}
+
+  {%- if help_page != blank -%}
+    {%- comment -%}Drawer for tablet and higher{%- endcomment -%}
+    <drawer-content id="product-{{ section.id }}-help-drawer" class="drawer drawer--large hidden-phone">
+      <span class="drawer__overlay"></span>
+
+      <header class="drawer__header">
+        <p class="drawer__title heading h6">{{ help_page.title }}</p>
+
+        <button type="button" class="drawer__close-button tap-area" data-action="close" title="{{ 'general.accessibility.close' | t | escape }}">
+          {%- render 'icon' with 'close' -%}
+        </button>
+      </header>
+
+      <div class="drawer__content drawer__content--padded-start">
+        <div class="rte">
+          {{- help_page.content -}}
+        </div>
+      </div>
+    </drawer-content>
+
+    {%- comment -%}Popover for mobile{%- endcomment -%}
+    <popover-content hidden id="product-{{ section.id }}-help-popover" class="popover hidden-lap-and-up">
+      <span class="popover__overlay"></span>
+
+      <header class="popover__header">
+        <p class="popover__title heading h6">{{ help_page.title }}</p>
+
+        <button type="button" class="popover__close-button tap-area tap-area--large" data-action="close" title="{{ 'general.accessibility.close' | t | escape }}">
+          {%- render 'icon' with 'close' -%}
+        </button>
+      </header>
+
+      <div class="popover__content">
+        <div class="rte">
+          {{- help_page.content -}}
+        </div>
+      </div>
+    </popover-content>
+  {%- endif -%}
+</div>

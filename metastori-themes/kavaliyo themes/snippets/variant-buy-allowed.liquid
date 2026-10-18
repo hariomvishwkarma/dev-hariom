@@ -1,0 +1,47 @@
+{%- comment -%}
+  Whether a variant can be purchased on the PDP (effective in-stock).
+
+  Shop inventory > 0 → in stock
+  Shop inventory = 0, LSS "JA", second warehouse (variant.inventory_quantity) > 0 → in stock
+  Shop inventory = 0, LSS "NEIN" → out of stock
+  Shop inventory = 0, LSS "JA", second warehouse = 0 → out of stock
+
+  When shop_location_inventory is not set, falls back to variant.available.
+
+  @param variant {Variant} required
+{%- endcomment -%}
+
+{%- assign buy_allowed = false -%}
+
+{%- if variant.available -%}
+  {%- assign lss_raw = variant.metafields.custom.lss.value
+    | default: variant.metafields.custom.lss
+    | downcase
+    | strip
+  -%}
+  {%- assign dropship_enabled = false -%}
+  {%- if lss_raw == 'ja' -%}
+    {%- assign dropship_enabled = true -%}
+  {%- endif -%}
+
+  {%- assign shop_inv_raw = variant.metafields.custom.shop_location_inventory.value
+    | default: variant.metafields.custom.shop_location_inventory
+    | strip
+  -%}
+
+  {%- if shop_inv_raw != blank -%}
+    {%- assign shop_inv = shop_inv_raw | plus: 0 -%}
+    {%- if shop_inv > 0 -%}
+      {%- assign buy_allowed = true -%}
+    {%- elsif dropship_enabled -%}
+      {%- assign second_warehouse_qty = variant.inventory_quantity | plus: 0 -%}
+      {%- if second_warehouse_qty > 0 -%}
+        {%- assign buy_allowed = true -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- else -%}
+    {%- assign buy_allowed = true -%}
+  {%- endif -%}
+{%- endif -%}
+
+{%- if buy_allowed -%}true{%- else -%}false{%- endif -%}

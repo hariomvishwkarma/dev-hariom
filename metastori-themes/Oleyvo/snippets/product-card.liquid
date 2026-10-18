@@ -1,0 +1,245 @@
+{% comment %}
+  Renders a product card
+
+  Accepts:
+  - product: {Object} Product Liquid object (optional)
+  - media_aspect_ratio: {String} The setting changes the aspect ratio of the article image, if shown
+  - show_image: {Boolean} The setting either show the article image or not. If it's not included it will show the image by
+  default
+  - show_secondary_image: {Boolean} Show the secondary image on hover. Default: false (optional)
+  - show_vendor: {Boolean} Show the product vendor. Default: false (optional)
+  - show_description: {Boolean} Show the description. Default: false (optional)
+  - show_quick_add: {Boolean} Show the quick add button. Default: false (optional)
+  - show_quick_view: {Boolean} Show the quick view button. Default: false (optional)
+  - show_price: {Boolean} Show the product price. Default: true (optional)
+  - show_badge: {Boolean} Show the product badge. Default: true (optional)
+  - show_rating: {Boolean} Show the product rating. Default: false (optional)
+  - placeholder_image: {String} The placeholder image to use when no product exists. Default: 'product-apparel-1'
+  (optional)
+  - color_scheme: {String} The color scheme to use (optional)
+  - animate_enabled: {Boolean} Enable animation. Default: true (optional)
+
+  Usage:
+  {% render 'product-card', show_vendor: section.settings.show_vendor, product: 'object' %}
+{% endcomment %}
+
+{% liquid
+  if animate_focus == null
+    assign animate_focus = false
+  endif
+
+  if animate_enabled == null
+    assign animate_enabled = false
+  endif
+
+  assign tag_name = 'div'
+
+  if animate_enabled
+    assign tag_name = 'xo-animate'
+  endif
+
+  if product_handle
+    assign product_handle_name = product.handle
+  endif
+
+  assign quick_view_tooltip = 'products.product.quick_view' | t
+  assign add_to_cart_tooltip = 'products.product.add_to_cart' | t
+
+  if product.selected_or_first_available_variant.available == false
+    assign add_to_cart_tooltip = 'products.product.sold_out' | t
+  endif
+%}
+
+{% if settings.variant_modal_placement == 'center' %}
+  {% capture modal_attr %}
+    xo-placement="center"
+  {% endcapture %}
+{% elsif settings.variant_modal_placement == 'top-left' %}
+  {% capture modal_attr %}
+    xo-placement="top-left" xo-animate="slide-right"
+  {% endcapture %}
+{% elsif settings.variant_modal_placement == 'top-right' %}
+  {% capture modal_attr %}
+    xo-placement="top-right" xo-animate="slide-left"
+  {% endcapture %}
+{% elsif settings.variant_modal_placement == 'bottom-left' %}
+  {% capture modal_attr %}
+    xo-placement="bottom-left" xo-animate="slide-right"
+  {% endcapture %}
+{% elsif settings.variant_modal_placement == 'bottom-right' %}
+  {% capture modal_attr %}
+    xo-placement="bottom-right" xo-animate="slide-left"
+  {% endcapture %}
+{% endif %}
+
+{% if product and product != empty %}
+  <xo-product xo-product-id='{{ product.id }}' xo-section-id='{{ section.id }}'>
+    {% capture render_header %}
+  <div class="xo-product-card__header">
+    {% if show_image %}
+    <div xo-binding="img">
+      <a href='{{ product.url }}' aria-label="{{ product.title }}" class="xo-product-card__image-link">
+        {% render 'product-image', product: product, show_secondary_image: show_secondary_image, aspect_ratio:
+        media_aspect_ratio | default: '3/4', lazyload: lazyload %}
+      </a>
+    </div>
+    <xo-product-liquid-static>
+      <script type="application/json">
+        {
+          {% for variant in product.variants
+          %}
+            {{ variant.id }}: {
+              price: `{% render 'price', product: variant, reverse: false %}`,
+              img: `<a href='{{ product.url }}' aria-label='{{ product.title }}'>{% render 'product-image', product: product, variant: variant, show_secondary_image: show_secondary_image, aspect_ratio: media_aspect_ratio | default: '3/4' %}
+              </a>`,
+              addToCartText: `{% if variant.inventory_quantity > 0 %}{{ 'products.product.add_to_cart' | t }}{% else %}{{ 'products.product.sold_out' | t }}{% endif %}`,
+              soldOut: `{% if variant.inventory_quantity > 0 %}false{% else %}true{% endif %}`,
+              variantId: {{ variant.id }},
+            },
+          {% endfor %}
+        }
+      </script>
+    </xo-product-liquid-static>
+    {% endif %}
+
+    <div class='xo-product-card__actions{% unless is_wishlist %} xo-product-card__actions--modifier{% endunless %}'>
+      {% if show_quick_add %}
+        {% if product.variants.size > 1 %}
+          <xo-modal-trigger xo-name='product-variant-modal-{{ product.id }}-{{ section.id }}' class="xo-product-card__add">
+            <xo-tooltip xo-mobile-disabled xo-title="{{ add_to_cart_tooltip }}" xo-placement="top-center" class="tooltip{% if settings.enable_border_radius %} tooltip--radius{% endif %}">
+              <div class="xo-product-card__add" {% if product.selected_or_first_available_variant.available==false %} xo-disabled {% endif %}>
+                {%- if product.selected_or_first_available_variant.available -%}
+                <div class="xo-product-card__icon focus-inset" aria-label='Cart add'>
+                  {% render 'button-icon', size: 'sm', style: 'primary', type: 'circle', icon: 'add-cart', icon_size: '17',
+                  effect: 'rotate' %}
+                </div>
+                {%- else -%}
+                <div class="xo-product-card__icon xo-product-card__icon--sold-out">
+                  {% render 'button-icon', size: 'sm', style: 'primary', type: 'circle', icon: 'add-cart', icon_size: '17',
+                  effect: 'rotate' %}
+                </div>
+                {%- endif -%}
+              </div>
+            </xo-tooltip>
+          </xo-modal-trigger>
+          <xo-modal xo-name="product-variant-modal-{{ product.id }}-{{ section.id }}" {{ modal_attr }}>
+            {% render 'product-variant-modal', product: product, variant_modal_placement: variant_modal_placement %}
+          </xo-modal>
+        {% else %}
+          <xo-tooltip xo-mobile-disabled xo-title="{{ add_to_cart_tooltip }}" xo-placement="top-center" class="tooltip{% if settings.enable_border_radius %} tooltip--radius{% endif %}">
+            <xo-cart-add class="xo-product-card__add focus inset"
+              xo-product-id='{{ product.selected_or_first_available_variant.id }}' {% if
+              product.selected_or_first_available_variant.available==false %} xo-disabled {% endif %}>
+              {%- if product.selected_or_first_available_variant.available -%}
+              <div class="xo-product-card__icon focus-inset" aria-label='Cart add'>
+                {% render 'button-icon', size: 'sm', style: 'primary', type: 'circle', icon: 'add-cart', icon_size: '17',
+                effect: 'rotate' %}
+              </div>
+              {%- else -%}
+              <div class="xo-product-card__icon xo-product-card__icon--sold-out">
+                {% render 'button-icon', size: 'sm', style: 'primary', type: 'circle', icon: 'add-cart', icon_size: '17',
+                effect: 'rotate' %}
+              </div>
+              {%- endif -%}
+            </xo-cart-add>
+          </xo-tooltip>
+        {% endif %}
+      {% endif %}
+
+      {% if show_quick_view %}
+        <xo-tooltip xo-mobile-disabled xo-title="{{ quick_view_tooltip }}" xo-placement="top-center" class="tooltip{% if settings.enable_border_radius %} tooltip--radius{% endif %}">
+          <xo-product-quick-view-trigger class="xo-product-card__quick-view focus-inset" xo-modal-name='quick-view'
+            xo-product-url='{{ shop.url }}/products/{{ product.handle }}/?section_id=quick-view-content'>
+            <div class="xo-product-card__icon" aria-label='Quickview'>
+              {% render 'button-icon', size: 'sm', style: 'primary', type: 'circle', icon: 'quick-view', icon_size: '17',
+              effect: 'slide-up' %}
+            </div>
+          </xo-product-quick-view-trigger>
+        </xo-tooltip>
+      {% endif %}
+
+    </div>
+  </div>
+  {% endcapture %}
+
+    {% capture render_information %}
+    <div class='xo-product-card__information' {% if settings.product_card_style=='boxed' and
+      settings.product_card_content_padding==0 %}style="--product-card-content-padding: initial" {% endif %}>
+      {% if show_vendor %}
+      <div class='xo-product-card__vendor'>
+        {{ product.vendor }}
+      </div>
+      {% endif %}
+
+      <div class='xo-product-card__title{% if show_description %} xo-product-card__title--pd{% endif %}'>
+        <a href='{{ product.url }}' aria-label="{{ product.title }}">
+          {{ product.title | escape }}
+        </a>
+      </div>
+
+      {% if show_description %}
+      <div class='xo-product-card__description'>
+        {{ product.description | strip_html | truncate: 110 }}
+      </div>
+      {% endif %}
+
+      <div class="xo-product-card__price-badge{% if show_description %} xo-product-card__price-badge--pd{% endif %}">
+        {% if show_price %}
+          <div class='xo-product-card__price'>
+            <div class='xo-product-card__price-inner'>
+              {% if product.price_varies %}
+                <div class='xo-product-card__price-varies'>
+                  {% if settings.currency_code_enabled %}
+                    <span>{{ product.price_min | money_with_currency }} - {{ product.price_max | money_with_currency }}</span>
+                  {% else %}
+                    <span>{{ product.price_min | money }} - {{ product.price_max | money }}</span>
+                  {% endif %}
+                </div>
+                {% render 'unit-price', product: product %}
+              {% else %}
+                {% render 'price', product: product, show_badge: show_badge, use_variant: true, reverse: true %}
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
+
+        {% if show_badge %}
+        <div class='xo-product-card__badge'>
+          {% render 'badge-sale', product: product, use_variant: true %}
+          {% render 'badge-sold-out', product: product, use_variant: true %}
+          {% render 'badge-new', product: product, use_variant: true %}
+        </div>
+        {% endif %}
+      </div>
+
+      {% if show_rating %}
+      <div class='xo-product-card__rating'></div>
+      {% endif %}
+
+      {% if product.variants.size > 1 and settings.product_card_color_style != 'hidden' %}
+        {% for option in product.options_with_values %}
+          {% if option.name == 'Color' %}
+            <div class='xo-product-card__variants xo-product-card__variants--style'>
+              {% render 'product-variant', option: option, style: settings.product_card_color_style, product: product %}
+            </div>
+            {% break %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    </div>
+  {% endcapture %}
+    <{{ tag_name }}
+      xo-cascade
+      {% if animate_focus %}
+        xo-scroll-forced
+      {% endif %}
+      class='xo-product-card{% if settings.product_card_style %} xo-product-card--{{ settings.product_card_style }}{% endif %}{% if settings.product_card_text_alignment %} xo-product-card--{{ settings.product_card_text_alignment }}{% endif %}{% if color_scheme %} color-{{ color_scheme }}{% endif %} {% if settings.enable_border_radius %}xo-product-card--radius{% endif %}'
+    >
+      {{ render_header }}
+      {{ render_information }}
+      {% render 'product-data', product: product %}
+    </{{ tag_name }}>
+  </xo-product>
+{% else %}
+  {% render 'product-card-placeholder', placeholder_image: placeholder_image, color_scheme: color_scheme, product: product, aspect_ratio: media_aspect_ratio %}
+{% endif %}

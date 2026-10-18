@@ -1,0 +1,500 @@
+{%- comment -%}
+  Ultra predictive search: inline expandable search bar that fetches predictive results
+  and displays them below the header. Uses the same backend endpoints as the theme's
+  predictive search, but without the drawer behavior.
+{%- endcomment -%}
+<style>
+  /* header CSS */
+
+  .header__linklist-link {
+    font-weight: 600;
+  }
+
+  .header__linklist-item:not(:last-child) {
+    margin-inline-end: 20px;
+  }
+
+  .mobile-store-header-inner {
+    grid-template-columns: 1fr auto;
+    justify-content: space-between;
+    gap: 40px;
+    display: grid;
+    padding-block: var(--container-gutter);
+  }
+  /* Predictive search Ultra */
+  .predictive-ultra {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .predictive-ultra__form {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgb(var(--header-text-color));
+    background: rgba(var(--header-background));
+    color: rgb(var(--header-text-color));
+    border-radius: 8px;
+    padding: 6px 12px;
+    transition: box-shadow 0.25s ease;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1;
+    width: 205px;
+  }
+
+  html.active-search form.predictive-ultra__form {
+    border-color: rgb(var(--header-text-color));
+  }
+
+  .predictive-ultra--open .predictive-ultra__form {
+    width: 100%;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .predictive-ultra__trigger,
+  .predictive-ultra__close {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    line-height: 0;
+    cursor: pointer;
+    color: inherit;
+  }
+
+  button.predictive-ultra__close svg {
+    width: 12px;
+    height: auto;
+  }
+
+  span.predictive-ultra__icon svg {
+    width: 20px;
+    height: auto;
+  }
+
+  .predictive-ultra__icon {
+    line-height: 0;
+  }
+
+  html.active-search .predictive-ultra__icon {
+    display: none;
+  }
+
+  html.active-search .predictive-ultra__close {
+    display: inline-block;
+  }
+
+  .predictive-ultra__close {
+    display: none;
+  }
+
+  .predictive-ultra__input {
+    width: 100%;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .predictive-ultra--open .predictive-ultra__input {
+    opacity: 1;
+  }
+
+  .predictive-ultra__results {
+    background: #fff;
+    box-shadow: 0 12px 24px #00000014;
+    z-index: 5;
+    max-height: calc(100vh - calc(var(--announcement-bar-height) + var(--header-height)));
+    overflow: auto;
+    padding: 32px;
+    position: fixed;
+    top: calc(var(--announcement-bar-height) + var(--header-height));
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    display: none;
+  }
+  .predictive-search__results-categories {
+    padding-bottom: 2rem;
+  }
+  html.header-sticky .predictive-ultra__results {
+    top: var(--header-height);
+  }
+
+  html.active-search {
+    {% comment %} overflow: hidden; {% endcomment %}
+  }
+
+  html.active-search .predictive-ultra__results {
+    display: block;
+  }
+  html.active-search .predictive-ultra__results,
+  html.active-search div#predictive-ultra-results[hidden] {
+    display: none !important;
+  }
+
+  @media screen and (min-width: 1200px) {
+    /* make it span the full header width */
+    .header__secondary-links .predictive-ultra {
+      flex: 1 1 auto;
+    }
+
+    .header__secondary-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+  }
+
+  .predictive-ultra__input {
+    opacity: 1;
+  }
+
+  button.predictive-ultra__trigger {
+    display: none;
+  }
+
+  span.predictive-ultra__icon {
+    position: absolute;
+    top: 5px;
+    right: 0;
+    transform: translateX(-50%);
+  }
+
+  button.predictive-ultra__close {
+    position: absolute;
+    right: 12px;
+    top: 10px;
+  }
+
+  div#predictive-ultra-results-shadow {
+    background: rgb(0 0 0 / 35%);
+    z-index: 4;
+    max-height: 100vh;
+    overflow: auto;
+    padding: 32px;
+    position: fixed;
+    top: calc(var(--announcement-bar-height) + var(--header-height));
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
+    display: none;
+  }
+
+  html.active-search div#predictive-ultra-results-shadow {
+    display: block;
+  }
+
+  @media screen and (max-width: 999px) {
+    form.predictive-ultra__form {
+      width: 87vw;
+    }
+    html.active-search form.predictive-ultra__form {
+      width: 84vw;
+    }
+    html.active-search .predictive-ultra__close {
+      right: -8px;
+    }
+    html.active-search .predictive-ultra__close {
+      transform: translateX(-150%);
+    }
+    .mobile-store-header-inner {
+      padding-block: 18px;
+    }
+
+    .header__wrapper {
+      padding: 0;
+    }
+    span.predictive-ultra__icon {
+      top: 10px;
+    }
+    html.active-search .predictive-ultra__close {
+      top: 14px;
+    }
+    .desktop-store-header {
+      border-top: 1px solid rgb(var(--border-color));
+      border-bottom: 1px solid rgb(var(--border-color));
+    }
+
+    .predictive-ultra__form,
+    html.active-search form.predictive-ultra__form {
+      border: none;
+      border-left: 1px solid rgb(var(--border-color));
+      border-radius: 0;
+      grid-template-columns: 1fr auto;
+    }
+
+    .predictive-ultra__input {
+      padding: 6px;
+    }
+
+    .header--bordered:not(.header--transparent) {
+      box-shadow: none;
+    }
+  }
+
+  @media (min-width: 741px) and (max-width: 940px) {
+    form.predictive-ultra__form {
+      width: 85vw;
+    }
+    html.active-search form.predictive-ultra__form {
+      width: 85vw;
+    }
+  }
+
+  @media (max-width: 600px) {
+    form.predictive-ultra__form {
+      width: 84vw;
+    }
+
+    span.predictive-ultra__icon {
+      transform: translateX(-50%);
+    }
+  }
+
+  @media (max-width: 400px) {
+    form.predictive-ultra__form {
+      width: 85vw;
+    }
+    html.active-search .predictive-ultra__close {
+      transform: translateX(-240%);
+    }
+  }
+
+  /* Predictive search Ultra */
+</style>
+
+<div class="predictive-ultra" data-predictive-ultra>
+  <form class="predictive-ultra__form" action="{{ routes.search_url }}" method="get" role="search">
+    <div class="input-predictive-ultra">
+      <input type="hidden" name="type" value="product">
+
+      <button
+        class="predictive-ultra__trigger"
+        type="button"
+        aria-expanded="false"
+        aria-controls="predictive-ultra-results"
+      >
+        {%- render 'icon' with 'header-search' -%}
+        <span class="visually-hidden">{{ 'search.general.title' | t }}</span>
+      </button>
+  
+      <span class="predictive-ultra__icon" aria-hidden="true">
+        {%- render 'icon' with 'header-search' -%}
+      </span>
+  
+      <input
+        class="predictive-ultra__input"
+        type="text"
+        name="q"
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        aria-label="{{ 'search.general.title' | t }}"
+        placeholder="{{ 'search.general.search_placeholder' | t }}"
+      >
+    </div>
+    
+    <button class="predictive-ultra__close" type="button" aria-label="{{ 'general.accessibility.close' | t | escape }}">
+      {%- render 'icon' with 'close' -%}
+    </button>
+  </form>
+
+  <div id="predictive-ultra-results" class="predictive-ultra__results" hidden>
+    <div class="container"></div>
+  </div>
+  {% comment %} <div id="predictive-ultra-results-shadow"></div> {% endcomment %}
+</div>
+
+<script>
+  /**
+   * Predictive Ultra: inline expanding predictive search
+   */
+  (function () {
+    function debounce(fn, wait) {
+      var t;
+      return function () {
+        var args = arguments,
+          ctx = this;
+        clearTimeout(t);
+        t = setTimeout(function () {
+          fn.apply(ctx, args);
+        }, wait);
+      };
+    }
+
+    function setupPredictiveUltra(root) {
+      if (!root) return;
+
+      var container = root;
+      var form = container.querySelector('.predictive-ultra__form');
+      var trigger = container.querySelector('.predictive-ultra__trigger');
+      var input = container.querySelector('.predictive-ultra__input');
+      var results = container.querySelector('.predictive-ultra__results');
+      var resultsInner = results ? results.querySelector('.container') : null;
+      var closeBtn = container.querySelector('.predictive-ultra__close');
+      var interactingInResults = false;
+      var abortController = null;
+      var htmlRoot = document.documentElement;
+      var FOCUS_CLASS = 'active-search';
+
+      function open() {
+        container.classList.add('predictive-ultra--open');
+        trigger.setAttribute('aria-expanded', 'true');
+        input.focus();
+        document.addEventListener('click', handleOutside, { passive: true });
+      }
+      function close() {
+        container.classList.remove('predictive-ultra--open');
+        trigger.setAttribute('aria-expanded', 'false');
+        results.hidden = true;
+        input.value = '';
+        document.removeEventListener('click', handleOutside);
+        htmlRoot.classList.remove(FOCUS_CLASS);
+      }
+      function handleOutside(e) {
+        if (!container.contains(e.target)) close();
+      }
+
+      trigger.addEventListener('click', function () {
+        if (container.classList.contains('predictive-ultra--open')) {
+          close();
+        } else {
+          open();
+        }
+      });
+      // Clicking anywhere in the container should focus the input
+      container.addEventListener('click', function (e) {
+        // Do not auto-focus when clicking the explicit close button
+        if (e.target.closest('.predictive-ultra__close')) return;
+        if (e.target !== input) input.focus();
+      });
+
+      // Do not close or propagate clicks inside the results area
+      if (results) {
+        results.addEventListener('mousedown', function () {
+          interactingInResults = true;
+        });
+        results.addEventListener('mouseup', function () {
+          setTimeout(function () {
+            interactingInResults = false;
+          }, 0);
+        });
+        results.addEventListener('click', function (e) {
+          e.stopPropagation();
+        });
+      }
+
+      var doSearch = debounce(async function () {
+        var term = input.value.trim();
+        if (abortController) abortController.abort();
+        if (term === '') {
+          results.hidden = true;
+          return;
+        }
+        abortController = new AbortController();
+        try {
+          var url =
+            window.themeVariables && window.themeVariables.routes && window.themeVariables.routes.predictiveSearchUrl
+              ? window.themeVariables.routes.predictiveSearchUrl
+              : '/search/suggest';
+          var res = await fetch(
+            url +
+              '?q=' +
+              encodeURIComponent(term) +
+              '&resources[limit]=10&resources[limit_scope]=each&section_id=predictive-search',
+            { signal: abortController.signal }
+          );
+          var htmlContainer = document.createElement('div');
+          htmlContainer.innerHTML = await res.text();
+          var section = htmlContainer.firstElementChild;
+          if (section) {
+            var inner = section.querySelector('.predictive-search__results');
+            if (resultsInner) {
+              resultsInner.innerHTML = inner ? inner.innerHTML : section.innerHTML;
+            } else {
+              results.innerHTML = inner ? inner.innerHTML : section.innerHTML;
+            }
+            results.hidden = false;
+          } else {
+            results.hidden = true;
+          }
+        } catch (e) {
+          if (e.name !== 'AbortError') {
+            results.hidden = true;
+          }
+        }
+      }, 200);
+
+      input.addEventListener('input', doSearch);
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') close();
+      });
+
+      // Toggle ed-focus on interactions
+      input.addEventListener('focus', function () {
+        htmlRoot.classList.add(FOCUS_CLASS);
+      });
+      input.addEventListener('click', function () {
+        htmlRoot.classList.add(FOCUS_CLASS);
+      });
+      input.addEventListener('blur', function () {
+        setTimeout(function () {
+          if (interactingInResults) return;
+          if (!root.contains(document.activeElement)) htmlRoot.classList.remove(FOCUS_CLASS);
+        }, 0);
+      });
+      // Global fallback: toggle on focus moving in/out of component
+      document.addEventListener('focusin', function (e) {
+        if (root.contains(e.target)) htmlRoot.classList.add(FOCUS_CLASS);
+      });
+      document.addEventListener('focusout', function () {
+        setTimeout(function () {
+          if (interactingInResults) return;
+          if (!root.contains(document.activeElement)) htmlRoot.classList.remove(FOCUS_CLASS);
+        }, 0);
+      });
+      document.addEventListener(
+        'click',
+        function (e) {
+          if (!root.contains(e.target)) htmlRoot.classList.remove(FOCUS_CLASS);
+        },
+        true
+      );
+
+      // Prevent submission from reloading page; we want predictive only
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+      });
+
+      // Close button: remove active class and clear state
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (htmlRoot.classList.contains(FOCUS_CLASS)) {
+            htmlRoot.classList.remove(FOCUS_CLASS);
+          }
+          input.blur();
+          input.value = '';
+          results.hidden = true;
+          // Do not refocus; we want it to behave like clicking outside
+        });
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      setupPredictiveUltra(document.querySelector('[data-predictive-ultra]'));
+    });
+  })();
+</script>

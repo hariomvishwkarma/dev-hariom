@@ -1,0 +1,792 @@
+{% assign ss = section.settings %}
+
+{%- capture container_class -%}
+  {%- case ss.width -%}
+    {%- when 'default' -%}
+	container--product
+    {%- when 'full' -%}
+	container--full
+    {%- when 'wide' -%}
+	container--wide
+    {%- when 'custom' -%}
+	container--custom 
+  {%- endcase -%}
+{%- endcapture -%}
+
+{% if product == blank %}
+  {% assign handle = page.content | strip_html | strip | handleize | strip_newlines -%}
+  {% assign product = all_products[handle] %}
+{% endif %}
+
+{%- assign sizePage = pages[section.settings.size_data2] -%}
+{% assign split_data = sizePage.content | strip_html | split: "/" %}
+{% assign data = "" %}
+
+{% for line in split_data %}
+  {% assign line_handle = line | split: "=" | first | replace_all: " ", "" | handle %}
+  {% assign line_sizes = line | split: "=" | last | replace_all: " ", "" %}
+
+  {% assign check1 = product.handle | split: "" | first %}
+  {% assign check2 = line_handle | split: "" | first %}
+  
+  {% if product.handle == line_handle or product.handle contains line_handle and check1 == check2 %}
+	<script>
+      document.querySelector(".sizes-link").classList.remove("hide");
+      document.querySelector(".ProductForm__Helper").classList.remove("hide");
+    </script>
+	{% assign data = line_sizes | replace: ",", "."%}
+  {% endif %}
+{% endfor %}
+
+{% assign show_section = false %}
+{% if data != "" %}
+  {% assign show_section = true %}
+{% endif %}
+
+{% comment %}Show pdf for products:{% endcomment %}
+{% assign show_pdf = "" %}
+{% assign text_1 = "" %}
+{% assign text_2 = "" %}
+{% for block in section.blocks %}
+{% if block.type == "pdf" %}
+  {% for item in block.settings.product_list %}
+    {% if item.id == product.id %}
+      {% assign show_pdf = block.settings.pdf %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+{% if block.type == "text" %}
+  {% for item in block.settings.product_list %}
+    {% if item.id == product.id %}
+      {% assign text_1 = block.settings.text1 %}
+      {% assign text_2 = block.settings.text2 %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+{% endfor %}
+{% assign file = show_pdf %}
+
+{% assign mes_page = "measurements-data" %}
+{% for item in ss.product_list2 %}
+  {% if item.id == product.id %}
+    {% assign mes_page = "measurements-data2" %}
+  {% endif %}
+{% endfor %}
+
+{% comment %}Women product{% endcomment %}
+{% assign altStyle = false %}
+{% if product.tags contains "Women" or product.tags contains "WOMEN" %}
+  {% assign altStyle = true %}
+  {% assign show_section = true %}
+  
+	<script>
+      document.querySelector(".sizes-link").classList.remove("hide");
+      document.querySelector(".ProductForm__Helper").classList.remove("hide");
+    </script>
+{% endif %}
+
+
+<style>
+  {% if altStyle %}
+  #section--{{ section.id }} .article--wrapper .content--wrapper,
+  #section--{{ section.id }} .article--wrapper #size-module,
+  #section--{{ section.id }} .section-content>header h4,
+  #section--{{ section.id }} .measurements_trigger {
+    display: none !important;
+  }
+
+  {% else %}
+  #section--{{ section.id }} #measurementsResultsAlt {
+    display: none !important;
+  }
+  {% endif %}
+  
+  #section--{{ section.id }} .bg-bar, #section--{{ section.id }} .dot-step {
+    border-color: {{ ss.content_accent }} !important;
+  }
+  
+  #section--{{ section.id }} .bg-bar, #section--{{ section.id }} .fit--wrapper ~ .text--wrapper {
+    color: {{ ss.content_accent }} !important;
+  }
+  
+  #section--{{ section.id }} .size--wrapper {
+    --size-accent: {{ ss.content_accent }};
+    --size-color: {{ ss.content_text }};
+    --size-background: {{ ss.content_background }};
+  }
+  
+  {% if ss.text_width != 0 %}
+  #section--{{ section.id }} .items-container, #section--{{ section.id }} h2, 
+  #section--{{ section.id }} h4, #section--{{ section.id }} .text--group  {
+    max-width: {{ ss.text_width }}px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  {% endif %}
+
+  {% if file != "" %}
+    #section--{{ section.id }} h2 a {
+      text-decoration: underline;
+    }
+  {% endif %}
+              
+  {% if ss.width == "custom" %}
+  #section--{{ section.id }} .container--custom {
+    max-width: {{ ss.custom_width }}px;
+  }
+  {% endif %}
+</style>
+
+{% comment %}Hide for products:{% endcomment %}
+{% for item in ss.product_list %}
+  {% if item.id == product.id %}
+    {% assign show_section = false %}
+  {% endif %}
+{% endfor %}
+
+{% if show_section == true %}
+<section data-popup="false" id="section--{{ section.id }}" data-section="size" style="background-color: {{ ss.section_background }};" class="section--custom-product--video index-section section--wrapper margin-bottom--{{ ss.section_margin | remove: "." }} padding--{{ ss.section_padding | remove: "." }} {% if altStyle %}style-alternate{% endif %}">
+
+  <div class="{{ container_class }}">
+    <div style="background-color: {{ ss.content_background }}; color: {{ ss.content_text }};" class="section--inner padding--{{ ss.content_padding | remove: "." }}">
+      <div class="section-content">
+        
+        <button type="button" data-popup_trigger>
+          <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 14 14" fill="none">
+            <path fill="currentColor" d="M.3.3a1 1 0 0 1 1.4 0L7 5.58l5.3-5.3a1 1 0 0 1 1.52 1.28l-.11.14L8.4 7l5.3 5.3.11.13a1 1 0 0 1-1.53 1.28L7 8.4l-5.3 5.3a1 1 0 0 1-1.52-1.28l.11-.14L5.6 7 .29 1.7l-.11-.13A1 1 0 0 1 .29.29Z"></path>
+          </svg>
+        </button>
+  
+        <header>
+          {% if altStyle %}
+            {% if ss.heading_alt != blank %}
+                {% if file != "" %}
+                  <h2>{{ ss.heading_alt | replace: "#pdf", file }}</h2>
+                {% else %}
+                  <h2>{{ ss.heading_alt }}</h2>
+                {% endif %}
+            {% endif %}
+          {% else %}
+            {% if ss.heading != blank %}
+                {% if file != "" %}
+                  <h2>{{ ss.heading | replace: "#pdf", file }}</h2>
+                {% else %}
+                  <h2>{{ ss.heading }}</h2>
+                {% endif %}
+            {% endif %}
+            
+          {% endif %}
+          {% if ss.subheading != blank %}<h4>{{ ss.subheading }}</h4>{% endif %}
+
+        </header>
+  
+                    
+        {% for tag in product.tags %}
+          {% if tag contains "size:" %}
+            {%- assign handle = tag | split: ":" | last -%}
+            {%- assign product_b = all_products[handle] -%}
+          {% endif %}
+        {% endfor %}
+      
+        {%- assign measurementsPage = pages[mes_page] -%}
+        {%- assign measurementsData = measurementsPage.content -%}
+
+        {% capture msizes %}{% for variant in product.variants %}{% if variant.available %}{{ variant.title }},{% endif %}{% endfor %}{% for variant in product_b.variants %}{% if variant.available %}{{ variant.title }},{% endif %}{% endfor %}{% endcapture %}
+
+  
+        <div class="article--wrapper {% if bs.mirror %}reverse{% endif %}">
+          {% if bs.image_size != 100 or bs.image_size != 0 %}
+          <style>
+            #section--{{ block.id }} .image--wrapper:before {
+              padding-bottom: {{ bs.image_size }}% !important;
+            }
+          </style>
+          {% endif %}
+          
+          <div class="content--wrapper">
+            <div class="text-item">
+             {% if ss.text1 != blank %}<div class="text--group first">{{ ss.text1 }}</div>{% endif %}
+              <ul class="items-container">
+
+                {% for block in section.blocks %}
+                  {% if block.type == "block" %}
+                	{% assign bs = block.settings %}
+                    <li data-index="{{ forloop.index }}">
+                      {% if bs.heading != blank %}<h3>{{ bs.heading }}</h3>{% endif %}
+                      <div class="text--wrapper">{{ bs.text }}</div>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+              </ul>
+  
+              {% if file != "" %}
+                  <p><b>{{ "general.custom.measure1" | t }}</b></p>
+                  <div class="mesfile hide--tablet-down" style="margin-bottom: 1rem;">
+                    {{ ss.text3 | replace: "#pdf", file }}
+            	  </div>
+              {% endif %}
+  
+              {% if measurementsPage.title == mes_page %}
+                  <button class="measurements_trigger hide--tablet-down" data-module-trigger="measurements_popup">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="12" viewBox="0 5 19 9">
+                      <g fill="none" stroke="currentColor" stroke-miterlimit="10"><path d="M.5 6.5h18v6H.5z"></path><path stroke-linecap="square" d="M3.5 12.5v-3m3 3v-2m3 2v-3m6 3v-3m-3 3v-2"></path></g>
+                    </svg>
+                    <span>{{ "general.custom.measure2" | t }}</span>
+            	  </button>
+              {% endif %}
+  
+             {% if ss.text2 != blank %}<div class="text--group">{{ ss.text2 }}</div>{% endif %}
+            </div>
+          </div>
+          
+          <div class="size--wrapper">
+            {% include "size-recommendation", content: data %}
+
+              <div class="hide" id="measurementsSizes">{{ msizes | remove: ' ' }}</div>
+              <div class="hide" id="measurementsData" data-handle="{{ product.handle }}"></div>
+            
+              {% if file != "" %}
+                  <div class="mesfile show--tablet-down">
+                    <div>{{ ss.text3 | replace: "#pdf", file }}</div>
+            	  </div>
+              {% endif %}
+  
+              {% if measurementsPage.title == mes_page %}
+                  <button class="measurements_trigger show--tablet-down" data-module-trigger="measurements_popup">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="12" viewBox="0 5 19 9">
+                      <g fill="none" stroke="currentColor" stroke-miterlimit="10"><path d="M.5 6.5h18v6H.5z"></path><path stroke-linecap="square" d="M3.5 12.5v-3m3 3v-2m3 2v-3m6 3v-3m-3 3v-2"></path></g>
+                    </svg>
+                    <span>{{ "general.custom.measure2" | t }}</span>
+            	  </button>
+              {% endif %}
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% if measurementsPage.title == mes_page %}
+<div class="modal--container modal--fixed module--popup measurements_popup" data-module-target="measurements_popup">
+  <div class="modal--wrapper">
+    <div class="modal--inner">
+      <div class="shop-switch shop-switch__stores">
+        <div class="modal-text">
+          <h5 class="modal-heading">&nbsp; </h5>
+          <div class="popup-content">
+            <ul class="list--table" id="measurementsResults">
+            </ul>
+          </div>
+        </div>
+
+        <div class="">
+          <button type="button" data-module-trigger="measurements_popup" class="Link Link--underline js-modal-close">{{- 'general.custom.locator_close' | t -}}</button>
+        </div>
+      </div>
+      
+      <button type="button" class="modal-close js-modal-close" data-module-trigger="measurements_popup">
+        <svg class="Icon Icon--close" width="12px" height="12px" viewBox="0 0 12 12" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+          <g id="Icon/Close" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+            <g id="Group-3" transform="translate(2.000000, 2.000000)" fill="currentColor" fill-rule="nonzero">
+              <path d="M0.646446609,0.646446609 C0.841708755,0.451184464 1.15829124,0.451184464 1.35355339,0.646446609 L1.35355339,0.646446609 L4,3.293 L6.64644661,0.646446609 C6.84170876,0.451184464 7.15829124,0.451184464 7.35355339,0.646446609 C7.52711974,0.820012961 7.54640489,1.08943736 7.41140884,1.2843055 L7.35355339,1.35355339 L4.707,4 L7.35355339,6.64644661 L7.41140884,6.7156945 C7.54640489,6.91056264 7.52711974,7.17998704 7.35355339,7.35355339 C7.15829124,7.54881554 6.84170876,7.54881554 6.64644661,7.35355339 L6.64644661,7.35355339 L4,4.707 L1.35355339,7.35355339 C1.15829124,7.54881554 0.841708755,7.54881554 0.646446609,7.35355339 C0.472880258,7.17998704 0.453595107,6.91056264 0.588591159,6.7156945 L0.646446609,6.64644661 L3.293,4 L0.646446609,1.35355339 L0.588591159,1.2843055 C0.453595107,1.08943736 0.472880258,0.820012961 0.646446609,0.646446609 Z" id="Close"></path>
+            </g>
+          </g>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+   
+<script>
+  let productUrl = document.getElementById("measurementsData").getAttribute("data-handle").split("-");
+  let productSizes = document.getElementById("measurementsSizes").textContent.split(",");
+  let results = "";
+
+  fetch('{{ shop.url }}/pages/{{ mes_page }}')
+  .then((response) => {
+    return response.text();
+  })
+  .then((html) => {
+      var parser = new DOMParser();
+      var doc = parser.parseFromString(html, "text/html");
+
+    {% if mes_page == "measurements-data2" %}
+          doc.querySelectorAll("tr").forEach(function(element) {
+            let info = element.querySelectorAll("td");
+            let one = info[0].textContent.replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().replace(/ /g,'');
+            let two = info[1].textContent;
+            let three = info[2].textContent;
+            let four = info[3].textContent;
+            if(one.split(",").indexOf(productUrl[0]) > -1 && productSizes.indexOf(two) > -1) {
+              results += `<li class="row"><div>${ two }</div><div>${ three }</div><div><span>${ four }</span></div></li>`;
+            }
+          });
+    
+          if(results === "") {
+            document.querySelectorAll('[data-module-trigger="measurements_popup"]').forEach(function(element) {
+              element.remove();
+            });
+          } else {
+            document.getElementById("measurementsResults").innerHTML = "<li class='header'>{{ "general.custom.measuretable2_html" | t }}</li>" + results;
+            document.getElementById("measurementsResultsAlt").innerHTML = "<li class='header'>{{ "general.custom.measuretable2_html" | t }}</li>" + results;
+          }
+    {% else %}
+      doc.querySelectorAll("tr").forEach(function(element) {
+        let info = element.querySelectorAll("td");
+        let id = info[0].textContent.replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().replace(/ /g,'');
+        let eu = info[1].textContent;
+        let uk = info[2].textContent;
+        let us = info[3].textContent;
+        let cm = info[4].textContent;
+        let inch = info[5].textContent;
+
+  
+        
+        let noSizes = productSizes.filter(function(el) {
+          return el.indexOf(eu) > -1;
+        });
+
+        if(id.split(",").indexOf(productUrl[0]) > -1 && noSizes.length > 0) {
+  
+          results += `<li class="row"><div>${ eu }</div><div>${ us }</div><div>${ uk }</div><div><span>${ cm }</span></div><div><span>${ inch }</span></div></li>`;
+        }
+      });
+
+      if(results === "") {
+        document.querySelectorAll('[data-module-trigger="measurements_popup"]').forEach(function(element) {
+          element.remove();
+        });
+      } else {
+        document.getElementById("measurementsResults").innerHTML = "<li class='header'>{{ "general.custom.measuretable1_html" | t }}</li>" + results;
+        document.getElementById("measurementsResultsAlt").innerHTML = "<li class='header'>{{ "general.custom.measuretable1_html" | t }}</li>" + results;
+      }
+    {% endif %}
+  
+  });
+</script>
+{% endif %}
+  
+{% if section.settings.popup_content != blank %}
+<div id="SizeModal" class="modal--container modal--fixed" data-modal="size_popup">
+  <div class="overlay"></div>
+  
+  <div class="modal--wrapper">
+    <div class="modal--inner">
+      <div class="shop-switch shop-switch__stores">
+        <div class="modal-text">
+          <h5 class="modal-heading"> {{ section.settings.popup_heading }}</h5>
+          <p class="modal-subheading">{{ section.settings.popup_subheading }}</p>
+
+          <div class="popup-content">
+            {%- assign modal_page = pages[section.settings.popup_content] -%}
+            {% assign size_modal = modal_page.content %}
+            {{ size_modal }}
+          </div>
+        </div>
+
+        <div class="">
+          <button type="button" class="Link Link--underline js-modal-close">{{- 'general.custom.locator_close' | t -}}</button>
+        </div>
+      </div>
+      
+      <button type="button" class="modal-close js-modal-close">
+        <svg class="Icon Icon--close" width="12px" height="12px" viewBox="0 0 12 12" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+          <g id="Icon/Close" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+            <g id="Group-3" transform="translate(2.000000, 2.000000)" fill="currentColor" fill-rule="nonzero">
+              <path d="M0.646446609,0.646446609 C0.841708755,0.451184464 1.15829124,0.451184464 1.35355339,0.646446609 L1.35355339,0.646446609 L4,3.293 L6.64644661,0.646446609 C6.84170876,0.451184464 7.15829124,0.451184464 7.35355339,0.646446609 C7.52711974,0.820012961 7.54640489,1.08943736 7.41140884,1.2843055 L7.35355339,1.35355339 L4.707,4 L7.35355339,6.64644661 L7.41140884,6.7156945 C7.54640489,6.91056264 7.52711974,7.17998704 7.35355339,7.35355339 C7.15829124,7.54881554 6.84170876,7.54881554 6.64644661,7.35355339 L6.64644661,7.35355339 L4,4.707 L1.35355339,7.35355339 C1.15829124,7.54881554 0.841708755,7.54881554 0.646446609,7.35355339 C0.472880258,7.17998704 0.453595107,6.91056264 0.588591159,6.7156945 L0.646446609,6.64644661 L3.293,4 L0.646446609,1.35355339 L0.588591159,1.2843055 C0.453595107,1.08943736 0.472880258,0.820012961 0.646446609,0.646446609 Z" id="Close"></path>
+            </g>
+          </g>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const tl = gsap.timeline()
+      .to('#section--{{ section.id }} .dot-step', {
+        background: {{ ss.content_accent | json }},
+        ease: "none",
+        duration: 1,
+        opacity: 1,
+        stagger: 1.15
+      }, 0)
+      .to('#section--{{ section.id }} .feature-item', {
+        opacity: 1,
+        ease: "linear",
+        duration: 1,
+        stagger: 1.15
+      }, 0)
+
+      .from('#section--{{ section.id }} .bg-bar', {
+        height: 0,
+        ease: "linear",
+        duration: 1,
+        stagger: 1
+      }, 1)
+
+    const controller = new ScrollMagic.Controller();
+    const scene = new ScrollMagic.Scene({
+        triggerElement: '#section--{{ section.id }} .items-container',
+        triggerHook: .5,
+        offset: 0,
+      	duration: {{ ss.duration | json }}
+      })
+      .setTween(tl)
+      .addTo(controller)
+
+      scene.setPin('#section--{{ section.id }} .pin-image');
+  });
+</script>
+{% else %}
+
+  
+  <script>
+    document.querySelector(".sizes-link").classList.add("hide");
+  </script>
+  
+  {% assign show_section2 = false %}
+  {% for item in ss.product_list2 %}
+    {% if item.id == product.id %}
+      {% assign show_section2 = true %}
+    {% endif %}
+  {% endfor %}
+  
+  {% if show_section2 %}
+    {% for tag in product.tags %}
+      {% if tag contains "size:" %}
+        {%- assign handle = tag | split: ":" | last -%}
+        {%- assign product_b = all_products[handle] -%}
+      {% endif %}
+    {% endfor %}
+  
+    {%- assign measurementsPage = pages["measurements-data2"] -%}
+    {%- assign measurementsData = measurementsPage.content -%}
+  
+    {% capture msizes %}{% for variant in product.variants %}{% if variant.available %}{{ variant.title }},{% endif %}{% endfor %}{% for variant in product_b.variants %}{% if variant.available %}{{ variant.title }},{% endif %}{% endfor %}{% endcapture %}
+    <div class="hide" id="measurementsSizes">{{ msizes | remove: ' ' }}</div>
+    <div class="hide" id="measurementsData" data-handle="{{ product.handle }}">
+    
+    </div>
+    {% if measurementsPage.title == "measurements-data2" %}
+    <div class="modal--container modal--fixed module--popup measurements_popup" data-module-target="measurements_popup">
+      <div class="modal--wrapper">
+        <div class="modal--inner">
+          <div class="shop-switch shop-switch__stores">
+            <div class="modal-text">
+              <h5 class="modal-heading">&nbsp; </h5>
+              <div class="popup-content">
+                <ul class="list--table" id="measurementsResults">
+    
+                </ul>
+              </div>
+            </div>
+    
+            <div class="">
+              <button type="button" data-module-trigger="measurements_popup" class="Link Link--underline js-modal-close">{{- 'general.custom.locator_close' | t -}}</button>
+            </div>
+          </div>
+          
+          <button type="button" class="modal-close js-modal-close" data-module-trigger="measurements_popup">
+            <svg class="Icon Icon--close" width="12px" height="12px" viewBox="0 0 12 12" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+              <g id="Icon/Close" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                <g id="Group-3" transform="translate(2.000000, 2.000000)" fill="currentColor" fill-rule="nonzero">
+                  <path d="M0.646446609,0.646446609 C0.841708755,0.451184464 1.15829124,0.451184464 1.35355339,0.646446609 L1.35355339,0.646446609 L4,3.293 L6.64644661,0.646446609 C6.84170876,0.451184464 7.15829124,0.451184464 7.35355339,0.646446609 C7.52711974,0.820012961 7.54640489,1.08943736 7.41140884,1.2843055 L7.35355339,1.35355339 L4.707,4 L7.35355339,6.64644661 L7.41140884,6.7156945 C7.54640489,6.91056264 7.52711974,7.17998704 7.35355339,7.35355339 C7.15829124,7.54881554 6.84170876,7.54881554 6.64644661,7.35355339 L6.64644661,7.35355339 L4,4.707 L1.35355339,7.35355339 C1.15829124,7.54881554 0.841708755,7.54881554 0.646446609,7.35355339 C0.472880258,7.17998704 0.453595107,6.91056264 0.588591159,6.7156945 L0.646446609,6.64644661 L3.293,4 L0.646446609,1.35355339 L0.588591159,1.2843055 C0.453595107,1.08943736 0.472880258,0.820012961 0.646446609,0.646446609 Z" id="Close"></path>
+                </g>
+              </g>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+       
+    <script>
+      let productUrl = document.getElementById("measurementsData").getAttribute("data-handle").split("-");
+      let productSizes = document.getElementById("measurementsSizes").textContent.split(",");
+      let results = "";
+    
+      fetch('{{ shop.url }}/pages/measurements-data2')
+      .then((response) => {
+        return response.text();
+      })
+      .then((html) => {
+          var parser = new DOMParser();
+          var doc = parser.parseFromString(html, "text/html");
+    
+          doc.querySelectorAll("tr").forEach(function(element) {
+            let info = element.querySelectorAll("td");
+            let one = info[0].textContent;
+            let two = info[1].textContent;
+            let three = info[2].textContent;
+            let four = info[3].textContent;
+            if(one.split(",").indexOf(productUrl[0]) > -1 && productSizes.indexOf(two) > -1) {
+              results += `<li class="row"><div>${ two }</div><div>${ three }</div><div><span>${ four }</span></div></li>`;
+              document.querySelector(".sizes-link").classList.remove("hide");
+              document.querySelector(".sizes-link").removeAttribute("href");
+              document.querySelector(".sizes-link").setAttribute("data-module-trigger", "measurements_popup");
+              document.querySelector(".sizes-link span").textContent = "{{ "general.custom.measure2" | t }}";
+  
+            }
+          });
+    
+          if(results === "") {
+            document.querySelectorAll('[data-module-trigger="measurements_popup"]').forEach(function(element) {
+              element.remove();
+            });
+          } else {
+            document.getElementById("measurementsResults").innerHTML = "<li class='header'>{{ "general.custom.measuretable2_html" | t }}</li>" + results;
+            document.getElementById("measurementsResultsAlt").innerHTML = "<li class='header'>{{ "general.custom.measuretable2_html" | t }}</li>" + results;
+          }
+      });
+    </script>
+    {% endif %}
+  {% endif %}
+{% endif %}
+
+{% schema %}
+  {
+    "name": "Size section",
+    "class": "section--custom-product--size",
+    "settings": [
+      {
+        "label": "Size data",
+        "id": "size_data2",
+        "type": "page"
+      },
+      {
+        "label": "Size data",
+        "id": "size_data",
+        "type": "textarea"
+      },
+      {
+        "type": "range",
+        "id": "max_width",
+        "label": "Custom section width",
+        "min": 0,
+        "max": 1000,
+        "step": 25,
+        "default": 425
+      },
+      {
+        "type": "product_list",
+        "id": "product_list",
+        "label": "Hide for:"
+      },
+      {
+        "type": "product_list",
+        "id": "product_list2",
+        "label": "Alternate table for:",
+        "info": "Data page: measurements-data2"
+      },
+      {
+        "type": "header",
+        "content": "Content"
+      },
+      {
+        "type": "header",
+        "content": "Content"
+      },
+      {
+        "type": "range",
+        "id": "duration",
+        "label": "Scroll duration",
+        "min": 0,
+        "max": 1000,
+        "step": 25,
+        "default": 425
+      },
+      {
+        "label": "Heading",
+        "id": "heading",
+        "type": "richtext"
+      },
+      {
+        "label": "Heading (alternative)",
+        "id": "heading_alt",
+        "type": "richtext"
+      },
+      {
+        "label": "Subheading",
+        "id": "subheading",
+        "type": "text"
+      },
+
+      {
+        "label": "Text 1",
+        "id": "text1",
+        "type": "richtext"
+      },
+      {
+        "label": "Text 2 (PDF)",
+        "id": "text3",
+        "type": "richtext"
+      },
+      {
+        "label": "Text 3",
+        "id": "text2",
+        "type": "richtext",
+        "info": "#size-popup - to activate popup"
+      },
+      {
+        "type": "range",
+        "id": "text_width",
+        "label": "Max text width (desktop)",
+        "min": 0,
+        "max": 1000,
+        "step": 10,
+        "default": 590,
+        "info": "0 - full width"
+      },
+
+      {
+        "label": "Popup heading",
+        "id": "popup_heading",
+        "type": "text"
+      },
+      {
+        "label": "Popup subheading",
+        "id": "popup_subheading",
+        "type": "text"
+      },
+      {
+        "label": "Popup content",
+        "id": "popup_content",
+        "type": "page"
+      },
+
+
+      {
+        "type": "header",
+        "content": "Colours"
+      },
+      {
+        "type": "color",
+        "id": "section_background",
+        "label": "Section Background"
+      },
+      {
+        "type": "color",
+        "id": "content_background",
+        "label": "Content Background"
+      },
+      {
+        "type": "color",
+        "id": "content_text",
+        "label": "Content Text"
+      },
+      {
+        "type": "color",
+        "id": "content_accent",
+        "label": "Accent"
+      },
+      {
+        "type": "header",
+        "content": "Spacing"
+      },
+      {
+         "type":      "radio",
+         "id":        "width",
+         "label":     "Width:",
+         "options": [
+           { "value": "default", "label": "Default" },
+           { "value": "wide", "label": "Wide" },
+           { "value": "full", "label": "Full" },
+           { "value": "full_with", "label": "Full with padding" },
+           { "value": "custom", "label": "Custom" }
+         ],
+        "default":   "default"
+      },
+
+      {
+        "type": "range",
+        "id": "custom_width",
+        "label": "Custom section width",
+        "min": 800,
+        "max": 1600,
+        "step": 10,
+        "default": 800
+      },
+      {
+        "type": "range",
+        "id": "section_margin",
+        "label": "Section Margin: Bottom",
+        "min": 0,
+        "max": 5,
+        "step": 0.5,
+        "default": 0
+      },
+      {
+        "type": "range",
+        "id": "section_padding",
+        "label": "Section Padding: Top/Bottom",
+        "min": 0,
+        "max": 5,
+        "step": 0.5,
+        "default": 0
+      },
+      {
+        "type": "range",
+        "id": "content_padding",
+        "label": "Content Padding: All",
+        "min": 0,
+        "max": 5,
+        "step": 0.5,
+        "default": 0
+      }
+	],
+    "blocks": [
+      {
+        "type": "block",
+        "name": "Block",
+        "settings": [
+          {
+            "label": "Heading",
+            "id": "heading",
+            "type": "text"
+          },
+          {
+            "label": "Text",
+            "id": "text",
+            "type": "richtext"
+          }
+        ]
+      },
+      {
+        "type": "pdf",
+        "name": "PDF",
+        "settings": [
+          {
+            "type": "product_list",
+            "id": "product_list",
+            "label": "Products"
+          },
+          {
+            "label": "PDF",
+            "id": "pdf",
+            "type": "url"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "name": "Text",
+        "settings": [
+          {
+            "type": "product_list",
+            "id": "product_list",
+            "label": "Products"
+          },
+          {
+            "label": "Text 1",
+            "id": "text1",
+            "type": "richtext"
+          }
+        ]
+      }
+    ]
+  }
+{% endschema %}

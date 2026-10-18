@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newspaper Magnifier Effect (Hover)</title>
+  <style>
+html,
+body {
+  height: 100%;
+  margin: 0;
+}.viewer .glass::before, .viewer .glass::after
+
+body {
+  background-image: linear-gradient(45deg, grey 0%, lightgray 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.viewer {
+  width: 800px;
+  height: 520px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.13);
+  cursor: none;
+}
+.viewer .paper {
+  width: 100%;
+  height: 205%;
+  background: url(/Black.png);
+  background-size: 800px auto;
+}
+.viewer .glass {
+    position: absolute;
+    top: -70px;
+    left: 0;
+    width: 200px;
+    height: 200px;
+    border-radius: 112px;
+    background: url(/image_4444_6.png);
+    background-size: 1600px 2132px;
+    pointer-events: none;
+    box-shadow: inset -20px 20px 40px rgba(255, 255, 255, 0.4),
+              inset 20px -20px 40px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.viewer .glass::before, .viewer .glass::after {
+    position: absolute;
+    left: -68px;
+    top: -31px;
+    width: 430px;
+    height: 420px;
+    content: "";
+    border-radius: 32px;
+}
+.viewer .glass::before {
+  /* box-shadow: -6px 4px 4px rgba(0, 0, 0, 0.23); */
+}
+.viewer .glass::after {
+  background-image: url('/b63b3fe4fc57f3b2c6269c099a7616e06b0a2d2b.png');
+  background-size: cover;
+  mix-blend-mode: soft-light;
+  opacity: 0.9;
+}
+  </style>
+</head>
+<body>
+<div id="viewer" class="viewer">
+	<div id="paper" class="paper"></div>
+	<div id="glass" class="glass"></div>  
+</div>
+<script>
+const viewer = document.getElementById("viewer"),
+      paper = document.getElementById("paper"),
+      glass = document.getElementById("glass"),
+      offset = 50,
+      smoothFactor = 0.28;
+
+let glassPos = { x: 0, y: 0, tx: 0, ty: 0 },
+    glassBackPos = { x: 0, y: 0, tx: 0, ty: 0 },
+    paperPos = { x: 0, y: 0, tx: 0, ty: 0 };
+
+const normalize = (va, mi, ma) => (va - mi) / (ma - mi),
+      interpolate = (no, mi, ma) => mi + (ma - mi) * no;
+
+function updatePosition(clientX, clientY) {
+  const rect = viewer.getBoundingClientRect(),
+        x = Math.min(viewer.clientWidth - offset, Math.max(offset, clientX - rect.left)),
+        y = Math.min(viewer.clientHeight - offset, Math.max(offset, clientY - rect.top)),
+        normX = normalize(x, offset, viewer.clientWidth - offset),
+        normY = normalize(y, offset, viewer.clientHeight - offset),
+        diffX = paper.clientWidth - viewer.clientWidth,
+        diffY = paper.clientHeight - viewer.clientHeight;
+
+  // glass
+  glassPos.tx = interpolate(normX, 0, viewer.clientWidth - glass.clientWidth);
+  glassPos.ty = interpolate(normY, 0, viewer.clientHeight - glass.clientHeight);
+
+  // paper
+  paperPos.tx = interpolate(normX, 0, diffX);
+  paperPos.ty = interpolate(normY, 0, diffY);
+
+  // magnified background
+  glassBackPos.tx = interpolate(normX, 0, 100);
+  glassBackPos.ty = interpolate(normY, 0, 100);
+}
+
+// 🖱️ Desktop events
+viewer.addEventListener("mouseenter", () => glass.style.opacity = 0.95);
+viewer.addEventListener("mouseleave", () => glass.style.opacity = 0);
+viewer.addEventListener("mousemove", (e) => updatePosition(e.clientX, e.clientY));
+
+// 📱 Mobile events
+viewer.addEventListener("touchstart", (e) => {
+  glass.style.opacity = 0.95;
+  const touch = e.touches[0];
+  updatePosition(touch.clientX, touch.clientY);
+});
+
+viewer.addEventListener("touchmove", (e) => {
+  const touch = e.touches[0];
+  updatePosition(touch.clientX, touch.clientY);
+});
+
+viewer.addEventListener("touchend", () => {
+  glass.style.opacity = 0;
+});
+
+(function tick() {
+  requestAnimationFrame(tick);
+
+  // smooth motion
+  paperPos.x += smoothFactor * (paperPos.tx - paperPos.x);
+  paperPos.y += smoothFactor * (paperPos.ty - paperPos.y);
+  glassPos.x += smoothFactor * (glassPos.tx - glassPos.x);
+  glassPos.y += smoothFactor * (glassPos.ty - glassPos.y);
+  glassBackPos.x += smoothFactor * (glassBackPos.tx - glassBackPos.x);
+  glassBackPos.y += smoothFactor * (glassBackPos.ty - glassBackPos.y);
+
+  // apply
+  paper.style.transform = `translate(${-paperPos.x}px, ${-paperPos.y}px)`;
+  glass.style.transform = `translate(${glassPos.x}px, ${glassPos.y}px)`;
+  glass.style.backgroundPosition = `${glassBackPos.x}% ${glassBackPos.y}%`;
+})();
+</script>
+
+</body>
+</html>

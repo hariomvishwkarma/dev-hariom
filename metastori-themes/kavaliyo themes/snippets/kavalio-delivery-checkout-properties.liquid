@@ -1,0 +1,124 @@
+{%- comment -%}
+  Checkout line properties for delivery (email / cart). Render once per product form.
+  Params: product, product_form_id, text_in_stock (base range, e.g. "1-2"), variant (optional),
+          render_hidden_inputs, render_delivery_script
+{%- endcomment -%}
+{%- assign kav_base_days = text_in_stock | default: '1-2' | strip -%}
+{%- assign kav_initial_variant = variant | default: product.selected_or_first_available_variant -%}
+{%- assign kav_initial_range = kav_base_days -%}
+{%- assign kav_initial_lss = false -%}
+
+{%- assign kav_lss_raw = kav_initial_variant.metafields.custom.lss.value
+  | default: kav_initial_variant.metafields.custom.lss
+  | downcase
+  | strip
+-%}
+{%- assign kav_is_lss = false -%}
+{%- if kav_lss_raw == 'ja' -%}
+  {%- assign kav_is_lss = true -%}
+{%- endif -%}
+{%- assign kav_shop_raw = kav_initial_variant.metafields.custom.shop_location_inventory.value
+  | default: kav_initial_variant.metafields.custom.shop_location_inventory
+  | strip
+-%}
+{%- assign kav_shop_known = false -%}
+{%- assign kav_shop_has_stock = false -%}
+{%- if kav_shop_raw != blank -%}
+  {%- assign kav_shop_known = true -%}
+  {%- assign kav_shop_qty = kav_shop_raw | plus: 0 -%}
+  {%- if kav_shop_qty > 0 -%}
+    {%- assign kav_shop_has_stock = true -%}
+  {%- endif -%}
+{%- endif -%}
+{%- assign kav_company = kav_initial_variant.metafields.custom.company.value
+  | default: kav_initial_variant.metafields.custom.company
+-%}
+{%- assign kav_supplier_range = '' -%}
+{%- if kav_is_lss and kav_company != blank and kav_shop_known and kav_shop_has_stock == false -%}
+  {%- assign kav_supplier_meta = kav_company.zusatzliche_lieferzeit.value
+    | default: kav_company.zusatzliche_lieferzeit
+  -%}
+  {%- assign kav_supplier_range = kav_supplier_meta | strip -%}
+{%- endif -%}
+{%- if kav_is_lss and kav_supplier_range != '' and kav_shop_known and kav_shop_has_stock == false -%}
+  {%- assign kav_initial_lss = true -%}
+  {%- assign kav_b_min = kav_base_days | split: '-' | first | strip | plus: 0 -%}
+  {%- assign kav_b_max = kav_base_days | split: '-' | last | strip | plus: 0 -%}
+  {%- assign kav_s_min = kav_supplier_range | split: '-' | first | strip | plus: 0 -%}
+  {%- assign kav_s_max = kav_supplier_range | split: '-' | last | strip | plus: 0 -%}
+  {%- assign kav_total_min = kav_b_min | plus: kav_s_min -%}
+  {%- assign kav_total_max = kav_b_max | plus: kav_s_max -%}
+  {%- assign kav_initial_range = kav_total_min | append: '-' | append: kav_total_max -%}
+{%- endif -%}
+
+{%- if render_hidden_inputs -%}
+  <input
+    type="hidden"
+    name="properties[_kavalio_delivery_range]"
+    value="{{ kav_initial_range }}"
+    data-kavalio-delivery-range
+  >
+  <input
+    type="hidden"
+    name="properties[_kavalio_lss_override]"
+    value="{% if kav_initial_lss %}1{% else %}0{% endif %}"
+    data-kavalio-lss-override
+  >
+{%- endif -%}
+
+{%- if render_delivery_script != false -%}
+  <script type="application/json" data-kavalio-delivery-data data-product-form-id="{{ product_form_id }}">
+    {
+      {%- for variant in product.variants -%}
+        {%- assign kav_v_lss_raw = variant.metafields.custom.lss.value
+          | default: variant.metafields.custom.lss
+          | downcase
+          | strip
+        -%}
+        {%- assign kav_v_is_lss = false -%}
+        {%- if kav_v_lss_raw == 'ja' -%}
+          {%- assign kav_v_is_lss = true -%}
+        {%- endif -%}
+        {%- assign kav_v_shop_raw = variant.metafields.custom.shop_location_inventory.value
+          | default: variant.metafields.custom.shop_location_inventory
+          | strip
+        -%}
+        {%- assign kav_v_shop_known = false -%}
+        {%- assign kav_v_shop_has_stock = false -%}
+        {%- if kav_v_shop_raw != blank -%}
+          {%- assign kav_v_shop_known = true -%}
+          {%- assign kav_v_shop_qty = kav_v_shop_raw | plus: 0 -%}
+          {%- if kav_v_shop_qty > 0 -%}
+            {%- assign kav_v_shop_has_stock = true -%}
+          {%- endif -%}
+        {%- endif -%}
+        {%- assign kav_v_company = variant.metafields.custom.company.value
+          | default: variant.metafields.custom.company
+        -%}
+        {%- assign kav_v_supplier = '' -%}
+        {%- assign kav_v_lss_override = false -%}
+        {%- if kav_v_is_lss and kav_v_company != blank and kav_v_shop_known and kav_v_shop_has_stock == false -%}
+          {%- assign kav_v_supplier_meta = kav_v_company.zusatzliche_lieferzeit.value
+            | default: kav_v_company.zusatzliche_lieferzeit
+          -%}
+          {%- assign kav_v_supplier = kav_v_supplier_meta | strip -%}
+        {%- endif -%}
+        {%- assign kav_v_range = kav_base_days -%}
+        {%- if kav_v_is_lss and kav_v_supplier != '' and kav_v_shop_known and kav_v_shop_has_stock == false -%}
+          {%- assign kav_v_lss_override = true -%}
+          {%- assign kav_v_b_min = kav_base_days | split: '-' | first | strip | plus: 0 -%}
+          {%- assign kav_v_b_max = kav_base_days | split: '-' | last | strip | plus: 0 -%}
+          {%- assign kav_v_s_min = kav_v_supplier | split: '-' | first | strip | plus: 0 -%}
+          {%- assign kav_v_s_max = kav_v_supplier | split: '-' | last | strip | plus: 0 -%}
+          {%- assign kav_v_total_min = kav_v_b_min | plus: kav_v_s_min -%}
+          {%- assign kav_v_total_max = kav_v_b_max | plus: kav_v_s_max -%}
+          {%- assign kav_v_range = kav_v_total_min | append: '-' | append: kav_v_total_max -%}
+        {%- endif -%}
+        "{{ variant.id }}": {
+          "range": {{ kav_v_range | json }},
+          "lssOverride": {% if kav_v_lss_override %}true{% else %}false{% endif %}
+        }{% unless forloop.last %},{% endunless %}
+      {%- endfor -%}
+    }
+  </script>
+{%- endif -%}

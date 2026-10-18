@@ -1,0 +1,679 @@
+{{ 'swiper.css' | asset_url | stylesheet_tag }}
+{{ 'shoppable-image.css' | asset_url | stylesheet_tag }}
+{{ 'section-video-carousel.css' | asset_url | stylesheet_tag }}
+{{ 'section-shoppable-video.css' | asset_url | stylesheet_tag }}
+
+<script src="{{ 'video-controls.js' | asset_url }}" defer="defer"></script>
+<script src="{{ 'video-reels.js' | asset_url }}" defer="defer"></script>
+<script src="{{ 'quick-add.js' | asset_url }}" defer="defer"></script>
+
+{% assign background_rgb = section.settings['color-overlay'] | color_to_rgb %}
+{% assign text_rgb = section.settings['color-body-text'] | color_to_rgb %}
+{% assign play_shadow_opacity = section.settings.play_button_shadow_opacity | default: 18 | divided_by: 100.0 %}
+{% assign play_shadow_color = section.settings.play_button_shadow_color | default: '#000000' | color_modify: 'alpha', play_shadow_opacity %}
+
+<style>
+  section[id="shopify-section-{{ section.id }}"].video-reels-section,
+  [data-section-id="{{ section.id }}"] {
+    --vr-video-radius-mobile: {{ section.settings.video_corner_radius_mobile | default: 12 }}px;
+    --vr-video-radius-desktop: {{ section.settings.video_corner_radius_desktop | default: 16 }}px;
+    --vr-play-size-mobile: {{ section.settings.play_button_size_mobile | default: 56 }}px;
+    --vr-play-size-desktop: {{ section.settings.play_button_size_desktop | default: 64 }}px;
+    --vr-play-icon-size-mobile: {{ section.settings.play_button_icon_size_mobile | default: 22 }}px;
+    --vr-play-icon-size-desktop: {{ section.settings.play_button_icon_size_desktop | default: 26 }}px;
+    --vr-play-bg: {{ section.settings.play_button_bg_color | default: '#f5a623' }};
+    --vr-play-icon-color: {{ section.settings.play_button_icon_color | default: '#ffffff' }};
+    --vr-play-border-color: {{ section.settings.play_button_border_color | default: 'transparent' }};
+    --vr-play-border-width: {{ section.settings.play_button_border_width | default: 0 }}px;
+    --vr-play-shadow: {% if section.settings.play_button_shadow_enable %}0 4px {{ section.settings.play_button_shadow_blur | default: 12 }}px {{ play_shadow_color }}{% else %}none{% endif %};
+    --vr-product-image-radius: {{ section.settings.product_image_radius | default: 8 }}px;
+    --vr-product-card-radius: {{ section.settings.product_card_radius | default: 12 }}px;
+  }
+
+  [data-section-id="{{ section.id }}"] {
+
+  {% if section.settings.margin-top %}
+      --section-gap-top: {{ section.settings.margin-top }}px;
+  {% endif %}
+
+  {% if section.settings.margin-bottom %}
+      --section-gap-bottom: {{ section.settings.margin-bottom }}px;
+  {% endif %}
+
+  {% if background_rgb != 'rgba(0, 0, 0, 0.0)' %}
+    --color-background: {{ section.settings.background_color }};
+  {% endif %}
+
+  }
+
+  [data-section-id="{{ section.id }}"]
+  {
+    {% if text_rgb != 'rgba(0, 0, 0, 0.0)' %}
+      --color-custom-text: {{ section.settings.color-body-text }};
+      --color-price: {{ section.settings.color-body-text }};
+    {% endif %}
+  }
+
+  [data-section-id="{{ section.id }}"] [data-swiper-slide] .video-container,
+  [data-section-id="{{ section.id }}"] [data-swiper-slide] .video-container low-power-video {
+    border-radius: var(--vr-video-radius-mobile);
+  }
+
+  @media (min-width: 900px) {
+    [data-section-id="{{ section.id }}"] [data-swiper-slide] .video-container,
+    [data-section-id="{{ section.id }}"] [data-swiper-slide] .video-container low-power-video {
+      border-radius: var(--vr-video-radius-desktop);
+    }
+  }
+
+  [data-section-id="{{ section.id }}"] .shoppable-product-card {
+    border-radius: var(--vr-product-card-radius);
+    overflow: hidden;
+  }
+
+  [data-section-id="{{ section.id }}"] .shoppable-product-card .wt-dot__image,
+  [data-section-id="{{ section.id }}"] .shoppable-product-card .wt-dot__picture img {
+    border-radius: var(--vr-product-image-radius);
+  }
+
+  {%- for block in section.blocks -%}
+    {%- if block.type == 'product' and block.settings.card_radius != blank and block.settings.card_radius > 0 -%}
+  [data-section-id="{{ section.id }}"] [data-block-id="{{ block.id }}"] .shoppable-product-card {
+    border-radius: {{ block.settings.card_radius }}px;
+  }
+    {%- endif -%}
+  {%- endfor -%}
+
+  {% if section.settings.video_button %}
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button {
+    width: var(--vr-play-size-mobile);
+    height: var(--vr-play-size-mobile);
+    min-width: var(--vr-play-size-mobile);
+    min-height: var(--vr-play-size-mobile);
+    padding: 0;
+    background-color: var(--vr-play-bg);
+    color: var(--vr-play-icon-color);
+    border: var(--vr-play-border-width) solid var(--vr-play-border-color);
+    border-radius: 50%;
+    box-shadow: var(--vr-play-shadow);
+    backdrop-filter: none;
+    z-index: 6;
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+  }
+
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button .shoppable-video__icon-play,
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button .shoppable-video__icon-pause {
+    width: var(--vr-play-icon-size-mobile);
+    height: var(--vr-play-icon-size-mobile);
+    color: var(--vr-play-icon-color);
+    fill: var(--vr-play-icon-color);
+    align-items: center;
+    justify-content: center;
+  }
+
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button .shoppable-video__icon-play svg,
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button .shoppable-video__icon-pause svg {
+    width: var(--vr-play-icon-size-mobile);
+    height: var(--vr-play-icon-size-mobile);
+    color: var(--vr-play-icon-color);
+    fill: var(--vr-play-icon-color);
+  }
+
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button .shoppable-video__icon-pause svg path {
+    fill: var(--vr-play-icon-color);
+  }
+
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button--play .shoppable-video__icon-play {
+    display: none !important;
+  }
+
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button--pause .shoppable-video__icon-pause {
+    display: none !important;
+  }
+
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button--play .shoppable-video__icon-pause,
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button--pause .shoppable-video__icon-play {
+    display: flex;
+  }
+
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button--pause,
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button--flash {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button--play:not(.shoppable-video__control-button--flash) {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .wt-video__movie {
+    cursor: pointer;
+  }
+
+  {% if section.settings.play_button_position == 'center' %}
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button {
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+  }
+
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide].active .shoppable-video__control-button {
+    transform: translate(-50%, -50%);
+  }
+  {% endif %}
+
+  {% unless section.settings.play_button_show_on_all_slides %}
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide]:not(.active) .shoppable-video__control-button {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transform: {% if section.settings.play_button_position == 'center' %}translate(-50%, -50%) scale(0.85){% else %}scaleX(0){% endif %};
+  }
+
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide].active .shoppable-video__control-button--pause,
+  [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide].active .shoppable-video__control-button--flash {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+    transform: {% if section.settings.play_button_position == 'center' %}translate(-50%, -50%) scale(1){% else %}scaleX(1){% endif %};
+  }
+  {% endunless %}
+
+  @media (min-width: 900px) {
+    [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button {
+      width: var(--vr-play-size-desktop);
+      height: var(--vr-play-size-desktop);
+      min-width: var(--vr-play-size-desktop);
+      min-height: var(--vr-play-size-desktop);
+    }
+
+    [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button .shoppable-video__icon-play,
+    [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button .shoppable-video__icon-pause,
+    [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button .shoppable-video__icon-play svg,
+    [data-section-id="{{ section.id }}"].video-reels--custom-play [data-swiper-slide] .shoppable-video__control-button .shoppable-video__icon-pause svg {
+      width: var(--vr-play-icon-size-desktop);
+      height: var(--vr-play-icon-size-desktop);
+    }
+  }
+  {% endif %}
+
+  {% unless section.settings.show_pagination_dots %}
+  [data-section-id="{{ section.id }}"] .wt-slider__pagination {
+    display: none !important;
+  }
+  {% endunless %}
+  
+</style>
+
+<script type="module" src="{{ 'slider.js' | asset_url }}" defer="defer"></script>
+
+<video-reels
+  data-section-id="{{ section.id }}"
+  class="section-content video-reels wt-slider--wrapper{% if section.settings.video_button %} video-reels--custom-play{% endif %} {% if settings.animations %} scroll-trigger animate--slide-in {% endif %} {% if settings.disabled_animations_on_mobile %} disabled-on-mobile {% endif %}"
+>
+  {% if section.settings.advanced_heading %}
+    {% if section.settings.heading_richtext != blank %}
+      <div class="headline headline--rich {% if settings.animations %} scroll-trigger animate--slide-in {% endif %} {% if settings.disabled_animations_on_mobile %} disabled-on-mobile {% endif %}">
+        {{ section.settings.heading_richtext }}
+      </div>
+    {% endif %}
+  {% else %}
+    {% if section.settings.heading != blank %}
+      {% render 'headline', title: section.settings.heading %}
+    {% endif %}
+  {% endif %}
+
+  <slideshow-section class="wt-slider {% if settings.animations %}scroll-trigger animate--slide-in {% if settings.disabled_animations_on_mobile %} disabled-on-mobile {% endif %}{% endif %}">
+    <div data-swiper class="wt-slider__container wt-slider__container--video-carousel" data-sound="off">
+      <div data-swiper-container class="video-reels__container">
+        {% for block in section.blocks %}
+          <div
+            data-swiper-slide
+            data-block-id="{{ block.id }}"
+            class="video-carousel"
+          >
+            <div
+              class="video-container"
+            >
+              <low-power-video>
+                <video-controls data-behavior="reels">
+                  <div class="wt-video__movie wt-video__movie--shopify-video wt-video__item {% if block.settings.video_hosted == nil %} wt-video__movie--placeholder {% endif %}">
+                    {% if section.settings.video_button %}
+                      {% render 'play-pause-button', classname: '' %}
+                    {% endif %}
+                    {% if block.settings.video_hosted %}
+                      {{
+                        block.settings.video_hosted
+                        | video_tag: autoplay: true, loop: true, muted: true, controls: false, image_size: '600x'
+                      }}
+                    {% else %}
+                      {% comment %} {% assign my_counter = forloop.index | modulo: 3 | plus: 1 %} {% endcomment %}
+                      {{ 'product-apparel-3' | placeholder_svg_tag: '' }}
+                    {% endif %}
+                  </div>
+                </video-controls>
+                <button
+                  aria-label="{{ 'aria-label.video-reels-toggle-sound' | t }}"
+                  class="wt-video__sound-toggle"
+                  data-sound="off"
+                >
+                  {% render 'icons', id: 'volume' %}
+                  {% render 'icons', id: 'volume-muted' %}
+                </button>
+              </low-power-video>
+            </div>
+
+            {% render 'shoppable-video-product', block: block, hide_brand: section.settings['hide-brand-name'] %}
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="swiper-button-next wt-slider__nav-btn wt-slider__nav-next wt-slider__nav-next--featured">
+        {% render 'icons', id: 'arrow-right' %}
+      </div>
+      <div class="swiper-button-prev wt-slider__nav-btn wt-slider__nav-prev wt-slider__nav-prev--featured">
+        {% render 'icons', id: 'arrow-left' %}
+      </div>
+      {%- if section.settings.show_pagination_dots -%}
+        <div class="swiper-pagination wt-slider__pagination"></div>
+      {%- endif -%}
+    </div>
+    <script data-swiper-configuration type="text/json">
+      {
+        "slidesPerView": 1.4,
+        "spaceBetween": 16,
+        "freeMode": false,
+        "speed": 150,
+        "grabCursor": false,
+        "centeredSlides": true,
+        "loop": true,
+        "slideToClickedSlide": true,
+        "enableOnMedia": "(min-width: 0px)",
+        {% unless section.settings.show_pagination_dots %}"pagination": false,{% endunless %}
+        "breakpoints": {
+          "600": {
+            "slidesPerView": 1.4
+          },
+          "900": {
+            "slidesPerView": 2.5
+          },
+          "1200": {
+            "slidesPerView": 5.1,
+            "spaceBetween": 24
+          },
+          "1600": {
+            "slidesPerView": 5.1,
+            "spaceBetween": 24
+          }
+        },
+        "navigation": {
+          "nextEl": ".wt-slider__nav-next--featured",
+          "prevEl": ".wt-slider__nav-prev--featured"
+        }
+      }
+    </script>
+  </slideshow-section>
+</video-reels>
+
+{% schema %}
+{
+  "name": "t:sections.shoppable-video-reels.name",
+  "tag": "section",
+  "class": "spaced-section collection-list-section video-reels-section",
+  "max_blocks": 12,
+  "settings": [
+    {
+      "type": "header",
+      "content": "t:sections.shoppable-video-reels.settings.important-information.content",
+      "info": "t:sections.shoppable-video-reels.settings.important-information.info"
+    },
+    {
+      "type": "checkbox",
+      "id": "advanced_heading",
+      "label": "t:sections.global.advanced_heading.label",
+      "info": "t:sections.global.advanced_heading.info"
+    },
+    {
+      "type": "textarea",
+      "id": "heading",
+      "label": "t:sections.settings.settings.heading.label",
+      "default": "Shoppable video reels",
+      "visible_if": "{{ section.settings.advanced_heading == false }}"
+    },
+    {
+      "type": "richtext",
+      "id": "heading_richtext",
+      "label": "t:sections.logo-banner.settings.content.headline.label",
+      "default": "<h2>Your headline here</h2>",
+      "visible_if": "{{ section.settings.advanced_heading == true }}"
+    },
+    {
+      "type": "checkbox",
+      "id": "quick-add-enabled",
+      "label": "Enable quick add button",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "hide-brand-name",
+      "label": "t:sections.shoppable-video.settings.hide-brand-name.label",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Carousel"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_pagination_dots",
+      "label": "Show pagination dots",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Video style"
+    },
+    {
+      "type": "range",
+      "id": "video_corner_radius_mobile",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 12,
+      "label": "Video corner radius (mobile)"
+    },
+    {
+      "type": "range",
+      "id": "video_corner_radius_desktop",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 16,
+      "label": "Video corner radius (desktop)"
+    },
+    {
+      "type": "header",
+      "content": "Product card"
+    },
+    {
+      "type": "range",
+      "id": "product_image_radius",
+      "min": 0,
+      "max": 36,
+      "step": 1,
+      "unit": "px",
+      "default": 8,
+      "label": "Product image radius"
+    },
+    {
+      "type": "range",
+      "id": "product_card_radius",
+      "min": 0,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "default": 12,
+      "label": "Product card radius",
+      "info": "Corner radius for the product overlay block. Can be overridden per block."
+    },
+    {
+      "type": "header",
+      "content": "Play / pause button"
+    },
+    {
+      "type": "checkbox",
+      "id": "video_button",
+      "label": "Show play/pause button",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "play_button_show_on_all_slides",
+      "label": "Show button on all videos",
+      "info": "When disabled, the button only appears on the active slide",
+      "default": true,
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "select",
+      "id": "play_button_position",
+      "label": "Button position",
+      "default": "center",
+      "options": [
+        { "value": "center", "label": "Center" },
+        { "value": "top_left", "label": "Top left" }
+      ],
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "header",
+      "content": "Play button — mobile",
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "range",
+      "id": "play_button_size_mobile",
+      "min": 40,
+      "max": 100,
+      "step": 2,
+      "unit": "px",
+      "default": 56,
+      "label": "Button size",
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "range",
+      "id": "play_button_icon_size_mobile",
+      "min": 12,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "default": 22,
+      "label": "Icon size",
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "header",
+      "content": "Play button — desktop",
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "range",
+      "id": "play_button_size_desktop",
+      "min": 40,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "default": 64,
+      "label": "Button size",
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "range",
+      "id": "play_button_icon_size_desktop",
+      "min": 12,
+      "max": 48,
+      "step": 1,
+      "unit": "px",
+      "default": 26,
+      "label": "Icon size",
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "header",
+      "content": "Play button — colors & style",
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "color",
+      "id": "play_button_bg_color",
+      "label": "Background color",
+      "default": "#f5a623",
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "color",
+      "id": "play_button_icon_color",
+      "label": "Icon color",
+      "default": "#ffffff",
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "color",
+      "id": "play_button_border_color",
+      "label": "Border color",
+      "default": "transparent",
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "range",
+      "id": "play_button_border_width",
+      "min": 0,
+      "max": 6,
+      "step": 1,
+      "unit": "px",
+      "default": 0,
+      "label": "Border width",
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "checkbox",
+      "id": "play_button_shadow_enable",
+      "label": "Enable button shadow",
+      "default": true,
+      "visible_if": "{{ section.settings.video_button }}"
+    },
+    {
+      "type": "color",
+      "id": "play_button_shadow_color",
+      "label": "Shadow color",
+      "default": "#000000",
+      "visible_if": "{{ section.settings.video_button and section.settings.play_button_shadow_enable }}"
+    },
+    {
+      "type": "range",
+      "id": "play_button_shadow_opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 15,
+      "label": "Shadow opacity",
+      "visible_if": "{{ section.settings.video_button and section.settings.play_button_shadow_enable }}"
+    },
+    {
+      "type": "range",
+      "id": "play_button_shadow_blur",
+      "min": 0,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "default": 12,
+      "label": "Shadow blur",
+      "visible_if": "{{ section.settings.video_button and section.settings.play_button_shadow_enable }}"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.global.colors",
+      "info": "t:sections.global.colors-info"
+    },
+    {
+      "type": "color",
+      "id": "color-body-text",
+      "default": "transparent",
+      "label": "t:sections.settings.settings.text-color.label"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "default": "transparent",
+      "label": "t:sections.settings.settings.background-color.label"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.global.section_spacing"
+    },
+    {
+      "type": "range",
+      "id": "margin-top",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "default": 20,
+      "unit": "px",
+      "label": "t:sections.settings.settings.distance-top.label"
+    },
+    {
+      "type": "range",
+      "id": "margin-bottom",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "default": 20,
+      "unit": "px",
+      "label": "t:sections.settings.settings.distance-bottom.label",
+      "info": "t:sections.settings.settings.distance-bottom.info"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "product",
+      "name": "t:sections.shoppable-video-reels.blocks.product.name",
+      "settings": [
+        {
+          "type": "video",
+          "id": "video_hosted",
+          "label": "t:sections.logo-banner.settings.video-hosted.label"
+        },
+        {
+          "type": "product",
+          "id": "featured_product",
+          "label": "t:sections.shoppable-image.settings.dot.featured_product.label"
+        },
+        {
+          "type": "image_picker",
+          "id": "custom_image",
+          "label": "Custom product image",
+          "info": "Optional. Overrides the product featured image when set."
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.shoppable-video-reels.name",
+      "category": "t:sections.categories.video",
+      "blocks": [
+        {
+          "type": "product"
+        },
+        {
+          "type": "product"
+        },
+        {
+          "type": "product"
+        },
+        {
+          "type": "product"
+        },
+        {
+          "type": "product"
+        },
+        {
+          "type": "product"
+        }
+      ]
+    }
+  ],
+  "disabled_on": {
+    "groups": ["header", "footer"]
+  }
+}
+{% endschema %}

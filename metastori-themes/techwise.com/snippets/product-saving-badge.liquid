@@ -1,0 +1,40 @@
+{%- comment -%}
+  Centralized save badge for product cards and collection grids.
+  Uses the same money formatting as product-badges / price-list so currency
+  symbols render correctly across markets (including incognito sessions).
+
+  * product: required product object
+{%- endcomment -%}
+
+{%- if settings.product_card_show_discount and product.compare_at_price > product.price -%}
+  {%- liquid
+    assign current_price = product.price | default: product.price_min
+    assign compare_price = product.compare_at_price | default: product.compare_at_price_max
+    assign savings_cents = compare_price | minus: current_price
+
+    if settings.product_card_discount_mode == 'percentage'
+      assign savings = savings_cents | times: 100.0 | divided_by: compare_price | round | append: '%'
+    else
+      assign savings = savings_cents | money_without_trailing_zeros
+
+      assign savings_plain = savings | strip_html | strip
+      assign currency_symbol = localization.country.currency.symbol | default: cart.currency.symbol
+
+      if currency_symbol != blank
+        unless savings_plain contains currency_symbol
+          assign savings = currency_symbol | append: savings_plain
+        endunless
+      else
+        assign savings = savings_plain
+      endif
+    endif
+  -%}
+  <span class="tw-badge"
+    style="
+      background: {{ settings.tw_badge_bg | default: '#E6F0D0' }};
+      color: {{ settings.tw_badge_text_color | default: '#1A1A1A' }};
+      font-size: 12px;
+      border-radius: 28px;
+    "
+  >{{ 'product.general.discount_badge_html' | t: savings: savings }}</span>
+{%- endif -%}

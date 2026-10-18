@@ -1,0 +1,561 @@
+{% comment %}
+  @param filter
+  @param filter_group_classes
+  @param show_product_count {Boolean}
+  @param context {Object}
+    Collection or search object, used to carry the other active filters over
+    into the price interval links.
+  @param visible_limit {Integer}
+    How many values to show before the "Show all" toggle. Defaults to 6.
+{% endcomment %}
+
+{%- liquid
+  assign visible_limit = visible_limit | default: 6
+
+  assign value_count = filter.values.size
+  assign has_overflow = false
+  if value_count > visible_limit
+    assign has_overflow = true
+  endif
+
+  comment
+    Only the Brand (vendor) filter gets a search box; every other filter just
+    gets the "Show all" cut-off.
+  endcomment
+  assign show_search = false
+  if filter.param_name == 'filter.p.vendor' and has_overflow
+    assign show_search = true
+  endif
+
+  comment
+    Price intervals, in the shop's currency major units. Each entry is the
+    upper bound of an interval; the first interval starts at 0 and the last
+    one is open ended. Edit this single list to change the intervals.
+  endcomment
+  assign price_interval_bounds = '200,500,1000,1500,2000' | split: ','
+-%}
+
+<div
+  class="
+    collection-filters__filter-group
+    {{ filter_group_classes }}
+  "
+  aria-label="{{ 'product_grid.filters.title_count.zero' | t }}"
+  data-filter-group
+>
+  <button
+    class="
+      collection-filters__filter-group-heading
+      productgrid--sidebar-button
+    "
+    data-filter-group-trigger
+    aria-expanded="false"
+  >
+    <div class="collection-filters__filter-title">
+      {{ filter.label }}
+    </div>
+
+    <div class="collection-filters__filter-icon-wrapper" tabindex="-1">
+      <span class="collection-filters__filter-icon">
+        {% render 'icon-chevron-down-small' %}
+      </span>
+    </div>
+  </button>
+
+  {% case filter.type %}
+    {% when 'boolean' or 'list' %}
+      <div
+        class="
+          collection-filters__filter
+          collection-filters__filter-list-wrapper
+        "
+        data-accordion-content
+        data-filter-values-count="{{ value_count }}"
+      >
+        {%- if show_search -%}
+          <div class="collection-filters__filter-search">
+            <input
+              class="collection-filters__filter-search-input"
+              type="text"
+              autocomplete="off"
+              placeholder="{{ 'product_grid.filters.find_placeholder' | t: label: filter.label }}"
+              aria-label="{{ 'product_grid.filters.find_placeholder' | t: label: filter.label }}"
+              data-filter-search
+            >
+            <span class="collection-filters__filter-search-icon" aria-hidden="true">
+              {% render 'icon-search' %}
+            </span>
+          </div>
+        {%- endif -%}
+
+        <ul
+          class="collection-filters__filter-list"
+          data-filter-list
+        >
+          {%- for value in filter.values -%}
+            {%- liquid
+              assign is_overflow = false
+              if has_overflow and forloop.index > visible_limit
+                assign is_overflow = true
+              endif
+            -%}
+            <li
+              class="
+                collection-filters__filter-list-item
+                {% if value.active %}
+                  collection-filters__filter-list-item--active
+                {% endif %}
+              "
+              data-filter-value-item
+              data-filter-search-text="{{ value.label | escape | downcase }}"
+              {% if is_overflow %}data-filter-overflow{% endif %}
+              {% if value.active -%}
+                data-filter-open="true"
+              {% else %}
+                data-filter-open="false"
+              {% endif %}
+            >
+              <a
+                class="collection-filters__filter-link"
+                data-name="{{ value.param_name }}"
+                data-value="{{ value.value }}"
+                data-handle="filter-{{ filter.label | escape | replace: ' ', '-'}}-{{ forloop.index0 }}"
+
+                {% if value.active -%}
+                  {% assign animation_state = 'checked' %}
+                  data-filter-active
+                  data-url="{{ value.url_to_remove | url_encode }}"
+                  href="{{ value.url_to_remove }}"
+                {% else %}
+                  {% assign animation_state = 'unchecked' %}
+                  data-url="{{ value.url_to_add | url_encode }}"
+                  href="{{ value.url_to_add }}"
+                {%- endif %}
+                {% if value.count == 0 and value.active == false -%}
+                  data-disabled
+                {%- endif %}
+                data-filter-input
+              >
+                <span class="filter-icon--checkbox" data-handle="filter-{{ filter.label | escape | replace: ' ', '-'}}-{{ forloop.index0 }}">
+                  {%- render 'icon-checkmark-animated', animation_state: animation_state -%}
+                </span>
+                <span class="collection-filters__filter-list-item-text">
+                  {{ value.label | escape }}
+                  {% if show_product_count %}
+                    ({{ value.count }})
+                  {% endif %}
+                </span>
+              </a>
+            </li>
+          {%- endfor -%}
+        </ul>
+
+        {%- if has_overflow -%}
+          <p class="collection-filters__filter-empty" data-filter-empty hidden>
+            {{ 'product_grid.filters.no_matches' | t }}
+          </p>
+
+          <button
+            class="collection-filters__filter-show-all"
+            type="button"
+            aria-expanded="false"
+            data-filter-show-all
+          >
+            <span
+              class="collection-filters__filter-show-all-text"
+              data-label-less="{{ 'product_grid.filters.show_less' | t }}"
+              data-filter-show-all-text
+            >
+              {{ 'product_grid.filters.show_all' | t }}
+            </span>
+            <span class="collection-filters__filter-show-all-icon" aria-hidden="true">
+              {% render 'icon-chevron-down-small' %}
+            </span>
+          </button>
+        {%- endif -%}
+      </div>
+
+    {% when 'price_range' %}
+      {%- liquid
+        assign gte_name = filter.min_value.param_name
+        assign lte_name = filter.max_value.param_name
+
+        assign ceiling = filter.range_max | money_without_currency | replace: ',', '' | plus: 0 | ceil
+
+        assign current_min = 0
+        if filter.min_value.value
+          assign current_min = filter.min_value.value | money_without_currency | replace: ',', '' | plus: 0 | floor
+        endif
+
+        assign current_max = ceiling
+        assign has_max = false
+        if filter.max_value.value
+          assign current_max = filter.max_value.value | money_without_currency | replace: ',', '' | plus: 0 | ceil
+          assign has_max = true
+        endif
+
+        comment
+          Shopify's price filter is a single gte/lte range, so a multi-interval
+          selection is submitted as the hull of the chosen intervals. An
+          interval therefore reads as selected whenever it sits entirely inside
+          the active range.
+        endcomment
+        assign price_filter_active = false
+        if filter.min_value.value or filter.max_value.value
+          assign price_filter_active = true
+        endif
+
+        comment
+          Carry every other active filter over so picking an interval narrows
+          the current selection instead of replacing it. custom.js upgrades
+          these links on load to also keep sort_by and any other parameters.
+        endcomment
+        capture carried_params
+          for other_filter in context.filters
+            unless other_filter.type == 'price_range'
+              for active_value in other_filter.active_values
+                echo active_value.param_name
+                echo '='
+                echo active_value.value | url_encode
+                echo '&'
+              endfor
+            endunless
+          endfor
+        endcapture
+        assign carried_params = carried_params | strip_newlines | replace: ' ', ''
+
+        assign last_index = price_interval_bounds.size | minus: 1
+        assign above_lower = price_interval_bounds[last_index] | plus: 0
+
+        comment
+          The open ended interval only fits inside the active range when that
+          range has no upper bound of its own.
+        endcomment
+        assign above_active = false
+        if price_filter_active and has_max == false and above_lower >= current_min
+          assign above_active = true
+        endif
+
+        comment
+          Work out the whole selection up front: which intervals sit inside the
+          active range, and where that selection starts and ends. Every interval
+          link below is built from this, so clicking one extends or shrinks the
+          selection instead of replacing it.
+        endcomment
+        assign selection_count = 0
+        assign selection_lowest = 0
+        assign selection_highest = 0
+
+        for bound in price_interval_bounds
+          assign scan_upper = bound | plus: 0
+          assign scan_lower = 0
+          unless forloop.first
+            assign scan_previous = forloop.index0 | minus: 1
+            assign scan_lower = price_interval_bounds[scan_previous] | plus: 0
+          endunless
+
+          if scan_lower < ceiling and price_filter_active and scan_lower >= current_min
+            if has_max == false or scan_upper <= current_max
+              if selection_count == 0
+                assign selection_lowest = scan_lower
+              endif
+              assign selection_highest = scan_upper
+              assign selection_count = selection_count | plus: 1
+            endif
+          endif
+        endfor
+
+        if above_active and above_lower < ceiling
+          if selection_count == 0
+            assign selection_lowest = above_lower
+          endif
+          assign selection_count = selection_count | plus: 1
+        endif
+      -%}
+
+      <form
+        class="collection-filters__price-range-form"
+        data-accordion-content
+        data-price-filter
+        data-price-min-name="{{ gte_name }}"
+        data-price-max-name="{{ lte_name }}"
+        data-price-ceiling="{{ ceiling }}"
+      >
+        <div
+          class="
+            collection-filters__filter
+            collection-filters__filter-range
+          "
+          data-filter-group-range
+        >
+          <div class="collection-filters__price-inputs">
+            <div class="collection-filters__price-field">
+              <span class="collection-filters__price-currency" aria-hidden="true">{{ cart.currency.symbol }}</span>
+              <input
+                class="collection-filters__price-input"
+                name="{{ gte_name }}"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                max="{{ ceiling }}"
+                step="1"
+                placeholder="0"
+                aria-label="{{ 'product_grid.filters.price_from' | t }}"
+                data-price-input="min"
+                {% if filter.min_value.value %}value="{{ current_min }}"{% endif %}
+              >
+            </div>
+
+            <span class="collection-filters__price-separator" aria-hidden="true">&ndash;</span>
+
+            <div class="collection-filters__price-field">
+              <span class="collection-filters__price-currency" aria-hidden="true">{{ cart.currency.symbol }}</span>
+              <input
+                class="collection-filters__price-input"
+                name="{{ lte_name }}"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                max="{{ ceiling }}"
+                step="1"
+                placeholder="{{ ceiling }}"
+                aria-label="{{ 'product_grid.filters.price_to' | t }}"
+                data-price-input="max"
+                {% if filter.max_value.value %}value="{{ current_max }}"{% endif %}
+              >
+            </div>
+
+            <button
+              class="collection-filters__price-apply"
+              type="submit"
+              aria-label="{{ 'product_grid.filters.apply_price' | t }}"
+              data-price-apply
+            >
+              {% render 'icon-search' %}
+            </button>
+          </div>
+
+          <div class="collection-filters__price-slider" data-price-slider>
+            <span class="collection-filters__price-slider-track" aria-hidden="true"></span>
+            <span class="collection-filters__price-slider-fill" aria-hidden="true" data-price-slider-fill></span>
+            <input
+              class="collection-filters__price-slider-input"
+              type="range"
+              min="0"
+              max="{{ ceiling }}"
+              step="1"
+              value="{{ current_min }}"
+              aria-label="{{ 'product_grid.filters.price_from' | t }}"
+              data-price-slider-input="min"
+            >
+            <input
+              class="collection-filters__price-slider-input"
+              type="range"
+              min="0"
+              max="{{ ceiling }}"
+              step="1"
+              value="{{ current_max }}"
+              aria-label="{{ 'product_grid.filters.price_to' | t }}"
+              data-price-slider-input="max"
+            >
+          </div>
+
+          <ul class="collection-filters__filter-list collection-filters__price-intervals" data-price-intervals>
+            {%- for bound in price_interval_bounds -%}
+              {%- liquid
+                assign upper = bound | plus: 0
+                assign lower = 0
+                unless forloop.first
+                  assign previous_index = forloop.index0 | minus: 1
+                  assign lower = price_interval_bounds[previous_index] | plus: 0
+                endunless
+
+                # Drop intervals that start beyond the most expensive product.
+                assign skip_interval = false
+                if lower >= ceiling
+                  assign skip_interval = true
+                endif
+
+                assign lower_money = lower | times: 100 | money_without_trailing_zeros | strip_html | strip
+                assign upper_money = upper | times: 100 | money_without_trailing_zeros | strip_html | strip
+                if forloop.first
+                  assign interval_label = 'product_grid.filters.price_under' | t: amount: upper_money
+                else
+                  assign interval_label = 'product_grid.filters.price_between' | t: from: lower_money, to: upper_money
+                endif
+
+                assign interval_active = false
+                if price_filter_active and lower >= current_min
+                  if has_max == false or upper <= current_max
+                    assign interval_active = true
+                  endif
+                endif
+
+                assign animation_state = 'unchecked'
+                if interval_active
+                  assign animation_state = 'checked'
+                endif
+
+                comment
+                  Shopify accepts a single gte/lte pair, so the selection is
+                  submitted as its hull. Picking an unselected interval widens
+                  that hull; picking a selected one shrinks it back from
+                  whichever end the interval sits on.
+                endcomment
+                assign target_clear = false
+                assign target_open = false
+                assign target_min = lower
+                assign target_max = upper
+
+                if interval_active
+                  if selection_count == 1
+                    assign target_clear = true
+                  elsif lower == selection_lowest
+                    assign target_min = upper
+                    assign target_max = selection_highest
+                    assign target_open = above_active
+                  else
+                    assign target_min = selection_lowest
+                    assign target_max = lower
+                  endif
+                elsif selection_count > 0
+                  assign target_min = selection_lowest | at_most: lower
+                  assign target_max = selection_highest | at_least: upper
+                  assign target_open = above_active
+                endif
+
+                capture interval_url
+                  echo request.path
+                  echo '?'
+                  echo carried_params
+                  unless target_clear
+                    echo gte_name
+                    echo '='
+                    echo target_min
+                    unless target_open
+                      echo '&'
+                      echo lte_name
+                      echo '='
+                      echo target_max
+                    endunless
+                  endunless
+                endcapture
+                assign interval_url = interval_url | strip_newlines | replace: ' ', ''
+              -%}
+              {%- unless skip_interval -%}
+                <li
+                  class="
+                    collection-filters__filter-list-item
+                    {% if interval_active %}collection-filters__filter-list-item--active{% endif %}
+                  "
+                  data-price-interval
+                  data-interval-min="{{ lower }}"
+                  data-interval-max="{{ upper }}"
+                  data-target-min="{% unless target_clear %}{{ target_min }}{% endunless %}"
+                  data-target-max="{% unless target_clear or target_open %}{{ target_max }}{% endunless %}"
+                  data-filter-open="{% if interval_active %}true{% else %}false{% endif %}"
+                >
+                  <a
+                    class="collection-filters__filter-link"
+                    href="{{ interval_url }}"
+                    data-url="{{ interval_url | url_encode }}"
+                    data-handle="filter-price-interval-{{ forloop.index0 }}"
+                    data-filter-input
+                    {% if interval_active %}data-filter-active{% endif %}
+                  >
+                    <span class="filter-icon--checkbox" data-handle="filter-price-interval-{{ forloop.index0 }}">
+                      {%- render 'icon-checkmark-animated', animation_state: animation_state -%}
+                    </span>
+                    <span class="collection-filters__filter-list-item-text">
+                      {{ interval_label }}
+                      <span class="collection-filters__price-interval-count" data-price-interval-count></span>
+                    </span>
+                  </a>
+                </li>
+              {%- endunless -%}
+            {%- endfor -%}
+
+            {%- liquid
+              assign above_money = above_lower | times: 100 | money_without_trailing_zeros | strip_html | strip
+              assign above_label = 'product_grid.filters.price_above' | t: amount: above_money
+
+              assign animation_state = 'unchecked'
+              if above_active
+                assign animation_state = 'checked'
+              endif
+
+              comment
+                This interval is always the top of the list, so unpicking it
+                just caps the selection at the highest bounded interval left.
+              endcomment
+              assign above_target_clear = false
+              assign above_target_open = true
+              assign above_target_min = above_lower
+              assign above_target_max = 0
+
+              if above_active
+                if selection_count == 1
+                  assign above_target_clear = true
+                else
+                  assign above_target_open = false
+                  assign above_target_min = selection_lowest
+                  assign above_target_max = selection_highest
+                endif
+              elsif selection_count > 0
+                assign above_target_min = selection_lowest | at_most: above_lower
+              endif
+
+              capture above_url
+                echo request.path
+                echo '?'
+                echo carried_params
+                unless above_target_clear
+                  echo gte_name
+                  echo '='
+                  echo above_target_min
+                  unless above_target_open
+                    echo '&'
+                    echo lte_name
+                    echo '='
+                    echo above_target_max
+                  endunless
+                endunless
+              endcapture
+              assign above_url = above_url | strip_newlines | replace: ' ', ''
+            -%}
+            {%- if above_lower < ceiling -%}
+              <li
+                class="
+                  collection-filters__filter-list-item
+                  {% if above_active %}collection-filters__filter-list-item--active{% endif %}
+                "
+                data-price-interval
+                data-interval-min="{{ above_lower }}"
+                data-interval-max=""
+                data-target-min="{% unless above_target_clear %}{{ above_target_min }}{% endunless %}"
+                data-target-max="{% unless above_target_clear or above_target_open %}{{ above_target_max }}{% endunless %}"
+                data-filter-open="{% if above_active %}true{% else %}false{% endif %}"
+              >
+                <a
+                  class="collection-filters__filter-link"
+                  href="{{ above_url }}"
+                  data-url="{{ above_url | url_encode }}"
+                  data-handle="filter-price-interval-above"
+                  data-filter-input
+                  {% if above_active %}data-filter-active{% endif %}
+                >
+                  <span class="filter-icon--checkbox" data-handle="filter-price-interval-above">
+                    {%- render 'icon-checkmark-animated', animation_state: animation_state -%}
+                  </span>
+                  <span class="collection-filters__filter-list-item-text">
+                    {{ above_label }}
+                    <span class="collection-filters__price-interval-count" data-price-interval-count></span>
+                  </span>
+                </a>
+              </li>
+            {%- endif -%}
+          </ul>
+        </div>
+      </form>
+  {% endcase %}
+</div>

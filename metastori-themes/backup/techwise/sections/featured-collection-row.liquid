@@ -1,0 +1,361 @@
+{% comment %}
+  Uitgelichte collectie – layout met instelbare breedte & zij-padding,
+  mobiel 1 kolom, tablet 2, desktop variabel; 2e afbeelding bij hover (optioneel);
+  Loox reviews; kleur/typografie; stergrootte; hoekige fallback-sterren;
+  compare-kleur exact; kleinere +/- knoppen; custom labels per product (slots 1..4).
+{% endcomment %}
+
+{%- assign grid_cols_desktop = section.settings.columns_desktop | default: 4 -%}
+
+{%- capture inline_styles -%}
+--fc-title: {{ section.settings.title_color | default: 'inherit' }};
+--fc-price: {{ section.settings.price_color | default: 'inherit' }};
+--fc-price-compare: {{ section.settings.price_compare_color | default: 'currentColor' }};
+--fc-stars: {{ section.settings.stars_color | default: '#f5a623' }};
+--fc-title-size: {{ section.settings.title_size | default: 18 }}px;
+--fc-title-weight: {{ section.settings.title_weight | default: '700' }};
+--fc-price-size: {{ section.settings.price_size | default: 16 }}px;
+--fc-price-weight: {{ section.settings.price_weight | default: '700' }};
+--fc-rating-weight: {{ section.settings.rating_weight | default: '600' }};
+--fc-star-size: {{ section.settings.star_size | default: 18 }}px;
+/* layout vars */
+--fc-max-w: {{ section.settings.max_width | default: 1200 }}px;
+--fc-pad-mobile: {{ section.settings.padding_mobile | default: 16 }}px;
+--fc-pad-desktop: {{ section.settings.padding_desktop | default: 24 }}px;
+{%- endcapture -%}
+
+<div class="color-scheme color-scheme--{{ section.settings.color_scheme.id }}">
+  <div class="fc-outer section-spacing layout--{{ section.settings.layout_mode }}" style="{{ inline_styles }}">
+    <style>
+      /* ===== LAYOUT CONTAINER ===== */
+      #shopify-section-{{ section.id }} .fc-outer { width:100%; }
+      #shopify-section-{{ section.id }} .fc-wrap { width:100%; }
+      #shopify-section-{{ section.id }} .layout--full .fc-wrap { max-width:none; padding-inline:0; margin-inline:0; }
+      #shopify-section-{{ section.id }} .layout--padded .fc-wrap { max-width:none; margin-inline:0; padding-inline:var(--fc-pad-mobile); }
+      #shopify-section-{{ section.id }} .layout--contained .fc-wrap { max-width:var(--fc-max-w); margin-inline:auto; padding-inline:var(--fc-pad-mobile); }
+      @media(min-width:700px){
+        #shopify-section-{{ section.id }} .layout--padded .fc-wrap,
+        #shopify-section-{{ section.id }} .layout--contained .fc-wrap { padding-inline:var(--fc-pad-desktop); }
+      }
+
+      /* ===== GRID: mobiel 1, tablet 2, desktop variabel ===== */
+      #shopify-section-{{ section.id }} .fc-row{
+        --gap:24px; display:grid; gap:var(--gap);
+        grid-template-columns:repeat(1,minmax(0,1fr));
+      }
+      @media(min-width:700px){
+        #shopify-section-{{ section.id }} .fc-row{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+      }
+      @media(min-width:1000px){
+        #shopify-section-{{ section.id }} .fc-row{ grid-template-columns:repeat({{ grid_cols_desktop }},minmax(0,1fr)); }
+      }
+
+      #shopify-section-{{ section.id }} .fc-card{ display:block; color:inherit; text-decoration:none; }
+
+      /* ===== MEDIA: altijd vierkant, 2e afbeelding bij hover ===== */
+      #shopify-section-{{ section.id }} .fc-media{
+        position:relative; overflow:hidden; border-radius:14px; background:#f4f4f4; aspect-ratio:1/1;
+      }
+      #shopify-section-{{ section.id }} .fc-img{
+        position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+        transition:transform .35s ease, opacity .35s ease; display:block;
+      }
+      /* standaard: primaire zichtbaar, secundaire onzichtbaar */
+      #shopify-section-{{ section.id }} .fc-img--primary{ opacity:1; }
+      #shopify-section-{{ section.id }} .fc-img--secondary{ opacity:0; }
+      /* hover: toon secundaire alleen als wrapper de hover-modificator heeft */
+      #shopify-section-{{ section.id }} .fc-media.fc-media--hover .fc-img--secondary{ pointer-events:none; }
+      #shopify-section-{{ section.id }} .fc-card:hover .fc-media.fc-media--hover .fc-img--secondary{ opacity:1; }
+      /* subtiele zoom bij hover voor beide lagen */
+      #shopify-section-{{ section.id }} .fc-card:hover .fc-media .fc-img{ transform:scale(1.03); }
+
+      /* Label (badge) linksboven */
+      #shopify-section-{{ section.id }} .fc-badge{
+        position:absolute; top:12px; left:12px; z-index:2;
+        display:inline-block; line-height:1; padding:6px 10px;
+        font-weight:700; letter-spacing:.02em;
+      }
+
+      /* meta-rij: rating links, prijs rechts */
+      #shopify-section-{{ section.id }} .fc-meta{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; }
+
+      /* Prijs */
+      #shopify-section-{{ section.id }} .fc-price{ display:inline-flex; gap:.5rem; align-items:baseline; white-space:nowrap; }
+      #shopify-section-{{ section.id }} .fc-price .current{ color:var(--fc-price); font-size:var(--fc-price-size); font-weight:var(--fc-price-weight); }
+      #shopify-section-{{ section.id }} .fc-price .compare{ color:var(--fc-price-compare) !important; text-decoration:line-through; opacity:1 !important; }
+
+      /* Titel */
+      #shopify-section-{{ section.id }} .fc-title{
+        margin-top:8px; line-height:1.3; color:var(--fc-title);
+        font-size:var(--fc-title-size); font-weight:var(--fc-title-weight);
+        display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+      }
+
+      /* Fallback-sterren (hoekig) + rating tekst */
+      #shopify-section-{{ section.id }} .fc-rating{ display:flex; align-items:center; gap:8px; }
+      #shopify-section-{{ section.id }} .fc-stars{ display:inline-flex; gap:2px; line-height:0; color:var(--fc-stars); }
+      #shopify-section-{{ section.id }} .fc-stars svg{ width:var(--fc-star-size); height:var(--fc-star-size); display:block; }
+      #shopify-section-{{ section.id }} .fc-stars .empty{ opacity:.28; }
+      #shopify-section-{{ section.id }} .fc-stars .half-wrap{ position:relative; display:inline-block; }
+      #shopify-section-{{ section.id }} .fc-stars .half{ position:absolute; inset:0; clip-path:inset(0 50% 0 0); }
+      #shopify-section-{{ section.id }} .fc-rating-text{ font-weight:var(--fc-rating-weight); opacity:.9; }
+
+      /* Loox: sterrenkleur + grootte + gewicht rating */
+      #shopify-section-{{ section.id }} .loox-rating{ display:inline-flex; align-items:center; gap:8px; }
+      #shopify-section-{{ section.id }} .loox-rating svg,
+      #shopify-section-{{ section.id }} .loox-icon,
+      #shopify-section-{{ section.id }} .loox-icon-star,
+      #shopify-section-{{ section.id }} .loox-icon-star-half,
+      #shopify-section-{{ section.id }} .loox-icon-star-o{
+        color:var(--fc-stars) !important; fill:var(--fc-stars) !important;
+        width:var(--fc-star-size) !important; height:var(--fc-star-size) !important;
+        font-size:var(--fc-star-size) !important;
+      }
+      #shopify-section-{{ section.id }} .loox-rating .loox-rating-label,
+      #shopify-section-{{ section.id }} .loox-rating .loox-rating-count{ font-weight:var(--fc-rating-weight) !important; margin-left:6px; }
+
+      /* +/- knoppen binnen deze section kleiner (ongeveer half) */
+      #shopify-section-{{ section.id }} .quantity-input__button,
+      #shopify-section-{{ section.id }} .quantity-selector__button,
+      #shopify-section-{{ section.id }} .quantity__button,
+      #shopify-section-{{ section.id }} .circle-button{
+        width:24px; height:24px; min-width:24px; min-height:24px; border-radius:999px; padding:0;
+      }
+      #shopify-section-{{ section.id }} .quantity-input__button svg,
+      #shopify-section-{{ section.id }} .quantity-selector__button svg,
+      #shopify-section-{{ section.id }} .quantity__button svg,
+      #shopify-section-{{ section.id }} .circle-button svg{ width:12px; height:12px; }
+    </style>
+
+    <div class="fc-wrap">
+      <div class="fc-row">
+        {%- assign coll = section.settings.collection -%}
+        {%- if coll != blank and coll.products_count > 0 -%}
+          {%- paginate coll.products by section.settings.products_count -%}
+            {%- for product in coll.products limit: section.settings.products_count -%}
+
+              {%- assign product_slot = forloop.index | append: '' -%}
+
+              {%- assign show_compare = false -%}
+              {%- if product.compare_at_price_max > product.price and section.settings.show_compare_at -%}
+                {%- assign show_compare = true -%}
+              {%- endif -%}
+
+              {%- capture sizes -%}
+                (max-width: 699px) calc(100vw - (2 * var(--fc-pad-mobile))),
+                (max-width: 999px) calc((100vw - (2 * var(--fc-pad-desktop))) / 2),
+                calc((min(100vw, var(--fc-max-w)) - (2 * var(--fc-pad-desktop))) / {{ grid_cols_desktop }})
+              {%- endcapture -%}
+
+              {%- assign loox_rating = product.metafields.loox.avg_rating | default: product.metafields.loox.rating | default: product.metafields.reviews.rating | default: product.metafields.reviews.rating.value -%}
+              {%- assign loox_count  = product.metafields.loox.num_reviews | default: product.metafields.loox.reviews_count | default: product.metafields.reviews.rating_count | default: product.metafields.reviews.rating_count.value -%}
+
+              {%- comment -%} 2e afbeelding voorbereiden (alleen images) {%- endcomment -%}
+              {%- assign has_second = false -%}
+              {%- if section.settings.hover_second_image and product.images.size > 1 -%}
+                {%- assign second_image = product.images[1] -%}
+                {%- assign has_second = true -%}
+              {%- endif -%}
+
+              <a class="fc-card" href="{{ product.url }}">
+                <div class="fc-media {% if has_second %}fc-media--hover{% endif %}">
+                  {%- comment -%} LABEL per slot (1..4) {%- endcomment -%}
+                  {%- for block in section.blocks -%}
+                    {%- if block.type == 'label' and block.settings.slot == product_slot -%}
+                      <span class="fc-badge"
+                        style="
+                          background: {{ block.settings.bg | default: '#FFE1BF' }};
+                          color: {{ block.settings.color | default: '#B45309' }};
+                          border-radius: {{ block.settings.radius | default: 12 }}px;
+                          font-size: {{ block.settings.size | default: 12 }}px;
+                        "
+                        {{ block.shopify_attributes }}
+                      >{{ block.settings.text }}</span>
+                    {%- endif -%}
+                  {%- endfor -%}
+
+                  {%- if product.featured_media -%}
+                    {{ product.featured_media
+                      | image_url: width: 1200
+                      | image_tag: class: 'fc-img fc-img--primary', loading: 'lazy', sizes: sizes, alt: product.featured_media.alt | escape }}
+                    {%- if has_second -%}
+                      {{ second_image
+                        | image_url: width: 1200
+                        | image_tag: class: 'fc-img fc-img--secondary', loading: 'lazy', sizes: sizes, alt: second_image.alt | escape }}
+                    {%- endif -%}
+                  {%- else -%}
+                    {{ 'product-1' | placeholder_svg_tag }}
+                  {%- endif -%}
+                </div>
+
+                <div class="fc-meta">
+                  <div class="fc-rating">
+                    {%- if section.settings.use_loox_reviews -%}
+                      <div class="loox-rating"
+                           data-id="{{ product.id }}"
+                           {% if loox_rating != blank %}data-rating="{{ loox_rating }}"{% endif %}
+                           {% if loox_count  != blank %}data-raters="{{ loox_count }}"{% endif %}>
+                      </div>
+                    {%- else -%}
+                      {%- assign rating_value = blank -%}
+                      {%- assign rating_count = blank -%}
+                      {%- if product.metafields.reviews.rating.value != blank -%}
+                        {%- assign rating_value = product.metafields.reviews.rating.value -%}
+                      {%- elsif product.metafields.reviews.rating != blank -%}
+                        {%- assign rating_value = product.metafields.reviews.rating -%}
+                      {%- endif -%}
+                      {%- if product.metafields.reviews.rating_count.value != blank -%}
+                        {%- assign rating_count = product.metafields.reviews.rating_count.value -%}
+                      {%- elsif product.metafields.reviews.rating_count != blank -%}
+                        {%- assign rating_count = product.metafields.reviews.rating_count -%}
+                      {%- endif -%}
+
+                      {%- if rating_value != blank and rating_count != blank -%}
+                        {%- assign full_stars = rating_value | floor -%}
+                        {%- assign decimal = rating_value | minus: full_stars -%}
+                        {%- assign dec100 = decimal | times: 100 | round -%}
+                        {%- assign show_half_star = false -%}
+                        {%- if dec100 >= 75 -%}
+                          {%- assign full_stars = full_stars | plus: 1 -%}
+                        {%- elsif dec100 >= 25 -%}
+                          {%- assign show_half_star = true -%}
+                        {%- endif -%}
+                        {%- assign empty_stars = 5 | minus: full_stars -%}
+                        {%- if show_half_star -%}{%- assign empty_stars = empty_stars | minus: 1 -%}{%- endif -%}
+
+                        <span class="fc-stars" aria-hidden="true">
+                          {%- for s in (1..full_stars) -%}
+                            <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+                              <polygon points="50,3 61,35 95,35 67,57 78,90 50,72 22,90 33,57 5,35 39,35"/>
+                            </svg>
+                          {%- endfor -%}
+                          {%- if show_half_star -%}
+                            <span class="half-wrap">
+                              <svg class="empty" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+                                <polygon points="50,3 61,35 95,35 67,57 78,90 50,72 22,90 33,57 5,35 39,35"/>
+                              </svg>
+                              <svg class="half" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+                                <polygon points="50,3 61,35 95,35 67,57 78,90 50,72 22,90 33,57 5,35 39,35"/>
+                              </svg>
+                            </span>
+                          {%- endif -%}
+                          {%- for s in (1..empty_stars) -%}
+                            <svg class="empty" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+                              <polygon points="50,3 61,35 95,35 67,57 78,90 50,72 22,90 33,57 5,35 39,35"/>
+                            </svg>
+                          {%- endfor -%}
+                        </span>
+                        <span class="fc-rating-text">{{ rating_value | round: 1 }} ({{ rating_count }})</span>
+                      {%- endif -%}
+                    {%- endif -%}
+                  </div>
+
+                  <div class="fc-price">
+                    <span class="current">
+                      {%- if product.price_varies -%}
+                        {{ product.price_min | money }}+
+                      {%- else -%}
+                        {{ product.price | money }}
+                      {%- endif -%}
+                    </span>
+                    {%- if show_compare -%}
+                      <span class="compare">{{ product.compare_at_price | money }}</span>
+                    {%- endif -%}
+                  </div>
+                </div>
+
+                <div class="fc-title">{{ product.title }}</div>
+              </a>
+
+            {%- endfor -%}
+          {%- endpaginate -%}
+        {%- else -%}
+          {%- for i in (1..4) -%}
+            <div class="fc-card">
+              <div class="fc-media">
+                <span class="fc-badge" style="background:#FFE1BF;color:#B45309;border-radius:12px;font-size:12px">Label</span>
+                {{ 'product-1' | placeholder_svg_tag }}
+              </div>
+              <div class="fc-meta">
+                <div class="fc-rating"></div>
+                <div class="fc-price"><span class="current">{{ 1999 | money }}</span></div>
+              </div>
+              <div class="fc-title">Product titel</div>
+            </div>
+          {%- endfor -%}
+        {%- endif -%}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Uitgelichte collectie",
+  "tag": "section",
+  "class": "shopify-section--featured-collection-row",
+  "max_blocks": 4,
+  "settings": [
+    { "type": "color_scheme", "id": "color_scheme", "label": "Kleurenschema", "default": "scheme-1" },
+
+    { "type": "header", "content": "Layout & breedte" },
+    { "type": "select", "id": "layout_mode", "label": "Breedte modus", "options": [
+      { "value": "contained", "label": "Gecentreerd (max-breedte + padding)" },
+      { "value": "padded", "label": "Volledige breedte + padding" },
+      { "value": "full", "label": "Volledige breedte (zonder padding)" }
+    ], "default": "contained" },
+    { "type": "range", "id": "max_width", "label": "Max-breedte (px) – desktop", "min": 800, "max": 1800, "step": 10, "default": 1200 },
+    { "type": "range", "id": "padding_mobile", "label": "Zij-padding mobiel (px)", "min": 0, "max": 32, "step": 1, "default": 16 },
+    { "type": "range", "id": "padding_desktop", "label": "Zij-padding desktop (px)", "min": 0, "max": 80, "step": 1, "default": 24 },
+
+    { "type": "header", "content": "Collectie & gedrag" },
+    { "type": "collection", "id": "collection", "label": "Collectie" },
+    { "type": "range", "id": "products_count", "label": "Aantal producten", "min": 1, "max": 12, "default": 4 },
+    { "type": "range", "id": "columns_desktop", "label": "Kolommen (desktop)", "min": 2, "max": 6, "default": 4 },
+    { "type": "checkbox", "id": "show_compare_at", "label": "Oude prijs tonen (sale)", "default": true },
+    { "type": "checkbox", "id": "hover_second_image", "label": "Toon 2e afbeelding bij hover (indien beschikbaar)", "default": true },
+
+    { "type": "header", "content": "Kleuren" },
+    { "type": "color", "id": "title_color", "label": "Kleur titel" },
+    { "type": "color", "id": "price_color", "label": "Kleur prijs (actueel)" },
+    { "type": "color", "id": "price_compare_color", "label": "Kleur oude prijs" },
+    { "type": "color", "id": "stars_color", "label": "Kleur sterren" },
+
+    { "type": "header", "content": "Typografie" },
+    { "type": "range", "id": "title_size", "label": "Titelgrootte (px)", "min": 12, "max": 42, "step": 1, "default": 18 },
+    { "type": "select", "id": "title_weight", "label": "Titelgewicht", "options": [
+      { "value": "400", "label": "400" }, { "value": "500", "label": "500" }, { "value": "600", "label": "600" }, { "value": "700", "label": "700" }
+    ], "default": "700" },
+    { "type": "range", "id": "price_size", "label": "Prijsgrootte (px)", "min": 12, "max": 36, "step": 1, "default": 16 },
+    { "type": "select", "id": "price_weight", "label": "Prijsgewicht", "options": [
+      { "value": "400", "label": "400" }, { "value": "500", "label": "500" }, { "value": "600", "label": "600" }, { "value": "700", "label": "700" }, { "value": "800", "label": "800" }
+    ], "default": "700" },
+    { "type": "select", "id": "rating_weight", "label": "Gewicht rating-tekst", "options": [
+      { "value": "400", "label": "400" }, { "value": "500", "label": "500" }, { "value": "600", "label": "600" }, { "value": "700", "label": "700" }
+    ], "default": "600" },
+    { "type": "range", "id": "star_size", "label": "Stergrootte (px)", "min": 12, "max": 32, "step": 1, "default": 18 },
+
+    { "type": "header", "content": "Reviews" },
+    { "type": "checkbox", "id": "use_loox_reviews", "label": "Loox reviews gebruiken (inline rating)", "default": true }
+  ],
+  "blocks": [
+    {
+      "type": "label",
+      "name": "Label",
+      "limit": 4,
+      "settings": [
+        { "type": "select", "id": "slot", "label": "Voor product (positie)", "options": [
+          { "value": "1", "label": "1" }, { "value": "2", "label": "2" }, { "value": "3", "label": "3" }, { "value": "4", "label": "4" }
+        ], "default": "1" },
+        { "type": "text", "id": "text", "label": "Tekst", "default": "NEW" },
+        { "type": "color", "id": "color", "label": "Tekstkleur", "default": "#B45309" },
+        { "type": "color", "id": "bg", "label": "Achtergrondkleur", "default": "#FFE1BF" },
+        { "type": "range", "id": "size", "label": "Tekstgrootte (px)", "min": 10, "max": 24, "step": 1, "default": 12 },
+        { "type": "range", "id": "radius", "label": "Border radius (px)", "min": 0, "max": 24, "step": 1, "default": 12 }
+      ]
+    }
+  ],
+  "presets": [{ "name": "Uitgelichte collectie" }],
+  "disabled_on": { "templates": ["password"], "groups": ["header", "custom.overlay"] }
+}
+{% endschema %}

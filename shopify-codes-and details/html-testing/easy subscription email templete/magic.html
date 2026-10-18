@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐍 Snake & Ladder Game</title>
+<style>
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #84fab0, #8fd3f4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+  }
+  h1 { color: #333; margin-bottom: 10px; }
+  .board-wrapper {
+    position: relative;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(10, 50px);
+    grid-template-rows: repeat(10, 50px);
+    border: 4px solid #333;
+    background: #fff;
+    position: relative;
+    z-index: 1;
+  }
+  .cell {
+    border: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    position: relative;
+  }
+  .player {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: red;
+    position: absolute;
+    transition: all 0.5s ease;
+    z-index: 3;
+  }
+  #snakeCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+  }
+  #dice {
+    font-size: 22px;
+    background: #fff;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    margin-top: 15px;
+  }
+  #dice:hover { background: #f0f0f0; }
+  #message {
+    margin-top: 10px;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<h1>🐍 Snake & Ladder</h1>
+<div class="board-wrapper">
+  <canvas id="snakeCanvas" width="500" height="500"></canvas>
+  <div id="board"></div>
+  <div id="player" class="player"></div>
+</div>
+<button id="dice">🎲 Roll Dice</button>
+<div id="message"></div>
+
+<script>
+const board = document.getElementById('board');
+const message = document.getElementById('message');
+const playerToken = document.getElementById('player');
+const canvas = document.getElementById('snakeCanvas');
+const ctx = canvas.getContext('2d');
+let playerPos = 1;
+
+// Saap aur Seedhi mapping
+const snakes = { 17: 7, 54: 34, 62: 19, 64: 60, 87: 24, 93: 73, 95: 75, 99: 78 };
+const ladders = { 4: 14, 9: 31, 20: 38, 28: 84, 40: 59, 51: 67, 63: 81, 71: 91 };
+
+// Create Board 1–100
+for (let i = 100; i >= 1; i--) {
+  const cell = document.createElement('div');
+  cell.className = 'cell';
+  cell.textContent = i;
+  board.appendChild(cell);
+}
+
+// get cell position (x, y)
+function getCellXY(num) {
+  const row = Math.floor((num - 1) / 10);
+  const col = (row % 2 === 0) ? (num - 1) % 10 : 9 - ((num - 1) % 10);
+  const x = col * 50 + 25;
+  const y = 450 - row * 50 + 25;
+  return { x, y };
+}
+
+// Draw snakes & ladders
+function drawLines() {
+  ctx.clearRect(0, 0, 500, 500);
+  ctx.lineWidth = 4;
+
+  // Ladders (green)
+  for (let start in ladders) {
+    const end = ladders[start];
+    const s = getCellXY(parseInt(start));
+    const e = getCellXY(end);
+    ctx.beginPath();
+    ctx.strokeStyle = 'green';
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(e.x, e.y);
+    ctx.stroke();
+  }
+
+  // Snakes (red)
+  for (let start in snakes) {
+    const end = snakes[start];
+    const s = getCellXY(parseInt(start));
+    const e = getCellXY(end);
+    ctx.beginPath();
+    ctx.strokeStyle = 'red';
+    ctx.moveTo(s.x, s.y);
+    ctx.quadraticCurveTo((s.x + e.x)/2 + 20, (s.y + e.y)/2 - 40, e.x, e.y);
+    ctx.stroke();
+  }
+}
+drawLines();
+
+// Move player
+function movePlayer() {
+  const pos = getCellXY(playerPos);
+  playerToken.style.left = (pos.x - 9) + "px";
+  playerToken.style.top = (pos.y - 9) + "px";
+}
+movePlayer();
+
+document.getElementById('dice').addEventListener('click', () => {
+  let roll = Math.floor(Math.random() * 6) + 1;
+  message.textContent = `You rolled a ${roll}`;
+  playerPos += roll;
+  if (playerPos > 100) playerPos = 100;
+
+  // Check ladders
+  if (ladders[playerPos]) {
+    message.textContent += ` 🪜 You climbed ladder ${playerPos} → ${ladders[playerPos]}`;
+    playerPos = ladders[playerPos];
+  }
+
+  // Check snakes
+  else if (snakes[playerPos]) {
+    message.textContent += ` 🐍 Snake bite! ${playerPos} → ${snakes[playerPos]}`;
+    playerPos = snakes[playerPos];
+  }
+
+  movePlayer();
+
+  if (playerPos === 100) {
+    message.textContent = "🏁 You reached 100! You win!";
+    document.getElementById('dice').disabled = true;
+  }
+});
+</script>
+
+</body>
+</html>

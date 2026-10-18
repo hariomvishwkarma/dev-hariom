@@ -1,0 +1,1276 @@
+{% comment %}
+  @param product {Object}
+    The product object
+
+  @param layout {String}
+    The layout type
+
+  @param is_product_modal {Boolean}
+    Is the snippet being loaded in a Quick shop
+
+  @param is_featured_product {Boolean}
+    Is the snippet being loaded in a Featured product
+
+  @param onboarding {Boolean}
+    Is there onboarding content
+
+  @param show_dynamic_checkout_button {Boolean}
+    If true, show dynamic checkout button
+
+  @param select_first_available_variant {Boolean}
+    If true, select the first available variant
+
+  @param gallery_aspect_ratio {String}
+    This is the gallery aspect ratio, can be one of 'natural', 'short', 'square', 'long'
+
+  @param gallery_thumbnail_position {String}
+    This is the gallery thumbnail position, can be one of 'below', or 'left'
+
+  @param gallery_image_crop {Boolean}
+    Whether to crop images
+
+  @param gallery_hover_zoom {String}
+    This is the hover zoom setting, which is either 'disabled', 'separate', or 'replace'
+
+  @param gallery_click_to_zoom {String}
+    This is the click to zoom setting, which is either 'disabled', 'mobile', 'desktop', or 'always'
+{% endcomment %}
+
+{% assign onboarding = onboarding | default: false %}
+{% assign layout = layout | default: nil %}
+{% assign is_featured_product = is_featured_product | default: false %}
+
+{% if layout == 'layout--three-col' %}
+  {% assign product_form = true %}
+{% else %}
+  {% assign product_form = false %}
+  {% for block in section.blocks %}
+    {% case block.type %}
+      {% when 'form' %}
+        {% assign product_form = true %}
+    {% endcase %}
+  {% endfor %}
+{% endif %}
+
+{% liquid
+  assign selected_variant = product.selected_variant
+
+  if product.variants.size == 1 or select_first_available_variant or product_form == false
+    assign selected_variant = product.selected_or_first_available_variant
+  endif
+%}
+
+{% assign compare_at_price = selected_variant.compare_at_price %}
+{% assign price = selected_variant.price %}
+{% assign sku = selected_variant.sku %}
+{% assign product_available = product.available %}
+
+{% comment %}For a potential divider in the product.description we need to split the content{% endcomment %}
+{% assign readmore_split = product.description | split: '<!-- more -->' %}
+
+{% if onboarding %}
+  {% assign compare_at_price = 2999 %}
+  {% assign price = 1999 %}
+{% endif %} 
+
+{% assign on_sale = false %}
+{% if compare_at_price > price %}
+  {% assign on_sale = true %}
+{% endif %}
+
+{% assign consistent_saved = false %}
+{% capture consistent_savings %}
+  {%
+    render 'consistent-savings',
+    variants: product.variants,
+    on_sale: on_sale
+  %}
+{% endcapture %}
+{% if consistent_savings contains 'true' %}
+  {% assign consistent_saved = true %}
+{% endif %}
+
+{%- capture share_buttons -%}
+  {% assign social_image = false %}
+  {% if product.featured_image %}
+    {% assign social_image = product.featured_image | img_url: '1024x' %}
+  {% endif %}
+  {% assign social_url = shop.url | append: product.url %}
+  {%-
+    render 'share-buttons',
+    snippet_title: 'general.share_buttons.title',
+    social_image: social_image,
+    social_title: product.title,
+    social_url: social_url
+  -%}
+{%- endcapture  -%}
+
+  
+<article class="product--outer">
+
+<div class="uk-prod">
+
+    {% comment %} <div class="product-details pd-mobile" ddata-product-details style="margin-top: 0">
+      
+        <div class="product-block" {{ block.shopify_attributes }}>
+          <h1 class="product-title">{{ product.title }}</h1>
+        </div>
+
+       <div class="">
+          <!-- TrustBox widget - Product Mini MultiSource -->
+          <div class="trustpilot-widget" data-locale="en-GB" data-template-id="577258fb31f02306e4e3aaf9" data-businessunit-id="5ca5ac479121e1000152fa10" data-style-height="24px" data-style-width="100%" data-theme="light" data-sku="{{ product.selected_or_first_available_variant.sku }}" data-no-reviews="show" data-scroll-to-list="true" data-style-alignment="left">
+            <a href="https://uk.trustpilot.com/review/www.uk-water-filters.co.uk" target="_blank" rel="noopener">Trustpilot</a>
+          </div>
+          <!-- End TrustBox widget -->
+       </div>
+          
+    </div> {% endcomment %}
+<div class="product-main-section">
+    {%
+      render 'product-gallery',
+      product: product,
+      select_first_available_variant: select_first_available_variant,
+      aspect_ratio: gallery_aspect_ratio,
+      thumbnail_position: gallery_thumbnail_position,
+      image_crop: gallery_image_crop,
+      gallery_click_to_zoom: gallery_click_to_zoom,
+      gallery_hover_zoom: gallery_hover_zoom,
+      section:section
+    %}
+  
+  <div class="product-main">
+    <div class="sticky-element">
+
+      {% for block in section.blocks %}
+        {% if block.type == 'gallery_icon_text' %}
+          <div class="pdp_gallery_icon_text_mobile">
+            {% for count in (1..3) %}
+              {% assign icon_img = 'icon_' | append:count %}
+              {% assign text_t = 'text_' | append:count %}
+                {% if block.settings[icon_img] != blank or block.settings[text_t] != blank %}
+                  <div class="gallery_icon_text_item">
+                    {% if block.settings[icon_img] != blank %}
+                      <img src="{{ block.settings[icon_img] | image_url }}" width="auto" height="auto" alt="icon"/>
+                    {% endif %}
+                    <span class="gallery_icon_text">{{ block.settings[text_t] }}</span>
+                  </div>
+                {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+      
+    <div class="product-details" ddata-product-details>
+      {% for block in section.blocks %}
+        <div
+          class="
+            product-block
+            product-block--{{ block.type }}
+            product-block--{{ block.id }}
+            {% if forloop.first == true -%}
+              product-block--first
+            {% endif %}
+          "
+          {{ block.shopify_attributes }}
+        >
+          {% case block.type %}
+
+            {% when 'complementary_products' %}
+              {%
+                render 'complementary-products',
+                product: product,
+                block: block,
+              %}
+            {% when 'breadcrumbs' %}
+              <div class="pdp_block_breadcrumbs">
+                <div class="main-breadcrumbs">
+                  {% render 'breadcrumbs' %}
+                </div>
+              </div>
+            {% when 'title' %}
+              {% if is_product_modal %}
+                <h2 class="product-title">
+                  <a href="{{ product.url | within: collection }}">{{ product.title }}</a>
+                </h2>
+              {% else %}
+                {% if template == 'index' %}
+                  <h2 class="product-title">
+                {% else %}
+                  <h1 class="product-title">
+                {% endif %}
+                  {% unless onboarding %}
+                    {{ product.title }}
+                  {% else %}
+                    {{ 'onboarding.product.title' | t }}
+                  {% endunless %}
+                {% if template == 'index' %}
+                  </h2>
+                {% else %}
+                  </h1>
+                {% endif %}
+              {% endif %}
+            
+            {% when 'teaser_text' %}
+              {% if product.metafields.custom.product_teaser_text != blank %}
+                <div class="pdp_teaser_text">{{ product.metafields.custom.product_teaser_text }}</div>
+              {% endif %}
+
+            {% when 'tab_bullet_points' %}
+              <div class="tab_bullet_points">
+                {{ block.settings.bullet_points }}
+              </div>
+            
+            {% when 'vendor' %}
+              {% if product.vendor != blank or onboarding %}
+                <div class="product-vendor">
+                  {% unless onboarding %}
+                    {%- capture vendor_link -%}
+                      {{ product.vendor | link_to_vendor }}
+                    {%- endcapture -%}
+                    {{ 'product.general.by_vendor_html' | t: vendor_link: vendor_link }}
+                  {% else %}
+                    {{ 'onboarding.product.by_vendor' | t }}
+                  {% endunless %}
+                </div>
+              {% endif %}
+  
+            {% when 'inventory_status' %}
+              {% for variant in product.variants %}
+                {% capture stock_attributes %}
+                  data-stock-level
+                  data-stock-variant-id="{{ variant.id }}"
+                  data-stock-variant-selected="{% if variant == selected_variant %}true{% else %}false{% endif %}"
+                {% endcapture %}
+                {%
+                  render 'product-stock-level',
+                  attr: stock_attributes,
+                  inventory_display: block.settings.inventory_display,
+                  inventory_transfer: block.settings.inventory_transfer_notice,
+                  variant: variant,
+                  verbose: true,
+                %}
+              {% endfor %}
+            {% when 'rating' %}
+              {% if product.metafields.reviews.rating.value != blank %}
+                <div class="product__rating rating">
+                  {%
+                    render 'rating-stars',
+                    value: product.metafields.reviews.rating.value.rating,
+                    scale_max: product.metafields.reviews.rating.value.scale_max,
+                  %}
+                  <p class="rating__text">
+                    <span aria-hidden="true">
+                      {{ product.metafields.reviews.rating.value }} / {{ product.metafields.reviews.rating.value.scale_max }}
+                    </span>
+                  </p>
+                  <p class="rating__count">
+                    <span aria-hidden="true">
+                      {{ product.metafields.reviews.rating_count }}
+                      {% if product.metafields.reviews.rating_count > 1 %}
+                        {{ "general.accessibility.star_reviews_text" | t }}
+                      {% else %}
+                        {{ "general.accessibility.star_review_text" | t }}
+                      {% endif %}
+                    </span>
+                  </p>
+                </div>
+              {% endif %}
+            {% when 'key_details' %}
+              {% unless block.settings.title == blank and block.settings.text == blank %}
+                <div
+                  class="key-details"
+                  style="
+                    --key-details-text-color: {{ block.settings.text_color }};
+                    --key-details-icon-color: {{ block.settings.icon_color }};
+                    --key-details-background-color: {{ block.settings.background_color }};
+                  "
+                >
+                  {% if block.settings.image %}
+                    {%
+                      render 'rimg',
+                      img: block.settings.image,
+                      class: 'key-details__image',
+                      size: '50x50',
+                      lazy: true,
+                    %}
+                  {% else %}
+                    {%
+                      render 'icon-library',
+                      id: block.settings.icon,
+                      icon_class: 'key-details__icon',
+                    %}
+                  {% endif %}
+                  <div class="key-details__wrapper">
+                    {% if block.settings.title != blank %}
+                      <p class="key-details__heading">
+                        {{ block.settings.title | escape }}
+                      </p>
+                    {% endif %}
+                    {% if block.settings.text != blank %}
+                      {{ block.settings.text }}
+                    {% endif %}
+                  </div>
+                </div>
+              {% endunless %}
+            {% when 'price' %}
+              <div
+                class="product-pricing"
+                aria-live="polite"
+                data-product-pricing
+              >
+                {%
+                  render 'product-badge',
+                  product: product,
+                  class_root: 'product',
+                  product_available: product_available,
+                  price: price,
+                  price_varies: false,
+                  compare_at_price: compare_at_price,
+                  compare_at_price_varies: false,
+                  on_sale: on_sale,
+                  show_saved: true,
+                  include_range: false,
+                  selected_variant: selected_variant,
+                %}
+                {%
+                  render 'product-price',
+                  product: product,
+                  class_root: 'product',
+                  price: price,
+                  price_varies: false,
+                  compare_at_price: compare_at_price,
+                  compare_at_price_varies: false,
+                  on_sale: on_sale,
+                  emphasize_price: false,
+                  show_original: true,
+                  show_range: false,
+                  include_unit_price: true,
+                  include_tax_line: true,
+                  include_hidden_price: true
+                %}
+                <form data-payment-terms-target style="display: none;"></form>
+              </div>
+            {% when 'bullet-point' %}
+              {% if block.settings.short_content != blank %}
+                <div class="short-bullet-points-content">{{ block.settings.short_content }}</div>
+              {% endif %}
+              {% unless block.settings.rich_text != blank %}
+              <div class="product-block--bullet-points">{{ section.settings.short_description }}</div>
+              {% else %}
+              {{ block.settings.rich_text }}
+              {% endunless %}
+            {% when 'sku-reviews' %}
+              <div class="sku-reviews-wrapper {{ product.handle }}">
+                {% comment %} {% unless onboarding %}
+                <div
+                  class="
+                    product-sku
+                    {% if sku == empty %}product-sku--empty{% endif %}
+                  "
+                >
+                  <strong>SKU: </strong> <span>{{ product.metafields.magento.product_code }}</span>
+                  {% comment %}{{ 'product.general.sku_html' | t: sku: sku | strip_newlines }}{% endcomment %}
+                </div>
+                {% endunless %} {% endcomment %}
+                <div class="product-reviews">
+                  <!-- TrustBox widget - Micro TrustScore -->
+
+                  <div class="pdp-trustbadge-image" >
+                      <div class="trustpilot-widget" data-locale="en-GB" data-template-id="54ad5defc6454f065c28af8b" data-businessunit-id="5ca5ac479121e1000152fa10" data-style-height="240px" data-style-width="100%" data-theme="light" data-stars="1,2,3,4,5" data-review-languages="en">
+                        <a href="https://uk.trustpilot.com/review/www.uk-water-filters.co.uk" target="_blank" rel="noopener">Trustpilot</a>
+                      </div>
+                     </div>
+                  
+                </div>
+              </div>
+            {% when 'sku' %}
+              {% unless onboarding %}
+                <div
+                  class="
+                    product-sku
+                    {% if sku == empty %}product-sku--empty{% endif %}
+                  "
+                >
+                  <strong>SKU:</strong> <span>{{ product.metafields.magento.product_code }}</span>
+                  {% comment %}{{ 'product.general.sku_html' | t: sku: sku | strip_newlines }}{% endcomment %}
+                </div>
+              {% endunless %}
+            {% when 'description' %}
+              {% if readmore_split[0] != blank %}
+                <div class="product-description rte" data-product-description>
+                  {{ readmore_split[0] }}
+                </div>
+              {% endif %}
+            {% when 'form' %}
+              <div
+                class="product-form--regular"
+                data-product-form-regular
+              >
+                <div data-product-form-area>
+                  {% if is_product_modal %}
+                    <div data-product-quickshop-message class="product-message--container"></div>
+                  {% endif %}
+                  {% liquid
+                    if product.template_suffix contains 'pre-order'
+                      assign show_dynamic_checkout_button = false
+                    endif
+                    if product.template_suffix contains 'pre-order' and is_product_modal
+                      assign enable_local_pickup = false
+                    else
+                      assign enable_local_pickup = block.settings.enable_local_pickup
+                    endif
+                  %}
+                  {% unless onboarding %}
+                    {%
+                      render 'product-form',
+                      product: product,
+                      enable_local_pickup: enable_local_pickup,
+                      show_dynamic_checkout_button: show_dynamic_checkout_button,
+                      selected_variant: selected_variant,
+                      is_product_modal: is_product_modal,
+                    %}
+                  {% endunless %}
+                </div>
+              </div>
+            {% when 'text' %}
+              <div class="product-text">
+                {{ block.settings.text }}
+              </div>
+            {% when 'share' %}
+              <div class="product-share">
+                {{ share_buttons | strip_newlines }}
+              </div>
+            {% when 'custom-liquid' %}
+              {% if block.settings.custom_liquid != blank %}
+                <div class="custom-liquid">
+                  {{ block.settings.custom_liquid }}
+                </div>
+              {% endif %}
+            {% when 'tabs' %}
+              {% if block.settings.show_tabs_below_product_gallery %}
+                {% assign tabs_below_product_gallery = true %}
+              {% else %}
+                {% assign tabs_below_product_gallery = false %}
+              {% endif %}
+              {% capture product_tabs %}
+                {% assign tab_counter = 1 %}
+                <div class="pxu-tabs pxu-tabs--bottom-{{ tabs_below_product_gallery }}">
+                  {% if block.settings.show_product_description %}
+                    <input
+                      class="tab-radio"
+                      id="description-tab-{{ section.id }}"
+                      name="{{ section.id }}"
+                      tabindex="0"
+                      type="radio"
+                      checked="checked"
+                    >
+                    <label class="tab-label" for="description-tab-{{ section.id }}">
+                      {{ 'product.onboarding.tab_title'| t }}
+                    </label>
+                    <div class="tab-panel" tabindex="0">
+                      {% if onboarding %}
+                        {{ 'product.onboarding.tab_content'| t }}
+                      {% else %}
+                        {% if product.description != blank %}
+                          {{ product.description }}
+                        {% else %}
+                          {{ 'product.onboarding.tab_content'| t }}
+                        {% endif %}
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                  {% for i in (1..3) %}
+                    {% assign tab_text_key = 'tab_text_' | append: i %}
+                    {% assign tab_heading_key = 'tab_heading_' | append: i %}
+                    {% assign tab_heading_value = block.settings[tab_heading_key] %}
+                    {% assign tab_text_value = block.settings[tab_text_key] %}
+                    {% if tab_heading_value != blank %}
+                      <input
+                        class="tab-radio"
+                        id="tab-{{ i }}-{{ section.id }}"
+                        name="{{ section.id }}"
+                        tabindex="0"
+                        type="radio"
+                        {% if tab_counter == 1 and block.settings.show_product_description == false %}
+                          checked
+                        {% endif %}
+                      >
+                      <label class="tab-label" for="tab-{{ i }}-{{ section.id }}">
+                        {{ tab_heading_value | escape }}
+                      </label>
+                      <div class="tab-panel" tabindex="0">
+                        {{ tab_text_value }}
+                      </div>
+                      {% assign tab_counter = tab_counter | plus: 1 %}
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              {% endcapture %}
+              {% if block.settings.show_tabs_below_product_gallery != true %}
+                {{ product_tabs }}
+              {% endif %}
+            {% when 'collapsible-tab' %}
+              {% if block.settings.collapsible_tab_heading != blank %}
+                <details class="collapsible-tab">
+                  <summary class="collapsible-tab__heading">
+                    <span>{{ block.settings.collapsible_tab_heading | escape }}</span>
+                    {% render 'icon-chevron-down-small' %}
+                  </summary>
+                  {% if block.settings.collapsible_tab_text != blank %}
+                    <div class="collapsible-tab__text">
+                      {{ block.settings.collapsible_tab_text }}
+                    </div>
+                  {% endif %}
+                </details>
+              {% endif %}
+            {% when '@app' %}
+              <div class="product-app">
+                {% render block %}
+              </div>
+            {% when 'view-product-link' %}
+              <a
+                class="product-link"
+                href="{{ product.url | within: collection }}"
+                data-product-details-link
+              >
+                {{ block.settings.text | escape }}
+              </a>
+          {% endcase %}
+        </div>
+      {% endfor %}
+      {% if layout == 'layout--three-col' %}
+  
+        <div class="product-form--regular" data-product-form-regular>
+          <div data-product-form-area>
+            {% if is_product_modal %}
+              <div data-product-quickshop-message class="product-message--container"></div>
+            {% endif %}
+            {% liquid
+              if product.template_suffix contains 'pre-order'
+                assign show_dynamic_checkout_button = false
+              endif
+              if product.template_suffix contains 'pre-order' and is_product_modal
+                assign enable_local_pickup = false
+              else
+                assign enable_local_pickup = section.settings.enable_local_pickup
+              endif
+            %}
+            {% unless onboarding %}
+              {%
+                render 'product-form',
+                product: product,
+                enable_local_pickup: enable_local_pickup,
+                show_dynamic_checkout_button: show_dynamic_checkout_button,
+                selected_variant: selected_variant,
+                is_product_modal: is_product_modal,
+              %}
+            {% endunless %}
+            {% if section.settings.social_share and is_product_modal == false %}
+              {{ share_buttons | strip_newlines }}
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+      <div class="uk-prod-purchase">
+  <div class="product-right__block product-right__block-form">
+  
+     <div class="product-details" data-product-details>
+{% comment %}
+    <div class="price-stock-wrapper">
+        <div class="product-price__block {% unless product.price < product.compare_at_price %}price-block-no-savings{% endunless %}">
+                   {% if product.available %}
+                       {% if product.price < product.compare_at_price %}
+                           {% assign savn =  product.compare_at_price | minus: product.price %}
+                           {% assign savp =  savn | times: 100 | divided_by: product.compare_at_price %}
+                       {% endif %}
+                        
+                        <div class="block product_price_flex">
+                          <div class="product_main_price"><span class="pdp_main_price">{{ product.price | money }}</span><span class="vat-info">Inc VAT</span></div>
+                          {% if savn != blank %}<div class="saving_percentage_ small_text">{{ settings.sale_badge_text }} - Save {{ savp }}%</div>{% endif %}
+                        </div>
+    
+                        {% if product.price < product.compare_at_price %}
+                          <div class="block block-right usual-price usual-price-main body_text">
+                            <div class="block ">
+                                Usual Price: <span class="usual-comprice-main"><span class="pdp_usual-comprice-main">{{ product.compare_at_price | money }}</span> Inc VAT</span>
+                            </div>
+                            <div class="price_divider">|</div>
+                            <div><b>Saving: <span class="pdp_saving_amount">{{ savn | money }}</span></b></div>
+                          </div>
+                        {% endif %}
+                    
+                  {% endif %}
+
+                  {% unless product.metafields.custom.show_in_stock_green_box == false %}<div class="pdp-hurry body_text">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="10" viewBox="0 0 13 10" fill="none">
+                      <path d="M12.3789 0.621094C12.543 0.803385 12.625 1.01302 12.625 1.25C12.625 1.48698 12.543 1.69661 12.3789 1.87891L5.37891 8.87891C5.19661 9.04297 4.98698 9.125 4.75 9.125C4.51302 9.125 4.30339 9.04297 4.12109 8.87891L0.621094 5.37891C0.457031 5.19661 0.375 4.98698 0.375 4.75C0.375 4.51302 0.457031 4.30339 0.621094 4.12109C0.803385 3.95703 1.01302 3.875 1.25 3.875C1.48698 3.875 1.69661 3.95703 1.87891 4.12109L4.72266 7.01953L11.1211 0.621094C11.3034 0.457031 11.513 0.375 11.75 0.375C11.987 0.375 12.1966 0.457031 12.3789 0.621094Z" fill="#001F3C"/>
+                    </svg>
+                    <span class="pdp-hurry_bold">Only {% render 'inventory-calc' %} in stock at this price</span> | Available for next day delivery</div>
+                  {% endunless %}
+          </div>
+    </div>
+{% endcomment %}
+<div class="price-stock-wrapper">
+ <div class="product-price__block {% unless product.price < product.compare_at_price %}price-block-no-savings{% endunless %}">
+               {% if product.available %}
+                <div class="block block-left">
+                  <div class="pp-today">October Sale!</div>
+                  <div class="block block-right">
+                    <div class="pp-price"><span class="pdp_main_price">{{ product.price | money }}</span><span class="vat-info">INC VAT</span></div>
+                  </div>
+                </div>
+                {% if product.price < product.compare_at_price %}
+                <div class='red_seperation-line-wrapper'>
+                  <div class="red_line_small"></div>
+                </div>
+                <div class="block-middle">
+                  {% assign savn =  product.compare_at_price | minus: product.price %}
+                  {% assign savp =  savn | times: 100 | divided_by: product.compare_at_price %}
+                  <div class="pp-savings-title">Saving</div>
+                  <div class="pp-savings">{{ savn | money }} (-{{ savp }}%)</div>
+                </div>
+                {% endif %}
+                {% if product.price < product.compare_at_price %}
+                <div class="seperation-line-wrapper">
+                  <div class="seperation-line"></div>
+                </div>
+                <div class="block block-right usual-price">
+                  <div class="block block-left ususal-price-caption">
+                      Our Usual Price
+                  </div>
+                  <div class="block block-right">
+                    <strike>{{ product.compare_at_price | money }}</strike> INC VAT
+                  </div>
+                </div>
+                {% endif %}
+              {% endif %}
+      </div>
+          {% unless product.metafields.custom.show_in_stock_green_box == false %}<div class="pdp-hurry body_text">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="10" viewBox="0 0 13 10" fill="none">
+                      <path d="M12.3789 0.621094C12.543 0.803385 12.625 1.01302 12.625 1.25C12.625 1.48698 12.543 1.69661 12.3789 1.87891L5.37891 8.87891C5.19661 9.04297 4.98698 9.125 4.75 9.125C4.51302 9.125 4.30339 9.04297 4.12109 8.87891L0.621094 5.37891C0.457031 5.19661 0.375 4.98698 0.375 4.75C0.375 4.51302 0.457031 4.30339 0.621094 4.12109C0.803385 3.95703 1.01302 3.875 1.25 3.875C1.48698 3.875 1.69661 3.95703 1.87891 4.12109L4.72266 7.01953L11.1211 0.621094C11.3034 0.457031 11.513 0.375 11.75 0.375C11.987 0.375 12.1966 0.457031 12.3789 0.621094Z" fill="#001F3C"/>
+                    </svg>
+                    <span class="pdp-hurry_bold">Only {% render 'inventory-calc' %} in stock at this price</span> | Available for next day delivery</div>
+                  {% endunless %}
+     </div>
+      {% comment %}
+    <div
+                class="product-pricing"
+                aria-live="polite"
+                data-product-pricing
+              >
+                {%
+                  render 'product-badge',
+                  product: product,
+                  class_root: 'product',
+                  product_available: product_available,
+                  price: price,
+                  price_varies: false,
+                  compare_at_price: compare_at_price,
+                  compare_at_price_varies: false,
+                  on_sale: on_sale,
+                  show_saved: true,
+                  include_range: false,
+                  selected_variant: selected_variant,
+                %}
+                {%
+                  render 'product-price',
+                  product: product,
+                  class_root: 'product',
+                  price: price,
+                  price_varies: false,
+                  compare_at_price: compare_at_price,
+                  compare_at_price_varies: false,
+                  on_sale: on_sale,
+                  emphasize_price: false,
+                  show_original: true,
+                  show_range: false,
+                  include_unit_price: true,
+                  include_tax_line: true,
+                  include_hidden_price: true
+                %}
+                <form data-payment-terms-target style="display: none;"></form>
+              </div>
+            {% endcomment %}
+  
+            {% comment %}
+            <div class="offer-ends" style="margin-bottom: 10px; font-weight: 500; text-align: center; padding: 10px; border: 1px solid #ebebeb">
+              This offer ends...
+            </div>
+           {% endcomment %}
+  
+            {% comment %} Stock Levels {% endcomment %}
+  
+            {% for variant in product.variants %}
+                {% capture stock_attributes %}
+                  data-stock-level
+                  data-stock-variant-id="{{ variant.id }}"
+                  data-stock-variant-selected="{% if variant == selected_variant %}true{% else %}false{% endif %}"
+                {% endcapture %}
+                {%
+                  render 'product-stock-level',
+                  attr: stock_attributes,
+                  inventory_display: 'hidden',
+                  inventory_transfer: block.settings.inventory_transfer_notice,
+                  variant: variant,
+                  verbose: true,
+                %}
+              {% endfor %}
+              {%- liquid
+                assign dd = shop.metaobjects['discount_display_on_pdp']
+                assign entry = nil
+
+                if dd and dd.values
+                  for e in dd.values
+                    if e.add_product_s
+                      for p in e.add_product_s.value
+                        if p and p.id == product.id
+                          assign entry = e
+                          break
+                        endif
+                      endfor
+                    endif
+                    if entry
+                      break
+                    endif
+                  endfor
+                endif
+              -%}
+
+              {%- if entry -%}
+                {%- assign base_price = product.price -%}
+
+                {%- capture rows -%}
+                {%- assign tiers_rendered = 0 -%}
+                {%- for i in (1..3) -%}
+                  {%- assign text_key  = 'quantity_' | append: i | append: '_text' -%}
+                  {%- assign perc_key  = 'quantity_' | append: i | append: '_discount_percent' -%}
+                  {%- assign price_key = 'quantity_' | append: i | append: '_discount_price_new' -%}
+
+                  {%- assign label     = entry[text_key]  | strip -%}
+                  {%- assign perc      = entry[perc_key]  -%}
+                  {%- assign fixed_raw = entry[price_key] -%} 
+
+                  {%- if label != blank -%}
+                    {%- if fixed_raw != blank or perc != blank -%}
+
+                      {%- assign parts = label | split: ' ' -%}
+                      {%- assign maybe_qty = parts | last | plus: 0 -%}
+                      {%- assign qty = maybe_qty -%}
+                      {%- if qty == 0 -%}
+                        {%- assign qty = i | plus: 1 -%}
+                      {%- endif -%}
+
+                      {%- assign per_price = 0 -%}
+                      {%- assign per_save  = 0 -%}
+                      {%- assign perc_bp   = 0 -%}
+
+                      {%- if fixed_raw != blank -%}
+                        {%- comment -%}
+                          Fixed discount mode:
+                          fixed_raw is entered in rupees (e.g. 200),
+                          so convert to paise/cents to match product.price.
+                        {%- endcomment -%}
+                        {%- assign per_save  = fixed_raw | times: 100 -%}
+                        {%- assign per_price = base_price | minus: per_save -%}
+                        {%- assign perc_bp   = per_save | times: 10000 | divided_by: base_price -%}
+                      {%- elsif perc != blank -%}
+                        {%- assign perc_bp = perc | times: 100 | round: 0 -%}
+                        {%- assign factor_bp = 10000 | minus: perc_bp -%}
+                        {%- assign per_price = base_price | times: factor_bp | divided_by: 10000 -%}
+                        {%- assign per_save  = base_price | minus: per_price -%}
+                      {%- endif -%}
+
+                      {%- assign total_save = per_save | times: qty -%}
+                      {%- assign tiers_rendered = tiers_rendered | plus: 1 -%}
+
+                      <div class="volume_discount_block"
+                        role="button"
+                        tabindex="0"
+                        aria-label="{{ label }} (sets quantity to {{ qty }})"
+                        data-qty="{{ qty }}"
+                        data-perc-bp="{{ perc_bp }}"
+                        data-base-price="{{ base_price }}">
+                        <div class="offer_heading">
+                          <h6>{{ label }}</h6>
+                        </div>
+                        <div class="offer_price">
+                          <h4>{{ per_price | money_without_trailing_zeros }} <small>Each</small></h4>
+                          {% comment %} {% if fixed_raw != blank %} 
+                            <span>Save {{ per_save | money_without_trailing_zeros }}</span>
+                          {% else %}
+                            <span>Save {{ total_save | money_without_trailing_zeros }}</span>
+                          {%endif %} {% endcomment %}
+                            <span>Save {{ total_save | money_without_trailing_zeros }}</span>
+                        </div>
+                      </div>
+
+                    {%- endif -%}
+                  {%- endif -%}
+                {%- endfor -%}
+                {%- if tiers_rendered == 0 -%}{% assign entry = nil %}{%- endif -%}
+              {%- endcapture -%}
+
+
+                {%- if entry -%}
+                  <div class="volume_discount_wrap" data-volume-pricing>
+                    <div class="volume_discount_inner" data-volume-rows>
+                      {{ rows }}
+                    </div>
+                  </div>
+                {%- endif -%}
+
+                <script>
+                  (function () {
+                    document.addEventListener('click', function (e) {
+                      const el = e.target.closest('[data-qty]');
+                      if (!el) return;
+
+                      const qty = parseInt(el.getAttribute('data-qty'), 10);
+                      if (!Number.isFinite(qty) || qty < 1) return;
+
+                      const scope =
+                        el.closest('form[action*="/cart/add"]') ||
+                        el.closest('section, .product, .product-main, .product-single') ||
+                        document;
+
+                      const visibleInput =
+                        scope.querySelector('#quantity_') ||
+                        scope.querySelector('[data-quantity-select]') ||
+                        scope.querySelector('input[type="number"]');
+
+                      const masterInput =
+                        (scope.querySelector('.master-input') || scope.querySelector('[name="quantity"]'));
+
+                      if (!visibleInput && !masterInput) return;
+
+                      const refInput = visibleInput || masterInput;
+
+                      const min = parseInt(refInput.getAttribute('min') || '1', 10);
+                      const maxAttr = refInput.getAttribute('max');
+                      const max = maxAttr ? parseInt(maxAttr, 10) : Infinity;
+
+                      const newQty = Math.min(Math.max(qty, min), max);
+
+                      if (visibleInput) visibleInput.value = String(newQty);
+                      if (masterInput && masterInput !== visibleInput) masterInput.value = String(newQty);
+
+                      ['input', 'change'].forEach(function (type) {
+                        if (visibleInput) visibleInput.dispatchEvent(new Event(type, { bubbles: true }));
+                        if (masterInput && masterInput !== visibleInput) masterInput.dispatchEvent(new Event(type, { bubbles: true }));
+                      });
+
+                      const group = el.closest('[data-volume-rows]') || scope;
+                      if (group) {
+                        group.querySelectorAll('[data-qty].is-selected').forEach(function (n) {
+                          n.classList.remove('is-selected');
+                        });
+                      }
+                      el.classList.add('is-selected');
+                    });
+                  })();
+                </script>
+              {%- endif -%}
+              
+     <div class="product-form--regular" data-product-form-regular >
+         <div data-product-form-area>
+             {% if is_product_modal %}
+                <div data-product-quickshop-message class="product-message--container"></div>
+             {% endif %}
+             {% liquid
+                    if product.template_suffix contains 'pre-order'
+                      assign show_dynamic_checkout_button = false
+             endif
+               if product.template_suffix contains 'pre-order' and is_product_modal
+                      assign enable_local_pickup = false
+                    else
+                      assign enable_local_pickup = block.settings.enable_local_pickup
+                endif
+              %}
+               {% unless onboarding %}
+                    {%
+                      render 'product-form',
+                      product: product,
+                      enable_local_pickup: enable_local_pickup,
+                      show_dynamic_checkout_button: show_dynamic_checkout_button,
+                      selected_variant: selected_variant,
+                      is_product_modal: is_product_modal,
+                    %}
+               {% endunless %}
+       </div>
+   </div><!-- .product-form -->
+
+      <div class="guaranteed_mobile_img guaranteed_mobile_img-var-b">
+        <img class="product-gallery--loaded-image-emblem" src="https://cdn.shopify.com/s/files/1/0665/1782/7878/files/Guaranteed_to_Fit.png?v=1725540284" alt="guaranteed-fit">
+      </div>
+
+  <div class="filter-promise-bullet-point">
+    <div class="fpbp-content">
+      {% if section.settings.title_1 %}
+      <div class="fpbp--title">{{ section.settings.title_1 }}</div>
+      {% endif %}
+      {% if product.metafields.custom.product_page_bullet_point_1 != blank %}
+      <div class="fpbp--text body_text">{{ product.metafields.custom.product_page_bullet_point_1 | metafield_tag }}</div>
+      {% elsif section.settings.text_1 != blank %}
+      <div class="fpbp--text body_text">{{ section.settings.text_1 }}</div>
+      {% endif %}
+    </div>
+    {%- if section.settings.image_1 != blank -%}
+    <div class="fpbp--img__wrapper">
+      {%- assign img_height = section.settings.image_1.width | divided_by: section.settings.image_1.aspect_ratio -%}
+
+      {{ section.settings.image_1 | image_url: width: 1000 | image_tag:
+        height: img_height,
+        width: section.settings.img.width,
+        loading: 'lazy'
+      }}
+    </div>
+    {%- endif -%}
+  </div>
+
+  {% if section.settings.upsell_products == true and product.metafields.custom.product_page_upsell != blank %}
+    {% assign pdp_upsell = product.metafields.custom.product_page_upsell.value %}
+    <div class="pdp_upsell_products">
+      <h3 class="pdp_upsell_heading">{{ section.settings.upsell_heading }}</h3>
+      <div class="pdp_upsell_list">
+        {% for upsell_item in pdp_upsell %}
+          {% if upsell_item.available %}
+            {% assign upsell_variant = upsell_item.selected_or_first_available_variant %}
+            {% assign upsell_product_added = false %}
+            {% for item in cart.items %}
+              {% if item.variant_id == upsell_variant.id %}
+                {% assign upsell_product_added = true %}
+              {% endif %}
+            {% endfor %}
+            <div class="pdp_upsell_item">
+              <div class="pdp_upsell_image">
+                {% if upsell_variant.featured_image != blank %}
+                  <img src="{{ upsell_variant.featured_image | image_url }}" width="auto" height="auto" alt="{{ upsell_item.title }}"/>
+                {% else %}
+                  <img src="{{ upsell_item.featured_image | image_url }}" width="auto" height="auto" alt="{{ upsell_item.title }}"/>
+                {% endif %}
+              </div>
+              <div class="pdp_upsell_content">
+                <h3 class="pdp_upsell_title">{{ upsell_item.title }}</h3>
+                <div class="pdp_upsell_prices">
+                  <div class="pdp_upsell_price_main">
+                    <span class="pdp_upsell_price_regular">{{ upsell_variant.price | money }}</span>
+                    {% if upsell_variant.compare_at_price > upsell_variant.price %}
+                      <span class="pdp_upsell_compare_price">{{ upsell_variant.compare_at_price | money }}</span>
+                    {% endif %}
+                  </div>
+                  {% if upsell_variant.compare_at_price > upsell_variant.price %}
+                    <span class="pdp_upsell_sale_badge">Add and Save!</span>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="pdp_upsell_form">
+                <div class="upsell_mobile_prices">
+                    <div class="pdp_upsell_price_main">
+                      <span class="pdp_upsell_price_regular">{{ upsell_variant.price | money }}</span>
+                      {% if upsell_variant.compare_at_price > upsell_variant.price %}
+                        <span class="pdp_upsell_compare_price">{{ upsell_variant.compare_at_price | money }}</span>
+                      {% endif %}
+                    </div>
+                    {% if upsell_variant.compare_at_price > upsell_variant.price %}
+                      <span class="pdp_upsell_sale_badge">Add and Save!</span>
+                    {% endif %}
+                  </div>
+                  <form action="/cart/add" method="post">
+                    <input type="hidden" name="id" value="{{ upsell_variant.id }}" />
+                    {% if upsell_product_added == true %}
+                      <input type="submit" class="complementary_product_submit" value="Added" disabled style="opacity: .5;">
+                    {% else %}
+                      <input type="submit" class="complementary_product_submit" value="Add" />
+                    {% endif %}
+                  </form>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% comment %}
+  <div class="guaranteed_mobile_img guaranteed_mobile_img-var-b">
+    <img class="product-gallery--loaded-image-emblem" src="https://cdn.shopify.com/s/files/1/0665/1782/7878/files/Guaranteed_to_Fit.png?v=1725540284" alt="">
+    </div>
+   {% endcomment %}                     
+  <div class="delivery-information">
+    <div class="left-content">{{ section.settings.content_left }}</div>
+    <div class="seperation-line-wrapper">
+      <div class="seperation-line"></div>
+    </div>
+    <div class="right-content">
+      <div id="timer-wrapper">{% render 'icon-delivery-car' %}<span class="timer-static">Order before 3pm for same day dispatch today</span> <span class="timer-dynamic hidden">Order within <span class="timer-dynamic-value"></span> for dispatch today</span></div>
+    </div>
+  </div><!-- pr-block -->
+       <style>
+         .delivery-information {
+            display: none !important;
+          }
+        .cutomText {
+            padding: 14px;
+            background-color: rgba(217, 217, 217, 0.2);
+            border: rgba(247, 247, 247, 1) solid 1px;
+            border-radius: 2px;
+            color: #232323;
+            margin-bottom: 25px;
+        }
+       </style>         
+                        
+  <div class="pdp-trustpilot-review">
+      <div class="pdp-trustbadge_icons">
+      {% assign stars = section.settings.rating %}
+      {% for star in (1..stars) %}
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <rect width="20" height="20" fill="#02B67A"/>
+          <path d="M10 13.6761L13.0417 12.8616L14.3125 17L10 13.6761ZM17 8.32704H11.6458L10 3L8.35417 8.32704H3L7.33334 11.6289L5.6875 16.956L10.0208 13.6541L12.6875 11.6289L17 8.32704Z" fill="white"/>
+        </svg>
+      {% endfor %}
+    </div>
+    <div class="pdp-trustbadge_review">{{ section.settings.review }}</div>
+    <div class="pdp-trustbadge_customerName">{{ section.settings.customer_name }}</div>
+  </div>
+  {% comment %}
+  <div class="pdp-trustbadge-carousal">
+    <div class="trustpilot-widget" data-locale="en-GB" data-template-id="54ad5defc6454f065c28af8b" data-businessunit-id="5ca5ac479121e1000152fa10" data-style-height="220px" data-style-width="100%" data-theme="light" data-stars="1,2,3,4,5" data-review-languages="en">
+      <a href="https://uk.trustpilot.com/review/www.uk-water-filters.co.uk" target="_blank" rel="noopener">Trustpilot</a>
+    </div>
+   </div>
+  {% endcomment %}
+
+  {% if section.settings.quiz_heading != blank or section.settings.quiz_content != blank %}
+    <div class="pdp_quiz">
+      {% if section.settings.quiz_heading != blank %}
+        <h4 class="pdp_quiz_heading">{{ section.settings.quiz_heading }}</h4>
+      {% endif %}
+      {% if section.settings.quiz_content != blank %}
+        <div class="pdp_quiz_content">{{ section.settings.quiz_content }}</div>
+      {% endif %}
+    </div>
+  {% endif %}
+  
+  </div><!-- .data-details -->
+                        
+  {% comment %}       
+  <div class="product__included product__included-mobile">
+  <h5>What you get</h5>
+    <div class="product-sku">
+     {% if product.metafields.magento.product_code %}
+     <strong>SKU:</strong> <span>{{ product.metafields.magento.product_code }}</span>
+      {% endif %}
+  </div>
+  </div>
+  
+  
+  {% if layout == 'layout--three-col' %}
+    <div class="product-form--alt" data-product-form-alt></div>
+  {% endif %}
+  {% endcomment %}
+  
+  
+  
+  </div><!-- .uk-prod-purchase -->
+    </div>
+    </div>
+  </div>
+  
+  </div>
+</div>
+
+{% comment %} <section class="uk-prod-left uk-prod-left--secondary">
+
+  <div class="product__tabs">
+    <a href="#product_tabs_description_contents_tab">Product Details</a>
+    <a href="#tech-info">Technical Information</a>
+    <a href="#product_tabs_reviews_contents">Reviews</a>
+    <!--<a href="#delivery-options">Delivery Options</a>-->
+  </div>
+
+  <div class="product__content-title" id="product_tabs_description_contents_tab">Product Details</div>
+  <div class="product__content-block" id="">
+    {{ product.description }}
+  </div>
+
+  <div class="product__content-title" id="tech-info">Technical Information</div>
+  <div class="product__content-block" id="">
+    {{ product.metafields.magento.technical_info.value }}
+  </div>
+
+  {% comment %}
+  <div class="product__content-title" id="product_tabs_reviews_contents">Reviews</div>
+  <div class="product__content-block" id="">
+    <!-- TrustBox widget - Product Reviews MultiSource -->
+    <div class="trustpilot-widget" data-locale="en-GB" data-template-id="57177697fdb1180308e3815f" data-businessunit-id="5ca5ac479121e1000152fa10" data-style-height="700px" data-style-width="100%" data-theme="light" data-sku="{{ product.selected_or_first_available_variant.sku }}" data-review-languages="en" data-no-reviews="show" data-fullwidth="true">
+      <a href="https://uk.trustpilot.com/review/www.uk-water-filters.co.uk" target="_blank" rel="noopener">Trustpilot</a>
+    </div>
+    <!-- End TrustBox widget -->
+  </div>
+  {% endcomment %}
+</section> {% endcomment %}
+ 
+
+  
+{% comment %} <section class="uk-prod-purchase uk-prod-purchase--secondary">
+  {% render 'product-extra' %}
+</section> {% endcomment %}
+
+  
+</div>
+</article>
+
+{% if tabs_below_product_gallery == true %}
+  {{ product_tabs }}
+{% endif %}
+
+{% if readmore_split[1] != blank and is_featured_product != true and is_product_modal != true %}
+  <div class="product-readmore rte" data-product-readmore>
+    {{ readmore_split[1] }}
+  </div>
+{% endif %}
+
+
+<script>
+  function setRecentlyViewedPdp() {
+    const pdpData = {
+      productTitle: "{{ product.title }}",
+      productImg: "{{ product.featured_image | img_url: '512x512' }}",
+      productPrice: "{{ product.price | money | remove_first: '' }}",
+      productCompareAtPrice: "{{ product.compare_at_price | money | remove_first: '' }}",
+      productUrl: "{{ product.url }}"
+    };
+
+    const productArr = [pdpData];
+    const numberOfProduct = 5;
+    const currPdpTitle = pdpData.productTitle;
+    const localData = localStorage.getItem('recently_viewed');
+
+    if (!localData) {
+      localStorage.setItem('recently_viewed', JSON.stringify(productArr));
+    } else {
+      const oldPdpData = JSON.parse(localStorage.getItem('recently_viewed'));
+      const isRevisit = oldPdpData.some(p => p.productTitle === currPdpTitle);
+
+      if (!isRevisit) {
+        if (oldPdpData.length >= numberOfProduct) {
+          oldPdpData.shift();
+        }
+        oldPdpData.push(pdpData);
+        localStorage.setItem('recently_viewed', JSON.stringify(oldPdpData));
+      }
+    }
+  }
+
+  setRecentlyViewedPdp();
+  (function () {
+
+  function getCurrencySymbol(priceText) {
+    const match = priceText.trim().match(/^[^\d]+/);
+    return match ? match[0].trim() : "";
+  }
+
+  function parsePrice(price) {
+    if (!price) return 0;
+
+    return parseFloat(
+      price
+        .replace(/[^\d.,]/g, "") // remove currency symbols
+        .replace(/,/g, "") // remove thousand separator
+    );
+  }
+
+  function formatPrice(num, currency) {
+    return currency + num.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function updateSaving() {
+
+    const mainPriceEl = document.querySelector(".pdp_main_price");
+    const comparePriceEl = document.querySelector(".usual-price strike");
+    const savingEl = document.querySelector(".pp-savings");
+
+    if (!mainPriceEl || !comparePriceEl || !savingEl) return;
+
+    const currency = getCurrencySymbol(mainPriceEl.textContent);
+
+    const mainPrice = parsePrice(mainPriceEl.textContent);
+    const comparePrice = parsePrice(comparePriceEl.textContent);
+
+    if (!mainPrice || !comparePrice) return;
+
+    const saving = comparePrice - mainPrice;
+    const percent = Math.round((saving / comparePrice) * 100);
+
+    savingEl.textContent = `${formatPrice(saving, currency)} (-${percent}%)`;
+  }
+
+  function updatePriceFromWidget() {
+
+    const mainPrice = document.querySelector(".pdp_main_price");
+    if (!mainPrice) return;
+
+    const checkedPlan = document.querySelector(
+      "#appstle_subscription_widget0 input[name='selling_plan']:checked"
+    );
+
+    if (!checkedPlan) return;
+
+    let priceElement;
+
+    if (checkedPlan.value === "") {
+      priceElement = document.querySelector(
+        ".appstle_one_time_price_wrapper .appstle_subscription_amount"
+      );
+    } else {
+      priceElement = checkedPlan
+        .closest(".appstle_subscription_wrapper_option")
+        .querySelector(".appstle_subscription_amount");
+    }
+
+    if (priceElement) {
+      mainPrice.textContent = priceElement.textContent.trim();
+      updateSaving();
+    }
+  }
+
+  function initWidgetListener() {
+
+    const widget = document.querySelector("#appstle_subscription_widget0");
+    if (!widget) return;
+
+    widget.addEventListener("change", function (e) {
+
+      if (
+        e.target.name === "selling_plan" ||
+        e.target.classList.contains("appstle_select")
+      ) {
+        setTimeout(updatePriceFromWidget, 200);
+      }
+
+    });
+
+    updatePriceFromWidget();
+  }
+
+  function waitForWidget() {
+
+    const check = setInterval(function () {
+
+      if (document.querySelector("#appstle_subscription_widget0")) {
+        clearInterval(check);
+        initWidgetListener();
+      }
+
+    }, 200);
+
+  }
+
+  document.addEventListener("DOMContentLoaded", waitForWidget);
+
+})();
+</script>
+

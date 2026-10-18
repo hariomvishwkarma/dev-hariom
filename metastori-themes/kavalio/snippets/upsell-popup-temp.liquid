@@ -1,0 +1,244 @@
+{%- assign color_label_list = 'general.label.color' | t | replace: ', ', ',' | downcase | split: ',' -%}
+{%- assign color_white_label = 'general.label.white' | t | downcase -%}
+{%- assign upsell_variant_image_options = 'Farbe,farbe,Color,color' | replace: ', ', ',' | downcase | split: ',' -%}
+
+<div data-product-id="{{ product.id }}" class="upsell-product-popup">
+  <div class="popup_container">
+    <button type="button" class="close-popup-button">
+      {% render 'icon' with 'close' %}
+    </button>
+
+    <div class="upsell_popup_product_info">
+      <div class="upsell_popup_img">
+        {% if product.featured_image %}
+          {{ product.featured_image | image_url: width: 90 | image_tag }}
+        {% endif %}
+      </div>
+      <div class="product_info_wrapper">
+        <div class="product_title">
+          {{ product.title }}
+        </div>
+        <div class="upsell_popup-price ed-price-list">
+          <div class="ed-price-list-inner">
+            {% assign compare_price = product.selected_or_first_available_variant.compare_at_price %}
+            {% assign current_price = product.selected_or_first_available_variant.price %}
+
+            {% if compare_price and compare_price > current_price %}
+              <span class="price price--compare">{{ compare_price | money }}</span>
+              {% if settings.discount_mode == 'percentage' %}
+                {% assign savings = compare_price | minus: current_price | times: 100.0 | divided_by: compare_price | round | append: '%' %}
+              {% else %}
+                {% capture savings %}{{ compare_price | minus: current_price | money_without_currency }}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }}{% endcapture %}
+              {% endif %}
+              <span class="label label--highlight">{{ 'collection.product.discount_html' | t: savings: savings }}</span>
+              <span class="price price--highlight">{{ current_price | money }}</span>
+            {% else %}
+              {% assign fallback_compare = product.compare_at_price_max %}
+              {% assign fallback_price = product.price_min %}
+              {% if fallback_compare and fallback_compare > fallback_price %}
+                <span class="price price--compare">{{ fallback_compare | money }}</span>
+                {% if settings.discount_mode == 'percentage' %}
+                  {% assign savings = fallback_compare | minus: fallback_price | times: 100.0 | divided_by: fallback_compare | round | append: '%' %}
+                {% else %}
+                  {% capture savings %}{{ fallback_compare | minus: fallback_price | money_without_currency }}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }}{% endcapture %}
+                {% endif %}
+                <span class="label label--highlight">{{ 'collection.product.discount_html' | t: savings: savings }}</span>
+                <span class="price price--highlight">{{ current_price | money }}</span>
+              {% else %}
+                <span class="price price--large">{{ current_price | money }}</span>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if product.variants.size > 1 %}
+      {%- assign upsell_selected_variant = product.selected_or_first_available_variant -%}
+      <div
+        class="product-container product-form upsell-variant-picker"
+        id="product-{{ product.id }}"
+        data-variant-selected="{{ upsell_selected_variant.id }}"
+        data-variants='{{ product.variants | json }}'
+      >
+        <script type="application/json" data-buy-allowed-map>
+          {
+            {%- for variant in product.variants -%}
+              {%- capture variant_buy_allowed_str -%}{%- render 'variant-buy-allowed', variant: variant -%}{%- endcapture -%}
+              {%- assign variant_buy_allowed_str = variant_buy_allowed_str | strip -%}
+              {%- assign variant_buy_allowed = false -%}
+              {%- if variant_buy_allowed_str == 'true' -%}
+                {%- assign variant_buy_allowed = true -%}
+              {%- endif -%}
+              "{{ variant.id }}": {{ variant_buy_allowed | json }}{% unless forloop.last %},{% endunless %}
+            {%- endfor -%}
+          }
+        </script>
+        {%- for option in product.options_with_values -%}
+          {%- assign option_downcase = option.name | downcase -%}
+          {%- capture option_id -%}upsell-option-{{ product.id }}-{{ forloop.index }}{%- endcapture -%}
+          {%- assign selector_type = 'block' -%}
+          {%- assign swatch_count = option.values | map: 'swatch' | compact | size -%}
+
+          {%- if swatch_count > 0 -%}
+            {%- assign selector_type = 'swatch' -%}
+          {%- endif -%}
+
+          {%- if color_label_list contains option_downcase -%}
+            {%- assign selector_type = 'swatch' -%}
+          {%- endif -%}
+
+          {%- if upsell_variant_image_options contains option_downcase -%}
+            {%- assign selector_type = 'variant_image' -%}
+          {%- endif -%}
+
+          <div
+            class="product-form__option-selector"
+            data-selector-type="{{ selector_type | replace: '_', '-' | escape }}"
+            data-option-index="{{ option.position }}"
+          >
+            <div class="product-form__option-info">
+              <div class="product-form__option-info-inner">
+                <span class="product-form__option-name">{{ option.name }}:</span>
+                <span class="product-form__option-value option--{{ forloop.index }}">
+                  <span class="color-code-display">
+                    <span class="color-name">{{ option.selected_value }}</span>
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            {%- case selector_type -%}
+              {%- when 'variant_image' -%}
+                <div class="variant-swatch-list">
+                  {%- for value in option.values -%}
+                    {%- assign image = value.variant.featured_media
+                      | default: value.variant.product.featured_media
+                      | default: product.featured_media
+                    -%}
+
+                    <div class="variant-swatch {% unless value.available %}is-disabled{% endunless %}">
+                      <input
+                        class="variant-swatch__radio visually-hidden"
+                        type="radio"
+                        data-option-position="{{ option.position }}"
+                        name="upsell-option{{ option.position }}-{{ product.id }}"
+                        id="{{ option_id }}-{{ forloop.index }}"
+                        value="{{ value.id }}"
+                        data-option-value="{{ value | escape }}"
+                        {% if value == option.selected_value %}
+                          checked="checked"
+                        {% endif %}
+                      >
+                      <label class="variant-swatch__item" for="{{ option_id }}-{{ forloop.index }}">
+                        <span class="visually-hidden">{{ value }}</span>
+                        {{-
+                          image
+                          | image_url: width: image.width
+                          | image_tag:
+                            loading: 'lazy',
+                            sizes: '64px',
+                            widths: '64,128',
+                            class: 'variant-swatch__image'
+                        -}}
+                      </label>
+                    </div>
+                  {%- endfor -%}
+                </div>
+
+              {%- when 'swatch' -%}
+                {%- assign color_swatch_config = settings.color_swatch_config | newline_to_br | split: '<br />' -%}
+
+                <div class="color-swatch-list">
+                  {%- for value in option.values -%}
+                    {%- assign color_value_downcase = value | downcase -%}
+
+                    <div class="color-swatch {% if color_white_label == color_value_downcase %}color-swatch--white{% endif %} {% unless value.available %}is-disabled{% endunless %}">
+                      <input
+                        class="color-swatch__radio visually-hidden"
+                        type="radio"
+                        data-option-position="{{ option.position }}"
+                        name="upsell-option{{ option.position }}-{{ product.id }}"
+                        id="{{ option_id }}-{{ forloop.index }}"
+                        value="{{ value.id }}"
+                        data-option-value="{{ value | escape }}"
+                        {% if value == option.selected_value %}
+                          checked="checked"
+                        {% endif %}
+                      >
+                      <label
+                        class="color-swatch__item"
+                        for="{{ option_id }}-{{ forloop.index }}"
+                        style="{% render 'color-swatch-style', swatch: value.swatch, color_swatch_config: color_swatch_config, value: value %}"
+                      >
+                        <span class="visually-hidden">{{ value }}</span>
+                      </label>
+                    </div>
+                  {%- endfor -%}
+                </div>
+
+              {%- else -%}
+                <div class="block-swatch-list">
+                  {%- for value in option.values -%}
+                    <div class="block-swatch {% unless value.available %}is-disabled{% endunless %}">
+                      <input
+                        class="block-swatch__radio visually-hidden"
+                        type="radio"
+                        data-option-position="{{ option.position }}"
+                        name="upsell-option{{ option.position }}-{{ product.id }}"
+                        id="{{ option_id }}-{{ forloop.index }}"
+                        value="{{ value.id }}"
+                        data-option-value="{{ value | escape }}"
+                        {% if value == option.selected_value %}
+                          checked="checked"
+                        {% endif %}
+                      >
+                      <label class="block-swatch__item" for="{{ option_id }}-{{ forloop.index }}">
+                        {{- value -}}
+                      </label>
+                    </div>
+                  {%- endfor -%}
+                </div>
+            {%- endcase -%}
+          </div>
+        {%- endfor -%}
+      </div>
+    {% endif %}
+
+    {%- assign kav_upsell_form_id = 'upsell-popup-' | append: product.id -%}
+    {% render 'kavalio-delivery-checkout-properties',
+      product: product,
+      product_form_id: kav_upsell_form_id,
+      text_in_stock: '1-2',
+      render_delivery_script: true,
+      render_hidden_inputs: false
+    %}
+
+    {%- capture upsell_selected_buy_allowed_str -%}{%- render 'variant-buy-allowed', variant: product.selected_or_first_available_variant -%}{%- endcapture -%}
+    {%- assign upsell_selected_buy_allowed_str = upsell_selected_buy_allowed_str | strip -%}
+    {%- assign upsell_selected_buy_allowed = false -%}
+    {%- if upsell_selected_buy_allowed_str == 'true' -%}
+      {%- assign upsell_selected_buy_allowed = true -%}
+    {%- endif -%}
+
+    <div class="product-form__buy-buttons upsell-popup__buy-buttons">
+      <button
+        type="button"
+        class="product-popup-atc product-form__add-button button button--small {% if upsell_selected_buy_allowed %}button--primary{% else %}button--ternary{% endif %} button--full"
+        data-vid="{{ product.selected_or_first_available_variant.id }}"
+        data-atc-label="{{ 'product.form.add_to_cart' | t | escape }}"
+        data-sold-out-label="{{ 'product.form.sold_out' | t | escape }}"
+        {% unless upsell_selected_buy_allowed %}disabled{% endunless %}
+      >
+        {% render 'icon' with 'atc-cart' %}
+        <span class="upsell-popup-atc__label">
+          {%- if upsell_selected_buy_allowed -%}
+            {{- 'product.form.add_to_cart' | t -}}
+          {%- else -%}
+            {{- 'product.form.sold_out' | t -}}
+          {%- endif -%}
+        </span>
+      </button>
+    </div>
+  </div>
+</div>

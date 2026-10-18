@@ -1,0 +1,120 @@
+<style>
+  li.collection_menu-item.collection_menu-item--clear[hidden] {
+      display: none;
+  }
+
+  li.collection_menu-item.collection_menu-item--clear {
+      border-radius: 500px;
+      width: 30px;
+      min-width: 30px;
+      height: 30px;
+      padding: 0;
+  }
+
+  button.ed_collection_tag_filter_clear_button svg.icon.icon--close {
+      width: 14px;
+      height: auto;
+  }
+
+  button.ed_collection_tag_filter_clear_button svg.icon.icon--close path {
+      fill: #fff;
+  }
+</style>
+
+{% if section.settings.filter_tags_menu != blank %}
+  <div class="filter_tags_menu_wrap scroller collection_menu_wrap">
+    <ul class="collection_menu scrollable-content">
+      {% for link in section.settings.filter_tags_menu.links %}
+        {% assign is_discount_tag = false %}
+        {% if link.title contains '%' %}
+          {% assign is_discount_tag = true %}
+        {% endif %}
+
+        <li class="collection_menu-item{% if is_discount_tag %} collection_menu-item--discount{% endif %}">
+          <button
+            type="button"
+            class="ed_collection_tag_filter_tag_button"
+            data-tag="{{ link.title | escape }}"
+          >
+            {{ link.title }}
+          </button>
+        </li>
+      {% endfor %}
+      <li class="collection_menu-item collection_menu-item--clear active" hidden>
+        <button
+          type="button"
+          class="ed_collection_tag_filter_clear_button"
+          aria-label="{{ 'collection.general.clear_filters' | t | escape }}"
+        >
+          {%- render 'icon' with 'close' -%}
+        </button>
+      </li>
+    </ul>
+  </div>
+
+  <script>
+    (function () {
+      if (window.__kavalioTagFilterBound) return;
+      window.__kavalioTagFilterBound = true;
+
+      function handleCollectionMenuClick(event) {
+        var clearButton = event.target.closest('.filter_tags_menu_wrap .ed_collection_tag_filter_clear_button');
+        var tagButton = event.target.closest('.filter_tags_menu_wrap .ed_collection_tag_filter_tag_button');
+
+        if (!clearButton && !tagButton) return;
+
+        event.preventDefault();
+
+        var wrapper = (clearButton || tagButton).closest('.filter_tags_menu_wrap');
+        if (!wrapper) return;
+
+        var sectionEl = wrapper.closest('[data-section-id]') || document;
+        var items = Array.prototype.slice.call(sectionEl.querySelectorAll('product-item'));
+        if (!items.length) return;
+
+        var allItems = Array.prototype.slice.call(wrapper.querySelectorAll('.collection_menu-item'));
+        var clearItem = wrapper.querySelector('.collection_menu-item--clear');
+        var tagItems = allItems.filter(function (node) {
+          return !node.classList.contains('collection_menu-item--clear');
+        });
+
+        if (clearButton) {
+          tagItems.forEach(function (node) {
+            node.classList.remove('active');
+          });
+          items.forEach(function (item) {
+            item.style.display = '';
+          });
+          if (clearItem) {
+            clearItem.hidden = true;
+          }
+          return;
+        }
+
+        var li = tagButton.closest('.collection_menu-item');
+        if (!li) return;
+
+        var tagLabel = (tagButton.getAttribute('data-tag') || '').trim().toLowerCase();
+        if (!tagLabel) return;
+
+        tagItems.forEach(function (node) {
+          node.classList.remove('active');
+        });
+        li.classList.add('active');
+
+        items.forEach(function (item) {
+          var tags = (item.getAttribute('data-tags') || '').toLowerCase();
+          var match = tags.indexOf(tagLabel) !== -1;
+          item.style.display = match ? '' : 'none';
+        });
+
+        if (clearItem) {
+          clearItem.hidden = false;
+        }
+      }
+
+      document.addEventListener('click', handleCollectionMenuClick);
+    })();
+  </script>
+{% endif %}
+

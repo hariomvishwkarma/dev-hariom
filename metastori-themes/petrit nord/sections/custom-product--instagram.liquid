@@ -1,0 +1,691 @@
+
+
+
+ 
+{% if template contains "test" %}
+
+
+
+            {% for block in section.blocks %}
+      {% if block.type == "gallery" %}
+      {% if block.settings.product_titles contains "Mini Bootie Velcro" 
+        or block.settings.product_titles contains "Mini Bootie Lace" 
+        or block.settings.product_titles contains "Everyday shoe Lace" 
+        or block.settings.product_titles contains "Everyday shoe Velcro" 
+        or block.settings.product_titles contains "Charleston T-Bar" 
+        or block.settings.product_titles contains "Winter Bootie" 
+        or block.settings.product_titles contains "Toasty Bootie" 
+        or block.settings.product_titles contains "Sneaker Bootie" 
+        or block.settings.product_titles contains "Scallop Velcro Boot" 
+      %}
+                {% assign bs = block.settings %}
+      
+
+                {% for i in (1..10) %}
+                  {% assign image = "image_" | append: i %}
+                  
+                  <img src="{{ block.settings[image] | img_url: "master" }}">
+
+                  
+                {% endfor %}
+              <hr>
+        {% endif %}
+        {% endif %}
+            {% endfor %}
+
+
+
+  
+  {% else %}
+{% assign ss = section.settings %}
+
+{%- capture container_class -%}
+  {%- case ss.width -%}
+    {%- when 'default' -%}
+	container--product
+    {%- when 'full' -%}
+	container--full
+    {%- when 'wide' -%}
+	container--wide
+  {%- endcase -%}
+{%- endcapture -%}
+
+{%- capture flickity_options -%}
+{
+  "prevNextButtons": false,
+  "adaptiveHeight": false,
+  "wrapAround": true,
+  "dragThreshold": 15,
+  "autoPlay": true,
+  "freeScroll": true,
+  "contain": true, 
+  "cellAlign": "center",
+  "pageDots": false
+}
+{%- endcapture -%}
+
+{% if product == blank %}
+  {% assign handle = page.content | strip_html | strip | handleize | strip_newlines -%}
+  {% assign product = all_products[handle] %}
+{% endif %}
+
+{% assign gallery = product.metafields.lifestyle %}
+
+{% assign break = false %}
+{% assign customize_gallery = false %}
+{% assign customize_gallery_images = false %}
+{% assign customize_gallery_size = 0 %}
+{% assign customize_gallery_index = 0 %}
+{% assign collection_gallery_size = 0 %}
+
+{% for block in section.blocks %}
+  {% if block.type == "gallery" %}
+	{% comment %}Check if gallery filter contains product collection{% endcomment %}
+
+	{% assign temp_handle = product.title | prepend: "[" | append: "]" %}
+	{% if block.settings.product_titles contains temp_handle %}
+		{% assign customize_gallery = true %}
+		{% assign customize_gallery_index = forloop.index %}
+		{% assign customize_gallery_images = block.settings %}
+		{% for i in (1..10) %}
+		  {% assign field = "image_" | append: forloop.index %}
+          {% if block.settings[field] != blank %}
+			{% assign customize_gallery_size = customize_gallery_size | plus: 1 %}
+          {% endif %}
+		{% endfor %}
+	{% endif %}
+
+	{% if collection_exist != true %}
+      {% assign collection_exist = false %}
+      {% for collection in product.collections %}
+
+          {% assign temp_handle = collection.title | prepend: "[" | append: "]" %}
+          {% if block.settings.collection_titles contains temp_handle %}
+              {% assign collection_exist = true %}
+              {% assign featured_collection = collection %}
+
+              {% assign collection_gallery_images = block.settings %}
+              {% for i in (1..10) %}
+                {% assign field = "image_" | append: forloop.index %}
+                {% if block.settings[field] != blank %}
+                  {% assign collection_gallery_size = collection_gallery_size | plus: 1 %}
+                {% endif %}
+              {% endfor %}
+          {% endif %}
+      {% endfor %}
+	{% endif %}
+  {% endif %}
+{% endfor %}
+
+{% if customize_gallery_images != blank %}
+	{% assign collection_gallery_images = false %}
+{% endif %}
+
+{% if gallery != blank %}
+	{% assign customize_gallery_images = false %}
+	{% assign collection_gallery_images = false %}
+{% endif %}
+
+{% assign min_size = 0 %}
+{% for block in section.blocks %}
+{% assign bs = block.settings %}
+  {% if block.type == "layout" %}
+	{% assign custom_index = 1 %}
+    {% if block.settings.number == product.metafields.my_fields.lifestyle_style %}
+		{% for i in (1..4) %}
+			{% assign field = "collumn_" | append: custom_index %}
+
+			{% if bs[field] == "full" %}
+				{% assign min_size = min_size | plus: 1 %}
+			{% else %}
+				{% assign min_size = min_size | plus: 2 %}
+			{% endif %}
+
+			{% assign custom_index = custom_index | plus: 1 %}
+		{% endfor %}
+    {% endif %}
+    {% if block.settings.number == customize_gallery_images.number %}
+		{% for i in (1..4) %}
+			{% assign field = "collumn_" | append: custom_index %}
+
+			{% if bs[field] == "full" %}
+				{% assign min_size = min_size | plus: 1 %}
+			{% else %}
+				{% assign min_size = min_size | plus: 2 %}
+			{% endif %}
+
+			{% assign custom_index = custom_index | plus: 1 %}
+		{% endfor %}
+    {% endif %}
+    {% if block.settings.number == collection_gallery_images.number %}
+		{% for i in (1..4) %}
+			{% assign field = "collumn_" | append: custom_index %}
+
+			{% if bs[field] == "full" %}
+				{% assign min_size = min_size | plus: 1 %}
+			{% else %}
+				{% assign min_size = min_size | plus: 2 %}
+			{% endif %}
+
+			{% assign custom_index = custom_index | plus: 1 %}
+		{% endfor %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
+
+{% assign min_size = min_size | plus: 1 %}
+
+<section id="section--{{ section.id }}" data-section="instagram" style="background-color: {{ ss.section_background }};" class="index-section section--wrapper margin-bottom--{{ ss.section_margin | remove: "." }} padding--{{ ss.section_padding | remove: "." }}">
+  <div class="{{ container_class }}">
+    <div style="background-color: {{ ss.content_background }}; color: {{ ss.content_text }};" class="section--inner padding--{{ ss.content_padding | remove: "." }}">
+      <div class="section-content">
+        {% if ss.heading %}
+          <span style="color: {{ section.settings.content_accent }};" class="accent--text">
+            <div><span class="text">{{ ss.heading }}</span></div>
+          </span>
+        {% endif %}
+        
+        {% if product.metafields.my_fields.lifestyle_style != blank %}
+        <div class="metafields main-carousel custom--carousel padding--{{ ss.slider_padding | remove: "." }} {% if gallery.size < min_size %}dec-carousel{% endif %}" {% if gallery.size > min_size %}data-flickity='{{ flickity_options }}'{% endif %}>
+          {% for block in section.blocks %}
+            {% if block.settings.number == product.metafields.my_fields.lifestyle_style and block.type == "layout" %}
+              {% assign bs = block.settings %}
+              {% assign custom_index = 1 %}
+
+              {% for i in (1..10) %}
+                {% assign field = "collumn_" | append: forloop.index %}
+                {% assign show_cell = true %}
+
+                {% capture cell_content %}
+                  {% if bs[field] == "full" %}
+                    {% assign index = "image_" | append: custom_index %}
+                    <div class="image--wrapper top">
+                      <img class="Image--lazyLoad" data-src="{{ gallery[index] | img_url: "600x" }}">
+                    </div>
+                    {% assign custom_index = custom_index | plus: 1 %}
+
+                    {% if gallery[index] == blank %}
+                      {% assign show_cell = false %}
+                    {% endif %}
+                  {% endif %}
+
+                  {% if bs[field] != "full" %}
+                    {% assign index = "image_" | append: custom_index %}
+                    {% assign index_first = index %}
+
+                    {% assign temp_index = custom_index | plus: 1 %}
+                    {% assign index_second = "image_" | append: temp_index %}
+          
+                    <div class="image--wrapper top {% if gallery[index_first] != blank and gallery[index_second] == blank %}expand{% endif %}">
+                      <img class="Image--lazyLoad" data-src="{{ gallery[index] | img_url: "600x" }}">
+                    </div>
+                    {% assign custom_index = custom_index | plus: 1 %}
+
+                    {% assign index = "image_" | append: custom_index %}
+
+                    {% if gallery[index] != blank %}
+                      <div class="image--wrapper bottom">
+                        <img class="Image--lazyLoad" data-src="{{ gallery[index] | img_url: "600x" }}">
+                      </div>
+                    {% endif %}
+
+                    {% assign custom_index = custom_index | plus: 1 %}
+
+                    {% if gallery[index] == blank and gallery[index_first] == blank %}
+                      {% assign show_cell = false %}
+                    {% endif %}
+                  {% endif %}
+                {% endcapture %}
+
+                {% if show_cell %}
+                  <div class="carousel-cell">
+                    <div class="cell--inner {{ bs[field] }}">
+                      {{ cell_content }}
+                    </div>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+        
+        {% if customize_gallery == true and product.metafields.my_fields.lifestyle_style == blank %}
+          <div class="customize main-carousel custom--carousel padding--{{ ss.slider_padding | remove: "." }} {% if customize_gallery_size < min_size %}dec-carousel{% endif %}" data-flickity='{{ flickity_options }}'>
+            {% for block in section.blocks %}
+              {% if block.settings.number == customize_gallery_images.number and block.type == "layout" %}
+                {% assign bs = block.settings %}
+                {% assign custom_index = 1 %}
+
+                {% for i in (1..10) %}
+                  {% assign field = "collumn_" | append: forloop.index %}
+                  {% assign show_cell = true %}
+
+                  {% capture cell_content %}
+                    {% if bs[field] == "full" %}
+                      {% assign index = "image_" | append: custom_index %}
+                      <div class="image--wrapper top">
+                        <img class="Image--lazyLoad" data-src="{{ customize_gallery_images[index] | img_url: "600x" }}">
+                      </div>
+                      {% assign custom_index = custom_index | plus: 1 %}
+
+                      {% if customize_gallery_images[index] == blank %}
+                        {% assign show_cell = false %}
+                      {% endif %}
+                    {% endif %}
+
+                    {% if bs[field] != "full" %}
+                      {% assign index = "image_" | append: custom_index %}
+                      {% assign index_first = index %}
+
+                      {% assign temp_index = custom_index | plus: 1 %}
+                      {% assign index_second = "image_" | append: temp_index %}
+
+                      <div class="image--wrapper top {% if customize_gallery_images[index_first] != blank and customize_gallery_images[index_second] == blank %}expand{% endif %}">
+                        <img class="Image--lazyLoad" data-src="{{ customize_gallery_images[index] | img_url: "600x" }}">
+                      </div>
+                      {% assign custom_index = custom_index | plus: 1 %}
+
+                      {% assign index = "image_" | append: custom_index %}
+
+                      {% if customize_gallery_images[index] != blank %}
+                        <div class="image--wrapper bottom">
+                          <img class="Image--lazyLoad" data-src="{{ customize_gallery_images[index] | img_url: "600x" }}">
+                        </div>
+                      {% endif %}
+
+                      {% assign custom_index = custom_index | plus: 1 %}
+
+                      {% if customize_gallery_images[index] == blank and customize_gallery_images[index_first] == blank %}
+                        {% assign show_cell = false %}
+                      {% endif %}
+                    {% endif %}
+                  {% endcapture %}
+
+                  {% if show_cell %}
+                    <div class="carousel-cell">
+                      <div class="cell--inner {{ bs[field] }}">
+                        {{ cell_content }}
+                      </div>
+                    </div>
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+        
+        {% if customize_gallery == false and product.metafields.my_fields.lifestyle_style == blank %}
+          <div class="collection main-carousel custom--carousel padding--{{ ss.slider_padding | remove: "." }} {% if collection_gallery_size < min_size %}dec-carousel{% endif %}" data-flickity='{{ flickity_options }}'>
+            {% for block in section.blocks %}
+              {% if block.settings.number == collection_gallery_images.number and block.type == "layout" %}
+                {% assign bs = block.settings %}
+                {% assign custom_index = 1 %}
+
+                {% for i in (1..10) %}
+                  {% assign field = "collumn_" | append: forloop.index %}
+                  {% assign show_cell = true %}
+
+                  {% capture cell_content %}
+                    {% if bs[field] == "full" %}
+                      {% assign index = "image_" | append: custom_index %}
+                      <div class="image--wrapper top">
+                        <img class="Image--lazyLoad" data-src="{{ collection_gallery_images[index] | img_url: "600x" }}">
+                      </div>
+                      {% assign custom_index = custom_index | plus: 1 %}
+
+                      {% if collection_gallery_images[index] == blank %}
+                        {% assign show_cell = false %}
+                      {% endif %}
+                    {% endif %}
+
+                    {% if bs[field] != "full" %}
+                      {% assign index = "image_" | append: custom_index %}
+                      {% assign index_first = index %}
+
+                      {% assign temp_index = custom_index | plus: 1 %}
+                      {% assign index_second = "image_" | append: temp_index %}
+
+                      <div class="image--wrapper top {% if collection_gallery_images[index_first] != blank and collection_gallery_images[index_second] == blank %}expand{% endif %}">
+                        <img class="Image--lazyLoad" data-src="{{ collection_gallery_images[index] | img_url: "600x" }}">
+                      </div>
+                      {% assign custom_index = custom_index | plus: 1 %}
+
+                      {% assign index = "image_" | append: custom_index %}
+
+                      {% if collection_gallery_images[index] != blank %}
+                        <div class="image--wrapper bottom">
+                          <img class="Image--lazyLoad" data-src="{{ collection_gallery_images[index] | img_url: "600x" }}">
+                        </div>
+                      {% endif %}
+
+                      {% assign custom_index = custom_index | plus: 1 %}
+
+                      {% if collection_gallery_images[index] == blank and collection_gallery_images[index_first] == blank %}
+                        {% assign show_cell = false %}
+                      {% endif %}
+                    {% endif %}
+                  {% endcapture %}
+
+                  {% if show_cell %}
+                    <div class="carousel-cell">
+                      <div class="cell--inner {{ bs[field] }}">
+                        {{ cell_content }}
+                      </div>
+                    </div>
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endif %}
+{% schema %}
+  {
+    "name": "Lifestyle gallery",
+    "settings": [
+
+      {
+        "type": "header",
+        "content": "Content"
+      },
+
+      {
+        "label": "URL",
+        "id": "url",
+        "type": "url"
+      },
+
+
+      {
+        "label": "Heading",
+        "id": "heading",
+        "type": "text"
+      },
+
+      {
+        "type": "header",
+        "content": "Colours"
+      },
+      {
+        "type": "color",
+        "id": "section_background",
+        "label": "Section Background"
+      },
+      {
+        "type": "color",
+        "id": "content_background",
+        "label": "Content Background"
+      },
+      {
+        "type": "color",
+        "id": "content_text",
+        "label": "Content Text"
+      },
+      {
+        "type": "color",
+        "id": "content_accent",
+        "label": "Accent"
+      },
+      {
+        "type": "header",
+        "content": "Spacing"
+      },
+      {
+         "type":      "radio",
+         "id":        "width",
+         "label":     "Width:",
+         "options": [
+           { "value": "default", "label": "Default" },
+           { "value": "wide", "label": "Wide" },
+           { "value": "full", "label": "Full" },
+           { "value": "full_with", "label": "Full with padding" }
+         ],
+        "default":   "default"
+      },
+      {
+        "type": "range",
+        "id": "section_margin",
+        "label": "Section Margin: Bottom",
+        "min": 0,
+        "max": 5,
+        "step": 0.5,
+        "default": 0
+      },
+      {
+        "type": "range",
+        "id": "section_padding",
+        "label": "Section Padding: Top/Bottom",
+        "min": 0,
+        "max": 5,
+        "step": 0.5,
+        "default": 0
+      },
+      {
+        "type": "range",
+        "id": "content_padding",
+        "label": "Content Padding: All",
+        "min": 0,
+        "max": 5,
+        "step": 0.5,
+        "default": 0
+      }
+	],
+    "blocks": [
+      {
+        "type": "layout",
+        "name": "Layout",
+        "settings": [
+          {
+            "label": "Style number",
+            "id": "number",
+            "type": "number"
+          },
+          {
+             "type":      "select",
+             "id":        "collumn_1",
+             "label":     "Column 1:",
+             "options": [
+               { "value": "full", "label": "1/0" },
+               { "value": "big-small", "label": "2/1" },
+               { "value": "small-big", "label": "1/2" },
+               { "value": "small-small", "label": "1/1" }
+             ],
+            "default":   "full"
+          },
+          {
+             "type":      "select",
+             "id":        "collumn_2",
+             "label":     "Column 2:",
+             "options": [
+               { "value": "full", "label": "1/0" },
+               { "value": "big-small", "label": "2/1" },
+               { "value": "small-big", "label": "1/2" },
+               { "value": "small-small", "label": "1/1" }
+             ],
+            "default":   "full"
+          },
+          {
+             "type":      "select",
+             "id":        "collumn_3",
+             "label":     "Column 3:",
+             "options": [
+               { "value": "full", "label": "1/0" },
+               { "value": "big-small", "label": "2/1" },
+               { "value": "small-big", "label": "1/2" },
+               { "value": "small-small", "label": "1/1" }
+             ],
+            "default":   "full"
+          },
+          {
+             "type":      "select",
+             "id":        "collumn_4",
+             "label":     "Column 4:",
+             "options": [
+               { "value": "full", "label": "1/0" },
+               { "value": "big-small", "label": "2/1" },
+               { "value": "small-big", "label": "1/2" },
+               { "value": "small-small", "label": "1/1" }
+             ],
+            "default":   "full"
+          },
+          {
+             "type":      "select",
+             "id":        "collumn_5",
+             "label":     "Column 5:",
+             "options": [
+               { "value": "full", "label": "1/0" },
+               { "value": "big-small", "label": "2/1" },
+               { "value": "small-big", "label": "1/2" },
+               { "value": "small-small", "label": "1/1" }
+             ],
+            "default":   "full"
+          },
+          {
+             "type":      "select",
+             "id":        "collumn_6",
+             "label":     "Column 6:",
+             "options": [
+               { "value": "full", "label": "1/0" },
+               { "value": "big-small", "label": "2/1" },
+               { "value": "small-big", "label": "1/2" },
+               { "value": "small-small", "label": "1/1" }
+             ],
+            "default":   "full"
+          },
+          {
+             "type":      "select",
+             "id":        "collumn_7",
+             "label":     "Column 7:",
+             "options": [
+               { "value": "full", "label": "1/0" },
+               { "value": "big-small", "label": "2/1" },
+               { "value": "small-big", "label": "1/2" },
+               { "value": "small-small", "label": "1/1" }
+             ],
+            "default":   "full"
+          },
+          {
+             "type":      "select",
+             "id":        "collumn_8",
+             "label":     "Column 8:",
+             "options": [
+               { "value": "full", "label": "1/0" },
+               { "value": "big-small", "label": "2/1" },
+               { "value": "small-big", "label": "1/2" },
+               { "value": "small-small", "label": "1/1" }
+             ],
+            "default":   "full"
+          },
+          {
+             "type":      "select",
+             "id":        "collumn_9",
+             "label":     "Column 9:",
+             "options": [
+               { "value": "full", "label": "1/0" },
+               { "value": "big-small", "label": "2/1" },
+               { "value": "small-big", "label": "1/2" },
+               { "value": "small-small", "label": "1/1" }
+             ],
+            "default":   "full"
+          },
+          {
+             "type":      "select",
+             "id":        "collumn_10",
+             "label":     "Column 10:",
+             "options": [
+               { "value": "full", "label": "1/0" },
+               { "value": "big-small", "label": "2/1" },
+               { "value": "small-big", "label": "1/2" },
+               { "value": "small-small", "label": "1/1" }
+             ],
+            "default":   "full"
+          }
+        ]
+      },
+      {
+        "type": "gallery",
+        "name": "Gallery",
+        "settings": [
+          {
+            "label": "Block title",
+            "id": "title",
+            "type": "text"
+          },
+          {
+            "label": "Style number",
+            "id": "number",
+            "type": "number"
+          },
+          {
+            "label": "Filter: Product titles",
+            "id": "product_titles",
+            "type": "textarea",
+            "info": "[title] [title]"
+          },
+          {
+            "label": "Filter: Collection title",
+            "id": "collection_titles",
+            "type": "textarea",
+            "info": "[title] [title]"
+          },
+          {
+            "label": "Image 1",
+            "id": "image_1",
+            "type": "image_picker"
+          },
+          {
+            "label": "Image 2",
+            "id": "image_2",
+            "type": "image_picker"
+          },
+          {
+            "label": "Image 3",
+            "id": "image_3",
+            "type": "image_picker"
+          },
+          {
+            "label": "Image 4",
+            "id": "image_4",
+            "type": "image_picker"
+          },
+          {
+            "label": "Image 5",
+            "id": "image_5",
+            "type": "image_picker"
+          },
+          {
+            "label": "Image 6",
+            "id": "image_6",
+            "type": "image_picker"
+          },
+          {
+            "label": "Image 7",
+            "id": "image_7",
+            "type": "image_picker"
+          },
+          {
+            "label": "Image 8",
+            "id": "image_8",
+            "type": "image_picker"
+          },
+          {
+            "label": "Image 9",
+            "id": "image_9",
+            "type": "image_picker"
+          },
+          {
+            "label": "Image 10",
+            "id": "image_10",
+            "type": "image_picker"
+          }
+        ]
+      }
+    ]
+  }
+{% endschema %}

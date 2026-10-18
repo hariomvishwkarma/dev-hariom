@@ -1,0 +1,330 @@
+{%- if section.settings.background != settings.background and section.settings.background != 'rgba(0,0,0,0)' -%}
+  {%- assign blends_with_background = false -%}
+{%- else -%}
+  {%- assign blends_with_background = true -%}
+{%- endif -%}
+
+<style>
+  #shopify-section-{{ section.id }} {
+    {%- if section.settings.background == 'rgba(0,0,0,0)' -%}
+      {%- assign section_background = settings.background -%}
+    {%- else -%}
+      {%- assign section_background = section.settings.background -%}
+    {%- endif -%}
+
+    {%- if section.settings.text_color == 'rgba(0,0,0,0)' -%}
+      {%- assign heading_color = settings.heading_color -%}
+      {%- assign text_color = settings.text_color -%}
+    {%- else -%}
+      {%- assign heading_color = section.settings.text_color -%}
+      {%- assign text_color = section.settings.text_color -%}
+    {%- endif -%}
+
+    --heading-color: {{ heading_color.red }}, {{ heading_color.green }}, {{ heading_color.blue }};
+    --text-color: {{ text_color.red }}, {{ text_color.green }}, {{ text_color.blue }};
+    --prev-next-button-background: {{ settings.background.red }}, {{ settings.background.green }}, {{ settings.background.blue }};
+    --prev-next-button-color: {{ settings.text_color.red }}, {{ settings.text_color.green }}, {{ settings.text_color.blue }};
+
+    --section-background: {{ section_background.red }}, {{ section_background.green }}, {{ section_background.blue }};
+    --section-products-per-row: 2;
+  }
+  .ed_product_recommendations__divider {
+      left: 0;
+      right: 0;
+      position: absolute;
+  }
+  .ed_product_recommendations__divider.rvp_available {
+    display: none !important;
+  }
+
+  @media screen and (min-width: 741px) {
+    #shopify-section-{{ section.id }} {
+      --section-products-per-row: 3;
+    }
+  }
+
+  @media screen and (min-width: 1200px) {
+    #shopify-section-{{ section.id }} {
+      --section-products-per-row: 4;
+    }
+  }
+
+  #shopify-section-{{ section.id }} {
+    background-color: rgb(var(--section-background));
+  }
+
+  @media (min-width: 1000px) {
+    {%- if section.settings.background == 'rgba(0,0,0,0)' -%}
+        #shopify-section-{{ section.id }} {
+            margin-top: {{ section.settings.space_top -}}px;
+        }
+        #shopify-section-{{ section.id }} .product-list__inner {
+          padding-bottom: {{ section.settings.space_bottom -}}px;
+          margin-bottom: 10px;
+        }
+        #shopify-section-{{ section.id }}  product-recommendations.section.section--flush.rvp_available .product-list__inner {
+          padding-bottom: calc({{ section.settings.space_bottom -}}px / 2);
+        }
+    {%- else -%}
+      #shopify-section-{{ section.id }} {
+          padding-top: {{ section.settings.space_top -}}px;
+      }
+      #shopify-section-{{ section.id }} .product-list__inner {
+        padding-bottom: {{ section.settings.space_bottom -}}px;
+        margin-bottom: 10px;
+        
+      }
+      #shopify-section-{{ section.id }}  product-recommendations.section.section--flush.rvp_available .product-list__inner {
+        padding-bottom: calc({{ section.settings.space_bottom -}}px / 2);
+      }
+    {%- endif -%}
+
+    .ed_product_recommendations__divider {
+      bottom: calc({{ section.settings.space_bottom -}}px / 2 - 16px);
+    }
+  }
+
+
+  @media (max-width: 999px) {
+    {%- if section.settings.background == 'rgba(0,0,0,0)' -%}
+        #shopify-section-{{ section.id }} {
+            margin-top: {{ section.settings.space_top_mobile -}}px;
+        }
+        #shopify-section-{{ section.id }} .product-list__inner {
+          padding-bottom: {{ section.settings.space_bottom_mobile -}}px;
+          margin-bottom: 10px;
+        }        
+        #shopify-section-{{ section.id }}  product-recommendations.section.section--flush.rvp_available .product-list__inner {
+          padding-bottom: calc({{ section.settings.space_bottom_mobile -}}px / 2);
+        }
+    {%- else -%}
+        #shopify-section-{{ section.id }} {
+            padding-top: {{ section.settings.space_top_mobile -}}px;
+        }
+        #shopify-section-{{ section.id }} .product-list__inner {
+          padding-bottom: {{ section.settings.space_bottom_mobile -}}px;
+          margin-bottom: 10px;
+        }        
+        #shopify-section-{{ section.id }}  product-recommendations.section.section--flush.rvp_available .product-list__inner {
+          padding-bottom: calc({{ section.settings.space_bottom_mobile -}}px / 2);
+        }
+    {%- endif -%}
+    .ed_product_recommendations__divider {
+      bottom: calc({{ section.settings.space_bottom_mobile -}}px / 2 - 16px);
+    }
+  }
+</style>
+
+<product-recommendations
+  section-id="{{ section.id }}"
+  intent="related"
+  product-id="{{ product.id }}"
+  recommendations-count="{{ section.settings.recommendations_count }}"
+  class="section section--flush"
+>
+  {%- assign metafield_recommendations = product.metafields['shopify--discovery--product_recommendation']['related_products'].value -%}
+  {%- assign fallback_recommendations = section.settings.fallback_products -%}
+  {%- assign selected_recommendations = blank -%}
+
+  {%- if metafield_recommendations != blank and metafield_recommendations.size > 0 -%}
+    {%- assign selected_recommendations = metafield_recommendations -%}
+  {%- elsif fallback_recommendations != blank and fallback_recommendations.size > 0 -%}
+    {%- assign selected_recommendations = fallback_recommendations -%}
+  {%- elsif recommendations.performed and recommendations.products.size > 0 -%}
+    {%- assign selected_recommendations = recommendations.products -%}
+  {%- endif -%}
+
+  {%- if selected_recommendations != blank and selected_recommendations.size > 0 -%}
+    <div class="section__color-wrapper">
+      <div class="container {% unless blends_with_background %}vertical-breather{% endunless %}">
+        {%- if section.settings.title != blank or section.settings.subheading != blank -%}
+          <header class="section__header">
+            <div class="text-container">
+              {%- if section.settings.subheading != blank -%}
+                <h2 class="heading heading--small">{{ section.settings.subheading }}</h2>
+              {%- endif -%}
+
+              {%- if section.settings.title != blank -%}
+                <h3 class="heading h2">{{ section.settings.title }}</h3>
+              {%- endif -%}
+            </div>
+            {% render 'ed-heart-divider' %}
+          </header>
+        {%- endif -%}
+
+        <product-list
+          {% if settings.stagger_products_apparition %}
+            stagger-apparition
+          {% endif %}
+          class="product-list product-list--center"
+        >
+          {%- assign smallest_image_aspect_ratio = 0 -%}
+          {%- assign rendered_products_count = 0 -%}
+          {%- assign current_product_id = product.id -%}
+
+          <div class="no_scroller">
+            <div class="product-list__inner">
+              {%- for recommended_product in selected_recommendations limit: section.settings.recommendations_count -%}
+                {%- assign has_garantie_tag = false -%}
+                {%- for tag in recommended_product.tags -%}
+                  {%- if tag == 'Garantie' or tag == 'garantie' or tag == 'GARANTIE' -%}
+                    {%- assign has_garantie_tag = true -%}
+                    {%- break -%}
+                  {%- endif -%}
+                {%- endfor -%}
+                {%- unless has_garantie_tag or recommended_product.id == current_product_id -%}
+                  {%- assign smallest_image_aspect_ratio = smallest_image_aspect_ratio
+                    | at_least: recommended_product.featured_media.aspect_ratio
+                  -%}
+                  {%- assign rendered_products_count = rendered_products_count | plus: 1 -%}
+
+                  {%- capture sizes_attribute -%}(max-width: 740px) 75vw, min({{ 100.0 | divided_by: 4 | ceil }}vw, {{ 1520.0 | divided_by: 4 | ceil }}px){%- endcapture -%}
+                  {%- render 'product-item',
+                    product: recommended_product,
+                    sizes_attribute: sizes_attribute,
+                    reveal: settings.stagger_products_apparition
+                  -%}
+                {%- endunless -%}
+              {%- endfor -%}
+            </div>
+          </div>
+
+          {%- if rendered_products_count > 4 -%}
+            <prev-next-buttons
+              class="product-list__prev-next hidden-pocket"
+              style="--smallest-image-aspect-ratio: {{ smallest_image_aspect_ratio }}"
+            >
+              <button class="product-list__arrow prev-next-button prev-next-button--prev" disabled data-action="prev">
+                <span class="visually-hidden">{{ 'general.accessibility.previous' | t }}</span>
+                {%- render 'icon' with 'nav-arrow-left', block: true, direction_aware: true -%}
+              </button>
+
+              <button class="product-list__arrow prev-next-button prev-next-button--next" data-action="next">
+                <span class="visually-hidden">{{ 'general.accessibility.next' | t }}</span>
+                {%- render 'icon' with 'nav-arrow-right', block: true, direction_aware: true -%}
+              </button>
+            </prev-next-buttons>
+          {%- endif -%}
+
+          <div class="ed_product_recommendations__divider">
+            {% render 'ed-heart-divider', margin: '0' %}
+          </div>
+        </product-list>
+      </div>
+    </div>
+  {%- endif -%}
+</product-recommendations>
+
+{% schema %}
+{
+  "name": "Related products",
+  "class": "shopify-section--product-recommendations",
+  "enabled_on": {
+    "templates": ["product"]
+  },
+  "settings": [
+    {
+      "type": "header",
+      "content": "Section spacing"
+    },
+    {
+      "type": "range",
+      "id": "space_top",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "label": "Top space",
+      "default": 100
+    },
+    {
+      "type": "range",
+      "id": "space_bottom",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "label": "Bottom space",
+      "default": 100
+    },
+    {
+      "type": "paragraph",
+      "content": "Section spacing (Mobile)"
+    },
+    {
+      "type": "range",
+      "id": "space_top_mobile",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "label": "Top (mobile)",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "space_bottom_mobile",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "label": "Bottom (mobile)",
+      "default": 60
+    },
+    {
+      "type": "header",
+      "content": "Other settings"
+    },
+    {
+      "type": "paragraph",
+      "content": "Dynamic recommendations change and improve with time. Create manual product recommendations using the Shopify Search & Discovery app. [Learn more](https://help.shopify.com/en/manual/online-store/search-and-discovery/product-recommendations)."
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading"
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Heading",
+      "default": "You may also like"
+    },
+    {
+      "type": "range",
+      "id": "recommendations_count",
+      "min": 4,
+      "max": 10,
+      "label": "Recommendations count",
+      "default": 4
+    },
+    {
+      "type": "product_list",
+      "id": "fallback_products",
+      "label": "Fallback products",
+      "limit": 10
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background",
+      "label": "Background",
+      "default": "rgba(0,0,0,0)"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text",
+      "default": "rgba(0,0,0,0)"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Related products"
+    }
+  ]
+}
+{% endschema %}

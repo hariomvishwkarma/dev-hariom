@@ -1,0 +1,155 @@
+{% comment %}
+  Image
+
+  Accepts:
+  - image: {Image} Image source (required)
+  - lazyload: {Boolean} Lazyload image. Default: true (optional)
+  - container_class: {String} Class of the image (required)
+  - class: {String} Class of the image (required)
+  - placeholder: {String} Placeholder SVG. Default: "detailed-apparel-1" (optional)
+  - attrs: {String} Additional attributes of the image. Default: "" (optional)
+  - aspect_ratio: {Number} Aspect ratio of the image (optional)
+  - width_range: {Number} Fallback width of the image (optional)
+
+  Usage:
+  {% render 'image',
+    image: section.settings.image,
+  %}
+{% endcomment %}
+
+{% liquid
+  assign global_lazyload = settings.image_lazyload
+  if lazyload == null
+    assign lazyload = global_lazyload
+  endif
+
+  if aspect_ratio == blank
+    assign aspect_ratio = image.aspect_ratio
+  endif
+
+  assign fetch_priority = 'auto'
+  if section.index == 1
+    assign fetch_priority = 'high'
+  endif
+
+  assign sizes = '100vw'
+  if lazyload
+    assign loading = 'lazy'
+    assign wc = 'xo-lazyload'
+    assign final_widths = '100'
+    assign width = 100
+  else
+    assign loading = 'eager'
+    assign wc = null
+    assign final_widths = '375, 550, 750, 1100, 1500'
+    if widths != blank
+      assign final_widths = widths
+      assign width = final_widths | replace: ' ', '' | split: ',' | last
+    endif
+  endif
+
+  if show_placeholder_product == null
+    assign show_placeholder_product = false
+  endif
+
+  if disable_alt == null
+    assign disable_alt = false
+  endif
+%}
+{% comment %}
+  {% liquid
+    assign placeholder_image = ""
+    if template contains "product" or template contains "product-1"
+      assign placeholder_image = "collection-1"
+    else
+      assign placeholder_image = "detailed-apparel-1"
+    endif
+  %}
+{% endcomment %}
+
+{% liquid
+  assign alt = alt | default: 'Image'
+  if disable_alt
+    assign alt = ''
+  endif
+%}
+
+<div
+  class='xo-image{%- if container_class %} {{ container_class }}{% endif -%}'
+  style='--xo-ratio-percent: {{ aspect_ratio }}; --x-pos: {{ image.presentation.focal_point.x }}%; --y-pos: {{ image.presentation.focal_point.y }}%'
+>
+  {%- if image != blank -%}
+    {% if image_style == 'small' %}
+      <img
+        {% if class != blank %}
+          class='{{ class }}'
+        {% endif %}
+        {%- if lazyload %}
+          is='xo-lazyload'
+          xo-src='{{ image.src | image_url: width: 100 }}'
+          loading='lazy'
+        {% else %}
+          is='xo-lazyload'
+          xo-src='{{ image.src | image_url: width: 100 }}'
+        {% endif -%}
+        {% if disable_alt %}
+          alt=''
+        {% else %}
+          alt='{{ image.alt | default: '' | escape }}'
+        {% endif %}
+        width='{{ image.width | default: '' }}'
+        height='{{ image.height | default: '' }}'
+        xo-intrinsic-width='{{ image.width | default: '' }}'
+        xo-intrinsic-height='{{ image.height | default: '' }}'
+        xo-width-range='{{ width_range  }}'
+        {%- if attrs -%}
+          {{ attrs -}}
+        {% endif -%}
+      >
+    {% else %}
+      {{
+        image
+        | image_url: width: width
+        | image_tag:
+          is: wc,
+          loading: loading,
+          width: image.width,
+          height: image.height,
+          class: class,
+          sizes: sizes,
+          widths: final_widths,
+          fetchpriority: fetch_priority,
+          xo-intrinsic-width: image.width,
+          xo-intrinsic-height: image.height,
+          xo-width-range: width_range,
+          alt: alt
+      }}
+    {% endif %}
+    {%- if lazyload -%}
+      <div class='xo-image__overlay xo-lazyload-overlay'>
+        <div class='xo-image__loading'>
+          {% liquid
+            case settings.image_lazyload_loading
+              when 'loader-1'
+                render 'loader-1', color: 'rgb(var(--color-foreground))'
+              when 'loader-2'
+                render 'loader-2', color: 'rgb(var(--color-foreground))'
+              when 'loader-3'
+                render 'loader-3', color: 'rgb(var(--color-foreground))'
+              else
+                render 'loader-3', color: 'rgb(var(--color-foreground))'
+            endcase
+          %}
+        </div>
+      </div>
+    {%- endif -%}
+  {%- else -%}
+    <div class='xo-image__placeholder' style='--xo-ratio-percent: {{ aspect_ratio }}'>
+      {% if show_placeholder_product %}
+        {{ placeholder | default: 'collection-1' | placeholder_svg_tag: 'placeholder-svg' }}
+      {% else %}
+        {{ placeholder | default: 'detailed-apparel-1' | placeholder_svg_tag: 'placeholder-svg' }}
+      {% endif %}
+    </div>
+  {%- endif -%}
+</div>

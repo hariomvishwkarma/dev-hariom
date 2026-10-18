@@ -1,0 +1,56 @@
+{%- comment -%}
+----------------------------------------------------------------------------------------------------------------------
+TS3 EDGE PRE-ORDER (single file)
+----------------------------------------------------------------------------------------------------------------------
+
+Usage:
+  {%- capture ts3_edge_pre_order_active -%}
+    {%- render 'ts3-edge-pre-order', product: product, variant: variant, part: 'active' -%}
+  {%- endcapture -%}
+
+  {%- render 'ts3-edge-pre-order', product: product, part: 'delivery' -%}
+
+Parts:
+* active — outputs "true" or "false" (for capture)
+* delivery — renders delivery message (variant rerender supported via liquid block)
+
+Conditions (all required for pre-order):
+* ts3-edge template
+* inventory tracked, quantity <= 0, inventory_policy == continue
+{%- endcomment -%}
+
+{%- liquid
+  assign part = part | default: 'active'
+  assign evaluated_variant = variant | default: product.selected_or_first_available_variant
+  assign ts3_edge_pre_order_active = false
+  assign is_ts3_edge_template = false
+
+  if template.suffix == 'ts3-edge'
+    assign is_ts3_edge_template = true
+  elsif product.template_suffix == 'ts3-edge'
+    assign is_ts3_edge_template = true
+  endif
+
+  if is_ts3_edge_template and evaluated_variant != blank
+    if evaluated_variant.inventory_management
+      if evaluated_variant.inventory_quantity <= 0 and evaluated_variant.inventory_policy == 'continue'
+        assign ts3_edge_pre_order_active = true
+      endif
+    endif
+  endif
+-%}
+
+{%- if part == 'delivery' -%}
+  {%- unless is_ts3_edge_template -%}
+  {%- else -%}
+    <p class="subheading ts3-edge-pre-order-delivery" data-ts3-edge-pre-order-delivery>
+      {%- if ts3_edge_pre_order_active -%}
+        {{ 'product.general.ts3_edge_pre_order_delivery' | t }}
+      {%- else -%}
+        {{ 'product.general.ts3_edge_standard_delivery' | t }}
+      {%- endif -%}
+    </p>
+  {%- endunless -%}
+{%- elsif part == 'active' -%}
+  {%- if ts3_edge_pre_order_active -%}true{%- else -%}false{%- endif -%}
+{%- endif -%} 

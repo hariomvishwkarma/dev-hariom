@@ -1,0 +1,205 @@
+{% if section.settings.store_id != blank  or section.settings.show_example != false %}
+
+    <section class="ed-product-review-properties review-properties--inner--{{ section.settings.styling_of_attributes }}">
+        <section class="section">
+            <div class="container">
+                <div class="product-properties-inner-container">
+                    {%- if section.settings.subheading != blank or section.settings.title != blank -%}
+                        <header class="section__header container text-container">
+                            {%- if section.settings.subheading != blank -%}
+                                <h2 class="heading heading--small">{{ section.settings.subheading | escape }}</h2>
+                            {%- endif -%}
+
+                            {%- if section.settings.title != blank -%}
+                                <h3 class="heading h2">{{ section.settings.title | escape }}</h3>
+                            {%- endif -%}
+                        </header>
+                    {%- endif -%}
+
+                    <div class="product-review-container product-review-container--{{ section.settings.styling_of_attributes }}">
+                        <div class="ed-wrapper ed-wrapper--{{ section.settings.styling_of_attributes }}"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </section>
+    <script>
+        window.addEventListener('load', function () {
+            (async function () {
+                const propertiesContainer = document.querySelector('.ed-product-review-properties .ed-wrapper');
+                const propertiesReviewContainer = document.querySelector('.ed-product-review-properties');
+                try {
+
+
+                    {% if section.settings.show_example %}
+                        let reviewsioUrlKey = 'www.noorlys.com';
+                        let reviewsioProdSku = '0W6172-XS;0W6172-S;0W6172-M;0W6172-L;0W6172-XL;0W6172-XXL;0W6172-3XL;0W6172-4XL;39450633633827;39450633666595;39450633699363;39450633732131;39450633764899;39450633797667;39450633830435;39450633863203';
+                    {% else %}
+                        let reviewsioUrlKey = '{{ section.settings.store_id }}';
+                        let reviewsioProdSku = '{{ product.variants | map: 'sku' | join: ';' }};{{ product.variants | map: 'id' | join: ';' }}';
+                    {% endif %}
+                    const revsData = await fetch('https://api.reviews.io/product/review?store=' + reviewsioUrlKey + '&sku=' + reviewsioProdSku).then(data => data.json()).then(resp => resp);
+                    const productReviewProperties = await revsData.ratings;
+
+                    {% if section.settings.styling_of_attributes == 'star_rating' %}
+                    productReviewProperties.forEach(function (item, index) {
+                        let roundedRating = Math.round(item.average_rating / 0.5) * 0.5;
+                        let propertyRating = '';
+                        for (let i = 1; i <= roundedRating; i++) {
+                            propertyRating += '<i class="fa fa-sharp fa-star"></i>';
+                        }
+
+                        if (roundedRating < 5) {
+                            if (roundedRating % 1 !== 0) {
+                                propertyRating += '<i class="fa fa-sharp fa-duotone fa-star-half"></i>';
+                            }
+                        }
+
+                        if (5 - roundedRating !== 0) {
+                            let semiRating = 5 - roundedRating;
+                            let limitRate = Math.floor(semiRating);
+                            for (let i = 1; i <= limitRate; i++) {
+                                propertyRating += '<i class="fa fa-sharp fa-star off-star"></i>';
+
+                            }
+                        }
+
+                        propertiesContainer.innerHTML += "<div class='property__item'" + 'data-property-item=' + index + "><span class='property__title'>" + item.rating_text + "</span><span class='property__rating' data-property-rating>" + propertyRating + "</span></div>";
+                    });
+
+                    {% else %}
+                    productReviewProperties.forEach(function (item, index) {
+                        let roundedRating = Math.round(item.average_rating / 0.5) * 0.5;
+                        let roundedRatingInPercent = roundedRating / 5 * 100;
+                        propertiesContainer.innerHTML += "<div class='property__item'" + 'data-property-item=' + index + "><span class='property__title'>" + item.rating_text + "</span><div class='rating-skala-container'><div class='rating-line'></div><div class='indicator-rating' style='left:"+ roundedRatingInPercent + "%'></div></div><div class='rating-wording-skala'><span class='rating-wording-start'>0%</span><span class='rating-wording-end'>100%</span></div>";
+                    });
+                    {% endif %}
+
+                    if (productReviewProperties.length !== 0) {
+                        propertiesReviewContainer.style.display = 'block';
+                    }
+
+                } catch (err) {
+                    console.log("Product has no review or the store id is wrong");
+                }
+            })();
+        })
+    </script>
+
+{% endif %}
+
+<style>
+
+    #shopify-section-{{ section.id }}, #shopify-section-{{ section.id }} .heading, #shopify-section-{{ section.id }} .property__title  {
+        color: {{ section.settings.text_color }};
+    }
+
+    #shopify-section-{{ section.id }} .product-review-container .ed-wrapper .property__item {
+        border: 1px solid {{ section.settings.border_color }};
+    }
+
+    #shopify-section-{{ section.id }} .fa-star,  #shopify-section-{{ section.id }} .fa-star-half {
+        color: {{ section.settings.star_color }};
+    }
+
+    #shopify-section-{{ section.id }} .fa-star,  #shopify-section-{{ section.id }} .property__rating .fa-duotone:before {
+        color: {{ section.settings.star_color }};
+    }
+
+    #shopify-section-{{ section.id }} .property__item .rating-skala-container .indicator-rating {
+        background-color: {{ section.settings.star_color }};
+    }
+
+</style>
+
+
+{% schema %}
+{
+"name": "Reviews.io: attributes",
+"settings": [
+{
+"type": "header",
+"content": "Product review properties"
+},
+{
+"type": "paragraph",
+"content": "This section can only be used on product pages."
+},
+{
+"type": "paragraph",
+"content": "For this section you need to have a Reviews.io profile and activate the feature 'attributes for products'. [Learn more](https://support.reviews.io/en/articles/6301865-attributes-product-company-customer)"
+},
+{
+"type": "color",
+"id": "text_color",
+"label": "Text color",
+"default": "#2E2E2E"
+},
+{
+"type": "color",
+"id": "star_color",
+"label": "Star color",
+"default": "#F9C784"
+},
+{
+"type": "color",
+"id": "border_color",
+"label": "Border color",
+"default": "#D3D3D3"
+},
+{
+"type": "checkbox",
+"id": "show_example",
+"label": "Show example",
+"default": false
+},
+{
+"type": "paragraph",
+"content": "You can use this feature to see an example of how the review attributes will look at the product page."
+},
+{
+"type": "text",
+"id": "subheading",
+"label": "Subheading",
+"default": "Das macht unser Produkt aus"
+},
+{
+"type": "text",
+"id": "title",
+"label": "Heading",
+"default": "Reviews"
+},
+{
+"type": "select",
+"id": "styling_of_attributes",
+"label": "Styling of attributes",
+"options": [
+{
+"value": "star_rating",
+"label": "Star rating"
+},
+{
+"value": "status_rating",
+"label": "Status rating"
+}
+],
+"default": "star_rating"
+},
+{
+"type": "paragraph",
+"content": "Before you can use real data, you must ensure that the checkbox 'show example' is deactivated."
+},
+{
+"type": "text",
+"id": "store_id",
+"label": "Store ID",
+"info": "If you don't know the ID, ask the Reviews.io support"
+}
+],
+"presets": [
+{
+"name": "Reviews.io: attributes"
+}
+]
+}
+{% endschema %}

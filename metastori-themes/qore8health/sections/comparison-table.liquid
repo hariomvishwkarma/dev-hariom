@@ -1,0 +1,452 @@
+{{ 'comparison-table.css' | asset_url | stylesheet_tag }}
+
+{%- liquid
+  assign rows = product.metafields.custom.comparison_rows.value
+-%}
+
+{%- if rows.size > 0 -%}
+
+  {%- liquid
+    assign bg_color = section.settings.bg_color
+    assign text_color = section.settings.text_color
+    assign eyebrow = section.settings.eyebrow_text
+    assign eyebrow_color = section.settings.eyebrow_color
+    assign heading = section.settings.heading
+    assign subheading = section.settings.subheading
+    assign col1_pill_color = section.settings.col1_pill_color
+    assign col2_pill_color = section.settings.col2_pill_color
+    assign top_image = section.settings.top_image
+    assign their_default_icon = section.settings.their_default_icon
+
+    assign eyebrow_fs_d = section.settings.eyebrow_fs_desktop
+    assign eyebrow_fs_m = section.settings.eyebrow_fs_mobile
+    assign heading_fs_d = section.settings.heading_fs_desktop
+    assign heading_fs_m = section.settings.heading_fs_mobile
+    assign subheading_fs_d = section.settings.subheading_fs_desktop
+    assign subheading_fs_m = section.settings.subheading_fs_mobile
+    assign label_fs_d = section.settings.label_fs_desktop
+    assign label_fs_m = section.settings.label_fs_mobile
+    assign value_fs_d = section.settings.value_fs_desktop
+    assign value_fs_m = section.settings.value_fs_mobile
+    assign pill_fs_d = section.settings.pill_fs_desktop
+    assign pill_fs_m = section.settings.pill_fs_mobile
+    assign icon_size_d = section.settings.icon_size_desktop
+    assign icon_size_m = section.settings.icon_size_mobile
+    assign pill_icon_size_d = section.settings.pill_icon_size_desktop
+    assign pill_icon_size_m = section.settings.pill_icon_size_mobile
+
+    assign first_row = rows.first
+    assign has_meta_header = false
+    if first_row.row_label.value == blank
+      assign has_meta_header = true
+    endif
+
+    assign total_rows = rows.size
+    assign highlight_row_start = 1
+    assign highlight_row_end = total_rows | plus: 1
+  -%}
+
+  <div
+    class="comparison-table"
+    style="
+      --ct-bg: {{ bg_color }};
+      --ct-text: {{ text_color }};
+      --ct-eyebrow-color: {{ eyebrow_color }};
+      --ct-col1-pill: {{ col1_pill_color }};
+      --ct-col2-pill: {{ col2_pill_color }};
+      --ct-eyebrow-fs-desktop: {{ eyebrow_fs_d }}px;
+      --ct-eyebrow-fs-mobile: {{ eyebrow_fs_m }}px;
+      --ct-heading-fs-desktop: {{ heading_fs_d }}px;
+      --ct-heading-fs-mobile: {{ heading_fs_m }}px;
+      --ct-subheading-fs-desktop: {{ subheading_fs_d }}px;
+      --ct-subheading-fs-mobile: {{ subheading_fs_m }}px;
+      --ct-label-fs-desktop: {{ label_fs_d }}px;
+      --ct-label-fs-mobile: {{ label_fs_m }}px;
+      --ct-value-fs-desktop: {{ value_fs_d }}px;
+      --ct-value-fs-mobile: {{ value_fs_m }}px;
+      --ct-pill-fs-desktop: {{ pill_fs_d }}px;
+      --ct-pill-fs-mobile: {{ pill_fs_m }}px;
+      --ct-icon-size-desktop: {{ icon_size_d }}px;
+      --ct-icon-size-mobile: {{ icon_size_m }}px;
+      --ct-pill-icon-size-desktop: {{ pill_icon_size_d }}px;
+      --ct-pill-icon-size-mobile: {{ pill_icon_size_m }}px;
+    "
+  >
+    <div class="comparison-table__inner page-width">
+
+      {%- if top_image != blank -%}
+        <div class="comparison-table__top-image">
+          {{ top_image | image_url: width: 200 | image_tag: loading: 'lazy', alt: '' }}
+        </div>
+      {%- endif -%}
+
+      {%- if eyebrow != blank -%}
+        <p class="comparison-table__eyebrow">{{ eyebrow }}</p>
+      {%- endif -%}
+
+      {%- if heading != blank -%}
+        <h2 class="comparison-table__heading">{{ heading }}</h2>
+      {%- endif -%}
+
+      {%- if subheading != blank -%}
+        <div class="comparison-table__subheading">{{ subheading }}</div>
+      {%- endif -%}
+
+      <div class="comparison-table__card">
+
+        {%- comment -%}
+          Single shared grid: every cell below is explicitly placed with
+          inline grid-row / (CSS) grid-column, so the highlighted-column
+          panel can be one element spanning the full data-row range
+          without any calc()-based math — stays correct at every
+          breakpoint, including the mobile equal-width columns.
+        {%- endcomment -%}
+        <div
+          class="comparison-table__highlight"
+          style="grid-row: {{ highlight_row_start }} / {{ highlight_row_end }};"
+        ></div>
+
+        {%- for row in rows -%}
+          {%- liquid
+            assign grid_row = forloop.index
+            assign row_label = row.row_label.value
+            assign q_text = row.qore8_value_text.value
+            assign q_icon = row.qore8_icon.value
+            assign t_text = row.their_value_text.value
+            assign t_icon = row.their_icon.value
+
+            assign is_header_row = false
+            if forloop.first and has_meta_header
+              assign is_header_row = true
+            endif
+
+            assign is_last_data_row = false
+            if forloop.last
+              assign is_last_data_row = true
+            endif
+
+            assign border_class = 'comparison-table__cell--divider'
+            if is_last_data_row
+              assign border_class = 'comparison-table__cell--no-border'
+            endif
+          -%}
+
+          {%- if is_header_row -%}
+            <div class="comparison-table__cell comparison-table__cell--label comparison-table__cell--header" style="grid-row: {{ grid_row }};"></div>
+            <div class="comparison-table__cell comparison-table__cell--col1 comparison-table__cell--header" style="grid-row: {{ grid_row }};">
+              {%- if q_text != blank or q_icon != blank -%}
+                <span class="comparison-table__pill">
+                  {%- if q_icon != blank -%}
+                    {{ q_icon | image_url: width: 96 | image_tag: loading: 'lazy', alt: q_text, class: 'comparison-table__pill-icon' }}
+                  {%- endif -%}
+                  {%- if q_text != blank -%}
+                    <span class="comparison-table__pill-text comparison-table__pill--1">{{ q_text }}</span>
+                  {%- endif -%}
+                </span>
+              {%- endif -%}
+            </div>
+            <div class="comparison-table__cell comparison-table__cell--col2 comparison-table__cell--header" style="grid-row: {{ grid_row }};">
+              {%- if t_text != blank or t_icon != blank -%}
+                <span class="comparison-table__pill">
+                  {%- if t_icon != blank -%}
+                    {{ t_icon | image_url: width: 96 | image_tag: loading: 'lazy', alt: t_text, class: 'comparison-table__pill-icon' }}
+                  {%- endif -%}
+                  {%- if t_text != blank -%}
+                    <span class="comparison-table__pill-text comparison-table__pill--2">{{ t_text }}</span>
+                  {%- endif -%}
+                </span>
+              {%- endif -%}
+            </div>
+          {%- else -%}
+            <div class="comparison-table__cell comparison-table__cell--label {{ border_class }}" style="grid-row: {{ grid_row }};">{{ row_label }}</div>
+
+            <div class="comparison-table__cell comparison-table__cell--col1 {{ border_class }}" style="grid-row: {{ grid_row }};">
+              {%- if q_icon != blank -%}
+                {{ q_icon | image_url: width: 96 | image_tag: loading: 'lazy', alt: row_label, class: 'comparison-table__icon' }}
+              {%- elsif q_text != blank -%}
+                <span class="comparison-table__value-text">{{ q_text }}</span>
+              {%- else -%}
+                <span class="comparison-table__value-text comparison-table__value-text--empty">–</span>
+              {%- endif -%}
+            </div>
+
+            <div class="comparison-table__cell comparison-table__cell--col2 {{ border_class }}" style="grid-row: {{ grid_row }};">
+              {%- if t_icon != blank -%}
+                {{ t_icon | image_url: width: 96 | image_tag: loading: 'lazy', alt: row_label, class: 'comparison-table__icon' }}
+              {%- elsif t_text != blank -%}
+                <span class="comparison-table__value-text">{{ t_text }}</span>
+              {%- elsif their_default_icon != blank -%}
+                {{ their_default_icon | image_url: width: 96 | image_tag: loading: 'lazy', alt: row_label, class: 'comparison-table__icon' }}
+              {%- else -%}
+                <span class="comparison-table__value-text comparison-table__value-text--empty">–</span>
+              {%- endif -%}
+            </div>
+          {%- endif -%}
+        {%- endfor -%}
+
+      </div>
+
+    </div>
+  </div>
+
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Comparison table",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "bg_color",
+      "label": "Background color",
+      "default": "#004750"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#FFFFFF"
+    },
+    {
+      "type": "header",
+      "content": "Heading"
+    },
+    {
+      "type": "text",
+      "id": "eyebrow_text",
+      "label": "Eyebrow text",
+      "default": "HOW WE COMPARE"
+    },
+    {
+      "type": "color",
+      "id": "eyebrow_color",
+      "label": "Eyebrow text color",
+      "default": "#FF9E18"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "qore8 NMN Pure Max vs Every Alternative"
+    },
+    {
+      "type": "richtext",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "<p>More than standard NMN—this advanced formulation combines high-potency NMN with optimised delivery technology to support NAD+ production and cellular performance.</p>"
+    },
+    {
+      "type": "image_picker",
+      "id": "top_image",
+      "label": "Image above title (optional)"
+    },
+    {
+      "type": "header",
+      "content": "Column 1 — qore8"
+    },
+    {
+      "type": "color",
+      "id": "col1_pill_color",
+      "label": "Column 1 pill color",
+      "default": "#FF9E18"
+    },
+    {
+      "type": "header",
+      "content": "Column 2 — Competitor"
+    },
+    {
+      "type": "color",
+      "id": "col2_pill_color",
+      "label": "Column 2 pill color",
+      "default": "rgba(255,255,255,0.12)"
+    },
+    {
+      "type": "image_picker",
+      "id": "their_default_icon",
+      "label": "Competitor default icon",
+      "info": "Used when a row has no custom icon or text. Recommend the gray cross."
+    },
+    {
+      "type": "header",
+      "content": "Table header row (managed via product entries)"
+    },
+    {
+      "type": "paragraph",
+      "content": "Header pill content (e.g. 'NMN Pure Max' / 'Regular NMN') comes from the product's row list, not from a section setting. Add a comparison_row entry, leave 'Row label' blank, and fill the 'qore8 — text value' / 'Competitor — text value' fields (and optionally the icon fields — the icon renders above the text inside the pill). Move that entry to the top of the list and it will automatically render as the styled header row. If no entry has a blank row label, no header row is shown."
+    },
+    {
+      "type": "header",
+      "content": "Typography & icon sizing"
+    },
+    {
+      "type": "range",
+      "id": "eyebrow_fs_desktop",
+      "label": "Eyebrow font size — desktop",
+      "min": 8,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "eyebrow_fs_mobile",
+      "label": "Eyebrow font size — mobile",
+      "min": 8,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 11
+    },
+    {
+      "type": "range",
+      "id": "heading_fs_desktop",
+      "label": "Heading font size — desktop",
+      "min": 20,
+      "max": 60,
+      "step": 1,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "heading_fs_mobile",
+      "label": "Heading font size — mobile",
+      "min": 16,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "subheading_fs_desktop",
+      "label": "Subheading font size — desktop",
+      "min": 10,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "subheading_fs_mobile",
+      "label": "Subheading font size — mobile",
+      "min": 10,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "label_fs_desktop",
+      "label": "Row label font size — desktop",
+      "min": 10,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "label_fs_mobile",
+      "label": "Row label font size — mobile",
+      "min": 10,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "value_fs_desktop",
+      "label": "Value text font size — desktop",
+      "min": 10,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "value_fs_mobile",
+      "label": "Value text font size — mobile",
+      "min": 10,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 13
+    },
+    {
+      "type": "range",
+      "id": "pill_fs_desktop",
+      "label": "Column header pill text size — desktop",
+      "min": 8,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "default": 13
+    },
+    {
+      "type": "range",
+      "id": "pill_fs_mobile",
+      "label": "Column header pill text size — mobile",
+      "min": 8,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "pill_icon_size_desktop",
+      "label": "Column header pill image size — desktop",
+      "min": 12,
+      "max": 80,
+      "step": 1,
+      "unit": "px",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "pill_icon_size_mobile",
+      "label": "Column header pill image size — mobile",
+      "min": 12,
+      "max": 80,
+      "step": 1,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "icon_size_desktop",
+      "label": "Row icon size — desktop",
+      "min": 12,
+      "max": 48,
+      "step": 1,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "icon_size_mobile",
+      "label": "Row icon size — mobile",
+      "min": 12,
+      "max": 48,
+      "step": 1,
+      "unit": "px",
+      "default": 20
+    }
+  ],
+  "presets": [
+    {
+      "name": "Comparison table"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,108 @@
+{% comment %}
+  Renders cart drawer upsell products (manual list or Search & Discovery related).
+
+  Accepts:
+  - products: {Array} Product list
+  - layout: {String} "stacked" or "slider"
+  - section_id: {String} Section id for product forms (optional)
+{% endcomment %}
+
+{%- liquid
+  assign upsell_layout = layout | default: settings.cart_upsell_layout | default: 'stacked'
+  assign upsell_section_id = section_id | default: 'cart-drawer'
+  assign upsell_limit = 2
+  if upsell_layout == 'slider'
+    assign upsell_limit = 3
+  endif
+-%}
+
+{%- assign upsell_count = 0 -%}
+{%- assign upsell_opened = false -%}
+
+{%- for upsell_product in products -%}
+  {%- if upsell_count >= upsell_limit -%}
+    {%- break -%}
+  {%- endif -%}
+
+  {%- assign in_cart = false -%}
+  {%- for item in cart.items -%}
+    {% comment %} LOOP BUNDLE — do not modify {% endcomment %}
+    {%- assign is_bundle_item = false -%}
+    {%- for property in item.properties -%}
+      {%- if property.first == '_bundleId' -%}
+        {%- assign is_bundle_item = true -%}
+        {%- break -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- if is_bundle_item -%}
+      {%- continue -%}
+    {%- endif -%}
+    {%- if item.product_id == upsell_product.id -%}
+      {%- assign in_cart = true -%}
+    {%- endif -%}
+  {%- endfor -%}
+
+  {%- unless in_cart -%}
+    {%- unless upsell_opened -%}
+      {%- assign upsell_opened = true -%}
+      {%- if upsell_layout == 'slider' -%}
+        <div class="cart-drawer-upsell-slider" data-cart-drawer-upsell-slider>
+          <div class="cart-drawer-upsell-slider__controls slider-buttons" data-cart-drawer-upsell-controls>
+            <button
+              type="button"
+              class="slider-button slider-button--prev"
+              name="previous"
+              aria-label="{{ 'general.slider.previous_slide' | t }}"
+            >
+              {% render 'icon-caret' %}
+            </button>
+            <button
+              type="button"
+              class="slider-button slider-button--next"
+              name="next"
+              aria-label="{{ 'general.slider.next_slide' | t }}"
+            >
+              {% render 'icon-caret' %}
+            </button>
+          </div>
+          <ul
+            id="Slider-CartUpsell-{{ upsell_section_id }}"
+            class="cart-drawer-upsell-slider__track list-unstyled"
+            role="list"
+          >
+      {%- else -%}
+        <div class="cart-drawer-upsell-stacked space-y-4">
+      {%- endif -%}
+    {%- endunless -%}
+
+    {%- if upsell_layout == 'slider' -%}
+      <li
+        id="Slide-CartUpsell-{{ upsell_section_id }}-{{ upsell_count }}"
+        class="cart-drawer-upsell-slider__slide"
+      >
+        {%- render 'z-upsell-card',
+          card_product: upsell_product,
+          add_source: 'Cart Upsell',
+          section_id: upsell_section_id
+        -%}
+      </li>
+    {%- else -%}
+      {%- render 'z-upsell-card',
+        card_product: upsell_product,
+        add_source: 'Cart Upsell',
+        section_id: upsell_section_id
+      -%}
+    {%- endif -%}
+
+    {%- assign upsell_count = upsell_count | plus: 1 -%}
+  {%- endunless -%}
+{%- endfor -%}
+
+{%- if upsell_opened -%}
+  {%- if upsell_layout == 'slider' -%}
+          </ul>
+        </div>
+  {%- else -%}
+        </div>
+  {%- endif -%}
+{%- endif -%}

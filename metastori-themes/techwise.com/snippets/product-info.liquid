@@ -1,0 +1,1497 @@
+{%- comment -%}
+----------------------------------------------------------------------------------------------------------------------
+PRODUCT INFO
+----------------------------------------------------------------------------------------------------------------------
+
+This snippet renders all the blocks of a given product. It uses the blocks of the section currently in use (there is
+no need to manually pass the section as it is globally available)
+
+********************************************
+Supported variables
+********************************************
+
+* product: the product on which to render the information (if blank, it renders placeholder information)
+* allow_blocks: a list of blocks name to include. If none is passed, assumes to show all the blocks
+* product_form_id: the ID of the product form
+* content_alignment: the alignment of the content
+* context: the context of the product info. Can be "main_product", "featured_product" or "quick_buy"
+{%- endcomment -%}
+
+{%- assign alignment = content_alignment | replace: 'left', 'start' | replace: 'right', 'end' | default: 'start' -%}
+
+<safe-sticky class="product-info text-{{ alignment }}">
+  <div class="product-info__block-list">
+    {%- liquid
+      assign inside_block_group_context = false
+      assign current_block_group_name = ''
+
+      if allow_blocks != blank
+        assign filtered_blocks = '' | split: ''
+
+        for block in section.blocks
+          if allow_blocks contains block.type
+            assign block_as_arr = block | sort
+            assign filtered_blocks = filtered_blocks | concat: block_as_arr
+          endif
+        endfor
+      else
+        assign filtered_blocks = section.blocks
+      endif
+    -%}
+
+    {%- for block in filtered_blocks -%}
+      {% liquid
+        assign next_block_index = forloop.index0 | plus: 1
+        assign next_block = filtered_blocks[next_block_index]
+
+        comment
+        You can use your own condition to create smart grouping. When two or more blocks match the condition, they are
+        automatically grouped by a div that will take the desired class. This can even work for more than 2 elements
+        (for instance if you specify accordion follow by an accordion). The theme takes care of properly opening and
+        closing the group for proper HTML. In order to make it work, you need to create one condition explaining when
+        to enter into the group, and you need to indicate a block_group_class and block_group_name. Most of the time,
+        the two will be identical. However, the block_group_name must be unique. This means that as long as the block_group_name
+        stays the same, then another group will not be created as long as the conditions match.
+        endcomment
+
+        assign allow_block_group = true
+
+        if block.type == 'accordion' and next_block.type == 'accordion'
+          assign block_group_class = 'accordion-group'
+          assign block_group_name = 'accordion-group'
+        elsif block.type == 'description' and block.settings.collapse_content and product.description != blank and next_block.type == 'accordion'
+          assign block_group_class = 'accordion-group'
+          assign block_group_name = 'accordion-group'
+        elsif block.type == 'accordion' and next_block.type == 'description' and next_block.settings.collapse_content and product.description != blank 
+          assign block_group_class = 'accordion-group'
+          assign block_group_name = 'accordion-group'
+        else
+          assign allow_block_group = false
+          assign block_group_class = ''
+          assign current_block_group_name = ''
+        endif
+
+        if allow_block_group
+          assign new_block_group_name = block_group_name
+
+          if inside_block_group_context == true and new_block_group_name != current_block_group_name
+            assign allow_block_group = false
+          else
+            assign current_block_group_name = new_block_group_name
+          endif
+        endif
+      %}
+
+      {%- capture block_content -%}
+        {%- case block.type -%}
+          {%- when '@app' -%}
+            {%- render block -%}
+          {%- when 'product-tabs' -%}
+            {%- assign standard_product = product.metafields.custom.standard_version.value -%}
+            {%- assign pro_product = product.metafields.custom.pro_version.value -%}
+            {%- if standard_product != blank and pro_product != blank -%}
+              <div class="product-tabs-wrapper">
+                <div class="product-tabs-main-block">
+                  {%- for i in (1..2) -%}
+                    {% assign toggleText = 'product-toggle-text-' | append: i %}
+                    <div class="product-tabs-block-items">
+                      {% if i == 1 %}
+                        <!-- Standard Tab -->
+                        <a href="{{ standard_product.url }}" class="product-tab-item{% if product.id == standard_product.id %} active-tab{% endif %}">
+                          {{ block.settings[toggleText] | escape }}
+                        </a>
+                      {% elsif i == 2 %}
+                        <!-- Pro Tab -->
+                        <a href="{{ pro_product.url }}" class="product-tab-item{% if product.id == pro_product.id %} active-tab{% endif %}">
+                          {{ block.settings[toggleText] | escape }}
+                        </a>
+                      {% endif %}
+                    </div>
+                   {%- endfor -%}
+                </div>
+                {%- if product.metafields.custom.us_image != blank and product.metafields.custom.them_image != blank -%}
+                <div class="product-compare-popup-btn">
+                  <button type="button" class="open-popup-link">
+                    <highlighted-heading effect="marker" class="highlighted-heading">
+                      <em><split-lines>Vergelijk</split-lines></em>
+                    </highlighted-heading>
+                  </button>
+                </div>
+                {%- endif -%} 
+              </div>
+            {%- endif -%}
+          {%- when 'product-color-tabs' -%}
+            {%- assign standard_product = product.metafields.custom.standard_version.value -%}
+            {%- assign pro_product = product.metafields.custom.pro_version.value -%}
+            {%- if standard_product != blank and pro_product != blank -%}
+              <div class="product-color-tabs-wrapper">
+                <div class="product-color-tabs-main-block">
+                  {%- for i in (1..2) -%}
+                    {%- assign toggleText = 'product-toggle-text-' | append: i -%}
+                    {%- assign toggleColor = 'product-toggle-color-' | append: i -%}
+                    <div class="product-color-tabs-block-items">
+                      {% if i == 1 %}
+                        <!-- Standard Color Tab -->
+                        <a href="{{ standard_product.url }}"
+                          class="product-color-tab-item{% if product.id == standard_product.id %} active-tab{% endif %}"
+                          style="background-color: {{ block.settings[toggleColor] }};"
+                          data-tab-name="{{ block.settings[toggleText] | escape }}">
+                          <span class="product-color-tab-tooltip">{{ block.settings[toggleText] | escape }}</span>
+                        </a>
+                      {% elsif i == 2 %}
+                        <!-- Pro Color Tab -->
+                        <a href="{{ pro_product.url }}"
+                          class="product-color-tab-item{% if product.id == pro_product.id %} active-tab{% endif %}"
+                          style="background-color: {{ block.settings[toggleColor] }};"
+                          data-tab-name="{{ block.settings[toggleText] | escape }}">
+                          <span class="product-color-tab-tooltip">{{ block.settings[toggleText] | escape }}</span>
+                        </a>
+                      {% endif %}
+                    </div>
+                  {%- endfor -%}
+                </div>
+                {%- if product.metafields.custom.us_image != blank and product.metafields.custom.them_image != blank -%}
+                  <div class="product-compare-popup-btn">
+                    <button type="button" class="open-popup-link">
+                      <highlighted-heading effect="marker" class="highlighted-heading">
+                        <em><split-lines>Vergelijk</split-lines></em>
+                      </highlighted-heading>
+                    </button>
+                  </div>
+                {%- endif -%}
+              </div>
+            {%- endif -%}
+          {%- when 'vendor' -%}
+            {%- if product != blank -%}
+              {%- render 'vendor' with product.vendor, class: 'subheading text-subdued' -%}
+            {%- else -%}
+              {%- assign placeholder_vendor = 'general.on_boarding.product_vendor' | t -%}
+              {%- render 'vendor' with placeholder_vendor, class: 'subheading text-subdued' -%}
+            {%- endif -%}
+          {%- when 'new_accordion' -%}
+            <div class="new-accordion-wrapper">
+              <div class="new-accordion-item" data-block-id="{{ block.id }}" {{ block.shopify_attributes }}>
+                <div class="accordion-left">
+                  {% if block.settings.icon != 'none' %}
+                    {% render 'icon', icon: block.settings.icon %}
+                  {% elsif block.settings.custom_icon != blank %}
+                    <img src="{{ block.settings.custom_icon | image_url }}" alt="" width="" height=""/>
+                  {% endif %}
+                  <div>
+                    <h4 class="{% if block.settings.uppercase_title %}uppercase{% endif %}">
+                      {{ block.settings.title }}
+                    </h4>
+                    {{ block.settings.content }}
+                  </div>
+                </div>
+                <span class="accordion-plus">+</span>
+              </div>
+            </div>
+            <div class="accordion-popup" id="AccordionPopup-{{ block.id }}" data-popup-id="{{ block.id }}">
+              <div class="accordion-popup-overlay"></div>
+              <div class="accordion-popup-content">
+                <button class="accordion-popup-close">{%- render 'icon' with 'close', width: 10 -%}</button>
+                <div class="accordion-popup-media">
+                  {% if block.settings.popup_media_type == 'video' and block.settings.popup_video != blank %}
+                    <template data-video-index="{{ forloop.index0 }}">
+                      {{ block.settings.popup_video | video_tag:
+                        autoplay: false,
+                        loop: true,
+                        muted: true,
+                        playsinline: true,
+                        controls: false,
+                        preload: 'none',
+                        class: 'video-item'
+                      }}
+                    </template>
+                  {% elsif block.settings.popup_media_type == 'image' and block.settings.popup_image != blank %}
+                    <img 
+                      data-src="{{ block.settings.popup_image | image_url }}"
+                      alt="{{ block.settings.popup_heading | escape }}" width="" height="">
+                  {% endif %}
+                </div>
+                <div class="accordion-popup-text">
+                  <h2>{{ block.settings.popup_heading }}</h2>
+                  <div class="popup-richtext">{{ block.settings.popup_content }}</div>
+                </div>
+              </div>
+            </div>
+          {%- when 'drawer_details' -%}
+            <div class="drawer_details-wrapper">
+              <div class="drawer_details-wrapper-item" data-block-id="{{ block.id }}" {{ block.shopify_attributes }}>
+                <div class="drawer_details-left">
+                    <span class="{% if block.settings.uppercase_title %}uppercase{% endif %}">
+                      {{ block.settings.title }}
+                    </span>
+                    {{ block.settings.content }}
+                </div>
+                <span class="drawer_details-arrow">
+                  <svg aria-hidden="true" focusable="false" width="11" class="icon icon-accordion-small-arrow" part="icon" fill="none" viewBox="0 0 11 7" translate="no">
+                    <path stroke="currentColor" stroke-width="1.5" d="M10 1 5.5 5.5 1 1"></path>
+                  </svg>
+                </span>
+              </div>
+            </div>
+            <div class="drawer-detail" id="drawerDetails-{{ block.id }}" data-popup-id="{{ block.id }}">
+              <div class="drawer-detail-overlay"></div>
+              <div class="drawer-detail-content">
+                <button class="drawer-detail-close">{%- render 'icon' with 'close', width: 10 -%}</button>
+                {% comment %} <h2>{{ block.settings.drawer-heading }}</h2> {% endcomment %}
+                {% if product.metafields.custom.product_content_blocks != blank %}
+                  <div class="drawer_detail-container">
+                    {% for block in product.metafields.custom.product_content_blocks.value %}
+                      <div class="drawer_detail-box">
+                        {% if block.image %}
+                          <img 
+                            src="{{ block.image | image_url: width: 191 }}" 
+                            alt="{{ block.heading_text | escape }}">
+                        {% endif %}
+                        <div class="drawer_detail-box-content">
+                          {% if block.heading_text != blank %}
+                            <span>{{ block.heading_text }}</span>
+                          {% endif %}
+
+                          {% if block.description != blank %}
+                            <div class="content-text">
+                              {{ block.description }}
+                            </div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    {% endfor %}                  
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          {%- when 'title' -%}
+            {%- if product != blank -%}
+              {%- assign product_title = product.title -%}
+            {%- else -%}
+              {%- assign product_title = 'general.on_boarding.product_title' | t -%}
+            {%- endif -%}
+
+            {%- if request.page_type == 'product' and context == 'main_product' -%}
+              <h1 class="product-title {{ block.settings.heading_tag }}">
+                {{- product_title -}}
+              </h1>
+            {%- else -%}
+              <h2 class="product-title {% if context == 'quick_buy' %}h4{% else %}{{ block.settings.heading_tag }}{% endif %}">
+                <a href="{{ product.url }}">{{ product_title }}</a>
+              </h2>
+            {%- endif -%}
+
+          {%- when 'sku' -%}
+            {%- if product.selected_or_first_available_variant.sku != blank -%}
+              <variant-sku class="variant-sku subheading text-subdued">
+                {{- 'product.general.sku' | t }} {{ product.selected_or_first_available_variant.sku -}}
+              </variant-sku>
+            {%- endif -%}
+
+          {%- when 'badges' -%}
+            {%- if product != blank -%}
+              {%- render 'product-badges', 
+                product: product, 
+                context: 'product',
+                variant: product.selected_or_first_available_variant,
+                alignment: alignment,
+                show_custom_badge: true,
+                show_sold_out_badge: settings.product_card_show_sold_out_badge,
+                show_discount_badge: false
+              -%}
+            {%- endif -%}
+
+          {%- when 'price' -%}
+            {%- if product.selected_or_first_available_variant != nil -%}
+              {%- assign current_variant = product.selected_or_first_available_variant -%}
+              <div class="v-stack gap-2">
+
+                <div class="price-list {% if alignment %}justify-{{ alignment }}{% endif %}">
+                  {%- render 'price-list',
+                    product: product,
+                    variant: current_variant,
+                    alignment: alignment,
+                    context: 'product'
+                  -%}
+                  {% if settings.discount_badge_show_product_page == true %}
+                    {%- render 'discount-badge',
+                      product: product,
+                      variant: product.selected_or_first_available_variant,
+                      context: 'card'
+                    -%}
+                  {% endif %}
+                  
+                  
+                </div>
+
+                {%- if block.settings.show_taxes_notice -%}
+                  <p class="subheading text-subdued">
+                    {%- if cart.taxes_included -%}
+                      {{ 'product.general.taxes_included' | t }}
+                    {%- else -%}
+                      {{ 'product.general.taxes_excluded' | t }}
+                    {%- endif -%}
+                    {%- if shop.shipping_policy.body != blank -%}
+                      {{ 'product.general.shipping_policy_html' | t: link: shop.shipping_policy.url }}
+                    {%- endif -%}
+                  </p>
+                {%- endif -%}
+
+              </div>
+            {%- endif -%}
+            
+          {%- when 'discount_detail' -%}
+            {%- liquid
+              assign discount_content = block.settings.discount_detail_d
+              assign discount_timer_expires_at = block.settings.expiration_date
+            -%}
+
+            {%- if discount_content contains '[TIME]' -%}
+              {%- capture discount_timer_html -%}
+                {%- if discount_timer_expires_at != blank -%}
+                  {%- assign accessibility_expiration_date = discount_timer_expires_at | date: format: 'date_at_time' -%}
+                  {%- assign accessibility_text = 'sections.countdown_timer.expires_accessibility_text' | t: expiration_date: accessibility_expiration_date -%}
+                  <countdown-timer
+                    class="countdown-condensed__timer countdown-condensed__timer--inline ts-product__bf-badge-timer"
+                    role="timer"
+                    expires-at="{{ discount_timer_expires_at | date: '%FT%T%:z' | escape }}"
+                    expiration-behavior="leave"
+                    aria-label="{{ accessibility_text | escape }}"
+                  ><span class="countdown-condensed__timer-item ts-product__bf-badge-timer-item" aria-hidden="true"><countdown-timer-flip type="days" class="subheading bold">00</countdown-timer-flip><span class="countdown-condensed__unit-short subheading subheading-xs">D</span></span><span class="subheading subheading-xs" aria-hidden="true">:</span><span class="countdown-condensed__timer-item ts-product__bf-badge-timer-item" aria-hidden="true"><countdown-timer-flip type="hours" class="subheading bold">00</countdown-timer-flip><span class="countdown-condensed__unit-short subheading subheading-xs">U</span></span><span class="subheading subheading-xs" aria-hidden="true">:</span><span class="countdown-condensed__timer-item ts-product__bf-badge-timer-item" aria-hidden="true"><countdown-timer-flip type="minutes" class="subheading bold">00</countdown-timer-flip><span class="countdown-condensed__unit-short subheading subheading-xs">M</span></span><span class="subheading subheading-xs" aria-hidden="true">:</span><span class="countdown-condensed__timer-item ts-product__bf-badge-timer-item" aria-hidden="true"><countdown-timer-flip type="seconds" class="subheading bold">00</countdown-timer-flip><span class="countdown-condensed__unit-short subheading subheading-xs">S</span></span></countdown-timer>
+                {%- else -%}
+                  <span class="ts-product__bf-badge-timer-slot" data-discount-timer-slot></span>
+                {%- endif -%}
+              {%- endcapture -%}
+              {%- assign discount_content = discount_content | replace: '[TIME]', discount_timer_html -%}
+            {%- endif -%}
+
+            <style>
+              #ts-discount-detail-{{ block.id }} {
+                  border-radius: 6px;
+                  background: {{ block.settings.discount_detail_bg_color }};
+                  padding: 10px;
+                  color: {{ block.settings.discount_detail_text_color }};
+              }
+              #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-title {
+                  font-size: {{ block.settings.discount_detail_h_size_desktop }}px;
+                  margin-bottom: 3px;
+                  font-weight: bold;
+              }
+              #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-subtitle,
+              #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-subtitle p {
+                  font-size: {{ block.settings.discount_detail_d_size_desktop }}px;
+                  margin: 0;
+              }
+              #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-subtitle p {
+                  display: flex;
+                  flex-wrap: wrap;
+                  align-items: center;
+                  gap: 0.35rem;
+              }
+              #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-timer,
+              #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-timer-slot {
+                  display: inline-flex !important;
+                  flex-direction: row !important;
+                  flex-wrap: nowrap;
+                  align-items: baseline;
+                  vertical-align: baseline;
+                  column-gap: 0.25rem;
+              }
+              #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-timer-item,
+              #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-timer .countdown-condensed__timer-item {
+                  display: inline-flex !important;
+                  flex-direction: row !important;
+                  align-items: baseline;
+                  column-gap: 0.15rem;
+                  place-items: unset;
+              }
+              #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-timer .countdown-condensed__unit {
+                  display: none !important;
+              }
+              #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-timer .countdown-condensed__unit-short {
+                  display: inline !important;
+              }
+              @media screen and (max-width: 749px) {
+                  #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-title {
+                      font-size: {{ block.settings.discount_detail_h_size_mobile }}px;
+                  }
+                  #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-subtitle,
+                  #ts-discount-detail-{{ block.id }} .ts-product__bf-badge-subtitle p {
+                      font-size: {{ block.settings.discount_detail_d_size_mobile }}px;
+                  }
+              }
+            </style>
+            <div id="ts-discount-detail-{{ block.id }}" class="ts-product__bf-badge">
+              <div class="ts-product__bf-badge-content">
+                <p class="ts-product__bf-badge-title">{{ block.settings.discount_detail_h }}</p>
+                <div class="ts-product__bf-badge-subtitle">{{ discount_content }}</div>
+              </div>
+            </div>
+
+            {%- if discount_content contains 'data-discount-timer-slot' -%}
+              <script>
+                (function () {
+                  function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+                  function getNextCycleEndTime(rollingDays) {
+                    if (window.TechweiseRollingCountdown && window.TechweiseRollingCountdown.getNextCycleEndTime) {
+                      return window.TechweiseRollingCountdown.getNextCycleEndTime(rollingDays);
+                    }
+                    var periodMs = rollingDays * 24 * 60 * 60 * 1000;
+                    var referenceTime = new Date('2025-01-01T00:00:00').getTime();
+                    var elapsed = Date.now() - referenceTime;
+                    var cycles = Math.floor(elapsed / periodMs);
+                    return referenceTime + (cycles + 1) * periodMs;
+                  }
+
+                  function getAnnouncementSource() {
+                    return document.querySelector('[data-announcement-rolling-timer]');
+                  }
+
+                  function getCondensedSource() {
+                    return document.querySelector('.shopify-section--countdown-condensed countdown-timer[expires-at]');
+                  }
+
+                  function buildRollingBadgeTimer(source) {
+                    var rollingDays = parseInt(source.getAttribute('data-rolling-days'), 10) || 3;
+                    var showDays = source.getAttribute('data-show-days') === 'true';
+                    var labels = {
+                      days: source.getAttribute('data-label-days') || 'D',
+                      hours: source.getAttribute('data-label-hours') || 'U',
+                      minutes: source.getAttribute('data-label-minutes') || 'M',
+                      seconds: source.getAttribute('data-label-seconds') || 'S'
+                    };
+
+                    var timer = document.createElement('span');
+                    timer.className = 'ts-product__bf-badge-timer';
+                    timer.setAttribute('role', 'timer');
+                    timer.setAttribute('data-bf-rolling-timer', '');
+                    timer.setAttribute('data-rolling-days', String(rollingDays));
+                    timer.setAttribute('data-show-days', showDays ? 'true' : 'false');
+
+                    function addUnit(type, label) {
+                      var item = document.createElement('span');
+                      item.className = 'ts-product__bf-badge-timer-item';
+                      item.setAttribute('aria-hidden', 'true');
+
+                      var digits = document.createElement('span');
+                      digits.className = 'subheading bold';
+                      digits.setAttribute('data-' + type, '');
+                      digits.textContent = '00';
+
+                      var unit = document.createElement('span');
+                      unit.className = 'countdown-condensed__unit-short subheading subheading-xs';
+                      unit.textContent = label;
+
+                      item.appendChild(digits);
+                      item.appendChild(unit);
+                      timer.appendChild(item);
+                    }
+
+                    function addSep() {
+                      var sep = document.createElement('span');
+                      sep.className = 'subheading subheading-xs';
+                      sep.setAttribute('aria-hidden', 'true');
+                      sep.textContent = ':';
+                      timer.appendChild(sep);
+                    }
+
+                    var daysWrap = document.createElement('span');
+                    daysWrap.className = 'ts-product__bf-badge-timer-item';
+                    daysWrap.setAttribute('aria-hidden', 'true');
+                    daysWrap.setAttribute('data-days-block', '');
+                    daysWrap.style.display = 'none';
+                    var daysDigits = document.createElement('span');
+                    daysDigits.className = 'subheading bold';
+                    daysDigits.setAttribute('data-days', '');
+                    daysDigits.textContent = '00';
+                    var daysLabel = document.createElement('span');
+                    daysLabel.className = 'countdown-condensed__unit-short subheading subheading-xs';
+                    daysLabel.textContent = labels.days;
+                    daysWrap.appendChild(daysDigits);
+                    daysWrap.appendChild(daysLabel);
+                    timer.appendChild(daysWrap);
+
+                    var daysSep = document.createElement('span');
+                    daysSep.className = 'subheading subheading-xs';
+                    daysSep.setAttribute('aria-hidden', 'true');
+                    daysSep.setAttribute('data-days-sep', '');
+                    daysSep.style.display = 'none';
+                    daysSep.textContent = ':';
+                    timer.appendChild(daysSep);
+
+                    addUnit('hours', labels.hours);
+                    addSep();
+                    addUnit('minutes', labels.minutes);
+                    addSep();
+                    addUnit('seconds', labels.seconds);
+
+                    var endTime = getNextCycleEndTime(rollingDays);
+
+                    function tick() {
+                      if (!timer.isConnected) {
+                        clearInterval(timer._tickInterval);
+                        return;
+                      }
+
+                      var remaining = endTime - Date.now();
+                      if (remaining <= 0) {
+                        endTime = getNextCycleEndTime(rollingDays);
+                        remaining = endTime - Date.now();
+                      }
+
+                      var totalSecs = Math.floor(remaining / 1000);
+                      var d = Math.floor(totalSecs / 86400);
+                      var h = Math.floor((totalSecs % 86400) / 3600);
+                      var m = Math.floor((totalSecs % 3600) / 60);
+                      var s = totalSecs % 60;
+
+                      var daysEl = timer.querySelector('[data-days]');
+                      var hoursEl = timer.querySelector('[data-hours]');
+                      var minutesEl = timer.querySelector('[data-minutes]');
+                      var secondsEl = timer.querySelector('[data-seconds]');
+                      var daysBlock = timer.querySelector('[data-days-block]');
+                      var daysSepEl = timer.querySelector('[data-days-sep]');
+
+                      if (showDays && d > 0) {
+                        if (daysEl) daysEl.textContent = pad(d);
+                        if (daysBlock) daysBlock.style.display = 'inline-flex';
+                        if (daysSepEl) daysSepEl.style.display = 'inline';
+                        if (hoursEl) hoursEl.textContent = pad(h);
+                      } else {
+                        if (daysBlock) daysBlock.style.display = 'none';
+                        if (daysSepEl) daysSepEl.style.display = 'none';
+                        if (hoursEl) hoursEl.textContent = pad(d * 24 + h);
+                      }
+
+                      if (minutesEl) minutesEl.textContent = pad(m);
+                      if (secondsEl) secondsEl.textContent = pad(s);
+                    }
+
+                    tick();
+                    timer._tickInterval = setInterval(tick, 1000);
+                    return timer;
+                  }
+
+                  function buildFixedBadgeTimer(expiresAt, ariaLabel) {
+                    var timer = document.createElement('countdown-timer');
+                    timer.className = 'countdown-condensed__timer countdown-condensed__timer--inline ts-product__bf-badge-timer';
+                    timer.setAttribute('role', 'timer');
+                    timer.setAttribute('expires-at', expiresAt);
+                    timer.setAttribute('expiration-behavior', 'leave');
+                    if (ariaLabel) timer.setAttribute('aria-label', ariaLabel);
+
+                    var units = [
+                      { type: 'days', label: 'D' },
+                      { type: 'hours', label: 'U' },
+                      { type: 'minutes', label: 'M' },
+                      { type: 'seconds', label: 'S' }
+                    ];
+
+                    units.forEach(function (unit, index) {
+                      if (index > 0) {
+                        var sep = document.createElement('span');
+                        sep.className = 'subheading subheading-xs';
+                        sep.setAttribute('aria-hidden', 'true');
+                        sep.textContent = ':';
+                        timer.appendChild(sep);
+                      }
+
+                      var item = document.createElement('span');
+                      item.className = 'countdown-condensed__timer-item ts-product__bf-badge-timer-item';
+                      item.setAttribute('aria-hidden', 'true');
+
+                      var flip = document.createElement('countdown-timer-flip');
+                      flip.setAttribute('type', unit.type);
+                      flip.className = 'subheading bold';
+                      flip.textContent = '00';
+
+                      var label = document.createElement('span');
+                      label.className = 'countdown-condensed__unit-short subheading subheading-xs';
+                      label.textContent = unit.label;
+
+                      item.appendChild(flip);
+                      item.appendChild(label);
+                      timer.appendChild(item);
+                    });
+
+                    return timer;
+                  }
+
+                  function fillDiscountTimers() {
+                    var slots = document.querySelectorAll('[data-discount-timer-slot]');
+                    if (!slots.length) return false;
+
+                    var announcement = getAnnouncementSource();
+                    if (announcement) {
+                      slots.forEach(function (slot) {
+                        slot.replaceWith(buildRollingBadgeTimer(announcement));
+                      });
+                      return true;
+                    }
+
+                    var condensed = getCondensedSource();
+                    if (condensed) {
+                      slots.forEach(function (slot) {
+                        slot.replaceWith(buildFixedBadgeTimer(
+                          condensed.getAttribute('expires-at'),
+                          condensed.getAttribute('aria-label') || ''
+                        ));
+                      });
+                      return true;
+                    }
+
+                    return false;
+                  }
+
+                  function start() {
+                    if (fillDiscountTimers()) return;
+
+                    var tries = 0;
+                    var poll = setInterval(function () {
+                      tries += 1;
+                      if (fillDiscountTimers() || tries >= 40) {
+                        clearInterval(poll);
+                      }
+                    }, 250);
+                  }
+
+                  if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', start);
+                  } else {
+                    start();
+                  }
+                })();
+              </script>
+            {%- endif -%}
+
+          {%- when 'payment_terms' -%}
+            {%- if product != blank -%}
+              <payment-terms class="payment-terms">
+                {%- capture product_installment_form_id -%}{{ product_form_id }}-payment-installment{%- endcapture -%}
+
+                {%- form 'product', product, id: product_installment_form_id -%}
+                  <input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}">
+                  {{- form | payment_terms -}}
+                {%- endform -%}
+              </payment-terms>
+            {%- endif -%}
+
+          {%- when 'rating' -%}
+            {%- if product != blank -%}
+              {%- render 'product-rating', product: product, alignment: alignment, show_empty: block.settings.show_empty, show_placeholder: false -%}
+            {%- else -%}
+              {%- render 'product-rating', alignment: alignment, show_placeholder: true -%}
+            {%- endif -%}
+
+          {%- when 'separator' -%}
+            <hr>
+
+          {%- when 'description' -%}
+            {%- liquid
+              if product == blank
+                assign product_description = 'general.on_boarding.product_description' | t
+              else
+                # Shopify RTE often adds a useless meta tag that mess with spacing, so we remove it
+                assign product_description = product.description | remove_first: '<meta charset="utf-8">'
+              endif
+            -%}
+
+            {%- if product_description != blank -%}
+              {%- if block.settings.collapse_content -%}
+                {%- assign accordion_title = 'product.general.description' | t -%}
+
+                {%- render 'accordion', 
+                  title: accordion_title, 
+                  custom_icon: block.settings.custom_icon,
+                  content: product_description,
+                  prose_content: true, 
+                  uppercase_title: block.settings.uppercase_title,
+                  block: block 
+                -%}
+              {%- else -%}
+                <div class="prose prose-justify-{{ alignment }}">
+                  {{- product_description -}}
+                </div>
+              {%- endif -%}
+            {%- endif -%}
+
+          {%- when 'variant_picker' -%}
+            {%- if product != blank -%}
+              {%- render 'variant-picker',
+                  product: product,
+                  form_id: product_form_id,
+                  context: context, 
+                  alignment: alignment,
+                  hide_sold_out_variants: block.settings.hide_sold_out_variants,
+                  separate_options: block.settings.separate_options,
+                  selector_style: block.settings.selector_style,
+                  swatch_selector_style: block.settings.swatch_selector_style,
+                  swatch_selector_size: block.settings.swatch_selector_size,
+                  block_selector_style: block.settings.block_selector_style,
+                  variant_image_options: block.settings.variant_image_options,
+                  size_chart_page: block.settings.size_chart_page 
+                -%}
+            {%- endif -%}
+
+          {%- when 'product_variations' -%}
+            {%- liquid
+              assign contains_product = false
+
+              for product_variation in block.settings.products
+                if product_variation == product
+                  assign contains_product = true
+                endif
+              endfor
+            -%}
+
+            {%- if contains_product -%}
+              {%- comment -%}
+                IMPLEMENTATION NOTE: this feature allows to connect different products on the same page. It is therefore
+                visually similar to a variant picker, although it does not share the functionality
+              {%- endcomment -%}
+              <div class="variant-picker">
+                <div class="variant-picker__option justify-{{ alignment }}">
+                  {%- assign metafield_parts = block.settings.option_value_metafield | split: '.' -%}
+                  {%- assign metafield_namespace = metafield_parts | first -%}
+                  {%- assign metafield_key = metafield_parts | last -%}
+                  {%- assign metafield = product.metafields[metafield_namespace][metafield_key] -%}
+
+                  {%- if block.settings.option_name != blank -%}
+                    <div class="h-stack gap-2">
+                      <p class="text-subdued">{{ block.settings.option_name | escape }}:</p>
+
+                      {%- if metafield.type == 'metaobject_reference' -%}
+                        <span>{{ product.metafields[metafield_namespace][metafield_key].value.label }}</span>
+                      {%- else -%}
+                        <span>{{ product.metafields[metafield_namespace][metafield_key].value }}</span>
+                      {%- endif -%}
+                    </div>
+                  {%- endif -%}
+
+                  {%- liquid
+                    case block.settings.selector_style
+                      when 'swatch'
+                        case settings.color_swatch_shape
+                          when 'circle'
+                            if swatch_selector_size == 'sm'
+                              assign list_classes = 'h-stack gap-3 wrap'
+                            else
+                              assign list_classes = 'h-stack gap-4 wrap'
+                            endif
+        
+                          else
+                            if swatch_selector_size == 'sm'
+                              assign list_classes = 'h-stack gap-3 wrap'
+                            else
+                              assign list_classes = 'h-stack gap-4 wrap'
+                            endif
+                        endcase
+                      when 'variant_image'
+                        assign list_classes = 'h-stack gap-1 wrap'
+                      else
+                        assign list_classes = 'h-stack gap-3 wrap'
+                    endcase
+                  -%}
+
+                  <div class="variant-picker__option-values {{ list_classes }}">
+                    {%- liquid
+                      for product_variation in block.settings.products
+                        assign color_metaobject = nil
+                        assign variation_metafield = product_variation.metafields[metafield_namespace][metafield_key]
+
+                        if variation_metafield.type == 'metaobject_reference' and variation_metafield.value.system.type == 'shopify--color-pattern'
+                          assign label = variation_metafield.value.label
+                          assign color_metaobject = variation_metafield.value
+                        else
+                          assign label = variation_metafield.value
+                        endif
+
+                        if product_variation == product
+                          assign selected = true
+                        else
+                          assign selected = false
+                        endif
+
+                        case block.settings.selector_style
+                          when 'swatch'
+                            render 'option-value', type: 'swatch', url: product_variation.url, label: label, color_metaobject: color_metaobject, selected: selected, size: block.settings.swatch_selector_size
+
+                          when 'variant_image'
+                            render 'option-value', type: 'thumbnail', url: product_variation.url, label: label, image: product_variation.featured_media, selected: selected
+
+                          when 'block'
+                            render 'option-value', type: 'block', url: product_variation.url, label: label, selected: selected
+
+                          when 'block_swatch'
+                            render 'option-value', type: 'block', url: product_variation.url, label: label, color_metaobject: color_metaobject, selected: selected, show_swatch: true
+                        endcase
+                      endfor
+                    -%}
+                  </div>
+                </div>
+              </div>
+            {%- endif -%}
+
+          {%- when 'line_item_property' -%}
+            {%- if block.settings.label != blank -%}
+              {%- capture name -%}properties[{{ block.settings.label | escape }}]{%- endcapture -%}
+
+              <div class="v-stack {% if block.settings.type == 'checkbox' %}justify-items-{{ alignment }}{% else %}justify-{{ alignment }}{% endif %}">
+                {%- liquid
+                  if block.settings.type == 'text'
+                    if block.settings.allow_long_text
+                      render 'input', label: block.settings.label, show_label_as_block: true, name: name, form: product_form_id, multiline: 4, alignment: alignment, required: block.settings.required, placeholder: block.settings.placeholder, maxlength: block.settings.max_length
+                    else
+                      render 'input', type: 'text', label: block.settings.label, show_label_as_block: true, name: name, form: product_form_id, alignment: alignment, required: block.settings.required, placeholder: block.settings.placeholder, maxlength: block.settings.max_length
+                    endif
+                  elsif block.settings.type == 'checkbox'
+                    render 'checkbox', label: block.settings.label, name: name, form: product_form_id, value: block.settings.checkbox_value, required: block.settings.required
+                  elsif block.settings.type == 'dropdown' and block.settings.select_values != blank
+                    assign option_values = block.settings.select_values | split: ','
+                    render 'select', label: block.settings.label, show_label_as_block: true, option_values: option_values, show_empty_value: true, name: name, alignment: alignment, form: product_form_id, required: block.settings.required
+                  endif
+                -%}
+              </div>
+            {%- endif -%}
+
+          {%- when 'inventory' -%}
+            {%- render 'inventory',
+                variant: product.selected_or_first_available_variant,
+                alignment: alignment,
+                show_in_stock_quantity: block.settings.show_in_stock_quantity,
+                show_progress_bar: block.settings.show_progress_bar,
+                progress_bar_max_value: block.settings.progress_bar_max_value,
+                low_threshold: block.settings.low_inventory_threshold
+            -%}
+
+          {%- when 'buy_buttons' -%}
+            {%- render 'buy-buttons',
+                product: product,
+                form_id: product_form_id,
+                show_quantity_selector: block.settings.show_quantity_selector,
+                add_quantity_selector_spacing: block.settings.add_quantity_selector_spacing,
+                show_payment_button: block.settings.show_payment_button,
+                show_gift_card_recipient: block.settings.show_gift_card_recipient,
+                atc_button_style: block.settings.atc_button_style,
+                atc_button_background: block.settings.atc_button_background,
+                atc_button_text_color: block.settings.atc_button_text_color,
+                payment_button_background: block.settings.payment_button_background,
+                payment_button_text_color: block.settings.payment_button_text_color
+            -%}
+
+          {%- when 'volume_pricing' -%}
+            {%- render 'volume-pricing-table', variant: product.selected_or_first_available_variant -%}
+
+          {%- when 'pickup_availability' -%}
+            {%- if product != blank -%}
+              {%- render 'pickup-availability', product_variant: product.selected_or_first_available_variant, alignment: alignment -%}
+            {%- endif -%}
+
+          {%- when 'complementary_products' -%}
+            <product-recommendations class="block" hidden product="{{ product.id }}" limit="{{ block.settings.products_count }}" intent="complementary">
+              {%- if recommendations.performed? and recommendations.intent == 'complementary' and recommendations.products_count > 0 -%}
+                {%- assign carousel_id = 'carousel-' | append: section.id | append: block.id -%}
+
+                <div class="v-stack gap-4">
+                  {%- if block.settings.title != blank or recommendations.products_count > 1 -%}
+                    <div class="h-stack justify-between">
+                      {%- if block.settings.title != blank -%}
+                        <p>{{ block.settings.title }}</p>
+                      {%- endif -%}
+
+                      {%- if recommendations.products_count > 2 -%}
+                        <div class="h-stack gap-2">
+                          <carousel-prev-button aria-controls="{{ carousel_id }}">
+                            <button type="button" disabled class="circle-button">
+                              <span class="sr-only">{{ 'general.accessibility.previous' | t }}</span>
+                              {%- render 'icon' with 'big-arrow-left', width: 9, direction_aware: true -%}
+                            </button>
+                          </carousel-prev-button>
+
+                          <carousel-next-button aria-controls="{{ carousel_id }}">
+                            <button type="button" class="circle-button">
+                              <span class="sr-only">{{ 'general.accessibility.next' | t }}</span>
+                              {%- render 'icon' with 'big-arrow-right', width: 9, direction_aware: true -%}
+                            </button>
+                          </carousel-next-button>
+                        </div>
+                      {%- endif -%}
+                    </div>
+                  {%- endif -%}
+
+                  <scroll-carousel id="{{ carousel_id }}" class="complementary-products complementary-products--vertical scroll-area bleed sm:unbleed snap-x">
+                    {%- for product in recommendations.products -%}
+                      {%- render 'product-cross-sell', product: product, layout: 'vertical', show_quick_buy: true -%}
+                    {%- endfor -%}
+                  </scroll-carousel>
+                </div>
+              {%- endif -%}
+            </product-recommendations>
+
+          {%- when 'text' -%}
+            {%- if block.settings.text != blank -%}
+              <div class="prose prose-justify-{{ alignment }}">
+                {{- block.settings.text -}}
+              </div>
+            {%- endif -%}
+
+          {%- when 'accordion' -%}
+            {%- liquid
+              assign accordion_title = block.settings.title | default: block.settings.page.title
+              assign accordion_content = block.settings.page.content | default: block.settings.content
+
+              if accordion_title != blank and accordion_content != blank
+                if block.settings.custom_icon != blank
+                  render 'accordion', title: accordion_title, custom_icon: block.settings.custom_icon, content: accordion_content, uppercase_title: block.settings.uppercase_title, prose_content: true, block: block
+                else
+                  render 'accordion', title: accordion_title, icon: block.settings.icon, content: accordion_content, uppercase_title: block.settings.uppercase_title, prose_content: true, block: block
+                endif
+              endif
+            -%}
+
+          {%- when 'liquid' -%}
+            {%- if block.settings.liquid != blank -%}
+              <div class="liquid">
+                {{- block.settings.liquid -}}
+              </div>
+            {%- endif -%}
+
+          {%- when 'offers' -%}
+            {%- render 'offers', block: block -%}
+
+          {%- when 'countdown' -%}
+            <div class="product-countdown" style="{% render 'surface', background: block.settings.background, text_color: block.settings.text_color %}">
+              {%- if block.settings.text != blank -%}
+                <p class="product-countdown__text text-start prose">{{ block.settings.text }}</p>
+              {%- endif -%}
+
+              <countdown-timer 
+                class="countdown-condensed__timer" 
+                role="timer" 
+                expires-at="{{ block.settings.expiration_date | date: '%FT%T%:z' | escape }}" 
+                expiration-behavior="{{ block.settings.expiration_behavior }}"
+                aria-label="{{ accessibility_text | escape }}" 
+              >
+                <div class="countdown-condensed__timer-item" aria-hidden="true">
+                  <countdown-timer-flip type="days" class="subheading bold">00</countdown-timer-flip>
+                  <span class="countdown-condensed__unit subheading subheading-xs">{{ 'sections.countdown_timer.days' | t }}</span>
+                  <span class="countdown-condensed__unit-short subheading subheading-xs">D</span>
+                </div>
+        
+                <span class="subheading subheading-xs" aria-hidden="true">:</span>
+        
+                <div class="countdown-condensed__timer-item" aria-hidden="true">
+                  <countdown-timer-flip type="hours" class="subheading bold">00</countdown-timer-flip>
+                  <span class="countdown-condensed__unit subheading subheading-xs">{{ 'sections.countdown_timer.hours' | t }}</span>
+                  <span class="countdown-condensed__unit-short subheading subheading-xs">H</span>
+                </div>
+        
+                <span class="subheading subheading-xs" aria-hidden="true">:</span>
+        
+                <div class="countdown-condensed__timer-item" aria-hidden="true">
+                  <countdown-timer-flip type="minutes" class="subheading bold">00</countdown-timer-flip>
+                  <span class="countdown-condensed__unit subheading subheading-xs">{{ 'sections.countdown_timer.minutes' | t }}</span>
+                  <span class="countdown-condensed__unit-short subheading subheading-xs">M</span>
+                </div>
+        
+                <span class="subheading subheading-xs" aria-hidden="true">:</span>
+        
+                <div class="countdown-condensed__timer-item" aria-hidden="true">
+                  <countdown-timer-flip type="seconds" class="subheading bold">00</countdown-timer-flip>
+                  <span class="countdown-condensed__unit subheading subheading-xs">{{ 'sections.countdown_timer.seconds' | t }}</span>
+                  <span class="countdown-condensed__unit-short subheading subheading-xs">S</span>
+                </div>
+              </countdown-timer>
+            </div>
+
+          {%- when 'urgency_timer' -%}
+            {%- assign duration_days = block.settings.duration_days | default: 3 -%}
+            {%- assign show_days = block.settings.show_days -%}
+
+            {%- assign bg_color        = block.settings.background        | default: '#fdf2f0' -%}
+            {%- assign border_color    = block.settings.border_color      | default: '#e8b4a8' -%}
+            {%- assign headline_color  = block.settings.headline_color    | default: '#b5605a' -%}
+            {%- assign dot_color       = block.settings.dot_color         | default: '#c27878' -%}
+            {%- assign tile_bg         = block.settings.tile_background   | default: '#c27878' -%}
+            {%- assign tile_text       = block.settings.tile_text_color   | default: '#ffffff' -%}
+            {%- assign colon_color     = block.settings.colon_color       | default: '#c27878' -%}
+
+            <div class="urgency-timer-block" id="utb-{{ block.id }}"
+              {{ block.shopify_attributes }}>
+
+              {%- if block.settings.headline != blank -%}
+                <p class="utb-headline">
+                  <span class="utb-dot" aria-hidden="true"></span>{{ block.settings.headline }}
+                </p>
+              {%- endif -%}
+
+              <div class="utb-display" role="timer" aria-label="{{ 'sections.countdown_timer.label' | t }}">
+
+                {%- if show_days -%}
+                  <div class="utb-block">
+                    <span class="utb-val" data-unit="days">00</span>
+                    <span class="utb-lbl">{{ 'sections.countdown_timer.days' | t }}</span>
+                  </div>
+                  <span class="utb-colon" aria-hidden="true">:</span>
+                {%- endif -%}
+
+                <div class="utb-block">
+                  <span class="utb-val" data-unit="hours">00</span>
+                  <span class="utb-lbl">{{ 'sections.countdown_timer.hours' | t }}</span>
+                </div>
+                <span class="utb-colon" aria-hidden="true">:</span>
+                <div class="utb-block">
+                  <span class="utb-val" data-unit="minutes">00</span>
+                  <span class="utb-lbl">{{ 'sections.countdown_timer.minutes' | t }}</span>
+                </div>
+                <span class="utb-colon" aria-hidden="true">:</span>
+                <div class="utb-block">
+                  <span class="utb-val" data-unit="seconds">00</span>
+                  <span class="utb-lbl">{{ 'sections.countdown_timer.seconds' | t }}</span>
+                </div>
+
+              </div>
+            </div>
+
+            <style>
+              #utb-{{ block.id }} {
+                background: {{ bg_color }};
+                border: 1.5px solid {{ border_color }};
+                border-radius: 10px;
+                padding: 10px;
+                text-align: center;
+                margin-bottom: 14px;
+              }
+              #utb-{{ block.id }} .utb-headline {
+                color: {{ headline_color }};
+                font-size: 13.5px;
+                font-style: italic;
+                line-height: 1.5;
+                margin: 0 0 14px;
+                font-weight: bold;
+              }
+              #utb-{{ block.id }} .utb-dot {
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                background: {{ dot_color }};
+                border-radius: 50%;
+                margin-right: 6px;
+                vertical-align: middle;
+                animation: utb-blink 1.4s infinite;
+              }
+              @keyframes utb-blink {
+                0%, 100% { opacity: 1; }
+                50%       { opacity: 0.2; }
+              }
+              #utb-{{ block.id }} .utb-display {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 6px;
+              }
+              #utb-{{ block.id }} .utb-block {
+                background: {{ tile_bg }};
+                color: {{ tile_text }};
+                border-radius: 8px;
+                padding: 5px;
+                min-width: 60px;
+              }
+              #utb-{{ block.id }} .utb-val {
+                display: block;
+                font-size: 15px;
+                font-weight: 700;
+                line-height: 1;
+                font-variant-numeric: tabular-nums;
+                letter-spacing: 1px;
+              }
+              #utb-{{ block.id }} .utb-lbl {
+                display: block;
+                font-size: 9px;
+                text-transform: uppercase;
+                letter-spacing: 1.2px;
+                opacity: 0.75;
+                margin-top: 5px;
+              }
+              #utb-{{ block.id }} .utb-colon {
+                color: {{ colon_color }};
+                font-size: 24px;
+                font-weight: 700;
+              }
+            </style>
+
+            <script>
+              (function () {
+                var id     = '{{ block.id }}';
+                var durMs  = {{ duration_days }} * 86400000;
+                var key = 'utb_end_' + id + '_' + {{ duration_days }};
+                var wrap   = document.getElementById('utb-' + id);
+                var showDays = {{ show_days }};
+                if (!wrap) return;
+
+                var end;
+                try {
+                  end = parseInt(localStorage.getItem(key) || '0', 10);
+                  if (!end || end <= Date.now()) {
+                    end = Date.now() + durMs;
+                    localStorage.setItem(key, end);
+                  }
+                } catch (e) {
+                  end = Date.now() + durMs;
+                }
+
+                function pad(n) { return String(Math.floor(n)).padStart(2, '0'); }
+
+                function tick() {
+                  var dist = end - Date.now();
+                  if (dist <= 0) {
+                    end = Date.now() + durMs;
+                    try { localStorage.setItem(key, end); } catch (e) {}
+                    dist = durMs;
+                  }
+
+                  if (showDays) {
+                    wrap.querySelector('[data-unit="days"]').textContent = pad(dist / 86400000);
+                  }
+
+                  var remainAfterDays = showDays ? dist % 86400000 : dist;
+
+                  wrap.querySelector('[data-unit="hours"]').textContent   = pad(remainAfterDays / 3600000);
+                  wrap.querySelector('[data-unit="minutes"]').textContent = pad((remainAfterDays % 3600000) / 60000);
+                  wrap.querySelector('[data-unit="seconds"]').textContent = pad((remainAfterDays % 60000) / 1000);
+                }
+
+                tick();
+                setInterval(tick, 1000);
+              })();
+            </script>
+
+          {%- when 'icons_with_text' -%}
+            {%- capture icons -%}
+              {%- for i in (1..4) -%}
+                {%- liquid
+                  assign icon_setting = 'icon_' | append: i
+                  assign icon_width_setting = 'icon_' | append: i | append: '_width'
+                  assign icon_text_setting = 'icon_' | append: i | append: '_text'
+                -%}
+
+                {%- if block.settings[icon_setting] != blank or block.settings[icon_text_setting] != blank -%}
+                  <div class="{% if block.settings.items_per_row == 3 %}v-stack gap-2.5 justify-items-center text-center{% else %}h-stack gap-3{% endif %}">
+                    {%- render 'icon', image: block.settings[icon_setting], width: block.settings[icon_width_setting] -%}
+                    {{- block.settings[icon_text_setting] -}}
+                  </div>
+                {%- endif -%}
+              {%- endfor -%}
+            {%- endcapture -%}
+
+            {%- if icons != blank -%}
+              <div class="grid grid-cols-{{ block.settings.items_per_row }} justify-{{ alignment }} gap-3">
+                {{- icons -}}
+              </div>
+            {%- endif -%}
+
+          {%- when 'modal' -%}
+            {%- if block.settings.button_title != blank or block.settings.modal_content != blank -%}
+              {%- assign modal_id = product_form_id | append: block.id -%}
+
+              {%- render 'button', content: block.settings.button_title, aria_controls: modal_id, style: block.settings.button_style, stretch: block.settings.stretch_button, background: block.settings.button_background, text_color: block.settings.button_text_color -%}
+
+              {%- if block.settings.dialog_type == 'modal' -%}
+                <x-modal id="{{ modal_id | escape }}" append-to-body class="modal modal--{{ block.settings.modal_size }} color-scheme color-scheme--{{ settings.default_color_scheme.id }}">
+                  <div class="prose prose-justify-{{ alignment }}">
+                    {% if block.settings.modal_title != blank %}
+                      <p class="h5">{{ block.settings.modal_title }}</p>
+                    {%- endif -%}
+
+                    <div class="text-start">
+                      {{- block.settings.modal_content -}}
+                    </div>
+                  </div>
+                </x-modal>
+              {%- else -%}
+                <x-drawer id="{{ modal_id | escape }}" append-to-body class="drawer {% if block.settings.modal_size == 'sm' %}drawer--narrow{% endif %} color-scheme color-scheme--{{ settings.default_color_scheme.id }}">
+                  {% if block.settings.modal_title != blank %}
+                    <span class="h5" slot="header">{{ block.settings.modal_title }}</span>
+                  {%- endif -%}
+
+                  <div class="prose prose-justify-{{ alignment }}">
+                    {{- block.settings.modal_content -}}
+                  </div>
+                </x-drawer>
+              {%- endif -%}
+            {%- endif -%}
+
+          {%- when 'image' -%}
+            {%- if block.settings.image != blank -%}
+              {%- assign image_alignment = block.settings.alignment | replace: 'left', 'start' | replace: 'right', 'end' -%}
+              {%- capture image_style_attribute -%}{% if image_alignment == 'center' %}margin-inline: auto;{% elsif image_alignment == 'end' %}margin-inline-start: auto;{% endif %}{%- endcapture -%}
+
+              {%- if block.settings.width_mode == 'custom' -%}
+                {%- capture image_style_attribute -%}{{ image_style_attribute }} --image-max-width: {{ block.settings.max_width }}px; --image-mobile-max-width: {{ block.settings.mobile_max_width }}px{%- endcapture -%}
+                {%- capture image_sizes_attribute -%}(max-width: 699px) min({{ block.settings.mobile_max_width }}px, 100vw), min({{ block.settings.max_width }}px, 100vw){%- endcapture -%}
+              {%- else -%}
+                {%- capture image_sizes_attribute -%}min(600px, 100vw){%- endcapture -%}
+                {%- capture image_style_attribute -%}width: 100%;{%- endcapture -%}
+              {%- endif -%}
+
+              {{- block.settings.image | image_url: width: block.settings.image.width | image_tag: loading: 'lazy', sizes: image_sizes_attribute, widths: '200,300,400,500,600,800,1000,1200,1400', class: 'constrained-image', style: image_style_attribute -}}
+            {%- endif -%}
+
+          {%- when 'button' -%}
+            {%- if block.settings.text != blank -%}
+              {%- render 'button', href: block.settings.link, content: block.settings.text, stretch: block.settings.stretch, style: block.settings.style, background: block.settings.background, text_color: block.settings.text_color -%}
+            {%- endif -%}
+
+          {%- when 'share_buttons' -%}
+            <share-button>
+              <button class="h-stack gap-2 justify-{{ alignment }} share-buttons--native" hidden>
+                <span class="subheading">{{- 'general.social.share' | t -}}</span>
+                {%- render 'icon' with 'share' -%}
+              </button>
+
+              <div class="h-stack gap-6 justify-{{ alignment }}">
+                <span class="subheading">{{- 'general.social.share' | t -}}</span>
+                {%- render 'share-buttons', url: product.url, title: product.title, description: product.description -%}
+              </div>
+            </share-button>
+        {%- endcase -%}
+      {%- endcapture -%}
+
+      {%- if allow_block_group and inside_block_group_context == false -%}
+        {%- assign inside_block_group_context = true -%}
+        <div class="product-info__block-group {{ block_group_class }}" data-group-type="{{ block_group_name }}">
+      {%- endif -%}
+
+      {%- liquid
+        assign block_types_allowing_partial_rerender = 'sku,badges,price,payment_terms,volume_pricing,variant_picker,inventory,buy_buttons,pickup_availability,liquid' | split: ','
+        assign allow_partial_rerender = false
+
+        if block_types_allowing_partial_rerender contains block.type
+          assign allow_partial_rerender = true
+        endif
+      -%}
+
+      <div class="product-info__block-item {{ block.type }}" data-block-id="{{ block.id }}" data-block-type="{{ block.type | replace: '_', '-' }}" {% if allow_partial_rerender %}data-block-allow-rerender{% endif %} {% unless block.type == '@app' or block.type == 'accordion' %}{{ block.shopify_attributes }}{% endunless %}>
+        {{- block_content -}}
+      </div>
+
+      {%- if inside_block_group_context and allow_block_group == false -%}
+        {%- assign inside_block_group_context = false -%}
+        </div>
+      {%- endif -%}
+    {%- endfor -%}
+
+    {%- if context == 'quick_buy' -%}
+      <a href="{{ product.url }}" class="link sm-max:hidden">{{ 'product.general.view_details' | t }}</a>
+    {%- endif -%}
+  </div>
+
+  {%- comment -%}
+    IMPLEMENTATION NOTE: under rare circumstances, merchant may want to show selectors to allow variant selection, but hide
+    the add to cart button. This is however problematic as product info is changed based on the form, so we create a default
+    one if no buy buttons exists
+  {%- endcomment -%}
+
+  {%- assign buy_buttons_block = section.blocks | where: 'type', 'buy_buttons' | first -%}
+
+  {%- unless buy_buttons_block != blank or product == blank -%}
+    {%- form 'product', product, id: product_form_id, hidden: true -%}
+      <input type="hidden" disabled name="id" value="{{ product.selected_or_first_available_variant.id }}">
+    {%- endform -%}
+  {%- endunless -%}
+</safe-sticky>
+
+{%- if product.metafields.custom.us_image != blank and product.metafields.custom.them_image != blank -%}
+  <section class="product-popup-section modal modal--age-verifier" handle-editor-events>
+    <div class="age-verifier__content product-compare-wrapper text-center color-scheme color-scheme--{{ section.settings.color_scheme.id }}">
+      <div class="mx-auto">
+        <div class="product-compare-modal">
+          <div class="popup-close-icon">
+            <svg
+              xmlns:xlink="http://www.w3.org/1999/xlink"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle cx="12" cy="12" r="12" fill="#FFFFFF"></circle>
+              <path d="M15.854 8.854L12.708 12L15.854 15.146C16.049 15.341 16.049 15.658 15.854 15.853C15.756 15.951 15.628 15.999 15.5 15.999C15.372 15.999 15.244 15.95 15.146 15.853L12 12.707L8.854 15.853C8.756 15.951 8.628 15.999 8.5 15.999C8.372 15.999 8.244 15.95 8.146 15.853C7.951 15.658 7.951 15.341 8.146 15.146L11.292 12L8.146 8.854C7.951 8.659 7.951 8.342 8.146 8.147C8.341 7.952 8.658 7.952 8.853 8.147L11.999 11.293L15.145 8.147C15.34 7.952 15.657 7.952 15.852 8.147C16.047 8.342 16.047 8.659 15.852 8.854H15.854ZM24 12C24 18.617 18.617 24 12 24C5.383 24 0 18.617 0 12C0 5.383 5.383 0 12 0C18.617 0 24 5.383 24 12ZM23 12C23 5.935 18.065 1 12 1C5.935 1 1 5.935 1 12C1 18.065 5.935 23 12 23C18.065 23 23 18.065 23 12Z" fill="#333333"></path>
+            </svg>
+          </div>
+          <div class="product-compare-modal-block">
+            <div class="product-compare-main-block">
+              <div class="product-compare-image-block">
+                <div class="us-image">
+                  {%- if product.metafields.custom.us_image != blank -%}
+                    <img
+                      src="{{ product.metafields.custom.us_image | img_url: 'master' }}"
+                      alt="{{ product.metafields.custom.us_image.alt }}"
+                    >
+                  {%- endif -%}
+                </div>
+                <div class="middle-text"></div>
+                <div class="them-image">
+                  {%- if product.metafields.custom.them_image != blank -%}
+                    <img
+                      src="{{ product.metafields.custom.them_image | img_url: 'master' }}"
+                      alt="{{ product.metafields.custom.them_image.alt }}"
+                    >
+                  {%- endif -%}
+                </div>
+              </div>
+              <div class="product-compare-content-block">
+                <div class="vs_desc_holder">
+                  {%- for i in (1..12) -%}
+                    {% assign usText = 'us_text_' | append: i %}
+                    {% assign vsText = 'vs_text_' | append: i %}
+                    {% assign themText = 'them_text_' | append: i %}
+                    {% assign usIcon = 'us_icon_' | append: i %}
+                    {% assign themIcon = 'them_icon_' | append: i %}
+                    {%- assign standard_product = product.metafields.custom.standard_version.value -%}
+                    {%- assign pro_product = product.metafields.custom.pro_version.value -%}
+
+                    {%- if product.metafields.custom[usText] != blank
+                      or product.metafields.custom[usIcon] != blank
+                      or product.metafields.custom[usText] != blank
+                      or product.metafields.custom[vsText] != blank
+                      or product.metafields.custom[themText] != blank
+                      or product.metafields.custom[themIcon] != blank
+                    -%}
+                      <div class="s_vs_desc{% if forloop.last %} buy-btn-block-item{% endif %}">
+                        {%- if product.metafields.custom[usText] != blank
+                          or product.metafields.custom[usIcon] != blank
+                        -%}
+                          <div class="us_desc{% if forloop.first %} rating-block{% endif %}">
+                            {% if forloop.first %}
+                              <div class="review-block">
+                                <div class="loox-rating" data-id="{{ standard_product.id }}" data-rating="{{ standard_product.metafields.loox.avg_rating }}" data-raters="{{ standard_product.metafields.loox.num_reviews }}" data-pattern="[count]"></div>
+                                {% comment %} {% if product.metafields.custom.standard_star_icon != blank %}
+                                  <img src="{{ product.metafields.custom.standard_star_icon | img_url: 'master' }}">
+                                {% endif %}
+                                <p>{{ product.metafields.custom.standard_prod_review_count }}</p> {% endcomment %}
+                              </div>
+                            {% elsif forloop.last %}
+                              <div class="product-buy-btn">
+                                {%- capture product_form_id -%}product-form-main-{{ product.id }}-{{ section.id }}{%- endcapture -%}
+                                {%- render 'buy-buttons', product: standard_product, form_id: product_form_id -%}
+                              </div>
+                            {% endif %}
+                            {%- if product.metafields.custom[usIcon] != blank -%}
+                              <img src="{{ product.metafields.custom[usIcon] | img_url: 'master' }}">
+                            {%- endif -%}
+                            <div class="us-text rte">{{ product.metafields.custom[usText] | metafield_tag }}</div>
+                            {% if forloop.first and product.metafields.custom.us_badge != blank %}
+                              <span class="badge_new">{{ product.metafields.custom.us_badge }}</span>
+                            {% endif %}
+                          </div>
+                        {%- endif -%}
+                        {%- if product.metafields.custom[vsText] != blank -%}
+                          <div class="vs_block">
+                            <span>{{ product.metafields.custom[vsText] }}</span>
+                          </div>
+                        {%- endif -%}
+                        {%- if product.metafields.custom[themText] != blank
+                          or product.metafields.custom[themIcon] != blank
+                        -%}
+                          <div class="them_desc{% if forloop.first %} rating-block{% endif %}">
+                            {% if forloop.first %}
+                              <div class="review-block">
+                                <div class="loox-rating" data-id="{{ pro_product.id }}" data-rating="{{ pro_product.metafields.loox.avg_rating }}" data-raters="{{ pro_product.metafields.loox.num_reviews }}" data-pattern="[count]"></div>
+                                {% comment %} {% if product.metafields.custom.pro_star_icon != blank %}
+                                  <img src="{{ product.metafields.custom.pro_star_icon | img_url: 'master' }}">
+                                {% endif %}
+                                <p>{{ product.metafields.custom.pro_prod_review_count }}</p> {% endcomment %}
+                              </div>
+                            {% elsif forloop.last %}
+                              <div class="product-buy-btn">
+                                {%- capture product_form_id -%}product-form-main-{{ product.id }}-{{ section.id }}{%- endcapture -%}
+                                {%- render 'buy-buttons', product: pro_product, form_id: product_form_id -%}
+                              </div>
+                            {% endif %}
+                            {%- if product.metafields.custom[themIcon] != blank -%}
+                              <img src="{{ product.metafields.custom[themIcon] | img_url: 'master' }}">
+                            {%- endif -%}
+                            <div class="them-text rte">{{ product.metafields.custom[themText] | metafield_tag }}</div>
+                            {% if forloop.first and product.metafields.custom.them_bagde != blank %}
+                              <span class="badge_new">{{ product.metafields.custom.them_bagde }}</span> 
+                            {% endif %}
+                          </div>
+                        {%- endif -%}
+                      </div>
+                    {%- endif -%}
+                  {%- endfor -%}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+{%- endif -%}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const openPopupLink = document.querySelector('.open-popup-link'); // link/button to open
+    const popupSection = document.querySelector('.product-popup-section'); // your popup section
+    const closeIcon = document.querySelector('.popup-close-icon');
+    const body = document.body;
+
+    // Function to open popup
+    function openPopup() {
+      popupSection.setAttribute('open', '');
+      body.style.overflow = 'hidden';
+    }
+
+    // Function to close popup
+    function closePopup() {
+      popupSection.removeAttribute('open');
+      body.style.overflow = '';
+    }
+
+    // Open on click of link
+    if (openPopupLink) {
+      openPopupLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        openPopup();
+      });
+    }
+
+    // Close on overlay click
+    if (popupSection) {
+      popupSection.addEventListener('click', function (e) {
+        if (e.target === popupSection) {
+          closePopup();
+        }
+      });
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && popupSection.hasAttribute('open')) {
+        closePopup();
+      }
+    });
+
+    // Close on close icon click
+    if (closeIcon) {
+      closeIcon.addEventListener('click', function () {
+        closePopup();
+      });
+    }
+
+    // Keep observing cart drawer and close popup if empty ---
+    const observer = new MutationObserver(function () {
+      const cartDrawer = document.querySelector('.shopify-section--cart-drawer');
+      if (cartDrawer && cartDrawer.children.length === 0) {
+        // Only close if popup is open
+        if (popupSection.hasAttribute('open')) {
+          closePopup();
+        }
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+</script>

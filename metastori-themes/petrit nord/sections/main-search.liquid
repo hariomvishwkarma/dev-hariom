@@ -1,0 +1,189 @@
+{% capture sold_out_products %}
+{%- if section.settings.show_sold_out_products -%}
+{%- paginate search.results by 120 -%}
+  {%- for result in search.results reversed -%}
+    {% unless result.tags contains "hide" %}
+      {% if result.available %}
+			{% break %}
+		{% else %}
+        {% assign temp = result.title | downcase %}
+        {% assign term = search.terms | downcase  %}
+        {% if temp contains term %}
+          <div class="Grid__Cell 1/2 1/3--tablet 1/3--lap-and-up grid-item">
+            {% include 'custom--product-item', product: result, show_sale_badge: section.settings.show_sale_badge %}
+          </div>
+        {% endif %}
+      {% endif %}
+    {% endunless %}
+  {%- endfor -%}
+{%- endpaginate -%}
+{%- endif -%}
+{% endcapture %}
+
+{%- capture search_faceted -%}
+  <div class="pn-collection-faceted" data-collection-faceted>
+    <div class="ProductListWrapper">
+      <div class="container">
+        {% render 'collection-discovery-filters',
+          filters: search.filters,
+          form_action: routes.search_url,
+          search_terms: search.terms,
+          search_type: 'product',
+          section: section
+        %}
+
+        <div data-discovery-results>
+          {%- if search.results_count > 0 -%}
+            {%- assign search_per_page = section.settings.products_per_page | default: 30 -%}
+            {%- paginate search.results by search_per_page -%}
+              <div class="ProductList ProductList--grid Grid product-grid" data-mobile-count="2" data-desktop-count="3">
+                {{ sold_out_products }}
+
+                {%- for result in search.results -%}
+                  {%- if result.object_type == 'product' -%}
+                    {%- if result.handle contains '-b-' -%}
+                      {%- continue -%}
+                    {%- endif -%}
+                    {%- if result.available == false and section.settings.show_sold_out_products == false -%}
+                      {%- continue -%}
+                    {%- endif -%}
+                    {% unless result.tags contains "hide" or result.tags contains "only-early-access" %}
+                      <div class="Grid__Cell 1/2 1/3--tablet 1/3--lap-and-up grid-item">
+                        {% include 'custom--product-item', product: result, show_sale_badge: section.settings.show_sale_badge %}
+                      </div>
+                    {% endunless %}
+                  {%- endif -%}
+                {%- endfor -%}
+              </div>
+
+              {%- if section.settings.scroll_load -%}
+                {%- if paginate.next -%}
+                  <div
+                    class="discovery-scroll-sentinel"
+                    data-discovery-scroll-load
+                    data-next-url="{{ paginate.next.url }}"
+                    aria-hidden="true"
+                  >
+                    <span class="discovery-scroll-sentinel__spinner" hidden></span>
+                  </div>
+                {%- endif -%}
+              {%- else -%}
+                {%- render 'pagination', paginate: paginate -%}
+              {%- endif -%}
+            {%- endpaginate -%}
+          {%- else -%}
+            <div class="EmptyState">
+              <div class="Container">
+                {%- assign filtered_terms = search.terms | replace: '*', '' -%}
+                <h1 class="EmptyState__Title Heading u-h5">{{ 'search.general.no_results_with_terms' | t: terms: filtered_terms }}</h1>
+                <a class="EmptyState__Action Button Button--primary" href="{{ routes.search_url }}?q={{ search.terms | url_encode }}&type=product">{{ 'collection.general.reset' | t }}</a>
+              </div>
+            </div>
+          {%- endif -%}
+        </div>
+      </div>
+    </div>
+  </div>
+{%- endcapture -%}
+
+<section data-section-id="{{ section.id }}" data-section-type="search">
+  {%- if search.performed == false -%}
+    <div class="EmptyState">
+      <div class="Container">
+        <h1 class="EmptyState__Title Heading u-h5">{{ 'search.general.title' | t }}</h1>
+        <p>{{ 'search.general.content' | t }}</p>
+        <div class="EmptyState__Action">
+          <form method="GET" action="{{ routes.search_url }}" class="Form">
+            <input class="Form__Input" type="text" name="q" autocomplete="off" autocorrect="off" aria-label="{{ 'search.general.input_placeholder' | t }}" placeholder="{{ 'search.general.input_placeholder' | t }}">
+            <input type="hidden" name="type" value="product">
+          </form>
+        </div>
+      </div>
+    </div>
+  {%- else -%}
+    <header class="PageHeader">
+      <div class="Container">
+        <div class="SectionHeader SectionHeader--center">
+          <h1 class="SectionHeader__Heading Heading u-h1">{{ 'search.general.title' | t }}</h1>
+
+          <div class="SectionHeader__Description">
+            {%- assign filtered_terms = search.terms | replace: '*', '' -%}
+            {{- 'search.general.results_with_terms_count' | t: count: "", terms: filtered_terms -}}
+          </div>
+        </div>
+      </div>
+    </header>
+
+    {%- if search.types contains 'product' or search.types.size == 0 -%}
+      {{- search_faceted -}}
+    {%- else -%}
+      {%- paginate search.results by 30 -%}
+        <div class="ArticleListWrapper">
+          <div class="ArticleList Grid Grid--m">
+            {%- for result in search.results -%}
+              <div class="Grid__Cell 1/2--tablet 1/3--lap-and-up">
+                {%- if result.object_type == 'article' -%}
+                  {%- render 'article-item', article: result -%}
+                {%- elsif result.object_type == 'page' -%}
+                  <article class="ArticleItem">
+                    <div class="ArticleItem__Content">
+                      <h2 class="ArticleItem__Title Heading u-h2">
+                        <a href="{{ result.url }}">{{ result.title }}</a>
+                      </h2>
+
+                      <p class="ArticleItem__Excerpt">{{ result.content | strip_html | truncate: 150 }}</p>
+                      <a href="{{ result.url }}" class="ArticleItem__Link Link Link--underline">{{ 'blog.article.read_more' | t }}</a>
+                    </div>
+                  </article>
+                {%- endif -%}
+              </div>
+            {%- endfor -%}
+          </div>
+        </div>
+
+        {%- render 'pagination', paginate: paginate -%}
+      {%- endpaginate -%}
+    {%- endif -%}
+  {%- endif -%}
+</section>
+
+<script src="{{ 'collection-discovery-filters.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Search results",
+  "settings": [
+    {
+      "type": "range",
+      "id": "products_per_page",
+      "label": "Products per page",
+      "min": 12,
+      "max": 60,
+      "step": 6,
+      "default": 30,
+      "info": "With Load more on scroll, this many products show first; the rest load as you scroll."
+    },
+    {
+      "type": "checkbox",
+      "id": "scroll_load",
+      "label": "Load more on scroll",
+      "info": "When on, products load continuously as you scroll. When off, classic page numbers are used.",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_sold_out_products",
+      "label": "Show sold out products",
+      "info": "When off, unavailable products are hidden from search results.",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_sale_badge",
+      "label": "Show sale badge",
+      "info": "When off, the Sale badge is not shown on product cards.",
+      "default": true
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,735 @@
+{% comment %}
+  Abonner nå — Unified subscription + one-time configurator block.
+  Renders inside main-product as bundle_subscription_unified.
+{% endcomment %}
+
+{{ 'abonera-unified-bundle-pdp.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'abonera-unified-bundle-pdp.js' | asset_url }}" defer="defer"></script>
+
+{%- liquid
+  assign value_display_mode = block.settings.value_display_mode | default: 'percent'
+  assign recommended_frequency = block.settings.recommended_frequency | default: 'Hver 4. mnd'
+
+  assign type_product_1 = block.settings.type_product_1 | default: product
+  assign type_product_2 = block.settings.type_product_2
+  assign type_product_3 = block.settings.type_product_3
+
+  assign size_option_index = -1
+  assign pack_option_index = -1
+
+  for option in product.options_with_values
+    assign opt_name = option.name | downcase
+    if opt_name contains 'størrelse' or opt_name contains 'storrelse' or opt_name contains 'size'
+      assign size_option_index = forloop.index0
+      assign size_option_name = option.name
+    elsif opt_name contains 'pakke' or opt_name contains 'pack' or opt_name contains 'antall'
+      assign pack_option_index = forloop.index0
+      assign pack_option_name = option.name
+    endif
+  endfor
+
+  assign default_pack_setting = block.settings.default_pack_value | strip
+  assign default_pack_setting_down = default_pack_setting | downcase
+  assign default_pack_match_qty = default_pack_setting | downcase | replace: 'par', '' | replace: 'pack', '' | replace: '-', '' | strip | plus: 0
+
+  assign default_size_setting = block.settings.default_size_value | strip
+  assign default_size_key = default_size_setting | downcase | replace: '–', '-' | replace: '—', '-' | replace: ' ', ''
+
+  assign hidden_pack_raw = block.settings.hidden_pack_values | split: ','
+  assign hidden_pack_tokens = ''
+  for token in hidden_pack_raw
+    assign t = token | strip | downcase
+    if t != blank
+      assign hidden_pack_tokens = hidden_pack_tokens | append: '|' | append: t
+    endif
+  endfor
+
+  assign bundle_pack_default_active = false
+  assign bundle_size_default_active = false
+  if template.suffix == 'bundle-product' or template.name == 'product.bundle-product' or template.suffix == 'bundle-product-1'
+    if default_pack_setting != blank
+      assign bundle_pack_default_active = true
+    endif
+    if default_size_setting != blank
+      assign bundle_size_default_active = true
+    endif
+  endif
+
+  assign current_variant = selected_variant | default: product.selected_or_first_available_variant
+
+  assign value_percent_txt = 'Spar __PERCENT__%'
+  assign value_nok_saved_txt = 'spar __SAVED__ kr'
+  assign value_per_pair_txt = '__PER_PAIR__ kr per par'
+  assign cta_label = 'Legg i handlekurv'
+  assign cta_suffix_tpl = ' – __PRICE__'
+
+  assign selected_color = block.settings.selected_color | default: '#151515'
+  assign selected_color_soft = selected_color | color_modify: 'alpha', 0.12
+  assign badge_bg = block.settings.badge_bg
+  assign abp__pack_value = block.settings.abp__pack_value
+  assign sock_bg = block.settings.sock_bg | default: '#7da5ac'
+
+  assign review_stars = block.settings.review_star_count | default: 4
+  assign type_slots = '1,2,3' | split: ','
+
+  # Pack pricing anchor. Every pack card is compared against the full price of
+  # the base pack (5 par) multiplied by how many base packs it contains, so a
+  # 10 par card anchors to 5 par full price x 2 and 15 par to x 3.
+  assign base_pack_qty = block.settings.base_pack_qty | default: 5 | plus: 0
+  if base_pack_qty <= 0
+    assign base_pack_qty = 5
+  endif
+  assign base_pack_full_price = block.settings.base_pack_full_price | default: '' | strip
+
+  comment
+    Step 4 frequency allowlist.
+    Setting format is one option per line: "3675881562 : Hver 4. måned".
+    Only the selling plan IDs listed here are rendered, in this exact order,
+    using the Norwegian label after the colon. Leave the setting empty to fall
+    back to showing every selling plan attached to the product.
+  endcomment
+  assign freq_map_setting = block.settings.frequency_plan_map | default: '' | strip
+  assign freq_ids = ''
+  assign freq_labels = ''
+  assign freq_filter_active = false
+
+  if freq_map_setting != blank
+    assign freq_lines = freq_map_setting | newline_to_br | split: '<br />'
+    for freq_line in freq_lines
+      assign freq_line_clean = freq_line | strip
+      if freq_line_clean == blank
+        continue
+      endif
+
+      assign freq_parts = freq_line_clean | split: ':'
+      assign freq_id = freq_parts[0] | strip | replace: '#', '' | strip
+      if freq_id == blank
+        continue
+      endif
+
+      assign freq_label = ''
+      for freq_part in freq_parts offset: 1
+        if forloop.first
+          assign freq_label = freq_part
+        else
+          assign freq_label = freq_label | append: ':' | append: freq_part
+        endif
+      endfor
+      assign freq_label = freq_label | strip
+      if freq_label == blank
+        assign freq_label = '__PLANNAME__'
+      endif
+
+      assign freq_ids = freq_ids | append: freq_id | append: ','
+      assign freq_labels = freq_labels | append: freq_label | append: '~'
+      assign freq_filter_active = true
+    endfor
+  endif
+
+  assign freq_ids_arr = freq_ids | split: ','
+  assign freq_labels_arr = freq_labels | split: '~'
+
+  assign recommended_frequency_key = recommended_frequency | strip | replace: '#', '' | strip | downcase
+-%}
+
+<unified-bundle-pdp-widget
+  id="UnifiedBundlePDP-{{ section.id }}-{{ block.id }}"
+  class="abu"
+  style="--abu-selected: {{ selected_color }}; --abu-selected-soft: {{ selected_color_soft }}; --abu-badge-bg: {{ badge_bg }}; --abu-pack-value: {{ abp__pack_value }}; --abu-sock-bg: {{ sock_bg }};"
+  data-section-id="{{ section.id }}"
+  data-section-api-id="{{ section.id }}"
+  data-product-id="{{ product.id }}"
+  data-product-handle="{{ product.handle }}"
+  data-form-id="{{ product_form_id }}"
+  data-size-index="{{ size_option_index }}"
+  data-pack-index="{{ pack_option_index }}"
+  data-size-option-name="{{ size_option_name | escape }}"
+  data-pack-option-name="{{ pack_option_name | escape }}"
+  data-value-mode="{{ value_display_mode }}"
+  data-recommended-frequency="{{ recommended_frequency | escape }}"
+  data-recommended-label="{{ block.settings.recommended_label | escape }}"
+  data-recurring-pack-qty="{{ block.settings.recurring_pack_qty | default: '5' | escape }}"
+  data-recurring-pack-price="{{ block.settings.recurring_pack_price | default: '299' | escape }}"
+  data-sticky-buy-label="{{ block.settings.sticky_buy_label | default: 'Kjøp' | escape }}"
+  data-bundle-pack-default="{% if bundle_pack_default_active %}true{% else %}false{% endif %}"
+  data-default-pack-qty="{{ default_pack_match_qty }}"
+  data-default-pack-value="{{ default_pack_setting | escape }}"
+  data-bundle-size-default="{% if bundle_size_default_active %}true{% else %}false{% endif %}"
+  data-default-size-value="{{ default_size_setting | escape }}"
+  data-base-pack-qty="{{ base_pack_qty }}"
+  data-base-pack-full-price="{{ base_pack_full_price }}"
+  data-show-pack-compare="{% if block.settings.show_pack_compare %}true{% else %}false{% endif %}"
+  {{ block.shopify_attributes }}
+>
+  {%- comment -%} Social proof {%- endcomment -%}
+  {% if block.settings.sold_tag != blank %}
+    <p class="abu__soldtag">{{ block.settings.sold_tag }}</p>
+  {% endif %}
+  {% if block.settings.review_quote != blank %}
+    <p class="abu__quote">
+      {{ block.settings.review_count }}
+      <span class="abu__quote-stars" aria-hidden="true">
+        {%- for i in (1..review_stars) -%}★{%- endfor -%}
+      </span>
+      {{ block.settings.review_quote }}
+      {% if block.settings.review_author != blank %} – {{ block.settings.review_author }}{% endif %}
+    </p>
+  {% endif %}
+  {%- comment -%} USP rows {%- endcomment -%}
+  <div class="abu__usps">
+    {% if block.settings.usp_1_text != blank %}
+      <p class="abu__usp">
+        {% if block.settings.usp_1_icon_svg != blank %}
+          <span class="abu__usp-icon abu__usp-icon--svg" aria-hidden="true">{{ block.settings.usp_1_icon_svg }}</span>
+        {% elsif block.settings.usp_1_icon != blank %}
+          <span class="abu__usp-icon abu__usp-icon--text" aria-hidden="true">{{ block.settings.usp_1_icon }}</span>
+        {% endif %}
+        <span>{{ block.settings.usp_1_text }}</span>
+      </p>
+    {% endif %}
+    {% if block.settings.usp_2_text != blank %}
+      <p class="abu__usp">
+        {% if block.settings.usp_2_icon_svg != blank %}
+          <span class="abu__usp-icon abu__usp-icon--svg" aria-hidden="true">{{ block.settings.usp_2_icon_svg }}</span>
+        {% elsif block.settings.usp_2_icon != blank %}
+          <span class="abu__usp-icon abu__usp-icon--text" aria-hidden="true">{{ block.settings.usp_2_icon }}</span>
+        {% endif %}
+        <span>{{ block.settings.usp_2_text }}</span>
+      </p>
+    {% endif %}
+    {% if block.settings.usp_3_text != blank %}
+      <p class="abu__usp">
+        {% if block.settings.usp_3_icon_svg != blank %}
+          <span class="abu__usp-icon abu__usp-icon--svg" aria-hidden="true">{{ block.settings.usp_3_icon_svg }}</span>
+        {% elsif block.settings.usp_3_icon != blank %}
+          <span class="abu__usp-icon abu__usp-icon--text" aria-hidden="true">{{ block.settings.usp_3_icon }}</span>
+        {% endif %}
+        <span>{{ block.settings.usp_3_text }}</span>
+      </p>
+    {% endif %}
+  </div>
+
+  <script type="application/json" class="abu__variant-data">
+    [
+      {%- for v in product.variants -%}
+        {
+          "id": {{ v.id }},
+          "available": {{ v.available }},
+          "price": {{ v.price }},
+          "compare_at_price": {{ v.compare_at_price | default: 0 }},
+          "options": {{ v.options | json }},
+          {%- assign variant_image = v.featured_image | default: product.featured_image -%}
+          "image": {% if variant_image %}{{ variant_image | image_url: width: 320 | json }}{% else %}null{% endif %},
+          "image_alt": {{ variant_image.alt | default: product.title | escape | json }},
+          "selling_plan_allocations": [
+            {%- assign alloc_rendered = 0 -%}
+            {%- for a in v.selling_plan_allocations -%}
+              {%- liquid
+                assign a_id_str = a.selling_plan.id | append: ''
+                assign a_allowed = true
+                assign a_display = a.selling_plan.name
+                assign a_sort = 999
+
+                if freq_filter_active
+                  assign a_allowed = false
+                  for f_id in freq_ids_arr
+                    if f_id == a_id_str
+                      assign a_allowed = true
+                      assign a_sort = forloop.index0
+                      assign a_label = freq_labels_arr[forloop.index0]
+                      if a_label != '__PLANNAME__'
+                        assign a_display = a_label
+                      endif
+                      break
+                    endif
+                  endfor
+                endif
+              -%}
+              {%- if a_allowed -%}
+                {%- if alloc_rendered > 0 %},{% endif -%}
+                {%- assign alloc_rendered = alloc_rendered | plus: 1 -%}
+                {
+                  "selling_plan_id": {{ a.selling_plan.id }},
+                  "selling_plan_name": {{ a_display | json }},
+                  "selling_plan_raw_name": {{ a.selling_plan.name | json }},
+                  "sort_order": {{ a_sort }},
+                  "price": {{ a.price }},
+                  "compare_at_price": {{ a.compare_at_price | default: v.price }}
+                }
+              {%- endif -%}
+            {%- endfor -%}
+          ]
+        }{% unless forloop.last %},{% endunless %}
+      {%- endfor -%}
+    ]
+  </script>
+
+  <script type="application/json" class="abu__frequency-map">
+    [
+      {%- if freq_filter_active -%}
+        {%- for f_id in freq_ids_arr -%}
+          {%- assign f_label = freq_labels_arr[forloop.index0] -%}
+          {
+            "id": {{ f_id | json }},
+            "label": {% if f_label == '__PLANNAME__' %}""{% else %}{{ f_label | json }}{% endif %}
+          }{% unless forloop.last %},{% endunless %}
+        {%- endfor -%}
+      {%- endif -%}
+    ]
+  </script>
+
+  <script type="application/json" class="abu__type-products">
+    [
+      {%- assign type_json_first = true -%}
+      {%- if type_product_1 != blank -%}
+        {%- unless type_json_first -%},{%- endunless -%}
+        {%- assign type_json_first = false -%}
+        {
+          "id": {{ type_product_1.id }},
+          "handle": {{ type_product_1.handle | json }},
+          "url": {{ type_product_1.url | json }},
+          "title": {{ type_product_1.title | json }},
+          "variants": [
+            {%- for v in type_product_1.variants -%}
+              {
+                "id": {{ v.id }},
+                "available": {{ v.available }},
+                "options": {{ v.options | json }}
+              }{% unless forloop.last %},{% endunless %}
+            {%- endfor -%}
+          ]
+        }
+      {%- endif -%}
+      {%- if type_product_2 != blank -%}
+        {%- unless type_json_first -%},{%- endunless -%}
+        {%- assign type_json_first = false -%}
+        {
+          "id": {{ type_product_2.id }},
+          "handle": {{ type_product_2.handle | json }},
+          "url": {{ type_product_2.url | json }},
+          "title": {{ type_product_2.title | json }},
+          "variants": [
+            {%- for v in type_product_2.variants -%}
+              {
+                "id": {{ v.id }},
+                "available": {{ v.available }},
+                "options": {{ v.options | json }}
+              }{% unless forloop.last %},{% endunless %}
+            {%- endfor -%}
+          ]
+        }
+      {%- endif -%}
+      {%- if type_product_3 != blank -%}
+        {%- unless type_json_first -%},{%- endunless -%}
+        {
+          "id": {{ type_product_3.id }},
+          "handle": {{ type_product_3.handle | json }},
+          "url": {{ type_product_3.url | json }},
+          "title": {{ type_product_3.title | json }},
+          "variants": [
+            {%- for v in type_product_3.variants -%}
+              {
+                "id": {{ v.id }},
+                "available": {{ v.available }},
+                "options": {{ v.options | json }}
+              }{% unless forloop.last %},{% endunless %}
+            {%- endfor -%}
+          ]
+        }
+      {%- endif -%}
+    ]
+  </script>
+
+  <script type="application/json" class="abu__copy">
+    {
+      "value_modes": {
+        "percent":   {{ value_percent_txt   | json }},
+        "nok_saved": {{ value_nok_saved_txt | json }},
+        "per_pair":  {{ value_per_pair_txt  | json }}
+      },
+      "cta_label": {{ cta_label | json }},
+      "cta_suffix_template": {{ cta_suffix_tpl | json }},
+      "packs": {
+        "1": {
+          "badge": {{ block.settings.pack_one_badge | json }},
+          "value_subscription": {{ block.settings.pack_one_value_subscription | json }}
+        },
+        "2": {
+          "badge": {{ block.settings.pack_two_badge | json }},
+          "value_subscription": {{ block.settings.pack_two_value_subscription | json }}
+        },
+        "3": {
+          "badge": {{ block.settings.pack_three_badge | json }},
+          "value_subscription": {{ block.settings.pack_three_value_subscription | json }}
+        }
+      }
+    }
+  </script>
+
+  {%- comment -%} STEP 1 — Sock type {%- endcomment -%}
+  <div class="abu__step"><span class="abu__step-no">1</span> {{ block.settings.step_1_label | default: 'Velg sokketype' }}</div>
+  <div class="abu__typecards">
+    {%- for slot in type_slots -%}
+      {%- liquid
+        assign slot_num = slot | plus: 0
+        assign tp = nil
+        assign type_label = ''
+        assign type_custom_image = nil
+        if slot_num == 1
+          assign tp = type_product_1
+          assign type_label = block.settings.type_label_1
+          assign type_custom_image = block.settings.type_image_1
+        elsif slot_num == 2
+          assign tp = type_product_2
+          assign type_label = block.settings.type_label_2
+          assign type_custom_image = block.settings.type_image_2
+        else
+          assign tp = type_product_3
+          assign type_label = block.settings.type_label_3
+          assign type_custom_image = block.settings.type_image_3
+        endif
+      -%}
+      {%- if tp != blank -%}
+        {%- liquid
+          assign is_current_type = false
+          if tp.id == product.id
+            assign is_current_type = true
+          endif
+          if type_label == blank
+            assign type_label = tp.title
+          endif
+          assign type_card_variant = tp.selected_or_first_available_variant
+          assign type_card_image = type_card_variant.featured_image | default: tp.featured_image
+          assign type_card_image_alt = type_card_image.alt | default: type_label
+          if type_custom_image != blank
+            assign type_card_image = type_custom_image
+            assign type_card_image_alt = type_custom_image.alt | default: type_label
+          endif
+        -%}
+        <button
+          type="button"
+          class="abu__tcard{% if is_current_type %} is-selected{% endif %}"
+          data-type-card
+          data-product-handle="{{ tp.handle }}"
+          data-type-label="{{ type_label | escape }}"
+          aria-pressed="{% if is_current_type %}true{% else %}false{% endif %}"
+        >
+          <div class="abu__tcard-img">
+            {% if type_card_image %}
+              {{
+                type_card_image
+                | image_url: width: 240
+                | image_tag:
+                  class: 'abu__tcard-photo',
+                  loading: 'lazy',
+                  widths: '120, 180, 240',
+                  sizes: '120px',
+                  alt: type_card_image_alt
+              }}
+            {% endif %}
+          </div>
+          <div class="abu__tcard-label">{{ type_label }}</div>
+        </button>
+      {%- endif -%}
+    {%- endfor -%}
+  </div>
+
+  {%- comment -%} STEP 2 — Size {%- endcomment -%}
+  {% if size_option_index >= 0 %}
+    {% assign size_option = product.options_with_values[size_option_index] %}
+    <div class="abu__step"><span class="abu__step-no">2</span> {{ block.settings.step_2_label | default: 'Velg størrelse' }}</div>
+    <fieldset class="abu__group" data-group="size">
+      <legend class="visually-hidden">{{ size_option_name }}</legend>
+      <div class="abu__pills abu__pills--size">
+        {% for value in size_option.values %}
+          {% assign input_id = 'abu-size-' | append: section.id | append: '-' | append: block.id | append: '-' | append: forloop.index %}
+          {% assign size_value_key = value | downcase | replace: '–', '-' | replace: '—', '-' | replace: ' ', '' %}
+          {% assign size_checked = false %}
+          {% if product.selected_variant == blank and bundle_size_default_active %}
+            {% if size_value_key == default_size_key %}
+              {% assign size_checked = true %}
+            {% endif %}
+          {% elsif value == current_variant.options[size_option_index] %}
+            {% assign size_checked = true %}
+          {% endif %}
+          <input
+            type="radio"
+            name="abu-size-{{ section.id }}-{{ block.id }}"
+            id="{{ input_id }}"
+            value="{{ value | escape }}"
+            class="abu__radio"
+            data-proxy-option="size"
+            {% if size_checked %}checked{% endif %}
+          >
+          <label for="{{ input_id }}" class="abu__pill">{{ value }}</label>
+        {% endfor %}
+      </div>
+    </fieldset>
+  {% endif %}
+
+  {%- comment -%} STEP 3 — Startpakke {%- endcomment -%}
+  {% if pack_option_index >= 0 %}
+    {% assign pack_option = product.options_with_values[pack_option_index] %}
+    <div class="abu__step"><span class="abu__step-no">3</span> {{ block.settings.step_3_label | default: 'Velg startpakke' }}</div>
+    {% if block.settings.pack_subheading != blank %}
+      <p class="abu__subheading">{{ block.settings.pack_subheading }}</p>
+    {% endif %}
+    <fieldset class="abu__group" data-group="pack">
+      <legend class="visually-hidden">{{ pack_option_name }}</legend>
+      <div class="abu__packgrid">
+        {% assign visible_pack_slot = 0 %}
+        {% for value in pack_option.values %}
+          {%- liquid
+            assign pack_num_str = value
+            assign pack_num = pack_num_str | replace: 'par', '' | replace: 'pack', '' | replace: '-', '' | strip | plus: 0
+            assign pack_value_down = value | downcase | strip
+            assign pack_hidden = false
+            for token in hidden_pack_raw
+              assign t = token | strip | downcase
+              if t == blank
+                continue
+              endif
+              assign t_qty = t | replace: 'par', '' | replace: 'pack', '' | strip | plus: 0
+              if pack_value_down == t or pack_num == t_qty
+                assign pack_hidden = true
+                break
+              endif
+            endfor
+          -%}
+          {% if pack_hidden %}
+            {% continue %}
+          {% endif %}
+
+          {% assign visible_pack_slot = visible_pack_slot | plus: 1 %}
+          {%- liquid
+            assign pack_slot = visible_pack_slot
+            assign pack_badge = ''
+            if pack_slot == 1
+              assign pack_badge = block.settings.pack_one_badge
+            elsif pack_slot == 2
+              assign pack_badge = block.settings.pack_two_badge
+            elsif pack_slot == 3
+              assign pack_badge = block.settings.pack_three_badge
+            endif
+            assign badge_outline = false
+            if pack_badge == 'Beste verdi'
+              assign badge_outline = true
+            endif
+
+            assign input_id = 'abu-pack-' | append: section.id | append: '-' | append: block.id | append: '-' | append: forloop.index
+            assign is_checked = false
+            if bundle_pack_default_active
+              if default_pack_match_qty > 0 and pack_num == default_pack_match_qty
+                assign is_checked = true
+              elsif value == default_pack_setting or pack_value_down == default_pack_setting_down
+                assign is_checked = true
+              endif
+            endif
+            if is_checked == false and value == current_variant.options[pack_option_index]
+              assign is_checked = true
+            endif
+
+            assign pack_thumb_variant = nil
+            for v in product.variants
+              if v.options[pack_option_index] != value
+                continue
+              endif
+              assign thumb_match = true
+              if size_option_index >= 0 and v.options[size_option_index] != current_variant.options[size_option_index]
+                assign thumb_match = false
+              endif
+              if thumb_match
+                assign pack_thumb_variant = v
+                break
+              endif
+            endfor
+
+            if pack_thumb_variant
+              assign pack_thumb_image = pack_thumb_variant.featured_image | default: product.featured_image
+            else
+              assign pack_thumb_image = product.featured_image
+            endif
+          -%}
+          <input
+            type="radio"
+            name="abu-pack-{{ section.id }}-{{ block.id }}"
+            id="{{ input_id }}"
+            value="{{ value | escape }}"
+            data-pack-quantity="{{ pack_num }}"
+            data-pack-slot="{{ pack_slot }}"
+            class="abu__radio"
+            data-proxy-option="pack"
+            {% if is_checked %}checked{% endif %}
+          >
+          <label for="{{ input_id }}" class="abu__pcard{% if pack_badge != blank %} abu__pcard--popular{% endif %}">
+            {% if pack_badge != blank %}
+              <span class="abu__pcard-badge{% if badge_outline %} abu__pcard-badge--outline{% endif %}">{{ pack_badge }}</span>
+            {% endif %}
+            <div class="abu__pimg" data-pack-media {% unless pack_thumb_image %}hidden{% endunless %}>
+              <img
+                class="abu__pcard-photo"
+                data-pack-image
+                {% if pack_thumb_image %}
+                  src="{{ pack_thumb_image | image_url: width: 240 }}"
+                  srcset="{{ pack_thumb_image | image_url: width: 120 }} 120w, {{ pack_thumb_image | image_url: width: 240 }} 240w"
+                  sizes="120px"
+                  alt="{{ pack_thumb_image.alt | default: value | escape }}"
+                  width="120"
+                  height="120"
+                  loading="lazy"
+                {% endif %}
+              >
+            </div>
+            <div class="abu__pcard-name">{{ value }}</div>
+            <div class="abu__pcard-compare" data-pack-compare hidden></div>
+            <div class="abu__pcard-price" data-pack-price></div>
+            <div class="abu__pcard-save" data-pack-save>&nbsp;</div>
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    {% if block.settings.future_deliveries_line != blank %}
+      <div class="abu__future" data-future-deliveries>
+        {{ block.settings.future_deliveries_line }}
+      </div>
+    {% endif %}
+  {% endif %}
+
+  {%- comment -%} STEP 4 — Frequency (this template is subscription-only) {%- endcomment -%}
+  <div class="abu__frequency" data-frequency-wrap>
+    <div class="abu__step"><span class="abu__step-no">4</span> {{ block.settings.step_5_label | default: 'Hvor ofte vil du ha påfyll?' }}</div>
+    <div class="abu__pills abu__frequency-options">
+      {%- if freq_filter_active -%}
+        {%- comment -%} Allowlisted plans only, in the order set in the theme editor. {%- endcomment -%}
+        {%- for f_id in freq_ids_arr -%}
+          {%- liquid
+            assign f_label = freq_labels_arr[forloop.index0]
+            assign f_index = forloop.index
+            assign f_alloc = nil
+            for allocation in current_variant.selling_plan_allocations
+              assign alloc_id_str = allocation.selling_plan.id | append: ''
+              if alloc_id_str == f_id
+                assign f_alloc = allocation
+                break
+              endif
+            endfor
+          -%}
+          {%- if f_alloc -%}
+            {%- liquid
+              assign f_raw_name = f_alloc.selling_plan.name | strip
+              if f_label == '__PLANNAME__'
+                assign f_display = f_raw_name
+              else
+                assign f_display = f_label
+              endif
+
+              assign input_id = 'abu-freq-' | append: section.id | append: '-' | append: block.id | append: '-' | append: f_index
+
+              assign f_id_key = f_id | strip | downcase
+              assign f_display_key = f_display | strip | downcase
+              assign f_raw_key = f_raw_name | strip | downcase
+
+              assign is_recommended = false
+              if recommended_frequency_key != blank
+                if recommended_frequency_key == f_id_key or recommended_frequency_key == f_display_key or recommended_frequency_key == f_raw_key
+                  assign is_recommended = true
+                endif
+              endif
+            -%}
+            <input
+              type="radio"
+              name="abu-frequency-{{ section.id }}-{{ block.id }}"
+              id="{{ input_id }}"
+              value="{{ f_alloc.selling_plan.id }}"
+              data-plan-name="{{ f_display | escape }}"
+              data-plan-raw-name="{{ f_raw_name | escape }}"
+              class="abu__radio"
+              {% if is_recommended %}checked{% endif %}
+            >
+            <label for="{{ input_id }}" class="abu__pill">
+              {% if is_recommended and block.settings.recommended_label != blank %}
+                <span class="abu__pill-pop">{{ block.settings.recommended_label }}</span>
+              {% endif %}
+              {{ f_display }}
+            </label>
+          {%- endif -%}
+        {%- endfor -%}
+      {%- else -%}
+        {%- comment -%} No allowlist configured - fall back to every attached plan. {%- endcomment -%}
+        {% assign rendered_plans = '' %}
+        {% for allocation in current_variant.selling_plan_allocations %}
+          {% assign plan_name = allocation.selling_plan.name | strip %}
+          {% unless rendered_plans contains plan_name %}
+            {% assign rendered_plans = rendered_plans | append: '|' | append: plan_name %}
+            {% assign input_id = 'abu-freq-' | append: section.id | append: '-' | append: block.id | append: '-' | append: forloop.index %}
+            {% assign is_recommended = false %}
+            {% if plan_name == recommended_frequency %}
+              {% assign is_recommended = true %}
+            {% endif %}
+            <input
+              type="radio"
+              name="abu-frequency-{{ section.id }}-{{ block.id }}"
+              id="{{ input_id }}"
+              value="{{ allocation.selling_plan.id }}"
+              data-plan-name="{{ plan_name | escape }}"
+              data-plan-raw-name="{{ plan_name | escape }}"
+              class="abu__radio"
+              {% if is_recommended %}checked{% endif %}
+            >
+            <label for="{{ input_id }}" class="abu__pill">
+              {% if is_recommended and block.settings.recommended_label != blank %}
+                <span class="abu__pill-pop">{{ block.settings.recommended_label }}</span>
+              {% endif %}
+              {{ plan_name }}
+            </label>
+          {% endunless %}
+        {% endfor %}
+      {%- endif -%}
+    </div>
+    {% if block.settings.frequency_reassurance != blank %}
+      <p class="abu__freq-reassure">
+        <span aria-hidden="true"></span>
+        <span>{{ block.settings.frequency_reassurance }}</span>
+      </p>
+    {% endif %}
+    {% if block.settings.trust_richtext != blank %}
+      <div class="abu__trust">
+        {{ block.settings.trust_richtext }}
+      </div>
+    {% endif %}
+  </div>
+
+  {%- comment -%} Order summary {%- endcomment -%}
+  {% if block.settings.show_order_summary %}
+    <div class="abu__summary" data-order-summary>
+      <div class="abu__summary-row">
+        <span>{{ block.settings.summary_today_label | default: 'Du får i dag' }}</span>
+        <b data-summary-today>—</b>
+      </div>
+      <div class="abu__summary-row" data-summary-refill-row>
+        <span>{{ block.settings.summary_refill_label | default: 'Påfyll deretter' }}</span>
+        <b class="abu__summary-rec" data-summary-refill>—</b>
+      </div>
+      <div class="abu__summary-row last-child">
+        <span>{{ block.settings.summary_shipping_label | default: 'Frakt' }}</span>
+        <b class="abu__summary-rec">{{ block.settings.summary_shipping_value | default: 'Alltid gratis' }}</b>
+      </div>
+      <div class="abu__summary-div"></div>
+      <div class="abu__summary-row abu__summary-total">
+        <span><b>{{ block.settings.summary_total_label | default: 'Å betale i dag' }}</b></span>
+        <b data-summary-total>—</b>
+      </div>
+    </div>
+  {% endif %}
+
+  
+</unified-bundle-pdp-widget>
+
+<div class="abu-sticky" data-abu-sticky="UnifiedBundlePDP-{{ section.id }}-{{ block.id }}">
+  <div class="abu-sticky__price">
+    <span data-abu-sticky-price>—</span>
+    <small class="abu-sticky__sub" data-abu-sticky-sub></small>
+  </div>
+  <button type="button" class="abu-sticky__btn" data-abu-sticky-btn>{{ block.settings.sticky_buy_label | default: 'Kjøp' }}</button>
+</div>

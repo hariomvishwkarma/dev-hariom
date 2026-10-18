@@ -1,0 +1,285 @@
+{{ 'kavalio-wishlist.css' | asset_url | stylesheet_tag }}
+
+<style>
+  #shopify-section-{{ section.id }} {
+    --wishlist-banner-bg: {{ section.settings.banner_background }};
+    --wishlist-banner-heading-color: {{ section.settings.banner_heading_color }};
+    --wishlist-banner-subtext-color: {{ section.settings.banner_subtext_color }};
+    --wishlist-banner-button-bg: {{ section.settings.banner_button_background }};
+    --wishlist-banner-button-color: {{ section.settings.banner_button_text_color }};
+    --wishlist-title-color: {{ section.settings.title_color }};
+  }
+</style>
+
+<div class="container swym-wishlist-page">
+  {%- unless customer -%}
+    {%- if section.settings.show_login_banner -%}
+      <div class="kavalio-wishlist-login-banner">
+        <div class="kavalio-wishlist-login-banner__content">
+          {%- if section.settings.banner_heading != blank -%}
+            <p class="kavalio-wishlist-login-banner__heading">{{ section.settings.banner_heading }}</p>
+          {%- endif -%}
+          {%- if section.settings.banner_subtext != blank -%}
+            <p class="kavalio-wishlist-login-banner__subtext">{{ section.settings.banner_subtext }}</p>
+          {%- endif -%}
+        </div>
+        {%- if section.settings.banner_button_label != blank -%}
+          <a class="kavalio-wishlist-login-banner__button" href="{{ section.settings.banner_button_url | default: routes.account_login_url }}">
+            {{- section.settings.banner_button_label -}}
+          </a>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+  {%- endunless -%}
+
+  <h1 id="kavalio-wishlist-title" class="kavalio-wishlist-title heading h2" hidden>
+    {{- section.settings.title -}}
+  </h1>
+
+  <div class="product-list">
+    <div id="kavalio-wishlist-grid" class="product-list__inner"></div>
+  </div>
+
+  <div id="kavalio-wishlist-empty" class="empty-state empty-state--center" hidden>
+    {% comment %} <div class="empty-state__icon-wrapper">
+      {%- render 'icon' with 'wishlist' -%}
+    </div> {% endcomment %}
+    <div class="prose">
+      {%- if section.settings.empty_subtext != blank -%}
+        <p class="text--subdued">{{ section.settings.empty_subtext }}</p>
+      {%- endif -%}
+      {%- if section.settings.empty_button_label != blank -%}
+        <a class="button button--primary" href="{{ section.settings.empty_button_url | default: routes.all_products_collection_url }}">
+          {{- section.settings.empty_button_label -}}
+        </a>
+      {%- endif -%}
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    var grid = document.getElementById('kavalio-wishlist-grid');
+    var empty = document.getElementById('kavalio-wishlist-empty');
+    var title = document.getElementById('kavalio-wishlist-title');
+    if (!grid) return;
+
+    function setWishlistState(state) {
+      // state: 'loading' | 'empty' | 'items'
+      if (title) title.hidden = state !== 'items';
+      if (empty) empty.hidden = state !== 'empty';
+    }
+
+    function normalizeProductUrl(url) {
+      if (!url) return null;
+      try {
+        var u = new URL(url, window.location.origin);
+        u.search = '';
+        u.hash = '';
+        return u.toString();
+      } catch (e) {
+        return url.split('?')[0];
+      }
+    }
+
+    function fetchProductItemHtml(productUrl) {
+      var baseUrl = normalizeProductUrl(productUrl);
+      if (!baseUrl) return Promise.reject(new Error('Missing product URL'));
+
+      var viewUrl = baseUrl + '?view=wishlist-item';
+      return fetch(viewUrl, { credentials: 'same-origin' }).then(function(res) {
+        if (!res.ok) throw new Error('Failed to fetch ' + viewUrl + ' (' + res.status + ')');
+        return res.text();
+      });
+    }
+
+    function createRemoveButton(swat, item) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tap-area tap-area--large kavalio-wishlist-remove';
+      btn.setAttribute('aria-label', 'Remove from wishlist');
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>';
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        swat.removeFromWishList(item, function() {
+          var card = btn.closest('product-item');
+          if (card) card.remove();
+          if (grid && grid.children.length === 0) setWishlistState('empty');
+        });
+      });
+      return btn;
+    }
+
+    function renderWishlist(swat) {
+      grid.innerHTML = '';
+      setWishlistState('loading');
+
+      swat.fetch(function(items) {
+        items = Array.isArray(items) ? items : [];
+        if (items.length === 0) {
+          setWishlistState('empty');
+          return;
+        }
+
+        setWishlistState('items');
+
+        var queue = items.slice();
+        var active = 0;
+        var MAX = 4;
+
+        function next() {
+          if (queue.length === 0 && active === 0) return;
+          while (active < MAX && queue.length) {
+            (function(item) {
+              active += 1;
+
+              fetchProductItemHtml(item.du).then(function(html) {
+                var wrapper = document.createElement('div');
+                wrapper.innerHTML = html;
+
+                var productItem = wrapper.querySelector('product-item') || wrapper.firstElementChild;
+                if (!productItem) return;
+
+                productItem.style.position = productItem.style.position || 'relative';
+
+                var removeBtn = createRemoveButton(swat, item);
+                productItem.appendChild(removeBtn);
+
+                grid.appendChild(productItem);
+              }).catch(function() {
+              }).finally(function() {
+                active -= 1;
+                next();
+              });
+            })(queue.shift());
+          }
+        }
+
+        next();
+      });
+    }
+
+    var initialized = false;
+    setWishlistState('loading');
+
+    window.SwymCallbacks = window.SwymCallbacks || [];
+    window.SwymCallbacks.push(function(swat) {
+      initialized = true;
+      renderWishlist(swat);
+    });
+
+    setTimeout(function() {
+      if (!initialized && grid.children.length === 0) setWishlistState('empty');
+    }, 5000);
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Wishlist",
+  "class": "shopify-section--main-wishlist",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Page title"
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Title when wishlist has items",
+      "default": "Meine Wunschliste"
+    },
+    {
+      "type": "color",
+      "id": "title_color",
+      "label": "Title color",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "header",
+      "content": "Login banner"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_login_banner",
+      "label": "Show login banner for guests",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "banner_heading",
+      "label": "Banner heading",
+      "default": "Verliere deine Sammlungen nicht!"
+    },
+    {
+      "type": "text",
+      "id": "banner_subtext",
+      "label": "Banner subtext",
+      "default": "Melde dich an, um deine Favoriten zu speichern und jederzeit darauf zuzugreifen!"
+    },
+    {
+      "type": "text",
+      "id": "banner_button_label",
+      "label": "Banner button label",
+      "default": "Anmelden und speichern →"
+    },
+    {
+      "type": "url",
+      "id": "banner_button_url",
+      "label": "Banner button link"
+    },
+    {
+      "type": "color",
+      "id": "banner_background",
+      "label": "Banner background",
+      "default": "#f3f4f6"
+    },
+    {
+      "type": "color",
+      "id": "banner_heading_color",
+      "label": "Banner heading color",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "color",
+      "id": "banner_subtext_color",
+      "label": "Banner subtext color",
+      "default": "#4b5563"
+    },
+    {
+      "type": "color",
+      "id": "banner_button_background",
+      "label": "Banner button background",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "color",
+      "id": "banner_button_text_color",
+      "label": "Banner button text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "header",
+      "content": "Empty state"
+    },
+    {
+      "type": "text",
+      "id": "empty_subtext",
+      "label": "Empty subtext",
+      "default": "Deine Wunschliste ist leer."
+    },
+    {
+      "type": "text",
+      "id": "empty_button_label",
+      "label": "Empty button label",
+      "default": "Weiter einkaufen"
+    },
+    {
+      "type": "url",
+      "id": "empty_button_url",
+      "label": "Empty button link"
+    }
+  ]
+}
+{% endschema %}

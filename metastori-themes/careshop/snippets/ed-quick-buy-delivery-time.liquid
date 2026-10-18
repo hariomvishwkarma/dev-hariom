@@ -1,0 +1,55 @@
+{%- comment -%}
+  Quick-buy drawer/popover delivery time, shown above Add to Cart.
+  Params: variant
+
+  Status colors match PDP inventory:
+  - high (green) → in stock / immediately available
+  - low (yellow) → Lieferdatum or Lieferzeit 3-6 days
+  - empty (red) → sold out
+{%- endcomment -%}
+
+{%- if variant.requires_shipping -%}
+  {%- assign qb_delivery_time = '' -%}
+  {%- assign qb_delivery_prefix = '' -%}
+  {%- assign qb_delivery_status = '' -%}
+  {%- assign qb_lieferdatum_ts = variant.metafields.variant.Lieferdatum | date: '%s' | default: 0 -%}
+  {%- assign qb_now_ts = 'now' | date: '%s' -%}
+  {%- assign qb_lieferdatum_diff = qb_lieferdatum_ts | minus: qb_now_ts -%}
+
+  {%- if variant.inventory_policy == 'continue' and variant.inventory_quantity <= 0 -%}
+    {%- if qb_lieferdatum_diff > 0 -%}
+      {%- capture qb_delivery_time -%}
+        Voraussichtlich lieferbar ab {{ variant.metafields.variant.Lieferdatum | date: '%d.%m.%Y' }}.
+      {%- endcapture -%}
+      {%- assign qb_delivery_status = 'low' -%}
+    {%- elsif variant.metafields.variant.Lieferzeit != blank -%}
+      {%- assign qb_lieferzeit = variant.metafields.variant.Lieferzeit | strip -%}
+      {%- if qb_lieferzeit contains 'Lieferzeit' or qb_lieferzeit contains 'Voraussichtlich' -%}
+        {%- assign qb_delivery_time = qb_lieferzeit -%}
+      {%- else -%}
+        {%- assign qb_delivery_prefix = 'Lieferzeit: ' -%}
+        {%- assign qb_delivery_time = qb_lieferzeit -%}
+      {%- endif -%}
+      {%- assign qb_delivery_status = 'low' -%}
+    {%- endif -%}
+  {%- elsif variant.available -%}
+    {%- if variant.inventory_quantity > 0 or variant.inventory_management != 'shopify' -%}
+      {%- assign qb_delivery_prefix = 'Lieferzeit ca. ' -%}
+      {%- assign qb_delivery_time = '1-3 Werktage' -%}
+      {%- assign qb_delivery_status = 'high' -%}
+    {%- endif -%}
+  {%- else -%}
+    {%- assign qb_delivery_time = 'product.form.sold_out' | t -%}
+    {%- assign qb_delivery_status = 'empty' -%}
+  {%- endif -%}
+
+  {%- if qb_delivery_time != blank -%}
+    <span class="quick-buy-delivery-time quick-buy-delivery-time--{{ qb_delivery_status }}">
+      <span class="quick-buy-delivery-time__dot" aria-hidden="true"></span>
+      <span class="quick-buy-delivery-time__text">
+        {{- qb_delivery_prefix -}}
+        <span class="quick-buy-delivery-time__time">{{ qb_delivery_time | strip }}</span>
+      </span>
+    </span>
+  {%- endif -%}
+{%- endif -%}

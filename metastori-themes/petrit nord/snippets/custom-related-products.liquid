@@ -1,0 +1,163 @@
+
+{% if product == blank %}
+  {% assign handle = page.content | strip_html | strip | handleize | strip_newlines -%}
+  {% assign product = all_products[handle] %}
+{% endif %}
+
+{%- assign show_section = 0 -%}
+{% for tag in tags %}
+  {% if tag contains "related:" %}
+	{%- assign show_section = show_section | plus: 1 -%}
+  {% endif %}
+{% endfor %}
+
+{%- assign add_collection = collections[section.settings.usell_collection] -%}
+
+{% for collection in product.collections %}
+  {% if section.settings.product_collections contains collection.title %}
+	{%- assign add_collection = collections[section.settings.usell_collection2] -%}
+  {% endif %}
+{% endfor %}
+
+{%- assign temp = "essentials-care" -%}
+
+{% if show_section > 0 or add_collection != blank %}
+<div class="upsell-carousel--wrapper Product__Upsell" >
+  <span class="ProductForm__Label">
+    {{- 'general.custom.product_related' | t -}}
+  </span>
+
+  {% capture controls %}
+    <div class="swiper-button swiper-button-prev selection--none">
+      <svg viewBox="0 0 100 100"><path d="M 10,50 L 60,100 L 70,90 L 30,50  L 70,10 L 60,0 Z" class="arrow"></path></svg>
+    </div>
+    <div class="swiper-button swiper-button-next selection--none">
+      <svg viewBox="0 0 100 100"><path d="M 10,50 L 60,100 L 70,90 L 30,50  L 70,10 L 60,0 Z" class="arrow" transform="translate(100, 100) rotate(180) "></path></svg>
+    </div>
+  {% endcapture %}
+    
+  <div class="slider--wrapper">
+  {% if show_section > 0 %}
+    <div class="swiper {% if show_colour_section < 5 %}grid--xs-2{% endif %}">
+      <div class="swiper-wrapper">
+        {% for tag in tags %}
+          {% if tag contains "related:" %}
+            {%- assign handle = tag | remove: "related:" -%}
+            {%- assign add_product = all_products[handle] -%}
+            
+            <div class="swiper-slide">
+              <div class="upsell-item--wrapper">
+                <div class="upsell-item">
+                  <div class="Select {% if add_product.variants.size == 1 %}overlay--none{% endif %}">
+                    {%- if add_product.variants.size == 1 -%}
+                      <button {% if add_product.first_available_variant.available %}{% else %}class="soldOut"{% endif %} type="button" data-id="{{ add_product.first_available_variant.id }}">
+                        {% if add_product.variants.size == 1 %}
+                          {% if add_collection.handle == temp %}
+                            <span class="upsell-title">{{ add_product.title | split: " - " | first | split: ". " | last }}</span>
+                          {% else %}
+                            <span class="upsell-title">{{ add_product.title | split: ". " | last }}</span>
+                          {% endif %}
+                        {% else %}
+                        {{- 'general.custom.product_related_select' | t -}}
+                        {% endif %}
+                        <span>+</span>
+                      </button>
+                    {% else %}
+                      <select>
+                        <option value="" disabled selected hidden>
+                          {% if add_product.variants.size == 1 %}
+                            {% if add_collection.handle == temp %}
+                          	{{ add_product.title | split: " - " | first }}
+                            {% else %}
+                            {{ add_product.title | split: ". " | last }}
+                            {% endif %}
+                          {% else %}
+                          {{- 'general.custom.product_related_select' | t -}}
+                          {% endif %}
+                        </option>
+                        {% for variant in add_product.variants %}
+                            <option value="{{ variant.id }}" {% if variant.available %}{% else %}disabled{% endif %}>{{ variant.option1 }}</option>
+                        {%- endfor -%}
+                      </select>
+                      {%- render 'icon' with 'select-arrow' -%}
+                    {% endif %}
+                  </div>
+              
+                  <div class="image--wrapper" data-title="{% if add_collection.handle == temp %}{{ add_product.title | split: " - " | first }}{% else %}{{ add_product.title }}{% endif %}">
+                    <img class="Image--lazyLoad Image" data-src="{{ add_product.featured_image | img_url: "150x" }}" alt="{{ add_product.title }}">
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {{ controls }}
+  {% else %}
+    <div class="swiper {% if show_colour_section < 5 %}grid--xs-2{% endif %}">
+      <div class="swiper-wrapper">
+        {%- for add_product in add_collection.products -%}
+          <div class="swiper-slide">
+            <div class="upsell-item--wrapper">
+              <div class="upsell-item">
+                <div class="Select {% if add_product.variants.size == 1 %}overlay--none{% endif %}">
+                  {%- if add_product.variants.size == 1 -%}
+                    <button {% if add_product.first_available_variant.available %}{% else %}class="soldOut"{% endif %} type="button" data-id="{{ add_product.first_available_variant.id }}">
+                      {% if add_product.variants.size == 1 %}
+                        {% if add_collection.handle == temp %}
+                          <span class="upsell-title">{{ add_product.title | split: " - " | first | split: ". " | last }}</span>
+                        {% else %}
+                          <span class="upsell-title">{{ add_product.title | split: ". " | last }}</span>
+                        {% endif %}
+                      {% else %}
+                      {{- 'general.custom.product_related_select' | t -}}
+                      {% endif %}
+                      <span>+</span>
+                    </button>
+                  {% else %}
+                    <select>
+                      <option value="" disabled selected hidden>
+                        {% if add_product.variants.size == 1 %}
+                          {% if add_collection.handle == temp %}
+                            {{ add_product.title | split: " - " | first | split: ". " | last }}
+                          {% else %}
+                          {{ add_product.title | split: ". " | last }}
+                          {% endif %}
+                        {% else %}
+                        {{- 'general.custom.product_related_select' | t -}}
+                        {% endif %}
+                      </option>
+                      {% for variant in add_product.variants %}
+                          <option value="{{ variant.id }}" {% if variant.available %}{% else %}disabled{% endif %}>{{ variant.option1 }}</option>
+                      {%- endfor -%}
+                    </select>
+                    {%- render 'icon' with 'select-arrow' -%}
+                  {% endif %}
+                </div>
+              
+                <div class="image--wrapper" data-title="{% if add_collection.handle == temp %}{{ add_product.title | split: " - " | first }}{% else %}{{ add_product.title }}{% endif %}">
+                  <img class="Image--lazyLoad Image" data-src="{{ add_product.featured_image | img_url: "150x" }}" alt="{{ add_product.title }}">
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    {{ controls }}
+  {% endif %}
+  </div>
+<script>
+  document.addEventListener("DOMContentLoaded", function(){
+  window.dispatchEvent(new Event('resize'));
+  });
+</script>
+
+  <style>
+    #theme--custom .Product__Upsell .upsell-item .Select.overlay--none:after {
+      content: none !important;
+    }
+  </style>
+</div>
+{% endif %}

@@ -1,0 +1,221 @@
+<script src="{{ 'cart.js' | asset_url }}" defer="defer"></script>
+<script src="{{ 'cart-drawer.js' | asset_url }}" defer="defer"></script>
+<script src="{{ 'cart-drawer-note.js' | asset_url }}" defer="defer"></script>
+
+{% if settings.enable_cross_sells %}
+  <script src="{{ 'quick-add.js' | asset_url }}" defer="defer"></script>
+  <script src="{{ 'product-form.js' | asset_url }}" defer="defer"></script>
+{% endif %}
+
+<cart-drawer
+  class="wt-cart {% if cart == empty %}wt-cart--empty{% endif %}"
+  data-toggle-tabindex=".wt-cart__drawer__close--button,.button--continue-shopping,.giftnote__drawercart__addnote,.wt-cart__item__remove, .js-counter-button, .js-counter-quantity, .wt-cart__cta, .wt-cart__item__link, .wt-cart__login__text a, .policy-link, .wt-cart__show-cart"
+  data-cart-type="{{ settings.cart_type }}"
+  style="display: none;"
+>
+  <div class="page-overlay-cart"></div>
+  <div id="CartDrawer" class="cart-drawer wt-cart__drawer">
+    <div
+      class="wt-cart__drawer__inner drawer__inner"
+      role="dialog"
+      aria-modal="true"
+      aria-label="{{ 'sections.cart.title' | t }}"
+      tabindex="-1"
+    >
+      <header class="wt-cart__drawer__header">
+        <div id="CartDrawer-TotalQty" class="wt-drawer__title__text">
+          {{ 'sections.cart.title' | t }}
+          {% if cart.item_count > 0 %}
+            ({{ cart.item_count }})
+          {% endif %}
+        </div>
+        <a
+          class="wt-cart__drawer__close wt-cart__drawer__close--button"
+          role="button"
+          aria-label="{{ 'accessibility.close' | t }}"
+          tabindex="-1"
+          href="#"
+        >
+          {% render 'icons', id: 'close', icon_class: 'wt-cart__drawer__close' %}
+        </a>
+      </header>
+      <form
+        action="{{ routes.cart_url }}"
+        id="CartDrawer-Form"
+        class="cart__contents cart-drawer__form wt-cart__drawer__form wt-cart__drawer__form--contents"
+        method="post"
+      >
+      <div class="wt-cart__drawer__body">
+        {% if settings.enable_free_shipping_bar and cart != empty %}
+          {% render 'cart-free-shipping-bar' %}
+        {% endif %}
+
+        <cart-drawer-items class="wt-cart__drawer__items">
+            <div id="CartDrawer-CartItems" class="drawer__contents js-contents wt-cart__drawer__content">
+              {%- if cart != empty -%}
+                <ul class="wt-cart__list">
+
+    <div class="LOOP_BUNDLE_DRAWER_CONTAINER_CLASS">
+        <input type="hidden" value="rendering loop bundles here as we did not found any table">
+    </div>
+        
+                  {%- for item in cart.items -%}
+{% comment %}
+    LOOP SUBSCRIPTIONS (https://apps.shopify.com/loop-subscriptions)
+    DO NOT modify this source code because
+    It is automatically generated from LOOP SUBSCRIPTIONS BUNDLE DESIGN
+    If you need to make change, please contact the Loop support team
+    LOOP BUNDLE CODE STARTS
+{% endcomment %}
+    {% assign isBundleItem = false %}
+    {%- for property in item.properties -%}
+        {% if property.first == '_bundleId' %}
+            {% assign isBundleItem = true %}
+            {% break %}
+        {% endif %}
+    {%- endfor -%}
+    {% if isBundleItem == true %}
+        {% continue %}
+    {% endif %}
+{% comment %}
+    LOOP BUNDLE CODE ENDS
+{% endcomment %}
+                    {% render 'cart-item', item: item %}
+                  {%- endfor -%}
+                </ul>
+              {%- else -%}
+                {% render 'cart-empty' %}
+              {%- endif -%}
+
+              <p id="CartDrawer-LiveRegionText" class="visually-hidden" role="status"></p>
+              <p id="CartDrawer-LineItemStatus" class="visually-hidden" aria-hidden="true" role="status">
+                {{ 'accessibility.loading' | t }}
+              </p>
+            </div>
+            <div id="CartDrawer-CartErrors" role="alert"></div>
+        </cart-drawer-items>
+      </div>
+
+      {% if cart != empty %}
+        <footer class="wt-cart__drawer__footer">
+          <div class="wt-cart__subtitle">
+            {% if settings.cart_show_additional_service %}
+              {% render 'cart-checkbox' %}
+            {% endif %}
+
+            {% if settings.cart_show_order_note %}
+              {% render 'cart-note' %}
+            {% endif %}
+          </div>
+
+          {% render 'cart-footer' %}
+          <div id="cart-errors"></div>
+        </footer>
+      {% endif %}
+      </form>
+      {% if settings.enable_cross_sells and cart != empty %}
+        {% render 'cart-cross-sell' %}
+      {% endif %}
+    </div>
+  </div>
+</cart-drawer>
+
+<style>
+  .wt-cart__drawer__form--contents { display: contents; }
+  .wt-cart__drawer__header { order: 1; }
+  .wt-cart__drawer__body { order: 2; }
+  .wt-cart__cross-sell { order: 3; }
+  .wt-cart__drawer__footer { order: 4; }
+  .wt-cart__drawer__footer .cart__dynamic-checkout-buttons { margin-top: 10px; }
+  .wt-cart__pay-icons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+  }
+  .wt-cart__pay-icons__item { display: flex; align-items: center; line-height: 0; }
+  .wt-cart__pay-icons__item .icon { height: 22px; width: auto; }
+  [data-rebuy-cart-additional-checkout-buttons] { margin-top: 10px; }
+  [data-rebuy-component="checkout-area"] shopify-accelerated-checkout-cart,
+  .wt-cart__drawer__footer shopify-accelerated-checkout-cart {
+    width: 100%;
+  }
+</style>
+
+<script>
+  (function () {
+    var walletHTML = "";
+
+    function captureWallet() {
+      var source = document.querySelector(".cart__dynamic-checkout-buttons");
+      if (source && source.querySelector("shopify-accelerated-checkout-cart, shopify-accelerated-checkout")) {
+        walletHTML = source.outerHTML;
+      }
+    }
+
+    function mountAboneraPay() {
+      var slot = document.querySelector("[data-rebuy-cart-additional-checkout-buttons]");
+      captureWallet();
+      if (!slot) return;
+
+      var source = document.querySelector("#CartDrawer .cart__dynamic-checkout-buttons");
+      if (source && source.parentElement !== slot) {
+        slot.replaceChildren(source);
+      } else if (!slot.querySelector("shopify-accelerated-checkout-cart, shopify-accelerated-checkout") && walletHTML) {
+        slot.innerHTML = walletHTML;
+      }
+
+      var icons = document.querySelector("#CartDrawer .wt-cart__pay-icons");
+      var area = document.querySelector('[data-rebuy-component="checkout-area"]');
+      if (icons && area && icons.parentElement !== area) {
+        var stale = area.querySelector(".wt-cart__pay-icons");
+        if (stale && stale !== icons) stale.remove();
+        area.appendChild(icons);
+      }
+    }
+
+    function refreshIcons() {
+      var root = (window.Shopify && Shopify.routes && Shopify.routes.root) || "/";
+      fetch(root + "?sections=cart-drawer")
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          var html = data["cart-drawer"];
+          if (!html) return;
+          var doc = new DOMParser().parseFromString(html, "text/html");
+          var freshIcons = doc.querySelector(".wt-cart__pay-icons");
+          var current = document.querySelector(".wt-cart__pay-icons");
+          if (freshIcons && current) current.replaceWith(freshIcons);
+          mountAboneraPay();
+        })
+        .catch(function () {});
+    }
+
+    var iconTimer;
+    function scheduleIcons() {
+      clearTimeout(iconTimer);
+      iconTimer = setTimeout(refreshIcons, 200);
+    }
+
+    window.aboneraMountCartPay = mountAboneraPay;
+    document.addEventListener("rebuy:smartcart.ready", mountAboneraPay);
+    document.addEventListener("rebuy:smartcart.show", mountAboneraPay);
+    document.addEventListener("rebuy:cart.change", scheduleIcons);
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", mountAboneraPay);
+    } else {
+      mountAboneraPay();
+    }
+    setTimeout(mountAboneraPay, 400);
+    setTimeout(mountAboneraPay, 1200);
+  })();
+</script>
+
+<script defer="defer">
+  window.Loop = {};
+  window.Loop.bundleCartAllItems = {{ cart.items | json }};
+  initLoopBundle("LOOP_BUNDLE_DRAWER_CONTAINER_CLASS");
+</script>

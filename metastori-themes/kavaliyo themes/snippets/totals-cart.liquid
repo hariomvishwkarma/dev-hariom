@@ -1,0 +1,224 @@
+{% comment %} CHECK FREE SHIPPING AMOUNT {% endcomment %}
+{% if settings.cart_free_shipping_threshold != blank %}
+  {% assign cart_free_shipping_threshold = settings.cart_free_shipping_threshold | plus: 0 %}
+{% else %}
+  {% assign cart_free_shipping_threshold = false %}
+{% endif %}
+{% comment %} END {% endcomment %}
+
+{% assign shipping_relevant_total_price = 0 %}
+
+{% comment %} CHECK SHIPPING PRICE {% endcomment %}
+{% if settings.shipping_price != blank %}
+  {% assign shipping_price = settings.shipping_price | times: 100.0 %}
+{% else %}
+  {% assign shipping_price = 0 %}
+{% endif %}
+{% comment %} END {% endcomment %}
+
+
+{% assign has_standard_shipping_product = false %}
+{% for line_item in cart.items %}
+  {% assign is_gift_card_line = false %}
+  {% assign gift_card_line_property = line_item.properties['_kavalio_gift_card_template'] | default: '' | strip %}
+  {% if gift_card_line_property == '1' or line_item.product.gift_card? %}
+    {% assign is_gift_card_line = true %}
+  {% endif %}
+
+  {% if line_item.requires_shipping and is_gift_card_line == false and line_item.final_line_price > 0 %}
+    {% assign shipping_relevant_total_price = shipping_relevant_total_price | plus: line_item.final_line_price %}
+  {% endif %}
+
+  {% assign has_product_free_shipping_metafield = line_item.product.metafields.standard.free_shipping_cart.value | append: '' | strip | downcase %}
+  {% if line_item.requires_shipping and is_gift_card_line == false and line_item.final_line_price > 0 and has_product_free_shipping_metafield != 'true' %}
+    {% assign has_standard_shipping_product = true %}
+  {% endif %}
+{% endfor %}
+{% assign shipping_relevant_total_price_threshold = shipping_relevant_total_price | divided_by: 100 %}
+
+
+{% if settings.calculation_of_free_shipping == false %}
+  {% assign shipping_price = 0 %}
+{% endif %}
+
+
+
+{% unless has_standard_shipping_product %}
+  {% assign shipping_price = 0 %}
+{% endunless %}
+
+
+{% comment %} IF FREE SHIPPING AMOUNT IS REACHED {% endcomment %}
+{% if shipping_relevant_total_price_threshold >= cart_free_shipping_threshold and settings.cart_free_shipping_threshold != blank %}
+  {% assign shipping_price = 0 %}
+{% endif %}
+{% comment %} END {% endcomment %}
+
+{% comment %} CALCULATE ALWAYS TOTAL CART PRICE {% endcomment %}
+{% assign final_cart_total_price = cart.total_price | plus: shipping_price %}
+{% comment %} END {% endcomment %}
+
+{% comment %} CALCULATE TOTAL SAVINGS {% endcomment %}
+{% assign total_savings = 0 %}
+{% assign original_total = 0 %}
+
+{% comment %} Calculate savings from line items (compare_at_price vs price) {% endcomment %}
+{% for line_item in cart.items %}
+  {% if line_item.variant.compare_at_price and line_item.variant.compare_at_price > line_item.variant.price %}
+    {% assign line_savings = line_item.variant.compare_at_price
+      | minus: line_item.variant.price
+      | times: line_item.quantity
+    %}
+    {% assign total_savings = total_savings | plus: line_savings %}
+    {% assign original_total = original_total | plus: line_item.variant.compare_at_price | times: line_item.quantity %}
+  {% else %}
+    {% assign original_total = original_total | plus: line_item.final_line_price %}
+  {% endif %}
+{% endfor %}
+
+{% comment %} Add cart-level discounts to savings {% endcomment %}
+{% for discount_application in cart.cart_level_discount_applications %}
+  {% assign total_savings = total_savings | plus: discount_application.total_allocated_amount %}
+{% endfor %}
+
+{% comment %} END {% endcomment %}
+
+<div class="totals">
+  {% comment %} IF CALCULATION OF DELIVERY FEES IS DEACTIVATED {% endcomment %}
+  {% if settings.calculation_of_free_shipping != false %}
+    {% if settings.shipping_price != blank %}
+      {%- comment -%}
+      <div class="totals-row">
+        <h3 class="totals__subtotal">{{ settings.subtotal }}</h3>
+        <span class="totals__subtotal-value" data-original-total="{{ cart.total_price | money_without_currency }}">
+          {{- cart.total_price | money -}}
+        </span>
+      </div>
+      {%- endcomment -%}
+    {% endif %}
+
+    {% if settings.enable_live_shipping_calculation %}
+      {% if has_standard_shipping_product %}
+        <mini-shipping-estimator class="mini-shipping-estimator">
+          <div class="totals-row">
+            <div class="totals__subtotal">
+              {{ settings.delivery }}:
+              <div class="select-wrapper country-select-wrapper">
+                <select
+                  class="select country-select"
+                  data-cart-total="{{ shipping_relevant_total_price }}"
+                  {% if customer and customer.default_address %}
+                    data-default="{{ customer.default_address.country }}"
+                  {% endif %}
+                >
+                  {% assign country_options = country_option_tags
+                    | split: '<option value="---" data-provinces="[]">---</option>'
+                  %}
+                  {{ country_options[1] }}
+                </select>
+                {%- render 'icon' with 'chevron' -%}
+              </div>
+            </div>
+            <span class="totals__subtotal-value country__shipping-value">
+              <span class="free-shipping-label">{{ settings.free_text }}</span>
+            </span>
+          </div>
+
+          <div class="shipping-estimate-error" style="display: none;"></div>
+
+          {% render 'country-with-province-zip' %}
+        </mini-shipping-estimator>
+      {% else %}
+        <div class="totals-row">
+          <h3 class="totals__subtotal">{{ settings.delivery }}</h3>
+          <span class="totals__subtotal-value totals__subtotal-value-price">
+            <span class="free-shipping-label">{{ settings.free_text }}</span>
+          </span>
+        </div>
+      {% endif %}
+    {% else %}
+      {% if settings.shipping_price != blank %}
+        <div class="totals-row">
+          <h3 class="totals__subtotal">{{ settings.delivery }}</h3>
+          <span class="totals__subtotal-value totals__subtotal-value-price">
+            {% if shipping_price == 0 %}
+              <span class="free-shipping-label">{{ settings.free_text }}</span>
+            {% else %}
+              {{ shipping_price | money }}
+            {% endif %}
+          </span>
+        </div>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+
+  {% comment %} SHOW SAVINGS IF THERE ARE ANY {% endcomment %}
+  {% if total_savings > 0 %}
+    <div class="totals-row du-sparst-row">
+      <h3 class="totals__subtotal du-sparst-label">{{ 'cart.general.du_sparst' | t }}</h3>
+      <span class="totals__subtotal-value du-sparst-value">
+        <span>-</span>
+        <span>{{ total_savings | money }}</span>
+      </span>
+    </div>
+  {% endif %}
+
+  <div class="totals-row">
+    <h3 class="total__value totals__subtotal">{{ settings.total }}</h3>
+    <span class="totals__subtotal-value total-value-price">{{ final_cart_total_price | money }}</span>
+  </div>
+</div>
+
+<style>
+      .totals {
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      flex-direction: column;
+    }
+    .totals .totals-row {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      width: 100%;
+      font-size: 13px;
+    }
+    .totals .totals-row .totals__subtotal,.shipping-estimate-error{
+      margin-bottom: 0;
+      font-weight: normal;
+      font-size: 13px;
+    }
+    .totals .totals-row .totals__subtotal-value {
+      margin-top: 0;
+    }
+    .totals .totals-row .totals__subtotal-value .free-shipping-label {
+      color: {{settings.free_shipping_text_color}};
+      font-weight: bold;
+    }
+    .mini-shipping-estimator .totals-row{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .mini-shipping-estimator .totals__subtotal{
+    display: flex;
+    align-items: center;
+  }
+  .mini-shipping-estimator .select.country-select{
+    height: auto;
+    padding: 2px 21px 2px 6px;
+    font-size: 14px;
+    margin-left: 5px;
+  }
+  .mini-shipping-estimator .select~svg{
+     right: 6px;
+  }
+  .mini-shipping-estimator .totals__subtotal,.mini-shipping-estimator  .country__shipping-value{
+    font-size: 14px;
+    line-height: 16px;
+  }
+  .mini-shipping-estimator{
+    width: 100%;
+  }
+</style>

@@ -1,0 +1,93 @@
+<style>
+  .cart-drawer-recommendations {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0,0,0,.1);
+}
+
+.cart-drawer-recommendations__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.cart-recommendation-card img {
+  width: 100%;
+  border-radius: 6px;
+}
+
+.cart-recommendation-card .title {
+  font-size: 13px;
+  margin: 6px 0 2px;
+}
+
+.cart-recommendation-card .price {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+</style>
+{% if cart.items.size > 0 %}
+  {% assign first_product_id = cart.items.first.product.id %}
+{% endif %}
+<div
+  id="CartDrawer-Recommendations"
+  class="cart-drawer-recommendations"
+  data-product-id="{{ first_product_id }}"
+>
+  <h3>You may also like</h3>
+  <div class="cart-drawer-recommendations__grid"></div>
+</div>
+
+
+<script>
+    console.log('Recommendations JS loaded');
+
+    function loadCartDrawerRecommendations() {
+    const container = document.getElementById('CartDrawer-Recommendations');
+    if (!container) return;
+
+    const productId = container.dataset.productId;
+    if (!productId) return;
+
+    fetch(`/recommendations/products.json?product_id=${productId}&limit=4`)
+        .then(res => res.json())
+        .then(data => {
+        if (!data.products || !data.products.length) return;
+
+        const grid = container.querySelector('.cart-drawer-recommendations__grid');
+        grid.innerHTML = '';
+
+        data.products.forEach(product => {
+            const card = document.createElement('div');
+            card.className = 'cart-recommendation-card';
+
+            card.innerHTML = `
+            <a href="${product.url}">
+                <img src="${product.featured_image}" alt="${product.title}">
+                <p>${product.title}</p>
+                <p>${(product.price / 100).toFixed(2)}</p>
+                
+            </a>
+            
+            `;
+
+            grid.appendChild(card);
+        });
+        });
+    }
+
+    /* 🔥 HORIZON FIX: Observe DOM */
+    const observer = new MutationObserver(() => {
+    const drawer = document.querySelector('#CartDrawer, .cart-drawer');
+    if (drawer) {
+        loadCartDrawerRecommendations();
+    }
+    });
+
+    observer.observe(document.body, {
+    childList: true,
+    subtree: true
+    });
+
+</script>

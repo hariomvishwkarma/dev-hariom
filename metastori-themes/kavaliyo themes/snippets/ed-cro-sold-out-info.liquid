@@ -1,0 +1,122 @@
+{%- comment -%}
+  CRO | Sold out info snippet
+  Displays a red notification box when a product variant is sold out
+  Only shows when the selected variant is not available
+{%- endcomment -%}
+
+<div class="cro-sold-out-info" data-sold-out-info {{ block.shopify_attributes }}>
+  <div class="cro-sold-out-info__content">
+    {%- if block.settings.heading != blank -%}
+      {%- assign heading_tag = block.settings.heading_tag | default: 'h3' -%}
+      <{{ heading_tag }} class="cro-sold-out-info__heading">{{ block.settings.heading }}</{{ heading_tag }}>
+    {%- endif -%}
+    
+    {%- if block.settings.content != blank -%}
+      <div class="cro-sold-out-info__text">
+        {{ block.settings.content }}
+      </div>
+    {%- endif -%}
+  </div>
+</div>
+
+<style>
+  .cro-sold-out-info {
+    {% if block.settings.background_color != 'rgba(0,0,0,0)' %}
+      background-color: {{ block.settings.background_color }};
+    {% endif %}
+    border-radius: {{ block.settings.border_radius }}px;
+    padding: {{ block.settings.padding }}px;
+    margin: 16px 0;
+    {% if block.settings.text_color != 'rgba(0,0,0,0)' %}
+      color: {{ block.settings.text_color }};
+    {% endif %}
+    display: none; /* shown via JavaScript when variant is sold out */
+  }
+  
+  .cro-sold-out-info.is-visible {
+    display: block;
+  }
+  
+  .cro-sold-out-info__heading {
+    margin: 0 0 8px 0;
+    {% if block.settings.text_color != 'rgba(0,0,0,0)' %}
+      color: {{ block.settings.text_color }};
+    {% endif %}
+  }
+  
+  .cro-sold-out-info__text {
+    margin: 0 0 12px 0;
+    {% if block.settings.text_color != 'rgba(0,0,0,0)' %}
+      color: {{ block.settings.text_color }};
+    {% endif %}
+  }
+  
+  .cro-sold-out-info__text p {
+    margin: 0 0 8px 0;
+  }
+  
+  .cro-sold-out-info__text p:last-child {
+    margin-bottom: 0;
+  }
+  
+  @media (max-width: 768px) {
+    .cro-sold-out-info {
+      padding: {{ block.settings.padding }}px;
+      margin: 12px 0;
+    }
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Function to check if current variant is sold out and show/hide the notification
+    function updateSoldOutInfo() {
+      const soldOutInfo = document.querySelector('[data-sold-out-info]');
+      if (!soldOutInfo) return;
+      
+      // Get the current variant from the variant picker
+      const variantPicker = document.querySelector('variant-picker');
+      if (!variantPicker) return;
+      
+      const variantScript = variantPicker.querySelector('script[data-variant]');
+      if (!variantScript) return;
+      
+      try {
+        const currentVariant = JSON.parse(variantScript.textContent);
+        
+        if (currentVariant && !currentVariant.available) {
+          soldOutInfo.classList.add('is-visible');
+        } else {
+          soldOutInfo.classList.remove('is-visible');
+        }
+      } catch (e) {
+        console.error('Error parsing variant data:', e);
+      }
+    }
+    
+    // Listen for variant changes
+    document.addEventListener('variant:change', updateSoldOutInfo);
+    
+    // Listen for Shopify theme customizer events
+    document.addEventListener('shopify:section:load', updateSoldOutInfo);
+    document.addEventListener('shopify:section:reorder', updateSoldOutInfo);
+    document.addEventListener('shopify:block:select', updateSoldOutInfo);
+    document.addEventListener('shopify:block:deselect', updateSoldOutInfo);
+    
+    // Initial check
+    updateSoldOutInfo();
+    
+    // Also listen for custom variant change events that might be used by the theme
+    document.addEventListener('change', function(e) {
+      if (e.target.matches('input[name^="option"], select[name^="option"]')) {
+        setTimeout(updateSoldOutInfo, 100); // Small delay to ensure variant data is updated
+      }
+    });
+    
+    // Additional check for theme customizer preview mode
+    if (window.Shopify && window.Shopify.designMode) {
+      // In theme customizer, check more frequently
+      setInterval(updateSoldOutInfo, 1000);
+    }
+  });
+</script>

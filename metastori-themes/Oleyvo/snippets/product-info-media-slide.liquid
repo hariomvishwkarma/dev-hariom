@@ -1,0 +1,238 @@
+{% comment %}
+  Renders a product media slide with thumbnails.
+
+  Accepts:
+  - zoom_enabled: {Boolean} Whether to enable zoom on the main image (optional)
+
+  Usage:
+  {% render 'product-info-media-slide' %}
+{% endcomment %}
+
+{% assign featured_media = product.selected_or_first_available_variant.featured_media %}
+
+{% if product.media.size == 1 %}
+  {% capture per_view %}
+    xo-per-view="1"
+  {% endcapture %}
+{% elsif product.media.size == 2 %}
+  {% capture per_view %}
+    xo-per-view="2"
+  {% endcapture %}
+{% else %}
+  {% capture per_view %}
+    xo-per-view="3"
+  {% endcapture %}
+{% endif %}
+
+<xo-animate xo-cascade>
+  <div class='product-info-media-slide'>
+    <xo-product-will-change xo-unique-id='product-info-media-{{ product.id }}'>
+      {% for block in section.blocks %}
+        {% case block.type %}
+          {% when 'title' %}
+            <xo-animate xo-cascade>
+              <h2 class='product-info-media-slide__title h2'>
+                {{ product.title }}
+              </h2>
+            </xo-animate>
+        {% endcase %}
+      {% endfor %}
+      <xo-animate xo-cascade>
+        <div class='product-info-media-slide__body'>
+          <xo-gallery
+            xo-sync='false'
+            xo-backdrop-color='rgb(var(--color-background))'
+            {% if gallery_type == 'scroll' %}
+              xo-portal-type='scroll'
+            {% endif %}
+          >
+            <xo-carousel
+              {{ per_view }}
+              xo-per-move='1'
+              xo-gap='20'
+              xo-breakpoints='
+                {
+                  600: {
+                    perView: 1,
+                    perMove: 1,
+                    gap: 10
+                  },
+                  768: {
+                    perView: 3,
+                    perMove: 1,
+                    gap: 50
+                  },
+                  992: {
+                    gap: 105
+                  },
+                  1400: {
+                    gap: 154
+                  },
+                }
+              '
+            >
+              <xo-carousel-inner>
+                <xo-carousel-list>
+                  {% if featured_media != null %}
+                    {% case featured_media.media_type %}
+                      {%- when 'image' -%}
+                        <xo-carousel-slide>
+                          <div class='product-info-media-slide__item'>
+                            <xo-gallery-item xo-src='{{ featured_media | image_url: width: 1200 }}'>
+                              <div class='product-info-media-slide__image'>
+                                {% render 'media', type: featured_media.media_type, media: featured_media %}
+                              </div>
+                            </xo-gallery-item>
+                          </div>
+                        </xo-carousel-slide>
+                      {% else %}
+                        <xo-carousel-slide>
+                          <div class='product-info-media-slide__item'>
+                            {% render 'media', type: featured_media.media_type, media: featured_media %}
+                          </div>
+                        </xo-carousel-slide>
+                    {% endcase %}
+                  {% endif %}
+                  {% for media in product.media %}
+                    {% liquid
+                      assign lazyload = true
+                      assign carousel_visible = ''
+                      if forloop.index0 == 0
+                        assign lazyload = false
+                        assign carousel_visible = 'xo-active xo-visible'
+                      endif
+                    %}
+                    <xo-carousel-slide {{ carousel_visible }}>
+                      <div class='product-info-media-slide__item'>
+                        {% case media.media_type %}
+                          {% when 'image' %}
+                            <xo-gallery-item xo-src='{{ media | image_url: width: 1200 }}'>
+                              <div class='product-info-media-slide__image'>
+                                {% render 'media', type: media.media_type, media: media, lazyload: lazyload, image_widths: '375, 550, 750, 900' %}
+                              </div>
+                            </xo-gallery-item>
+                          {% else %}
+                            {% render 'media', type: media.media_type, media: media, lazyload: lazyload, image_widths: '375, 550, 750, 900' %}
+                        {% endcase %}
+                      </div>
+                    </xo-carousel-slide>
+                  {% endfor %}
+                </xo-carousel-list>
+              </xo-carousel-inner>
+              <div class='product-info-media-slide__pagination'>
+                {% render 'carousel_pagination', align: 'center', style: 'sticks' %}
+              </div>
+            </xo-carousel>
+          </xo-gallery>
+        </div>
+      </xo-animate>
+      <div class='product-info-media-slide__bottom'>
+        {% for block in section.blocks %}
+          {% case block.type %}
+            {% when 'price' %}
+              <xo-animate xo-cascade style='width: 100%;'>
+                <div class='product-info-media-slide__price'>
+                  <xo-product-will-change xo-unique-id='product-price-{{ product.id }}'>
+                    {% render 'price', product: product, use_variant: true %}
+                    {% if cart.taxes_included == true %}
+                      <span>{{ 'products.product.price.include_tax' | t }}</span>
+                    {% endif %}
+                  </xo-product-will-change>
+                </div>
+              </xo-animate>
+            {% when 'description' %}
+              <xo-animate xo-cascade style='width: 100%;'>
+                <div class='product-info-media-slide__description xo-table'>
+                  {{ product.description }}
+                </div>
+              </xo-animate>
+            {% when 'variants' %}
+              <xo-animate xo-cascade style='width: 100%;'>
+                <div class='product-info-media-slide__variants'>
+                  {% if product.options_with_values[0].name != 'Title' %}
+                    {%- for option in product.options_with_values -%}
+                      <xo-animate xo-cascade {{ section.blocks.shopify_attributes }}>
+                        {% if option.name == 'Color' %}
+                          {% render 'product-variant', option: option, style: block.settings.variant_color_style, product: product %}
+                        {%- else -%}
+                          {% render 'product-variant',
+                            option: option,
+                            style: block.settings.variant_style,
+                            button_text: block.settings.button_text,
+                            button_link: block.settings.button_link,
+                            product: product
+                          %}
+                        {% endif %}
+                      </xo-animate>
+                    {%- endfor -%}
+                  {% endif %}
+                </div>
+              </xo-animate>
+            {% when 'buy_button' %}
+              <xo-animate xo-cascade style='width: 100%;'>
+                <div class='product-info-media-slide__action'>
+                  {%- assign form_id = 'product_form_id-' | append: section.id -%}
+                  <div class='product-info-media-slide__group'>
+                    <div class='product-info-media-slide__button product-info-media-slide__button--quantity'>
+                      {%- render 'quantity', size: 'md', form_id: form_id %}
+                    </div>
+                    <div class='product-info-media-slide__button product-info-media-slide__button--add-cart'>
+                      <xo-product-will-change xo-unique-id='product-add-button-{{ product.id }}'>
+                        <xo-cart-add
+                          class='product-info-media-slide__add'
+                          xo-product-id='{{ product.selected_or_first_available_variant.id }}'
+                          {% if product.selected_or_first_available_variant.available == false %}
+                            xo-disabled
+                          {% endif %}
+                        >
+                          {% if product.selected_or_first_available_variant.available %}
+                            {% assign button_text = 'products.product.add_to_cart' | t %}
+                            {% render 'button', style: 'secondary', text: button_text, size: 'md', block: true %}
+                          {%- else -%}
+                            {% assign button_text = 'products.product.sold_out' | t %}
+                            {% render 'button', style: 'secondary', text: button_text, size: 'md', block: true %}
+                          {% endif %}
+                        </xo-cart-add>
+                      </xo-product-will-change>
+                    </div>
+                  </div>
+                  <div class='product-info-media-slide__button product-info-media-slide__button--buy-now'>
+                    {% render 'buy-button', show_dynamic_checkout: true %}
+                  </div>
+                  {% render 'buy-button', show_dynamic_checkout: true %}
+                </div>
+              </xo-animate>
+            {% when 'pickup' %}
+              {% assign pick_up_availabilities = product.selected_or_first_available_variant.store_availabilities | where: 'pick_up_enabled', true %}
+              <div class='product-info-media-slide__pickup'>
+                <xo-animate xo-cascade>
+                  {% render 'pickup-availability-item', pick_up_availabilities: pick_up_availabilities %}
+                </xo-animate>
+              </div>
+              <xo-modal
+                style='z-index: 9999;'
+                xo-portal
+                xo-name='pickup-availability'
+                xo-animate='slide-left'
+                xo-placement='top-right'
+              >
+                {% capture pickup_availability_list %}
+              {% render 'pickup-availability-list', pick_up_availabilities: pick_up_availabilities %}
+            {% endcapture %}
+                {% render 'modal-content',
+                  title: product.title,
+                  content: pickup_availability_list,
+                  width: '50rem',
+                  full_height: true,
+                  title_size: '2rem',
+                  title_class: 'xo-line-2',
+                  header_separator: true,
+                  animate: true
+                %}
+              </xo-modal>
+          {% endcase %}
+        {% endfor %}
+      </div>
+    </xo-product-will-change>
+  </div>
+</xo-animate>

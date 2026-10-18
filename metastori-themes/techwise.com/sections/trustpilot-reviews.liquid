@@ -1,0 +1,400 @@
+{%- comment -%}
+  ============================================================
+  Section: Trustpilot Reviews
+  A fully dynamic "Trusted by X households" section with a
+  Trustpilot badge, heading with underline accent, and a
+  masonry grid of customer review cards (add/remove via blocks).
+  ============================================================
+{%- endcomment -%}
+
+{%- liquid
+  assign s = section.settings
+  assign uid = section.id
+-%}
+
+<style>
+  #trustpilot-{{ uid }} {
+    --tp-bg: {{ s.bg_color }};
+    --tp-heading: {{ s.heading_color }};
+    --tp-underline: {{ s.underline_color }};
+    --tp-badge-text: {{ s.badge_text_color }};
+    --tp-star: {{ s.star_color }};
+    --tp-card-bg: {{ s.card_bg_color }};
+    --tp-card-title: {{ s.card_title_color }};
+    --tp-card-text: {{ s.card_text_color }};
+    --tp-card-meta: {{ s.card_meta_color }};
+    --tp-avatar-bg: {{ s.avatar_bg_color }};
+    --tp-avatar-text: {{ s.avatar_text_color }};
+    --tp-radius: {{ s.card_radius }}px;
+    --tp-columns: {{ s.review_columns }};
+    --tp-fs-badge: {{ s.badge_font_size }}px;
+    --tp-fs-name: {{ s.name_font_size }}px;
+    --tp-fs-meta: {{ s.meta_font_size }}px;
+    --tp-fs-date: {{ s.date_font_size }}px;
+    --tp-fs-card-title: {{ s.card_title_font_size }}px;
+    --tp-fs-card-text: {{ s.card_text_font_size }}px;
+    background-color: var(--tp-bg);
+    padding: {{ s.padding_top }}px {{ s.padding_horizontal }}px {{ s.padding_bottom }}px;
+  }
+
+  #trustpilot-{{ uid }} * { box-sizing: border-box; }
+
+  .tp-{{ uid }}-wrap {
+    max-width: {{ s.max_width }}px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: {{ s.left_column_width }}fr {{ s.right_column_width }}fr;
+    gap: {{ s.column_gap }}px;
+    align-items: start;
+  }
+
+  /* ---------- Left / intro column ---------- */
+  .tp-{{ uid }}-intro { position: sticky; top: 143px; }
+
+  .tp-{{ uid }}-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--tp-badge-text);
+    font-size: var(--tp-fs-badge);
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+  }
+  .tp-{{ uid }}-badge strong { font-weight: 700; }
+  .tp-{{ uid }}-badge .tp-tp-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+  }
+  .tp-{{ uid }}-badge .tp-tp-logo svg { flex-shrink: 0; }
+
+  .tp-{{ uid }}-heading {
+    color: var(--tp-heading);
+    font-size: {{ s.heading_size }}px;
+    line-height: 1.05;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.5px;
+  }
+  .tp-{{ uid }}-heading.heading {
+    font-family: inherit;
+  }
+  .tp-{{ uid }}-underline {
+    display: inline;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='24' viewBox='0 0 300 24' fill='none'%3E%3Cpath d='M4 14 C80 6 200 6 296 12' stroke='%23{{ s.underline_color | remove: '#' }}' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3Cpath d='M8 20 C90 12 210 12 292 18' stroke='%23{{ s.underline_color | remove: '#' }}' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left bottom;
+    background-size: 100% 0.5em;
+    padding-bottom: 0.18em;
+  }
+
+  /* ---------- Reviews (masonry via CSS columns) ---------- */
+  .tp-{{ uid }}-reviews {
+    column-count: var(--tp-columns);
+    column-gap: {{ s.card_gap }}px;
+  }
+
+  .tp-{{ uid }}-card {
+    background: var(--tp-card-bg);
+    border-radius: var(--tp-radius);
+    padding: {{ s.card_padding }}px;
+    margin-bottom: {{ s.card_gap }}px;
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+  }
+
+  .tp-{{ uid }}-card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .tp-{{ uid }}-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--tp-avatar-bg);
+    color: var(--tp-avatar-text);
+    font-weight: 700;
+    font-size: 13px;
+    overflow: hidden;
+  }
+  .tp-{{ uid }}-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .tp-{{ uid }}-name { font-weight: 700; font-size: var(--tp-fs-name); color: var(--tp-card-title); line-height: 1.2; }
+  .tp-{{ uid }}-meta { font-size: var(--tp-fs-meta); color: var(--tp-card-meta); margin-top: 2px; }
+
+  .tp-{{ uid }}-rating-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .tp-{{ uid }}-stars { display: inline-flex; gap: 3px; }
+  .tp-{{ uid }}-star {
+    width: 22px; height: 22px;
+    background: var(--tp-star);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+  }
+  .tp-{{ uid }}-star svg { width: 14px; height: 14px; fill: #fff; }
+  .tp-{{ uid }}-date { font-size: var(--tp-fs-date); color: var(--tp-card-meta); }
+
+  .tp-{{ uid }}-card-title {
+    font-weight: 700;
+    font-size: var(--tp-fs-card-title);
+    color: var(--tp-card-title);
+    margin: 0 0 8px;
+    line-height: 1.3;
+  }
+  .tp-{{ uid }}-card-text {
+    font-size: var(--tp-fs-card-text);
+    line-height: 1.5;
+    color: var(--tp-card-text);
+    margin: 0;
+    white-space: pre-line;
+  }
+
+  /* Clickable card link (wraps whole card, keeps card colors) */
+  a.tp-{{ uid }}-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  a.tp-{{ uid }}-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 26px rgba(0,0,0,0.12);
+  }
+  .trustpilot-widget iframe {
+    max-width: 240px !important;
+  }
+  /* ---------- Responsive ---------- */
+  @media (max-width: 990px) {
+    .tp-{{ uid }}-wrap { grid-template-columns: 1fr; gap: 36px; }
+    .tp-{{ uid }}-intro { position: static; }
+    .tp-{{ uid }}-heading { font-size: {{ s.heading_size | times: 0.8 | round }}px; }
+  }
+  @media (max-width: 600px) {
+    .tp-{{ uid }}-reviews { column-count: 1; }
+    .tp-{{ uid }}-heading { font-size: {{ s.heading_size | times: 0.62 | round }}px; }
+  }
+</style>
+
+<div id="trustpilot-{{ uid }}">
+  <div class="tp-{{ uid }}-wrap">
+
+    {%- comment -%} -------- LEFT INTRO -------- {%- endcomment -%}
+    <div class="tp-{{ uid }}-intro">
+      {%- if s.show_badge -%}
+        <div class="tp-{{ uid }}-badge">
+          {%- if s.badge_label != blank -%}<strong>{{ s.badge_label }}</strong>{% else %}{{ s.badge_label_code }}{%- endif -%}
+        </div>
+      {%- endif -%}
+
+      {%- liquid
+        assign highlight_effect = s.highlight_effect | default: 'none'
+        assign highlight_accent = s.highlight_accent_color
+        if highlight_accent == blank or highlight_accent == 'rgba(0,0,0,0)'
+          assign highlight_accent = s.underline_color
+        endif
+        assign highlight_text = s.highlight_text_color
+        assign heading_style_class = 'tp-' | append: uid | append: '-heading'
+      -%}
+
+      {%- if highlight_effect != 'none' and s.heading_underlined != blank -%}
+        {%- capture heading_content -%}
+          {{- s.heading_before -}}
+          {%- if s.heading_underlined != blank -%} <em>{{- s.heading_underlined -}}</em> {%- endif -%}
+          {{- s.heading_after -}}
+        {%- endcapture -%}
+        {%- render 'heading',
+          content: heading_content,
+          html_tag: 'h2',
+          style: heading_style_class,
+          highlight_effect: highlight_effect,
+          highlight_accent_color: highlight_accent,
+          highlight_text_color: highlight_text
+        -%}
+      {%- else -%}
+        <h2 class="tp-{{ uid }}-heading">
+          {%- if s.heading_underlined != blank -%}
+            {{ s.heading_before }} <span class="tp-{{ uid }}-underline">{{ s.heading_underlined }}</span> {{ s.heading_after }}
+          {%- else -%}
+            {{ s.heading_before }}
+          {%- endif -%}
+        </h2>
+      {%- endif -%}
+    </div>
+
+    {%- comment -%} -------- REVIEWS -------- {%- endcomment -%}
+    <div class="tp-{{ uid }}-reviews">
+      {%- for block in section.blocks -%}
+        {%- if block.type == 'review' -%}
+          {%- assign b = block.settings -%}
+          {%- if b.link != blank -%}
+            {%- assign card_tag = 'a' -%}
+          {%- else -%}
+            {%- assign card_tag = 'div' -%}
+          {%- endif -%}
+          <{{ card_tag }} class="tp-{{ uid }}-card"
+            {% if b.link != blank %}href="{{ b.link }}"{% if b.link_new_tab %} target="_blank" rel="noopener"{% endif %}{% endif %}
+            {{ block.shopify_attributes }}>
+
+            <div class="tp-{{ uid }}-card-head">
+              <div class="tp-{{ uid }}-avatar">
+                {%- if b.avatar != blank -%}
+                  <img src="{{ b.avatar | image_url: width: 80 }}" alt="{{ b.name | escape }}" loading="lazy" width="40" height="40">
+                {%- else -%}
+                  {{ b.initials }}
+                {%- endif -%}
+              </div>
+              <div>
+                <div class="tp-{{ uid }}-name">{{ b.name }}</div>
+                {%- if b.meta != blank -%}<div class="tp-{{ uid }}-meta">{{ b.meta }}</div>{%- endif -%}
+              </div>
+            </div>
+
+            <div class="tp-{{ uid }}-rating-row">
+              <span class="tp-{{ uid }}-stars">
+                {%- assign stars = b.rating | at_most: 5 | at_least: 0 -%}
+                {%- for i in (1..stars) -%}
+                  <span class="tp-{{ uid }}-star">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.7 7.2L12 17.7 5.7 21.4l1.7-7.2L2 9.5l7.1-.6L12 2z"/>
+                    </svg>
+                  </span>
+                {%- endfor -%}
+              </span>
+              {%- if b.date != blank -%}<span class="tp-{{ uid }}-date">{{ b.date }}</span>{%- endif -%}
+            </div>
+
+            {%- if b.title != blank -%}<p class="tp-{{ uid }}-card-title">{{ b.title }}</p>{%- endif -%}
+            {%- if b.text != blank -%}<p class="tp-{{ uid }}-card-text">{{ b.text }}</p>{%- endif -%}
+
+          </{{ card_tag }}>
+        {%- endif -%}
+      {%- endfor -%}
+    </div>
+
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Trustpilot Reviews",
+  "tag": "section",
+  "class": "section-trustpilot-reviews",
+  "settings": [
+    { "type": "header", "content": "Layout" },
+    { "type": "range", "id": "max_width", "label": "Max width", "min": 800, "max": 1600, "step": 20, "unit": "px", "default": 1100 },
+    { "type": "range", "id": "left_column_width", "label": "Left column ratio", "min": 1, "max": 6, "step": 1, "default": 4 },
+    { "type": "range", "id": "right_column_width", "label": "Right column ratio", "min": 1, "max": 8, "step": 1, "default": 6 },
+    { "type": "range", "id": "review_columns", "label": "Review columns", "min": 1, "max": 3, "step": 1, "default": 2 },
+    { "type": "range", "id": "column_gap", "label": "Gap between columns", "min": 20, "max": 120, "step": 4, "unit": "px", "default": 60 },
+    { "type": "range", "id": "card_gap", "label": "Gap between cards", "min": 8, "max": 48, "step": 2, "unit": "px", "default": 20 },
+
+    { "type": "header", "content": "Spacing" },
+    { "type": "range", "id": "padding_top", "label": "Padding top", "min": 0, "max": 160, "step": 4, "unit": "px", "default": 64 },
+    { "type": "range", "id": "padding_bottom", "label": "Padding bottom", "min": 0, "max": 160, "step": 4, "unit": "px", "default": 64 },
+    { "type": "range", "id": "padding_horizontal", "label": "Horizontal padding", "min": 0, "max": 120, "step": 4, "unit": "px", "default": 32 },
+
+    { "type": "header", "content": "Trustpilot badge" },
+    { "type": "checkbox", "id": "show_badge", "label": "Show badge", "default": true },
+    { "type": "liquid", "id": "badge_label_code", "label": "Rating word code"},
+    { "type": "header", "content": "Heading" },
+    { "type": "text", "id": "heading_before", "label": "Heading (start)", "default": "Vertrouwd door ruim" },
+    { "type": "text", "id": "heading_underlined", "label": "Highlighted / underlined part", "default": "100.000", "info": "This part gets the highlight animation or static underline." },
+    { "type": "text", "id": "heading_after", "label": "Heading (end)", "default": "huishoudens" },
+    { "type": "range", "id": "heading_size", "label": "Heading size", "min": 28, "max": 72, "step": 2, "unit": "px", "default": 46 },
+    {
+      "type": "header",
+      "content": "Heading highlight",
+      "info": "Optional. Same effects as Dynamic grid heading. Uses the “Highlighted / underlined part” text. Choose None to keep the static underline."
+    },
+    {
+      "type": "select",
+      "id": "highlight_effect",
+      "label": "t:global.heading_effect.effect",
+      "options": [
+        { "value": "none", "label": "t:global.heading_effect.effect_options.none" },
+        { "value": "default", "label": "t:global.heading_effect.effect_options.default" },
+        { "value": "italic", "label": "t:global.heading_effect.effect_options.italic_font_override" },
+        { "value": "circle", "label": "t:global.heading_effect.effect_options.circle" },
+        { "value": "circle_pencil", "label": "t:global.heading_effect.effect_options.circle_pencil" },
+        { "value": "underline", "label": "t:global.heading_effect.effect_options.underline" },
+        { "value": "underline_pencil", "label": "t:global.heading_effect.effect_options.underline_pencil" },
+        { "value": "marker", "label": "t:global.heading_effect.effect_options.marker" },
+        { "value": "tilted_marker", "label": "t:global.heading_effect.effect_options.tilted_marker" }
+      ],
+      "default": "none"
+    },
+    { "type": "color", "id": "highlight_accent_color", "label": "t:global.heading_effect.accent_color", "info": "Falls back to Underline accent if empty." },
+    { "type": "color", "id": "highlight_text_color", "label": "t:global.heading_effect.text_color" },
+
+    { "type": "header", "content": "Cards" },
+    { "type": "range", "id": "card_radius", "label": "Corner radius", "min": 0, "max": 32, "step": 1, "unit": "px", "default": 14 },
+    { "type": "range", "id": "card_padding", "label": "Card padding", "min": 12, "max": 40, "step": 2, "unit": "px", "default": 22 },
+
+    { "type": "header", "content": "Font sizes" },
+    { "type": "range", "id": "badge_font_size", "label": "Badge text", "min": 11, "max": 24, "step": 1, "unit": "px", "default": 15 },
+    { "type": "range", "id": "name_font_size", "label": "Reviewer name", "min": 11, "max": 24, "step": 1, "unit": "px", "default": 15 },
+    { "type": "range", "id": "meta_font_size", "label": "Meta line", "min": 10, "max": 20, "step": 1, "unit": "px", "default": 13 },
+    { "type": "range", "id": "date_font_size", "label": "Date text", "min": 10, "max": 20, "step": 1, "unit": "px", "default": 13 },
+    { "type": "range", "id": "card_title_font_size", "label": "Review title", "min": 12, "max": 26, "step": 1, "unit": "px", "default": 15 },
+    { "type": "range", "id": "card_text_font_size", "label": "Review body", "min": 11, "max": 22, "step": 1, "unit": "px", "default": 14 },
+
+    { "type": "header", "content": "Colors" },
+    { "type": "color", "id": "bg_color", "label": "Background", "default": "#14293b" },
+    { "type": "color", "id": "heading_color", "label": "Heading", "default": "#ffffff" },
+    { "type": "color", "id": "underline_color", "label": "Underline accent", "default": "#c8f169" },
+    { "type": "color", "id": "badge_text_color", "label": "Badge text", "default": "#ffffff" },
+    { "type": "color", "id": "star_color", "label": "Stars", "default": "#00b67a" },
+    { "type": "color", "id": "card_bg_color", "label": "Card background", "default": "#ffffff" },
+    { "type": "color", "id": "card_title_color", "label": "Card title / name", "default": "#14293b" },
+    { "type": "color", "id": "card_text_color", "label": "Card body text", "default": "#4a5a68" },
+    { "type": "color", "id": "card_meta_color", "label": "Meta / date text", "default": "#8a97a3" },
+    { "type": "color", "id": "avatar_bg_color", "label": "Avatar background", "default": "#eef1f4" },
+    { "type": "color", "id": "avatar_text_color", "label": "Avatar initials", "default": "#14293b" }
+  ],
+  "blocks": [
+    {
+      "type": "review",
+      "name": "Review",
+      "settings": [
+        { "type": "text", "id": "name", "label": "Name", "default": "Jacqueline" },
+        { "type": "text", "id": "initials", "label": "Avatar initials", "default": "JA", "info": "Used when no image is set" },
+        { "type": "image_picker", "id": "avatar", "label": "Avatar image (optional)" },
+        { "type": "text", "id": "meta", "label": "Meta line", "default": "NL • 10 reviews" },
+        { "type": "range", "id": "rating", "label": "Star rating", "min": 0, "max": 5, "step": 1, "default": 5 },
+        { "type": "text", "id": "date", "label": "Date text", "default": "1 dag geleden" },
+        { "type": "text", "id": "title", "label": "Review title", "default": "Super stoomreiniger" },
+        { "type": "textarea", "id": "text", "label": "Review text", "default": "Heel blij mee en de service is ook goed en snel. Alles wordt zo schoon en de extra kleine witte doek heb ik nabesteld." },
+        { "type": "header", "content": "Link" },
+        { "type": "url", "id": "link", "label": "Card link", "info": "Whole card becomes clickable. Leave empty for no link." },
+        { "type": "checkbox", "id": "link_new_tab", "label": "Open in new tab", "default": false }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Trustpilot Reviews",
+      "blocks": [
+        { "type": "review", "settings": { "name": "Jacqueline", "initials": "JA", "meta": "NL • 10 reviews", "rating": 5, "date": "1 dag geleden", "title": "Super stoomreiniger", "text": "Heel blij mee en de service is ook goed en snel. Alles wordt zo schoon en de extra kleine witte doek heb ik nabesteld." } },
+        { "type": "review", "settings": { "name": "M. Deelstra", "initials": "MD", "meta": "NL • 9 reviews", "rating": 5, "date": "5 dagen geleden", "title": "Wat een geweldig apparaat!!", "text": "Andere merken gehad en geen succes! Maar deze!! 100 punten!" } },
+        { "type": "review", "settings": { "name": "M. Venner", "initials": "MV", "meta": "NL • 61 reviews", "rating": 5, "date": "2 dagen geleden", "title": "Super handig in gebruik!", "text": "Werkt zeer correct!\nHeb deze gisteren zelfs gedemonstreerd op mijn verjaardag :)" } },
+        { "type": "review", "settings": { "name": "N. Houben", "initials": "NH", "meta": "NL • 2 reviews", "rating": 5, "date": "2 dagen geleden", "title": "Top apparaat", "text": "Binnen 1 dag binnen. En het werkt naar behoren en handig in gebruik." } },
+        { "type": "review", "settings": { "name": "J. Hendriks", "initials": "JH", "meta": "NL • 2 reviews", "rating": 5, "date": "1 dag geleden", "title": "Helemaal top dit product!", "text": "Makkelijk en fijn in het gebruik." } },
+        { "type": "review", "settings": { "name": "B. Simons", "initials": "BS", "meta": "NL • 5 reviews", "rating": 5, "date": "2 dagen geleden", "title": "Super goede stoomreiniger", "text": "Het bestellen ging makkelijk.\nDe levering snel.\nHet gebruik is heel makkelijk en de stoomreiniger werkt perfect. Echt een aanrader." } }
+      ]
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,801 @@
+<link rel="stylesheet" href="{{ 'cart-drawer.css' | asset_url }}">
+
+<cart-drawer section="{{ section.id }}" id="mini-cart" class="mini-cart ed-drawer drawer drawer--large">
+  <span class="drawer__overlay"></span>
+
+  <header class="drawer__header">
+    <p class="drawer__title heading h6">
+      {%- case settings.cart_icon -%}
+        {%- when 'shopping_bag' -%}
+          {%- render 'icon' with 'header-cart' -%}
+
+        {%- when 'shopping_cart' -%}
+          {%- render 'icon' with 'header-shopping-cart' -%}
+
+        {%- when 'tote_bag' -%}
+          {%- render 'icon' with 'header-tote-bag' -%}
+      {%- endcase -%}
+
+      {%- if cart.item_count == 0 -%}
+        {{- 'cart.general.title' | t -}}
+      {%- else -%}
+        {{- 'cart.general.item_count' | t: count: cart.item_count -}}
+      {%- endif -%}
+    </p>
+
+    <button
+      type="button"
+      class="drawer__close-button tap-area"
+      data-action="close"
+      title="{{ 'general.accessibility.close' | t | escape }}"
+    >
+      {%- render 'icon' with 'cart-cross' -%}
+    </button>
+  </header>
+  {% if settings.cart_show_good_choice != false %}
+    {% render 'ed-good-choice-bar' %}
+  {%- endif -%}
+  {% if settings.enable_social_proof %}
+    <div
+      class="ed-social-proof-banner ed-social-proof-banner-cart"
+      style="background-color: {{ settings.social_proof_background }};{% if cart.item_count == 0 %}display: none; {% else %} display: block; {% endif %}"
+    >
+      {% render 'ed-social-proof-banner',
+        img_1: settings.social_proof_image_1,
+        img_2: settings.social_proof_image_2,
+        text_social_proof: settings.text_social_proof,
+        ppl_social_proof: settings.ppl_social_proof,
+        enable_text_bold: settings.enable_text_bold,
+        enable_insta_checkmark: settings.enable_insta_checkmark,
+        social_proof_text: settings.social_proof_text
+      %}
+    </div>
+  {% endif %}
+  {%- if cart.item_count == 0 -%}
+    <div class="drawer__content drawer__content--center">
+      <p>{{ 'cart.general.empty' | t }}</p>
+
+      <div class="button-wrapper">
+        <a href="{{ section.settings.empty_button_link }}" class="button button--primary">
+          {{- 'cart.general.start_shopping' | t -}}
+        </a>
+      </div>
+    </div>
+  {%- else -%}
+    <div class="drawer__content">
+      {%- if settings.cart_show_free_shipping_threshold and settings.cart_free_shipping_threshold != '' -%}
+        {%- assign free_shipping_thresholds = settings.cart_free_shipping_threshold | remove: ' ' | split: ',' -%}
+        {%- assign has_found_matching_threshold = false -%}
+
+        {%- if free_shipping_thresholds.size > 1 -%}
+          {%- for threshold in free_shipping_thresholds -%}
+            {%- assign threshold_parts = threshold | split: ':' -%}
+            {%- assign currency_code = threshold_parts | first | upcase -%}
+
+            {%- if currency_code == cart.currency.iso_code -%}
+              {%- assign free_shipping_calculated_threshold = threshold_parts | last -%}
+              {%- assign has_found_matching_threshold = true -%}
+              {%- break -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- else -%}
+          {%- assign free_shipping_calculated_threshold = free_shipping_thresholds | last -%}
+          {%- assign has_found_matching_threshold = true -%}
+        {%- endif -%}
+
+        {%- if has_found_matching_threshold -%}
+          {%- assign threshold_in_cents = free_shipping_calculated_threshold | times: 100 -%}
+
+          {%- assign calculated_total_price = cart.total_price -%}
+
+          {%- for line_item in cart.items -%}
+            {%- unless line_item.requires_shipping -%}
+              {%- assign calculated_total_price = calculated_total_price | minus: line_item.final_line_price -%}
+            {%- endunless -%}
+          {%- endfor -%}
+
+          <free-shipping-bar
+            threshold="{{ threshold_in_cents }}"
+            class="ed-free-shipping-bar shipping-bar"
+            style="--progress: {{ cart.total_price | times: 1.0 | divided_by: threshold_in_cents | at_most: 1 }};color: {{ settings.shipping_text_color }};"
+          >
+            {%- if calculated_total_price >= threshold_in_cents -%}
+              <span class="shipping-bar__text text--small">{{ 'cart.general.free_shipping' | t }}</span>
+            {%- else -%}
+              {%- capture remaining_amount -%}{{ calculated_total_price | minus: threshold_in_cents | abs | money }}{%- endcapture -%}
+              <span class="shipping-bar__text text--small">
+                {{- 'cart.general.free_shipping_remaining_html' | t: remaining_amount: remaining_amount -}}
+              </span>
+            {%- endif -%}
+
+            <span
+              class="shipping-bar__progress"
+              style="color:{{ settings.shipping_bar_color }};background-color: {{ settings.rest_shipping_bar_color }};"
+            >
+            </span>
+          </free-shipping-bar>
+        {%- endif -%}
+      {%- endif -%}
+
+      <form id="mini-cart-form" action="{{ routes.cart_url }}" novalidate method="post">
+        <input type="hidden" name="checkout">
+
+        {%- for line_item in cart.items -%}
+          <line-item class="line-item">
+            <div class="line-item__content-wrapper">
+              <span href="#" class="line-item__image-wrapper" tabindex="-1" aria-hidden="true">
+                <span class="line-item__loader" hidden>
+                  <span class="line-item__loader-spinner spinner" hidden>
+                    {%- render 'icon' with 'spinner', width: 16, height: 16, stroke_width: 6 -%}
+                  </span>
+                  <span class="line-item__loader-mark" hidden>
+                    {%- render 'icon' with 'check', width: 20, height: 20 -%}
+                  </span>
+                </span>
+                <img
+                  class="line-item__image"
+                  loading="sizes"
+                  sizes="(max-width: 740px) 80px, 92px"
+                  {% render 'image-attributes', image: line_item.image, sizes: '80,92,160,184,240,276' %}
+                >
+              </span>
+
+              {%- capture unit_price -%}
+                {%- if line_item.unit_price_measurement -%}
+                  <div class="price text--subdued">
+                    <div class="unit-price-measurement">
+                      <span class="unit-price-measurement__price">{{ line_item.unit_price | money }}</span>
+                      <span class="unit-price-measurement__separator">/</span>
+
+                      {%- if line_item.unit_price_measurement.reference_value != 1 -%}
+                        <span class="unit-price-measurement__reference-value">{{ line_item.unit_price_measurement.reference_value }}</span>
+                      {%- endif -%}
+
+                      <span class="unit-price-measurement__reference-unit">{{ line_item.unit_price_measurement.reference_unit }}</span>
+                    </div>
+                  </div>
+                {%- endif -%}
+              {%- endcapture -%}
+
+              {%- capture line_price -%}
+                {%- comment -%}
+                IMPLEMENTATION NOTE: The designer wanted to show the "compare at price" on cart. In case an automatic discount is applied
+                  to a line item though, the "real" discount takes precedence over the compare at price
+                {%- endcomment -%}
+
+                <span class="price {% if line_item.original_line_price > line_item.final_line_price or line_item.final_line_price == 0 or line_item.variant.compare_at_price > line_item.variant.price %}price--highlight{% endif %}">
+                  <span class="visually-hidden">{{ 'product.general.sale_price' | t }}</span>
+
+                  {%- if line_item.final_line_price == 0 -%}
+                    {{- 'cart.general.free' | t -}}
+                  {%- else -%}
+                    {{- line_item.final_line_price | money -}}
+                  {%- endif -%}
+                </span>
+
+                {%- if line_item.original_line_price > line_item.final_line_price or line_item.variant.compare_at_price > line_item.variant.price -%}
+                  <span class="price price--compare">
+                    <span class="visually-hidden">{{ 'product.general.regular_price' | t }}</span>
+
+                    {%- if line_item.original_line_price > line_item.final_line_price -%}
+                      {% comment %}
+                      {{- line_item.original_line_price | money -}}
+                      {% endcomment %}
+
+                      {% comment %} USE COMPARE PRICE INSTEAD OF ORIGINAL LINE PRICE BY JO-ELBDEV {% endcomment %}
+                      {% if line_item.variant.compare_at_price > line_item.variant.price %}
+                        {{- line_item.variant.compare_at_price | times: line_item.quantity | money -}}
+                      {% else %}
+                        {{- line_item.original_line_price | money -}}
+                      {% endif %}
+                      {% comment %} END {% endcomment %}
+                    {%- else -%}
+                      {{- line_item.variant.compare_at_price | times: line_item.quantity | money -}}
+                    {%- endif -%}
+                  </span>
+                  {% if line_item.variant.compare_at_price > line_item.final_line_price %}
+                    {% assign compare-price = line_item.variant.compare_at_price | times:line_item.quantity %}
+                    {% assign save_price = compare-price | minus: line_item.final_line_price  %}
+                    
+                    <span class="label label--highlight"><span class="savings">{{ save_price | money   }}</span> {{ 'cart.general.saving_price' | t }}</span>
+                  {%- else -%}
+                    {% comment %} NOTE: EDITED BY jo-elbdev BECAUSE OF DISCOUNT APPLICATIONS {% endcomment %}
+                    {% if line_item.variant.compare_at_price > line_item.variant.price %}
+                      {% assign save_price = line_item.variant.compare_at_price | minus: line_item.final_price | times: line_item.quantity  %}
+                    {% else %}
+                      {% assign save_price = line_item.original_line_price | minus: line_item.final_line_price %}
+                    {% endif %}
+                    {% comment %} {% assign save_price = line_item.original_line_price | minus: line_item.final_line_price %} {% endcomment %}
+
+                    {% comment %} NOTE: EDITED BY jo-elbdev BECAUSE OF DISCOUNT APPLICATIONS AND COMPARE PRICES {% endcomment %}
+                      <span class="label label--highlight"><span class="savings">{{ save_price | money   }}</span> {{ 'cart.general.saving_price' | t }}</span>
+                  {%- endif -%}
+                {%- endif -%}
+              {%- endcapture -%}
+
+              <div class="line-item__info">
+                <div class="product-item-meta">
+                  {%- if settings.show_vendor -%}
+                    {%- assign vendor_handle = line_item.vendor | handle -%}
+                    {%- assign collection_for_vendor = collections[vendor_handle] -%}
+
+                    {%- unless collection_for_vendor.empty? -%}
+                      <a class="product-item-meta__vendor heading heading--xxsmall" href="#">{{ line_item.vendor }}</a>
+                    {%- else -%}
+                      <a class="product-item-meta__vendor heading heading--xxsmall" href="#">{{ line_item.vendor }}</a>
+                    {%- endunless -%}
+                  {%- endif -%}
+
+                  <span href="#" class="product-item-meta__title text--small">{{ line_item.product.title }}</span>
+
+                  {%- capture line_item_properties -%}
+                    {%- unless line_item.product.has_only_default_variant -%}
+                      <span class="product-item-meta__property text--subdued text--xsmall variant-ab-original">{{ line_item.variant.title | replace:'/','|'}}</span>
+                      {%- comment -%} A/B test: option title:value format {%- endcomment -%}
+                      {%- for option in line_item.options_with_values -%}
+                        <span class="product-item-meta__property text--subdued text--xsmall variant-ab-test">{{ option.name }}: {{ option.value }}</span>
+                      {%- endfor -%}
+                    {%- endunless -%}
+
+                    {%- if line_item.selling_plan_allocation -%}
+                      <span class="product-item-meta__property text--subdued text--xsmall">{{ line_item.selling_plan_allocation.selling_plan.name }}</span>
+                    {%- endif -%}
+
+                    {%- unless line_item.properties == blank -%}
+                      <ul class="product-item-meta__property list--unstyled text--subdued text--xsmall" role="list">
+                        {%- for property in line_item.properties -%}
+                          {%- assign first_character_in_key = property.first | truncate: 1, '' -%}
+
+                          {%- if property.last == blank or first_character_in_key == '_' -%}
+                            {%- continue -%}
+                          {%- endif -%}
+
+                          <li>{{ property.first }}: {{ property.last }}</li>
+                        {%- endfor -%}
+                      </ul>
+                    {%- endunless -%}
+                  {%- endcapture -%}
+
+                  {%- if line_item_properties != blank -%}
+                    <div class="product-item-meta__property-list">
+                      {{- line_item_properties -}}
+                    </div>
+                  {%- endif -%}
+
+                  {% render 'ed-cart-shipping-message', variant: line_item.variant %}
+
+                  {% assign variant = line_item.variant %}
+
+                  {% if variant.inventory_management %}
+                    {% assign available_qty = variant.inventory_quantity %}
+                    {% if available_qty < 0 %}
+                      {% assign available_qty = 0 %}
+                    {% endif %}
+
+                    {% assign cart_qty = line_item.quantity %}
+
+                    {% if cart_qty > available_qty %}
+                      {% assign delayed_qty = cart_qty | minus: available_qty %}
+
+                      {%- comment -%}
+                        1. If some qty is available → show that message
+                      {%- endcomment -%}
+                      {% if available_qty > 0 %}
+                        <div class="available-cart-qty">
+                          {{ settings['cart-available-messages'] | replace: '[qty]', available_qty }}
+                        </div>
+                      {% endif %}
+
+                      {%- comment -%}
+                        2. For the remaining delayed qty → check preorder rules
+                           - If Lieferdatum future → show date
+                           - Else if Lieferzeit exists → show that
+                           - Else → fallback to settings.cart-unavailable-message
+                      {%- endcomment -%}
+
+                      {% assign lieferdatum_variant = variant.metafields.variant.Lieferdatum | date: '%s' %}
+                      {% assign now_variant = 'now' | date: '%s' %}
+                      {% assign diff_variant = lieferdatum_variant | minus: now_variant %}
+
+                      {% if diff_variant > 0 %}
+                        <div class="unavailable-cart-qty">
+                          {{ delayed_qty }} Artikel: Voraussichtlich lieferbar ab
+                          {{ variant.metafields.variant.Lieferdatum | date: '%d.%m.%Y' }}
+                        </div>
+                      {% elsif variant.metafields.variant.Lieferzeit != blank %}
+                        <div class="unavailable-cart-qty">
+                          {{ delayed_qty }} Artikel: {{ variant.metafields.variant.Lieferzeit }}
+                        </div>
+                      {% else %}
+                        <div class="unavailable-cart-qty">
+                          {{ settings['cart-unavailable-messages'] | replace: '[qty]', delayed_qty }}
+                        </div>
+                      {% endif %}
+                    {% endif %}
+                  {% endif %}
+
+                  <div class="product-item-meta__price-list-container text--small">
+                    <div class="price-list">
+                      {{- line_price -}}
+                      {{- unit_price -}}
+                    </div>
+
+                    {%- if unit_price != blank -%}
+                      <div class="price-list hidden-phone">
+                        {{- unit_price -}}
+                      </div>
+                    {%- endif -%}
+                  </div>
+                </div>
+
+                {%- if line_item.line_level_discount_allocations != blank -%}
+                  <ul class="line-item__discount-list list--unstyled" role="list">
+                    {%- for discount_allocation in line_item.line_level_discount_allocations -%}
+                      <li class="line-item__discount-badge discount-badge">
+                        {%- render 'icon' with 'discount-badge' -%}
+                        {{ discount_allocation.discount_application.title }} (-{{ discount_allocation.amount | money }})
+                      </li>
+                    {%- endfor -%}
+                  </ul>
+                {%- endif -%}
+
+                {%- assign max_allowed_quantity = '' -%}
+                {%- assign allow_more = true -%}
+
+                {%- if line_item.variant.inventory_management == 'shopify'
+                  and line_item.variant.inventory_policy == 'deny'
+                  and line_item.variant.inventory_quantity <= line_item.quantity
+                -%}
+                  {%- assign max_allowed_quantity = line_item.variant.inventory_quantity -%}
+                  {%- assign allow_more = false -%}
+                {%- endif -%}
+
+                <line-item-quantity class="line-item__quantity">
+                  <div class="quantity-selector quantity-selector--small">
+                    <a
+                      href="{{ routes.cart_change_url }}?quantity={{ line_item.quantity | minus: 1 }}&line={{ forloop.index }}"
+                      class="quantity-selector__button"
+                      aria-label="{{ 'cart.general.decrease_quantity' | t | escape }}"
+                      data-no-instant
+                    >
+                      {%- render 'icon' with 'minus' -%}
+                    </a>
+
+                    <input
+                      is="input-number"
+                      class="quantity-selector__input text--xsmall"
+                      autocomplete="off"
+                      type="text"
+                      inputmode="numeric"
+                      name="updates[]"
+                      data-line="{{ forloop.index }}"
+                      value="{{ line_item.quantity }}"
+                      {% if max_allowed_quantity != '' %}
+                        max="{{ max_allowed_quantity }}"
+                      {% endif %}
+                      size="{{ line_item.quantity | append: '' | size | at_least: 2 }}"
+                      aria-label="{{ 'cart.general.change_quantity' | t | escape }}"
+                    >
+
+                    {%- if allow_more -%}
+                      <a
+                        href="{{ routes.cart_change_url }}?quantity={{ line_item.quantity | plus: 1 }}&line={{ forloop.index }}"
+                        class="quantity-selector__button"
+                        aria-label="{{ 'cart.general.increase_quantity' | t | escape }}"
+                        data-no-instant
+                      >
+                        {%- render 'icon' with 'plus' -%}
+                      </a>
+                    {%- else -%}
+                      <span
+                        class="quantity-selector__button"
+                        aria-label="{{ 'cart.general.no_more_stock' | t | escape }}"
+                        data-tooltip="{{ 'cart.general.no_more_stock' | t | escape }}"
+                      >
+                        {%- render 'icon' with 'plus' -%}
+                      </span>
+                    {%- endif -%}
+                  </div>
+
+                  <a
+                    href="{{ line_item.url_to_remove }}"
+                    class="line-item__remove-button link text--subdued text--xxsmall"
+                    data-no-instant
+                  >
+                    {{- 'cart.general.remove' | t -}}
+                  </a>
+                </line-item-quantity>
+              </div>
+
+              <div class="line-item__price-list-container text--small hidden-phone hidden-tablet-and-up">
+                {%- if settings.show_vendor -%}
+                  {%- comment -%}
+                    IMPLEMENTATION NOTE: in the design, the price is aligned in regards of the product title (not the brand). It was a
+                    bit hard to do as we cannot set a fixed margin, so I am actually adding an empty vendor to simulate the same height
+                  {%- endcomment -%}
+                  <span class="product-item-meta__vendor heading heading--xxsmall" style="visibility: hidden">x</span>
+                {%- endif -%}
+
+                <div class="price-list price-list--stack">
+                  {{- line_price -}}
+                </div>
+              </div>
+            </div>
+          </line-item>
+        {%- endfor -%}
+        {% render 'ed-cart-reservation-label' %}
+      </form>
+
+      {% comment %}
+        {%- if section.settings.show_upsells and section.settings.show_recommendations == false -%}
+              {% render 'ed-cart_upsells' %}
+        {%- endif -%}
+      {% endcomment %}
+
+      {%- if section.settings.show_recommendations -%}
+        <cart-drawer-recommendations
+          section-id="{{ section.id }}"
+          product-id="{{ cart.items.first.product_id }}"
+          class="mini-cart__recommendations"
+        >
+          {%- assign acceptable_recommendations_count = 0 -%}
+
+          {%- for product in recommendations.products -%}
+            {%- assign matching_product = cart.items | where: 'product_id', product.id | first -%}
+
+            {%- if matching_product == blank -%}
+              {%- assign acceptable_recommendations_count = acceptable_recommendations_count | plus: 1 -%}
+            {%- endif -%}
+          {%- endfor -%}
+
+          {%- if recommendations.performed -%}
+            {%- if acceptable_recommendations_count > 0 -%}
+              <div class="mini-cart__recommendations-inner">
+                {%- if section.settings.recommendations_title != blank -%}
+                  <p class="mini-cart__recommendations-heading heading heading--small hidden-pocket">
+                    {{ section.settings.recommendations_title | escape }}
+                  </p>
+                  <p class="mini-cart__recommendations-heading heading heading--xsmall text--subdued hidden-lap-and-up">
+                    {{ section.settings.recommendations_title | escape }}
+                  </p>
+                {%- endif -%}
+
+                <div class="scroller">
+                  <div class="scroller__inner">
+                    <div class="mini-cart__recommendations-list">
+                      {%- assign shown_products_count = 0 -%}
+
+                      {%- for product in recommendations.products -%}
+                        {%- if shown_products_count >= 6 -%}
+                          {%- break -%}
+                        {%- endif -%}
+
+                        {%- assign matching_product = cart.items | where: 'product_id', product.id -%}
+
+                        {%- if matching_product.size == 0 -%}
+                          {%- assign shown_products_count = shown_products_count | plus: 1 -%}
+                          {%- render 'product-item',
+                            product: product,
+                            reduced_content: true,
+                            reduced_font_size: true,
+                            hide_secondary_image: true,
+                            sizes_attribute: '(max-width: 740px) 65px, 92px'
+                          -%}
+                        {%- endif -%}
+                      {%- endfor -%}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {%- endif -%}
+          {%- else -%}
+            <div class="mini-cart__recommendations-inner">
+              <div class="spinner">
+                {%- render 'icon' with 'spinner', stroke_width: 3, width: 40, height: 40 -%}
+              </div>
+            </div>
+          {%- endif -%}
+        </cart-drawer-recommendations>
+      {%- endif -%}
+    </div>
+
+    <footer class="mini-cart__drawer-footer drawer__footer drawer__footer--tight drawer__footer--bordered">
+      {%- capture shipping_tax_note -%}{{ 'cart.general.shipping_tax_note' | t }}{%- endcapture -%}
+
+      {%- if cart.cart_level_discount_applications != blank -%}
+        <ul class="mini-cart__discount-list list--unstyled" role="list">
+          {%- for discount_application in cart.cart_level_discount_applications -%}
+            <li class="mini-cart__discount">
+              <span class="mini-cart__discount-badge discount-badge">
+                {%- render 'icon' with 'discount-badge' -%}
+                {{ discount_application.title -}}
+              </span>
+              <span class="mini-cart__discount-price text--xsmall text--subdued"
+                >-{{ discount_application.total_allocated_amount | money -}}
+              </span>
+            </li>
+          {%- endfor -%}
+        </ul>
+      {%- endif -%}
+
+      {%- if section.settings.show_cart_note_modal -%}
+        {% render 'ed-cart-note-modal', cart: cart, part: 'trigger' %}
+      {%- endif -%}
+
+      {% comment %} elbdev {% endcomment %}
+      {% render 'ed-totals-cart', cart: cart %}
+
+      {%- if section.settings.show_order_note or shipping_tax_note != '' -%}
+        <div class="mini-cart__actions text--subdued text--xsmall">
+          {%- if section.settings.show_order_note -%}
+            <button
+              type="button"
+              is="toggle-button"
+              id="order-note-toggle"
+              class="link"
+              data-action="toggle-order-note"
+              aria-controls="mini-cart-note"
+              aria-expanded="false"
+            >
+              {%- if cart.note == blank -%}
+                {{- 'cart.general.add_order_note' | t -}}
+              {%- else -%}
+                {{- 'cart.general.edit_order_note' | t -}}
+              {%- endif -%}
+            </button>
+          {%- endif -%}
+        </div>
+      {%- endif -%}
+
+      {%- if section.settings.show_checkout_button -%}
+        <button
+          form="mini-cart-form"
+          type="submit"
+          class="checkout-button button button--primary button--full"
+          name="checkout"
+        >
+          {{- 'cart.general.checkout' | t -}}
+        </button>
+      {%- else -%}
+        <a href="{{ routes.cart_url }}" class="button button--primary button--full" data-no-instant>
+          {{- 'cart.general.go_to_cart' | t -}}
+        </a>
+      {%- endif -%}
+      {% if section.settings.show_payment_icons %}
+        <div class="ed-payment-bar-cart">
+          {% render 'ed-payment-bar-cart' %}
+        </div>
+      {% endif %}
+    </footer>
+    {%- comment -%}Store Benefits{%- endcomment -%}
+    {% if settings.enable_store_benefits %}
+      <div class="ed-store-benefits-cart">
+        {% assign unique_class = 'store_benefits-' | append: section.id %}
+        {%- render 'ed-store-benefits',
+          benefit_svg_1: settings.benefit_svg_1,
+          benefit_png_1: settings.benefit_png_1,
+          benefit_texte_1: settings.benefit_texte_1,
+          benefit_svg_2: settings.benefit_svg_2,
+          benefit_png_2: settings.benefit_png_2,
+          benefit_texte_2: settings.benefit_texte_2,
+          css_class: unique_class,
+          font_size_desktop: settings.font_size_desktop,
+          icon_size_desktop: settings.icon_size_desktop,
+          font_size_mobile: settings.font_size_mobile,
+          icon_size_mobile: settings.icon_size_mobile,
+          benefits_background: settings.benefits_background,
+          benefits_text_color: settings.benefits_text_color,
+          benefits_text_font_weight: settings.benefits_text_font_weight
+        -%}
+      </div>
+    {% endif %}
+    {%- comment -%}Store Benefits{%- endcomment -%}
+  {%- endif -%}
+
+  {%- if section.settings.show_order_note -%}
+    <openable-element id="mini-cart-note" class="mini-cart__order-note">
+      <span class="openable__overlay"></span>
+      <label for="cart[note]" class="mini-cart__order-note-title heading heading--xsmall">
+        {{- 'cart.general.add_order_note' | t -}}
+      </label>
+      <textarea
+        is="cart-note"
+        name="note"
+        id="cart[note]"
+        rows="3"
+        aria-owns="order-note-toggle"
+        class="input__field input__field--textarea"
+        placeholder="{{ 'cart.general.order_note_placeholder' | t }}"
+      >{{ cart.note }}</textarea>
+      <button type="button" data-action="close" class="form__submit form__submit--closer button button--secondary">
+        {{ 'cart.general.order_note_save' | t }}
+      </button>
+    </openable-element>
+  {%- endif -%}
+
+  {%- if section.settings.show_cart_note_modal -%}
+    {% render 'ed-cart-note-modal', cart: cart, part: 'modal' %}
+  {%- endif -%}
+</cart-drawer>
+
+{% comment %}
+  {
+  "type": "paragraph",
+  "content": "Activate the upsells only when 'Show cart recommendations' are deactivated."
+  },
+  {
+  "type": "checkbox",
+  "id": "show_upsells",
+  "label": "Show cart upsells",
+  "default": false
+  },
+  {
+  "type": "product",
+  "id": "show_upsell_product",
+  "label": "Show extra product",
+  "info": "To use this field you have to activate 'Show cart upsells'."
+  },
+{% endcomment %}
+
+{% schema %}
+{
+  "name": "Cart drawer",
+  "class": "shopify-section--mini-cart",
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "Free shipping notice can be configured in global cart settings."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_order_note",
+      "label": "Show order note",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_cart_note_modal",
+      "label": "Show cart note modal (new design)",
+      "default": true,
+      "info": "Adds the new note button and modal. The original order note setting above is unchanged."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_checkout_button",
+      "label": "Show checkout button",
+      "default": true
+    },
+    {
+      "type": "url",
+      "id": "empty_button_link",
+      "label": "Empty button link",
+      "default": "/collections/all"
+    },
+    {
+      "type": "header",
+      "content": "Cross-sell",
+      "info": "Dynamic recommendations are based on the items in your cart. They change and improve with time. [Learn more](https://help.shopify.com/en/themes/development/recommended-products)"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_recommendations",
+      "label": "Show cart recommendations",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "recommendations_title",
+      "label": "Recommendations heading",
+      "default": "You may also like"
+    },
+    {
+      "type": "header",
+      "content": "payment-bar settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_payment_icons",
+      "label": "Show payment icons",
+      "default": true
+    },
+    {
+      "type": "select",
+      "id": "payment_style",
+      "label": "Styles",
+      "options": [
+        {
+          "value": "grayscale",
+          "label": "Grayscale"
+        },
+        {
+          "value": "colorful",
+          "label": "Colorful"
+        }
+      ],
+      "default": "grayscale"
+    },
+    {
+      "type": "paragraph",
+      "content": "Because of styling concerns you should not activate more than six payment icons!"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_amazon",
+      "label": "Amazon",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_googlepay",
+      "label": "Google-pay",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_paypal",
+      "label": "Paypal",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_master",
+      "label": "Master",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_visa",
+      "label": "Visa",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_amex",
+      "label": "Amex",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_klarna",
+      "label": "Klarna",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_apple_pay",
+      "label": "Apple-pay",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_klarna-pay-later",
+      "label": "Klarna-pay-later",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_sofort",
+      "label": "Sofort",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_bitcoin",
+      "label": "Bitcoin",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_shopify_pay",
+      "label": "Shopify-pay",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_twint",
+      "label": "Twint",
+      "default": false
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,204 @@
+{% assign freeshipping = settings.shipping_threshold | times: 100.00 %}
+{% assign freeproduct_threshold = settings.product_threshold | times: 100.00 %}
+{% assign free_product = settings.free_product %}
+{% assign exception_ids = settings.free_product_exception | map: 'id' %}
+
+{%- comment -%} Two totals: shipping (full cart) and gift (exclude exceptions) {%- endcomment -%}
+{% assign cart_total_shipping = cart.total_price %}
+{% assign cart_total_gift = cart.total_price %}
+{% assign has_excluded_in_cart = false %}
+{% for item in cart.items %}
+  {% if exception_ids contains item.product.id %}
+    {% assign has_excluded_in_cart = true %}
+    {% assign cart_total_gift = cart_total_gift | minus: item.line_price %}
+  {% endif %}
+{% endfor %}
+
+{%- comment -%} Gift availability {%- endcomment -%}
+{% assign free_product_available = false %}
+{% if freeproduct_threshold > 0 and free_product and free_product.available %}
+  {% assign free_product_available = true %}
+{% endif %}
+
+{%- comment -%} Progress scale: largest milestone + 20% headroom {%- endcomment -%}
+{% if free_product_available and freeproduct_threshold > freeshipping %}
+  {% assign increase_twenty = freeproduct_threshold | times: 20 | divided_by: 100 %}
+  {% assign progess_value = freeproduct_threshold | plus: increase_twenty %}
+{% else %}
+  {% assign increase_twenty = freeshipping | times: 20 | divided_by: 100 %}
+  {% assign progess_value = freeshipping | plus: increase_twenty %}
+{% endif %}
+
+{%- comment -%} Raw progress percents {%- endcomment -%}
+{% assign shipping_progress_pct = cart_total_shipping | times: 100 | divided_by: progess_value | round: 2 %}
+{% assign gift_progress_pct     = cart_total_gift     | times: 100 | divided_by: progess_value | round: 2 %}
+
+{%- comment -%} Icon positions (in %) {%- endcomment -%}
+{% assign shipping_icon_location = freeshipping | times: 100.00 | divided_by: progess_value %}
+{% assign product_icon_location  = freeproduct_threshold | times: 100.00 | divided_by: progess_value %}
+
+{%- comment -%}
+Bar width logic:
+- No excluded item  → use normal shipping progress.
+- Excluded item present:
+  - If shipping not reached yet → use normal shipping progress.
+  - If shipping reached → start from shipping icon, then add a proportion
+    of the distance to the gift icon based ONLY on non-excluded total
+    relative to the gift threshold. Once gift threshold is met, resume
+    normal (shipping-based) progress (which can exceed the gift icon).
+{%- endcomment -%}
+{% assign progress_amount = shipping_progress_pct %}
+
+{% if has_excluded_in_cart %}
+  {% if cart_total_shipping >= freeshipping %}
+    {%- comment -%} Start at shipping marker {%- endcomment -%}
+    {% assign progress_amount = shipping_icon_location %}
+
+    {%- comment -%} How far (0..1) are we toward the gift threshold using ONLY non-excluded items? {%- endcomment -%}
+    {% assign gift_ratio_bp = 0 %}
+    {% if freeproduct_threshold > 0 %}
+      {% assign gift_ratio_bp = cart_total_gift | times: 10000 | divided_by: freeproduct_threshold %}
+      {% if gift_ratio_bp > 10000 %}{% assign gift_ratio_bp = 10000 %}{% endif %}
+      {% if gift_ratio_bp < 0 %}{% assign gift_ratio_bp = 0 %}{% endif %}
+    {% endif %}
+
+    {%- comment -%} Add proportional segment from shipping icon toward gift icon {%- endcomment -%}
+    {% assign delta = product_icon_location | minus: shipping_icon_location %}
+    {% assign extra = delta | times: gift_ratio_bp | divided_by: 10000 %}
+    {% assign progress_amount = progress_amount | plus: extra %}
+
+    {%- comment -%} If gift threshold is actually reached, resume normal (shipping-based) progress {%- endcomment -%}
+    {% if cart_total_gift >= freeproduct_threshold %}
+      {% if shipping_progress_pct > product_icon_location %}
+        {% assign progress_amount = shipping_progress_pct %}
+      {% else %}
+        {% assign progress_amount = product_icon_location %}
+      {% endif %}
+    {% endif %}
+  {% endif %}
+{% endif %}
+
+{%- comment -%} Explicit icon active states {%- endcomment -%}
+{% assign shipping_icon_active = false %}
+{% if cart_total_shipping >= freeshipping %}
+  {% assign shipping_icon_active = true %}
+{% endif %}
+
+{% assign gift_icon_active = false %}
+{% if free_product_available and cart_total_gift >= freeproduct_threshold %}
+  {% assign gift_icon_active = true %}
+{% endif %}
+
+{%- comment -%} Remaining amounts {%- endcomment -%}
+{% assign remaining_shipping_price = freeshipping | minus: cart_total_shipping %}
+{% if remaining_shipping_price < 0 %}{% assign remaining_shipping_price = 0 %}{% endif %}
+{% assign remaining_shipping_amount = remaining_shipping_price | money %}
+
+{% assign remaining_gift_price = freeproduct_threshold | minus: cart_total_gift %}
+{% if remaining_gift_price < 0 %}{% assign remaining_gift_price = 0 %}{% endif %}
+{% assign remaining_gift_amount = remaining_gift_price | money %}
+
+{%- comment -%} Exception product IDs CSV {%- endcomment -%}
+{% assign exception_product_id = '' %}
+{% for product in settings.free_product_exception %}
+  {% assign exception_product_id = exception_product_id | append: product.id %}
+  {% unless forloop.last %}{% assign exception_product_id = exception_product_id | append: ',' %}{% endunless %}
+{% endfor %}
+
+<div class="drawer_progress_bar_main_new">
+  <div class="drawer_progress_bar">
+    <div class="progress_bar_main"
+         excluded_products="{{ exception_product_id }}"
+         shop_currency="{{ localization.country.currency.symbol }}"
+         free_product_available="{{ free_product_available }}"
+         {% if free_product and free_product.first_available_variant %}free_product_id="{{ free_product.first_available_variant.id }}"{% endif %}
+         freeproduct_threshold="{{ freeproduct_threshold }}"
+         shipping_threshold="{{ freeshipping }}"
+         remaining_text="{{ settings.remaining_threshold_text }}"
+         freeshipping_text="{{ settings.shipping_free }}"
+         remaining_product_text="{{ settings.remaining_threshold_product_text }}"
+         freeproduct_text="{{ settings.product_free }}">
+
+      <div class="drawer_bar">
+        <div class="progress">
+          <div class="bar" style="width:{{ progress_amount }}%"></div>
+        </div>
+
+        <span class="progress__icons {% if shipping_icon_active %}active{% endif %}"
+              style="left:{{ shipping_icon_location }}%;">
+          <!-- truck SVG -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="22" viewBox="0 0 24 25" fill="none">
+            <path d="M16.0017 19.7318H8.1684" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18.9989 19.732H21.0038C21.5563 19.732 22.0042 19.3027 22.0042 18.7732V12.9109C22.0042 12.6671 21.9556 12.4256 21.8611 12.1992L20.5058 8.95299C20.2019 8.22509 19.4663 7.7478 18.6482 7.7478H15.0013" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M22.0042 14.459H18.5027C18.2265 14.459 18.0025 14.2443 18.0025 13.9796V10.624H21.2038" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18.5593 18.7188C18.9885 19.1301 19.117 19.7486 18.8847 20.286C18.6525 20.8234 18.1053 21.1738 17.4984 21.1738C16.8914 21.1739 16.3442 20.8235 16.1119 20.2861C15.8796 19.7488 16.008 19.1302 16.4371 18.7189L16.4372 18.7188C16.7186 18.4491 17.1003 18.2976 17.4983 18.2976C17.8963 18.2976 18.2779 18.4491 18.5593 18.7188V18.7188" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7.55476 18.7189C7.98396 19.1302 8.11238 19.7487 7.88014 20.2861C7.6479 20.8235 7.10073 21.1739 6.49379 21.1739C5.88684 21.174 5.33964 20.8236 5.10734 20.2862C4.87505 19.7489 5.0034 19.1303 5.43255 18.719L5.43285 18.7187C5.71424 18.449 6.0959 18.2976 6.49384 18.2976C6.89178 18.2976 7.2734 18.4492 7.55474 18.7189V18.7189" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4.99707 19.7319H2.99624C2.44372 19.7319 1.99582 19.3027 1.99582 18.7732V6.78905C1.99582 6.25956 2.44372 5.83032 2.99624 5.83032H14.0008C14.5533 5.83032 15.0012 6.25956 15.0012 6.78905V15.4176" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M15.0012 15.4176H1.99582" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M14.5 6.5H2.5L2 11.5L2.5 20H4.5L6.5 22L8 20.5H15.5L17.5 22L19 20.5H21.5V12.5L19.5 8.5L15.5 8L14.5 6.5Z" fill="white"/>
+            <path d="M18.704 19.0583C19.323 19.7031 19.323 20.7479 18.704 21.3916C18.085 22.0364 17.082 22.0364 16.464 21.3916C15.845 20.7468 15.845 19.7021 16.464 19.0583C17.083 18.4135 18.086 18.4135 18.704 19.0583" stroke="#D87682" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7.704 19.0582C8.323 19.7029 8.323 20.7477 7.704 21.3915C7.085 22.0363 6.082 22.0363 5.464 21.3915C4.846 20.7467 4.845 19.7019 5.464 19.0582C6.083 18.4144 7.085 18.4134 7.704 19.0582" stroke="#D87682" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M10 4.1665H14C14.552 4.1665 15 4.63317 15 5.20817V15.6248H2" stroke="#D87682" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M5 20.2248H3C2.448 20.2248 2 19.7582 2 19.1832V13.5415" stroke="#D87682" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M15 7.2915H19.323C19.732 7.2915 20.1 7.55088 20.251 7.94671L21.857 12.128C21.951 12.3738 22 12.6363 22 12.9009V19.0967C22 19.6717 21.552 20.1384 21 20.1384H19.169" stroke="#D87682" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M16 20.2291H8.17001" stroke="#D87682" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M22 14.5832H18V10.4165H21.2" stroke="#D87682" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 4.16659H7" stroke="#D87682" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 7.29159H5" stroke="#D87682" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 10.4166H2" stroke="#D87682" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <!-- … keep your existing SVG … -->
+        </span>
+
+        {% if freeproduct_threshold != blank and free_product != blank %}
+          {% assign gift_class = '' %}
+          {% if gift_icon_active %}
+            {% assign gift_class = 'active' %}
+          {% elsif free_product_available == false %}
+            {% assign gift_class = 'hide' %}
+          {% endif %}
+          <span class="progress__icons progress__icons_gift {{ gift_class }}"
+                style="left:{{ product_icon_location }}%;">
+            <!-- gift SVG -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="auto" height="17" viewBox="0 0 13 13" fill="none">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M10.744 12.1606H2.25729C1.56326 12.1606 1 11.5974 1 10.9033V6.50285C1 5.80882 1.56326 5.24556 2.25729 5.24556H10.7427C11.4367 5.24556 12 5.80882 12 6.50285V10.9033C12 11.5974 11.4367 12.1606 10.744 12.1606Z" stroke="#554A44" stroke-linecap="round" stroke-linejoin="round"></path>
+              <path d="M6.50059 5.24556V12.1606" stroke="#554A44" stroke-linecap="round" stroke-linejoin="round"></path>
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M6.58725 5.24558C7.31019 5.24558 8.80385 5.01173 9.7531 4.0235C10.4522 3.29679 10.4522 2.11745 9.7531 1.38949C9.05405 0.662774 7.92123 0.662774 7.22218 1.38949C6.15223 2.50344 6.58725 5.24558 6.58725 5.24558Z" stroke="#554A44" stroke-linecap="round" stroke-linejoin="round"></path>
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M6.41377 5.24558C5.69083 5.24558 4.19717 5.01173 3.24792 4.0235C2.54887 3.29679 2.54887 2.11745 3.24792 1.38948C3.94697 0.661515 5.07979 0.662773 5.77884 1.38948C6.84879 2.50344 6.41377 5.24558 6.41377 5.24558Z" stroke="#554A44" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            <!-- … keep your existing SVG … -->
+          </span>
+        {% endif %}
+      </div>
+
+      <div class="shipping_remaing_label">
+        {% if free_product_available %}
+          {% if freeproduct_threshold > freeshipping %}
+            {% if cart_total_shipping < freeshipping %}
+              {{ settings.remaining_threshold_text | replace: '[remaining]', remaining_shipping_amount }}
+            {% elsif cart_total_gift < freeproduct_threshold %}
+              {{ settings.remaining_threshold_product_text | replace: '[remaining]', remaining_gift_amount }}
+            {% else %}
+              {{ settings.product_free }}
+            {% endif %}
+          {% else %}
+            {% if cart_total_gift < freeproduct_threshold %}
+              {{ settings.remaining_threshold_product_text | replace: '[remaining]', remaining_gift_amount }}
+            {% elsif cart_total_shipping < freeshipping %}
+              {{ settings.remaining_threshold_text | replace: '[remaining]', remaining_shipping_amount }}
+            {% else %}
+              {{ settings.shipping_free }}
+            {% endif %}
+          {% endif %}
+        {% else %}
+          {% if remaining_shipping_price > 0 %}
+            {{ settings.remaining_threshold_text | replace: '[remaining]', remaining_shipping_amount }}
+          {% else %}
+            {{ settings.shipping_free }}
+          {% endif %}
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+</div>

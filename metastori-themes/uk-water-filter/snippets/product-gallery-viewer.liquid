@@ -1,0 +1,514 @@
+{% comment %}
+  @param product {Product}
+    The product object in question
+
+  @param selected_media {Media}
+    The current selected media in the gallery
+
+  @param aspect_ratio {string}
+    The aspect ratio setting, which is either 'short', 'tall', or 'square'
+
+  @param image_crop {boolean}
+    Defines if the image should be cropped or not
+
+  @param gallery_hover_zoom {String}
+    This is the hover zoom setting, which is either 'disabled', 'separate', or 'replace'
+{% endcomment %}
+
+<div
+  class="
+    product-gallery--viewer
+    {% if product.media.size > 0 %}
+      product-gallery--has-media
+    {% endif %}
+  "
+  data-gallery-viewer
+>
+  {% for media in product.media %}
+    {% if forloop.index == 5 and product.media.size > 3 %}
+      {% assign static_index = forloop.index0 %}
+      {% assign default_image = settings.default_image %}
+      {% comment %} Static image at 4th position {% endcomment %}
+      <figure
+        class="product-gallery--media product-gallery--image"
+        tabindex="-1"
+        aria-hidden="true"
+        data-gallery-figure
+        data-gallery-index="{{  static_index }}"
+        data-gallery-selected="false"
+        data-media="static-{{ static_index }}"
+        data-media-type="image"
+        {% if media.media_type == 'image' %}
+          {% assign max_zoom = 2400 %}
+          {% assign zoom_height = media.height %}
+          {% assign zoom_width = media.width %}
+          {% if image_crop %}
+            {% case aspect_ratio %}
+              {% when 'short' %}
+                {% assign min_width = media.height | times: 4 | divided_by: 3 %}
+                {% if media.width > min_width %}
+                  {% assign zoom_width = min_width %}
+                {% else %}
+                  {% assign zoom_height = media.width | times: 3 | divided_by: 4 %}
+                {% endif %}
+              {% when 'square' %}
+                {% comment %} Square crop {% endcomment %}
+                {% if media.height > media.width %}
+                  {% assign zoom_height = media.width %}
+                {% else %}
+                  {% assign zoom_width = media.height %}
+                {% endif %}
+              {% when 'tall' %}
+                {% assign min_width = media.height | times: 2 | divided_by: 3 %}
+                {% if media.width > min_width %}
+                  {% assign zoom_width = min_width %}
+                {% else %}
+                  {% assign zoom_height = media.width | times: 3 | divided_by: 2 %}
+                {% endif %}
+            {% endcase %}
+          {% endif %}
+
+          {% comment %} Adjust the image dimensions to be within the maximum zoom size {% endcomment %}
+          {% if zoom_height > max_zoom or zoom_width > max_zoom %}
+            {% assign crop_aspect_ratio = zoom_width | times: 1000 | divided_by: zoom_height %}
+            {% if zoom_width > zoom_height %}
+              {% assign zoom_width = max_zoom %}
+              {% assign zoom_height = max_zoom | times: 1000 | divided_by: crop_aspect_ratio %}
+            {% else %}
+              {% assign zoom_height = max_zoom %}
+              {% assign zoom_width = max_zoom | times: crop_aspect_ratio | divided_by: 1000 %}
+            {% endif %}
+          {% endif %}
+
+          {% assign image_dimensions = zoom_width | append: 'x' | append: zoom_height %}
+
+          {% if image_crop %}
+            data-zoom="{{ settings.default_image | img_url: image_dimensions, crop: 'center' }}"
+          {% else %}
+            data-zoom="{{ settings.default_image | img_url: image_dimensions }}"
+          {% endif %}
+          data-image-height="{{ zoom_height }}"
+          data-image-width="{{ zoom_width }}"
+        {% endif %}
+      >
+        <div class="product-gallery--image-background">
+          {{ default_image
+            | image_url: width: 700
+            | image_tag:
+              class: 'product-gallery--loaded-image',
+              widths: '320, 360, 480, 600, 700',
+              sizes: '(min-width: 750px) 700px, 100vw',
+              loading: 'lazy'
+          }}
+          {% comment %} {% render 'rimg',
+            img: default_image,
+            class: 'product-gallery--loaded-image',
+            size: 'x700',
+            lazy: true,
+            canvas: true
+          %} {% endcomment %}
+        </div>
+      </figure>
+    {% endif %}
+    {% if forloop.index > 4 %}
+      {% break %}
+    {% endif %}
+    
+    <figure
+      class="
+        product-gallery--media
+        product-gallery--{{ media.media_type }}
+        {% if forloop.first %}
+        product-gallery--main-img
+        {% endif %}
+      "
+      tabindex="-1"
+      {% if selected_media.id != media.id %}
+        aria-hidden="true"
+      {% else %}
+        aria-hidden="false"
+      {% endif %}
+      data-gallery-figure
+      data-gallery-index="{{ forloop.index0 }}"
+      data-gallery-selected="{%- if selected_media.id == media.id -%}true{%- else -%}false{%- endif -%}"
+      data-media="{{ media.id }}"
+      data-media-type="{{ media.media_type }}"
+      {% if media.media_type == 'image' %}
+        {% assign max_zoom = 2400 %}
+        {% assign zoom_height = media.height %}
+        {% assign zoom_width = media.width %}
+        {% if image_crop %}
+          {% case aspect_ratio %}
+            {% when 'short' %}
+              {% assign min_width = media.height | times: 4 | divided_by: 3 %}
+              {% if media.width > min_width %}
+                {% assign zoom_width = min_width %}
+              {% else %}
+                {% assign zoom_height = media.width | times: 3 | divided_by: 4 %}
+              {% endif %}
+            {% when 'square' %}
+              {% comment %} Square crop {% endcomment %}
+              {% if media.height > media.width %}
+                {% assign zoom_height = media.width %}
+              {% else %}
+                {% assign zoom_width = media.height %}
+              {% endif %}
+            {% when 'tall' %}
+              {% assign min_width = media.height | times: 2 | divided_by: 3 %}
+              {% if media.width > min_width %}
+                {% assign zoom_width = min_width %}
+              {% else %}
+                {% assign zoom_height = media.width | times: 3 | divided_by: 2 %}
+              {% endif %}
+          {% endcase %}
+        {% endif %}
+
+        {% comment %} Adjust the image dimensions to be within the maximum zoom size {% endcomment %}
+        {% if zoom_height > max_zoom or zoom_width > max_zoom %}
+          {% assign crop_aspect_ratio = zoom_width | times: 1000 | divided_by: zoom_height %}
+          {% if zoom_width > zoom_height %}
+            {% assign zoom_width = max_zoom %}
+            {% assign zoom_height = max_zoom | times: 1000 | divided_by: crop_aspect_ratio %}
+          {% else %}
+            {% assign zoom_height = max_zoom %}
+            {% assign zoom_width = max_zoom | times: crop_aspect_ratio | divided_by: 1000 %}
+          {% endif %}
+        {% endif %}
+
+        {% assign image_dimensions = zoom_width | append: 'x' | append: zoom_height %}
+
+        {% if image_crop %}
+          data-zoom="{{ media | img_url: image_dimensions, crop: 'center' }}"
+        {% else %}
+          data-zoom="{{ media | img_url: image_dimensions }}"
+        {% endif %}
+        data-image-height="{{ zoom_height }}"
+        data-image-width="{{ zoom_width }}"
+      {% endif %}
+    >
+      {% if forloop.first %}
+        {% assign badges_entries = shop.metaobjects.badges.values %}
+        {% assign current_product_gid = '"gid://shopify/Product/' | append: product.id | append: '"' %}
+        {% if badges_entries != blank %}
+          <div class="product_gallery_badges mobile">
+            {% for entry in badges_entries %}
+              {% comment %} Badge 1 {% endcomment %}
+              {% if entry.badge_1 != blank %}
+                {% assign show_badge_1 = false %}
+                {% if entry.badge_1_all_product == true or entry.badge_1_all_product == 'true' %}
+                  {% assign show_badge_1 = true %}
+                {% elsif entry.badge_1_product != blank %}
+                  {% assign badge_1_raw = entry.badge_1_product | append: '' %}
+                  {% if badge_1_raw contains current_product_gid %}
+                    {% assign show_badge_1 = true %}
+                  {% endif %}
+                {% endif %}
+                {% if show_badge_1 %}
+                  <div class="gallery_badge_item">
+                    {{
+                      entry.badge_1
+                      | image_url: width: 100
+                      | image_tag:
+                        widths: '40, 60, 80, 100, 120',
+                        sizes: '(max-width: 749px) 100px, 120px',
+                        loading: 'lazy',
+                        alt: product.title
+                    }}
+                  </div>
+                {% endif %}
+              {% endif %}
+
+              {% comment %} Badge 2 {% endcomment %}
+              {% if entry.badge_2 != blank %}
+                {% assign show_badge_2 = false %}
+                {% if entry.badge_2_all_product == true or entry.badge_2_all_product == 'true' %}
+                  {% assign show_badge_2 = true %}
+                {% elsif entry.badge_2_product != blank %}
+                  {% assign badge_2_raw = entry.badge_2_product | append: '' %}
+                  {% if badge_2_raw contains current_product_gid %}
+                    {% assign show_badge_2 = true %}
+                  {% endif %}
+                {% endif %}
+                {% if show_badge_2 %}
+                  <div class="gallery_badge_item">
+                    {{
+                      entry.badge_2
+                      | image_url: width: 100
+                      | image_tag:
+                        widths: '40, 60, 80, 100, 120',
+                        sizes: '(max-width: 749px) 100px, 120px',
+                        loading: 'lazy',
+                        alt: product.title
+                    }}
+                  </div>
+                {% endif %}
+              {% endif %}
+
+              {% comment %} Badge 3 {% endcomment %}
+              {% if entry.badge_3 != blank %}
+                {% assign show_badge_3 = false %}
+                {% if entry.badge_3_all_product == true or entry.badge_3_all_product == 'true' %}
+                  {% assign show_badge_3 = true %}
+                {% elsif entry.badge_3_product != blank %}
+                  {% assign badge_3_raw = entry.badge_3_product | append: '' %}
+                  {% if badge_3_raw contains current_product_gid %}
+                    {% assign show_badge_3 = true %}
+                  {% endif %}
+                {% endif %}
+                {% if show_badge_3 %}
+                  <div class="gallery_badge_item">
+                    {{
+                      entry.badge_3
+                      | image_url: width: 100
+                      | image_tag:
+                        widths: '40, 60, 80, 100, 120',
+                        sizes: '(max-width: 749px) 100px, 120px',
+                        loading: 'lazy',
+                        alt: product.title
+                    }}
+                  </div>
+                {% endif %}
+              {% endif %}
+
+              {% comment %} Badge 4 {% endcomment %}
+              {% if entry.badge_4 != blank %}
+                {% assign show_badge_4 = false %}
+                {% if entry.badge_4_all_product == true or entry.badge_4_all_product == 'true' %}
+                  {% assign show_badge_4 = true %}
+                {% elsif entry.badge_4_product != blank %}
+                  {% assign badge_4_raw = entry.badge_4_product | append: '' %}
+                  {% if badge_4_raw contains current_product_gid %}
+                    {% assign show_badge_4 = true %}
+                  {% endif %}
+                {% endif %}
+                {% if show_badge_4 %}
+                  <div class="gallery_badge_item">
+                    {{
+                      entry.badge_4
+                      | image_url: width: 100
+                      | image_tag:
+                        widths: '40, 60, 80, 100, 120',
+                        sizes: '(max-width: 749px) 100px, 120px',
+                        loading: 'lazy',
+                        alt: product.title
+                    }}
+                  </div>
+                {% endif %}
+              {% endif %}
+
+              {% comment %} Badge 5 {% endcomment %}
+              {% if entry.badge_5 != blank %}
+                {% assign show_badge_5 = false %}
+                {% if entry.badge_5_all_product == true or entry.badge_5_all_product == 'true' %}
+                  {% assign show_badge_5 = true %}
+                {% elsif entry.badge_5_product != blank %}
+                  {% assign badge_5_raw = entry.badge_5_product | append: '' %}
+                  {% if badge_5_raw contains current_product_gid %}
+                    {% assign show_badge_5 = true %}
+                  {% endif %}
+                {% endif %}
+                {% if show_badge_5 %}
+                  <div class="gallery_badge_item">
+                    {{
+                      entry.badge_5
+                      | image_url: width: 100
+                      | image_tag:
+                        widths: '40, 60, 80, 100, 120',
+                        sizes: '(max-width: 749px) 100px, 120px',
+                        loading: 'lazy',
+                        alt: product.title
+                    }}
+                  </div>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endif %}
+      {% case media.media_type %}
+        {% when 'image' %}
+          <div
+            class="product-gallery--image-background"
+            {% if image_crop %}
+              {% render 'rimg', img: media, size: 'x700', lazy: true, background: true %}
+            {% endif %}
+          >
+            {% render 'rimg',
+              img: media,
+              class: 'product-gallery--loaded-image',
+              size: 'x700',
+              lazy: true,
+              canvas: true
+            %}
+
+           <img class="product-gallery--loaded-image-emblem gtf-var-a" src="https://cdn.shopify.com/s/files/1/0665/1782/7878/files/product-image-emblem_png_x210.png?v=1707849109" alt="{{ product.title }}">
+        
+          </div>
+        {% when 'external_video' %}
+          {% assign external_video_url = media | external_video_url %}
+          <div class="product-gallery--external-video">
+            {%
+              render 'video'
+              url: external_video_url,
+              cover: media.preview_image,
+              slideshow: true,
+              aspect_ratio: '16-9',
+            %}
+          </div>
+        {% when 'model' %}
+          {{
+            media
+            | model_viewer_tag:
+              image_size: '1024x',
+              reveal: 'interaction',
+              toggleable: true,
+              interaction-prompt-threshold: 0
+          }}
+          <noscript>
+            <img
+              src="{{ media.preview_image | img_url: '1024x' }}"
+              alt="{{ media.preview_image.alt | escape }}"
+              width="{{ media.preview_image.width }}"
+              height="{{ media.preview_image.height }}"
+              loading="lazy"
+            >
+          </noscript>
+        {% when 'video' %}
+          {{ media | media_tag: image_size: '1024x' }}
+        {% else %}
+          {{ media | media_tag }}
+      {% endcase %}
+    </figure>
+    {% comment %} Static last image {% endcomment %}
+    {% if forloop.last and product.media.size <= 4 %}
+      {% assign static_index = forloop.index %}
+      {% assign default_image = settings.default_image %}
+      {% comment %} Static image at 4th position {% endcomment %}
+      <figure
+        class="product-gallery--media product-gallery--image"
+        tabindex="-1"
+        aria-hidden="true"
+        data-gallery-figure
+        data-gallery-index="{{  static_index }}"
+        data-gallery-selected="false"
+        data-media="static-{{ static_index }}"
+        data-media-type="image"
+        {% if media.media_type == 'image' %}
+          {% assign max_zoom = 2400 %}
+          {% assign zoom_height = media.height %}
+          {% assign zoom_width = media.width %}
+          {% if image_crop %}
+            {% case aspect_ratio %}
+              {% when 'short' %}
+                {% assign min_width = media.height | times: 4 | divided_by: 3 %}
+                {% if media.width > min_width %}
+                  {% assign zoom_width = min_width %}
+                {% else %}
+                  {% assign zoom_height = media.width | times: 3 | divided_by: 4 %}
+                {% endif %}
+              {% when 'square' %}
+                {% comment %} Square crop {% endcomment %}
+                {% if media.height > media.width %}
+                  {% assign zoom_height = media.width %}
+                {% else %}
+                  {% assign zoom_width = media.height %}
+                {% endif %}
+              {% when 'tall' %}
+                {% assign min_width = media.height | times: 2 | divided_by: 3 %}
+                {% if media.width > min_width %}
+                  {% assign zoom_width = min_width %}
+                {% else %}
+                  {% assign zoom_height = media.width | times: 3 | divided_by: 2 %}
+                {% endif %}
+            {% endcase %}
+          {% endif %}
+
+          {% comment %} Adjust the image dimensions to be within the maximum zoom size {% endcomment %}
+          {% if zoom_height > max_zoom or zoom_width > max_zoom %}
+            {% assign crop_aspect_ratio = zoom_width | times: 1000 | divided_by: zoom_height %}
+            {% if zoom_width > zoom_height %}
+              {% assign zoom_width = max_zoom %}
+              {% assign zoom_height = max_zoom | times: 1000 | divided_by: crop_aspect_ratio %}
+            {% else %}
+              {% assign zoom_height = max_zoom %}
+              {% assign zoom_width = max_zoom | times: crop_aspect_ratio | divided_by: 1000 %}
+            {% endif %}
+          {% endif %}
+
+          {% assign image_dimensions = zoom_width | append: 'x' | append: zoom_height %}
+
+          {% if image_crop %}
+            data-zoom="{{ settings.default_image | img_url: image_dimensions, crop: 'center' }}"
+          {% else %}
+            data-zoom="{{ settings.default_image | img_url: image_dimensions }}"
+          {% endif %}
+          data-image-height="{{ zoom_height }}"
+          data-image-width="{{ zoom_width }}"
+        {% endif %}
+      >
+        <div class="product-gallery--image-background">
+          {{ default_image
+            | image_url: width: 700
+            | image_tag:
+              class: 'product-gallery--loaded-image',
+              widths: '320, 480, 600, 700',
+              sizes: '(min-width: 750px) 700px, 100vw',
+              loading: 'lazy'
+          }}
+          {% comment %} {% render 'rimg',
+            img: default_image,
+            class: 'product-gallery--loaded-image',
+            size: 'x700',
+            lazy: true,
+            canvas: true
+          %} {% endcomment %}
+        </div>
+      </figure>
+    {% endif %}
+    {% else %}
+    <figure
+      class="
+        product-gallery--media
+        product-gallery--image
+        product-gallery--image-placeholder
+      "
+    >
+      {% if onboarding %}
+        {{ 'product-1' | placeholder_svg_tag: 'placeholder--image' }}
+      {% else %}
+        {% comment %}
+          {{ 'image' | placeholder_svg_tag: 'placeholder--image' }}
+        {% endcomment %}
+        <img src="https://cdn.shopify.com/s/files/1/0665/1782/7878/files/clean-water.webp?v=1673389864">
+      {% endif %}
+    </figure>
+  {% endfor %}
+
+  
+
+  {% assign image_count = product.media | where: 'media_type', 'image' | size %}
+  {% if image_count > 0 and gallery_click_to_zoom != 'disabled' %}
+    <button
+      class="
+        product-gallery--expand
+        {% if gallery_click_to_zoom == 'desktop' %}expand--hide-mobile{% endif %}
+        {% if gallery_click_to_zoom == 'mobile' %}expand--hide-desktop{% endif %}
+      "
+      data-gallery-expand
+      aria-haspopup="true"
+    >
+      <span class="click-text" tabindex="-1">
+        {% render 'icon-library', id: 'icon-zoom' %}
+        {{ 'product.general.zoom' | t }}
+      </span>
+      <span class="tap-text" tabindex="-1">
+        {% render 'icon-library', id: 'icon-tap' %}
+        {{ 'product.general.zoomTapMobile' | t }}
+      </span>
+    </button>
+  {% endif %}
+</div>
+
+{% if gallery_hover_zoom == 'separate' %}
+  <div class="product-gallery--zoomed-image" data-zoomed-image></div>
+{% endif %}

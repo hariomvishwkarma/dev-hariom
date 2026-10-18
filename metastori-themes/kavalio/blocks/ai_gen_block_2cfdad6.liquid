@@ -1,0 +1,680 @@
+{% doc %}
+  @prompt
+    Erstelle mir einen benutzerdefinierten Shopify-Abschnitt namens "Beliebte Marken" 
+    mit folgendem Aufbau und folgenden Anpassungsmöglichkeiten:
+    
+    LAYOUT & DESIGN:
+    - Ganz oben eine Überschrift in Großbuchstaben, fett, dunkles Marineblau (#1F1F45).
+      Standardtext: "Shoppe beliebte Marken"
+    - Darunter eine horizontale Reihe runder Kreise (Logos). Bei vielen Einträgen 
+      sollen die Kreise auf Mobilgeräten umbrechen oder horizontal scrollbar sein.
+    - Jeder Kreis hat einen hell-lavendelfarbenen Hintergrund (#E8DCF7) mit einem 
+      zentrierten Logo-Bild.
+    - In der oberen rechten Ecke jedes Kreises ein kleines rundes Badge ("Patch") 
+      mit weißem Text. Oben kleiner der Text "min.", darunter größer die Prozentzahl 
+      (z.B. "-17%"). Badge-Hintergrund standardmäßig dunkles Bordeaux (#5C1A2E).
+    - Klick auf einen Kreis führt zur jeweils hinterlegten Kollektion.
+    - Ganz unten ein Button im Outline-Stil mit einem Pfeil rechts (→).
+      Standardtext: "Alle Marken entdecken"
+    
+    ANPASSBARE EINSTELLUNGEN (Schema):
+    
+    Abschnitts-Einstellungen:
+    - Überschrift (Textfeld), Standard: "Shoppe beliebte Marken"
+    - Button-Text (Textfeld), Standard: "Alle Marken entdecken"
+    - Button-Kollektion (Collection-Auswahl)
+    - Hintergrundfarbe der Kreise (Farbauswahl), Standard: #E8DCF7
+    
+    Blöcke vom Typ "Marke" (beliebig oft hinzufügbar):
+    - Logo-Bild (Bild-Upload)
+    - Kollektion (Collection-Auswahl) – Ziel beim Klick auf den Kreis
+    - Badge-Farbe (Farbauswahl), Standard: #5C1A2E
+    - Badge-Präfix (Textfeld), Standard: "min." – wird kleiner dargestellt
+    - Badge-Prozentzahl (Textfeld), Standard: "-17%" – wird größer dargestellt
+    
+    WICHTIG:
+    - Ich möchte beliebig viele Marken-Blöcke hinzufügen können.
+    - Jeder Block muss unabhängig konfigurierbar sein (eigenes Bild, eigene 
+      Kollektion, eigene Badge-Farbe, eigener Prozenttext).
+    - Der Abschnitt soll vollständig responsiv sein.
+    - Erstelle den passenden {% schema %}-Block, damit ich alles im Theme-Editor 
+      bequem bearbeiten kann.
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-popular-brands-{{ ai_gen_id }} {
+    display: block;
+    width: 100%;
+    padding: 40px 20px;
+  }
+
+  .ai-popular-brands-container-{{ ai_gen_id }} {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .ai-popular-brands-heading-{{ ai_gen_id }} {
+    font-size: 24px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #1F1F45;
+    margin: 0 0 30px 0;
+    text-align: center;
+  }
+
+  .ai-popular-brands-grid-{{ ai_gen_id }} {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    margin-bottom: 30px;
+  }
+
+  .ai-brand-circle-{{ ai_gen_id }} {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background-color: {{ block.settings.circle_background_color }};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .ai-brand-circle-{{ ai_gen_id }}:hover {
+    transform: scale(1.05);
+  }
+
+  .ai-brand-circle-image-{{ ai_gen_id }} {
+    max-width: 80%;
+    max-height: 80%;
+    object-fit: contain;
+  }
+
+  .ai-brand-badge-{{ ai_gen_id }} {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .ai-brand-badge-prefix-{{ ai_gen_id }} {
+    font-size: 10px;
+    font-weight: 400;
+  }
+
+  .ai-brand-badge-percent-{{ ai_gen_id }} {
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .ai-popular-brands-button-wrapper-{{ ai_gen_id }} {
+    display: flex;
+    justify-content: center;
+  }
+
+  .ai-popular-brands-button-{{ ai_gen_id }} {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background-color: transparent;
+    color: #1F1F45;
+    border: 2px solid #1F1F45;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .ai-popular-brands-button-{{ ai_gen_id }}:hover {
+    background-color: #1F1F45;
+    color: #ffffff;
+  }
+
+  .ai-popular-brands-button-arrow-{{ ai_gen_id }} {
+    font-size: 18px;
+    transition: transform 0.3s ease;
+  }
+
+  .ai-popular-brands-button-{{ ai_gen_id }}:hover .ai-popular-brands-button-arrow-{{ ai_gen_id }} {
+    transform: translateX(4px);
+  }
+
+  .ai-brand-circle-placeholder-{{ ai_gen_id }} {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f4f4f4;
+  }
+
+  .ai-brand-circle-placeholder-{{ ai_gen_id }} svg {
+    width: 60%;
+    height: 60%;
+    opacity: 0.3;
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-popular-brands-grid-{{ ai_gen_id }} {
+      gap: 15px;
+    }
+
+    .ai-brand-circle-{{ ai_gen_id }} {
+      width: 120px;
+      height: 120px;
+    }
+
+    .ai-brand-badge-{{ ai_gen_id }} {
+      width: 40px;
+      height: 40px;
+    }
+
+    .ai-brand-badge-prefix-{{ ai_gen_id }} {
+      font-size: 8px;
+    }
+
+    .ai-brand-badge-percent-{{ ai_gen_id }} {
+      font-size: 14px;
+    }
+
+    .ai-popular-brands-heading-{{ ai_gen_id }} {
+      font-size: 20px;
+    }
+  }
+
+  @media screen and (max-width: 480px) {
+    .ai-brand-circle-{{ ai_gen_id }} {
+      width: 100px;
+      height: 100px;
+    }
+
+    .ai-brand-badge-{{ ai_gen_id }} {
+      width: 35px;
+      height: 35px;
+    }
+
+    .ai-brand-badge-prefix-{{ ai_gen_id }} {
+      font-size: 7px;
+    }
+
+    .ai-brand-badge-percent-{{ ai_gen_id }} {
+      font-size: 12px;
+    }
+  }
+{% endstyle %}
+
+<popular-brands-{{ ai_gen_id }} class="ai-popular-brands-{{ ai_gen_id }}" {{ block.shopify_attributes }}>
+  <div class="ai-popular-brands-container-{{ ai_gen_id }}">
+    {% if block.settings.heading != blank %}
+      <h2 class="ai-popular-brands-heading-{{ ai_gen_id }}">{{ block.settings.heading }}</h2>
+    {% endif %}
+
+    <div class="ai-popular-brands-grid-{{ ai_gen_id }}">
+      {% for i in (1..10) %}
+        {% liquid
+          assign logo_key = 'brand_logo_' | append: i
+          assign collection_key = 'brand_collection_' | append: i
+          assign badge_color_key = 'badge_color_' | append: i
+          assign badge_prefix_key = 'badge_prefix_' | append: i
+          assign badge_percent_key = 'badge_percent_' | append: i
+
+          assign brand_logo = block.settings[logo_key]
+          assign brand_collection = block.settings[collection_key]
+          assign badge_color = block.settings[badge_color_key]
+          assign badge_prefix = block.settings[badge_prefix_key]
+          assign badge_percent = block.settings[badge_percent_key]
+        %}
+
+        {% if brand_collection != blank %}
+          <a
+            href="{{ brand_collection.url }}"
+            class="ai-brand-circle-{{ ai_gen_id }}"
+            aria-label="{{ brand_collection.title }}"
+          >
+            {% if brand_logo != blank %}
+              <img
+                src="{{ brand_logo | image_url: width: 200 }}"
+                alt="{{ brand_collection.title }}"
+                class="ai-brand-circle-image-{{ ai_gen_id }}"
+                loading="lazy"
+                width="200"
+                height="200"
+              >
+            {% else %}
+              <div class="ai-brand-circle-placeholder-{{ ai_gen_id }}">
+                {{ 'image' | placeholder_svg_tag }}
+              </div>
+            {% endif %}
+
+            <div
+              class="ai-brand-badge-{{ ai_gen_id }}"
+              style="background-color: {{ badge_color }};"
+            >
+              <span class="ai-brand-badge-prefix-{{ ai_gen_id }}">{{ badge_prefix }}</span>
+              <span class="ai-brand-badge-percent-{{ ai_gen_id }}">{{ badge_percent }}</span>
+            </div>
+          </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    {% if block.settings.button_collection != blank %}
+      <div class="ai-popular-brands-button-wrapper-{{ ai_gen_id }}">
+        <a
+          href="{{ block.settings.button_collection.url }}"
+          class="ai-popular-brands-button-{{ ai_gen_id }}"
+        >
+          {{ block.settings.button_text }}
+          <span class="ai-popular-brands-button-arrow-{{ ai_gen_id }}">→</span>
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</popular-brands-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class PopularBrands{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+      }
+
+      connectedCallback() {
+        this.setupAccessibility();
+      }
+
+      setupAccessibility() {
+        const circles = this.querySelectorAll('.ai-brand-circle-{{ ai_gen_id }}');
+        circles.forEach(circle => {
+          circle.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              circle.click();
+            }
+          });
+        });
+      }
+    }
+
+    customElements.define('popular-brands-{{ ai_gen_id }}', PopularBrands{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Beliebte Marken",
+  "tag": null,
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Überschrift",
+      "default": "Shoppe beliebte Marken"
+    },
+    {
+      "type": "color",
+      "id": "circle_background_color",
+      "label": "Hintergrundfarbe der Kreise",
+      "default": "#E8DCF7"
+    },
+    {
+      "type": "header",
+      "content": "Button"
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button-Text",
+      "default": "Alle Marken entdecken"
+    },
+    {
+      "type": "collection",
+      "id": "button_collection",
+      "label": "Button-Kollektion"
+    },
+    {
+      "type": "header",
+      "content": "Marke 1"
+    },
+    {
+      "type": "image_picker",
+      "id": "brand_logo_1",
+      "label": "Logo"
+    },
+    {
+      "type": "collection",
+      "id": "brand_collection_1",
+      "label": "Kollektion"
+    },
+    {
+      "type": "color",
+      "id": "badge_color_1",
+      "label": "Badge-Farbe",
+      "default": "#5C1A2E"
+    },
+    {
+      "type": "text",
+      "id": "badge_prefix_1",
+      "label": "Badge-Präfix",
+      "default": "min."
+    },
+    {
+      "type": "text",
+      "id": "badge_percent_1",
+      "label": "Badge-Prozentzahl",
+      "default": "-17%"
+    },
+    {
+      "type": "header",
+      "content": "Marke 2"
+    },
+    {
+      "type": "image_picker",
+      "id": "brand_logo_2",
+      "label": "Logo"
+    },
+    {
+      "type": "collection",
+      "id": "brand_collection_2",
+      "label": "Kollektion"
+    },
+    {
+      "type": "color",
+      "id": "badge_color_2",
+      "label": "Badge-Farbe",
+      "default": "#5C1A2E"
+    },
+    {
+      "type": "text",
+      "id": "badge_prefix_2",
+      "label": "Badge-Präfix",
+      "default": "min."
+    },
+    {
+      "type": "text",
+      "id": "badge_percent_2",
+      "label": "Badge-Prozentzahl",
+      "default": "-17%"
+    },
+    {
+      "type": "header",
+      "content": "Marke 3"
+    },
+    {
+      "type": "image_picker",
+      "id": "brand_logo_3",
+      "label": "Logo"
+    },
+    {
+      "type": "collection",
+      "id": "brand_collection_3",
+      "label": "Kollektion"
+    },
+    {
+      "type": "color",
+      "id": "badge_color_3",
+      "label": "Badge-Farbe",
+      "default": "#5C1A2E"
+    },
+    {
+      "type": "text",
+      "id": "badge_prefix_3",
+      "label": "Badge-Präfix",
+      "default": "min."
+    },
+    {
+      "type": "text",
+      "id": "badge_percent_3",
+      "label": "Badge-Prozentzahl",
+      "default": "-17%"
+    },
+    {
+      "type": "header",
+      "content": "Marke 4"
+    },
+    {
+      "type": "image_picker",
+      "id": "brand_logo_4",
+      "label": "Logo"
+    },
+    {
+      "type": "collection",
+      "id": "brand_collection_4",
+      "label": "Kollektion"
+    },
+    {
+      "type": "color",
+      "id": "badge_color_4",
+      "label": "Badge-Farbe",
+      "default": "#5C1A2E"
+    },
+    {
+      "type": "text",
+      "id": "badge_prefix_4",
+      "label": "Badge-Präfix",
+      "default": "min."
+    },
+    {
+      "type": "text",
+      "id": "badge_percent_4",
+      "label": "Badge-Prozentzahl",
+      "default": "-17%"
+    },
+    {
+      "type": "header",
+      "content": "Marke 5"
+    },
+    {
+      "type": "image_picker",
+      "id": "brand_logo_5",
+      "label": "Logo"
+    },
+    {
+      "type": "collection",
+      "id": "brand_collection_5",
+      "label": "Kollektion"
+    },
+    {
+      "type": "color",
+      "id": "badge_color_5",
+      "label": "Badge-Farbe",
+      "default": "#5C1A2E"
+    },
+    {
+      "type": "text",
+      "id": "badge_prefix_5",
+      "label": "Badge-Präfix",
+      "default": "min."
+    },
+    {
+      "type": "text",
+      "id": "badge_percent_5",
+      "label": "Badge-Prozentzahl",
+      "default": "-17%"
+    },
+    {
+      "type": "header",
+      "content": "Marke 6"
+    },
+    {
+      "type": "image_picker",
+      "id": "brand_logo_6",
+      "label": "Logo"
+    },
+    {
+      "type": "collection",
+      "id": "brand_collection_6",
+      "label": "Kollektion"
+    },
+    {
+      "type": "color",
+      "id": "badge_color_6",
+      "label": "Badge-Farbe",
+      "default": "#5C1A2E"
+    },
+    {
+      "type": "text",
+      "id": "badge_prefix_6",
+      "label": "Badge-Präfix",
+      "default": "min."
+    },
+    {
+      "type": "text",
+      "id": "badge_percent_6",
+      "label": "Badge-Prozentzahl",
+      "default": "-17%"
+    },
+    {
+      "type": "header",
+      "content": "Marke 7"
+    },
+    {
+      "type": "image_picker",
+      "id": "brand_logo_7",
+      "label": "Logo"
+    },
+    {
+      "type": "collection",
+      "id": "brand_collection_7",
+      "label": "Kollektion"
+    },
+    {
+      "type": "color",
+      "id": "badge_color_7",
+      "label": "Badge-Farbe",
+      "default": "#5C1A2E"
+    },
+    {
+      "type": "text",
+      "id": "badge_prefix_7",
+      "label": "Badge-Präfix",
+      "default": "min."
+    },
+    {
+      "type": "text",
+      "id": "badge_percent_7",
+      "label": "Badge-Prozentzahl",
+      "default": "-17%"
+    },
+    {
+      "type": "header",
+      "content": "Marke 8"
+    },
+    {
+      "type": "image_picker",
+      "id": "brand_logo_8",
+      "label": "Logo"
+    },
+    {
+      "type": "collection",
+      "id": "brand_collection_8",
+      "label": "Kollektion"
+    },
+    {
+      "type": "color",
+      "id": "badge_color_8",
+      "label": "Badge-Farbe",
+      "default": "#5C1A2E"
+    },
+    {
+      "type": "text",
+      "id": "badge_prefix_8",
+      "label": "Badge-Präfix",
+      "default": "min."
+    },
+    {
+      "type": "text",
+      "id": "badge_percent_8",
+      "label": "Badge-Prozentzahl",
+      "default": "-17%"
+    },
+    {
+      "type": "header",
+      "content": "Marke 9"
+    },
+    {
+      "type": "image_picker",
+      "id": "brand_logo_9",
+      "label": "Logo"
+    },
+    {
+      "type": "collection",
+      "id": "brand_collection_9",
+      "label": "Kollektion"
+    },
+    {
+      "type": "color",
+      "id": "badge_color_9",
+      "label": "Badge-Farbe",
+      "default": "#5C1A2E"
+    },
+    {
+      "type": "text",
+      "id": "badge_prefix_9",
+      "label": "Badge-Präfix",
+      "default": "min."
+    },
+    {
+      "type": "text",
+      "id": "badge_percent_9",
+      "label": "Badge-Prozentzahl",
+      "default": "-17%"
+    },
+    {
+      "type": "header",
+      "content": "Marke 10"
+    },
+    {
+      "type": "image_picker",
+      "id": "brand_logo_10",
+      "label": "Logo"
+    },
+    {
+      "type": "collection",
+      "id": "brand_collection_10",
+      "label": "Kollektion"
+    },
+    {
+      "type": "color",
+      "id": "badge_color_10",
+      "label": "Badge-Farbe",
+      "default": "#5C1A2E"
+    },
+    {
+      "type": "text",
+      "id": "badge_prefix_10",
+      "label": "Badge-Präfix",
+      "default": "min."
+    },
+    {
+      "type": "text",
+      "id": "badge_percent_10",
+      "label": "Badge-Prozentzahl",
+      "default": "-17%"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Beliebte Marken"
+    }
+  ]
+}
+{% endschema %}

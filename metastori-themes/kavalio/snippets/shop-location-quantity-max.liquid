@@ -1,0 +1,69 @@
+{%- comment -%}
+  Effective max quantity for a variant.
+  LSS = NEIN + shop_location_inventory set → cap to Shop location stock only.
+  Otherwise use Shopify quantity_rule.max when present.
+
+  @param variant {Variant} required
+  @param for_cart {Boolean} when true, compute remaining qty for a cart line (requires line_item)
+  @param line_item {LineItem} required when for_cart is true
+  @param subtract_cart_qty {Boolean} when true, subtract current cart qty for this variant (PDP)
+{%- endcomment -%}
+
+{%- assign lss_raw = variant.metafields.custom.lss.value
+  | default: variant.metafields.custom.lss
+  | downcase
+  | strip
+-%}
+{%- assign dropship_enabled = false -%}
+{%- if lss_raw == 'ja' -%}
+  {%- assign dropship_enabled = true -%}
+{%- endif -%}
+
+{%- assign shop_inv_raw = variant.metafields.custom.shop_location_inventory.value
+  | default: variant.metafields.custom.shop_location_inventory
+  | strip
+-%}
+
+{%- assign effective_max = '' -%}
+
+{%- unless dropship_enabled -%}
+  {%- if shop_inv_raw != blank -%}
+    {%- assign shop_stock = shop_inv_raw | plus: 0 -%}
+    {%- if for_cart and line_item != blank -%}
+      {%- assign in_cart_for_variant = cart | item_count_for_variant: variant.id -%}
+      {%- assign effective_max = shop_stock | minus: in_cart_for_variant | plus: line_item.quantity -%}
+      {%- if effective_max < 0 -%}
+        {%- assign effective_max = 0 -%}
+      {%- endif -%}
+    {%- elsif subtract_cart_qty and cart != blank -%}
+      {%- assign in_cart_for_variant = cart | item_count_for_variant: variant.id -%}
+      {%- assign effective_max = shop_stock | minus: in_cart_for_variant -%}
+      {%- if effective_max < 0 -%}
+        {%- assign effective_max = 0 -%}
+      {%- endif -%}
+    {%- else -%}
+      {%- assign effective_max = shop_stock -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endunless -%}
+
+{%- if effective_max == '' -%}
+  {%- if variant.inventory_management != blank and variant.inventory_policy == 'deny' -%}
+    {%- if for_cart and line_item != blank -%}
+      {%- assign in_cart_for_variant = cart | item_count_for_variant: variant.id -%}
+      {%- assign effective_max = variant.inventory_quantity | minus: in_cart_for_variant | plus: line_item.quantity -%}
+    {%- else -%}
+      {%- assign effective_max = variant.inventory_quantity -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endif -%}
+
+{%- if variant.quantity_rule.max != null -%}
+  {%- if effective_max == '' -%}
+    {%- assign effective_max = variant.quantity_rule.max -%}
+  {%- else -%}
+    {%- assign effective_max = effective_max | at_most: variant.quantity_rule.max -%}
+  {%- endif -%}
+{%- endif -%}
+
+{{- effective_max -}}

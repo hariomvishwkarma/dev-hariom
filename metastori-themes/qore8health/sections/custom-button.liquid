@@ -1,0 +1,305 @@
+{% assign background_rgb = section.settings.background_color | color_to_rgb %}
+
+<style>
+  [data-section-id="{{ section.id }}"]
+  {
+    {% if background_rgb != 'rgba(0, 0, 0, 0.0)' %}
+      --color-custom-background: {{ section.settings.background_color }};
+    {% endif %}
+
+    {% if section.settings.margin-top %}
+        --section-gap-top: {{ section.settings.margin-top }}px;
+    {% endif %}
+
+    {% if section.settings.margin-bottom %}
+        --section-gap-bottom: {{ section.settings.margin-bottom }}px;
+    {% endif %}
+  }
+
+  /* Modal styles for section {{ section.id }} */
+  .wt-custom-modal-{{ section.id }} {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+  }
+
+  .wt-custom-modal-{{ section.id }}.is-open {
+    display: flex;
+  }
+
+  .wt-custom-modal-{{ section.id }}__dialog {
+    background: #fff;
+    width: 100%;
+    max-width: {{ section.settings.modal_width }}px;
+    height: {{ section.settings.modal_height }}vh;
+    max-height: 95vh;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  }
+
+  .wt-custom-modal-{{ section.id }}__close {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    font-size: 28px;
+    line-height: 1;
+    border: none;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #333;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+
+  .wt-custom-modal-{{ section.id }}__close:hover {
+    background: #f3f3f3;
+  }
+
+  .wt-custom-modal-{{ section.id }}__iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+
+  body.wt-modal-open {
+    overflow: hidden;
+  }
+</style>
+
+<div class="wt-button-section" data-section-id="{{ section.id }}">
+  <div class="wt-button-section__container {% if settings.animations %} scroll-trigger animate--slide-in {% endif %} {% if settings.disabled_animations_on_mobile %} disabled-on-mobile {% endif %} {% if section.settings.button_horizontal_position == 'left' %} wt-button-section__left {% endif %}{% if section.settings.button_horizontal_position == 'right' %} wt-button-section__right {% endif %}">
+    <button
+      aria-label="{{ section.settings.button_label }}"
+      class="hero__button hero__button--primary {% if section.settings.button_select != 'primary' %} hero__button--secondary {% endif %}{% if section.settings.button_select == 'link' %} hero__button--link {% endif %} form__send__button wt-contact__form__send--{{ section.settings.button_select }}"
+      type="button"
+      data-modal-open="{{ section.id }}"
+    >
+      <span class="wt-newsletter__send__text">{{ section.settings.button_label }}</span>
+    </button>
+  </div>
+</div>
+
+{%- if section.settings.popup_url != blank -%}
+  <div
+    class="wt-custom-modal-{{ section.id }}"
+    id="wt-custom-modal-{{ section.id }}"
+    role="dialog"
+    aria-modal="true"
+    aria-label="{{ section.settings.button_label | escape }}"
+  >
+    <div class="wt-custom-modal-{{ section.id }}__dialog">
+      <button
+        type="button"
+        class="wt-custom-modal-{{ section.id }}__close"
+        data-modal-close="{{ section.id }}"
+        aria-label="Close"
+      >
+        &times;
+      </button>
+      <iframe
+        class="wt-custom-modal-{{ section.id }}__iframe"
+        data-modal-iframe="{{ section.id }}"
+        data-src="{{ section.settings.popup_url }}"
+        src=""
+        title="{{ section.settings.button_label | escape }}"
+        loading="lazy"
+      ></iframe>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var sectionId = '{{ section.id }}';
+      var modal = document.getElementById('wt-custom-modal-' + sectionId);
+      if (!modal) return;
+
+      var openBtn = document.querySelector('[data-modal-open="' + sectionId + '"]');
+      var closeBtn = modal.querySelector('[data-modal-close="' + sectionId + '"]');
+      var iframe = modal.querySelector('[data-modal-iframe="' + sectionId + '"]');
+      var iframeSrc = iframe ? iframe.getAttribute('data-src') : '';
+
+      function openModal() {
+        if (iframe && iframeSrc && !iframe.src) {
+          iframe.src = iframeSrc;
+        }
+        modal.classList.add('is-open');
+        document.body.classList.add('wt-modal-open');
+      }
+
+      function closeModal() {
+        modal.classList.remove('is-open');
+        document.body.classList.remove('wt-modal-open');
+        {% if section.settings.reload_iframe_on_close %}
+          if (iframe) iframe.src = '';
+        {% endif %}
+      }
+
+      if (openBtn) openBtn.addEventListener('click', openModal);
+      if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+      // Close when clicking the dark backdrop
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+      });
+
+      // Close on Escape key
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && modal.classList.contains('is-open')) {
+          closeModal();
+        }
+      });
+    })();
+  </script>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Custom Button",
+  "tag": "section",
+  "settings": [
+    {
+      "type": "select",
+      "id": "button_select",
+      "options": [
+        {
+          "value": "primary",
+          "label": "t:sections.settings.settings.button_select.primary.label"
+        },
+        {
+          "value": "secondary",
+          "label": "t:sections.settings.settings.button_select.secondary.label"
+        },
+        {
+          "value": "link",
+          "label": "t:sections.settings.settings.button_select.link.label"
+        }
+      ],
+      "default": "primary",
+      "label": "t:sections.settings.settings.button_select.default.label"
+    },
+    {
+      "type": "select",
+      "id": "button_horizontal_position",
+      "options": [
+        {
+          "value": "left",
+          "label": "t:sections.button.settings.button_horizontal_position.left.label"
+        },
+        {
+          "value": "center",
+          "label": "t:sections.button.settings.button_horizontal_position.center.label"
+        },
+        {
+          "value": "right",
+          "label": "t:sections.button.settings.button_horizontal_position.right.label"
+        }
+      ],
+      "default": "center",
+      "label": "t:sections.button.settings.button_horizontal_position.default.label"
+    },
+    {
+      "id": "button_label",
+      "type": "text",
+      "default": "Write a Review",
+      "label": "t:sections.settings.settings.button_label.label"
+    },
+    {
+      "type": "header",
+      "content": "Popup Settings"
+    },
+    {
+      "type": "url",
+      "id": "popup_url",
+      "label": "Popup URL",
+      "info": "Paste the URL to load inside the popup (e.g. Judge.me review form link)."
+    },
+    {
+      "type": "range",
+      "id": "modal_width",
+      "min": 400,
+      "max": 1200,
+      "step": 20,
+      "default": 700,
+      "unit": "px",
+      "label": "Popup width"
+    },
+    {
+      "type": "range",
+      "id": "modal_height",
+      "min": 50,
+      "max": 95,
+      "step": 5,
+      "default": 85,
+      "unit": "%",
+      "label": "Popup height (% of screen)"
+    },
+    {
+      "type": "checkbox",
+      "id": "reload_iframe_on_close",
+      "default": false,
+      "label": "Reload popup content when closed",
+      "info": "Enable to reset the form each time the popup is reopened."
+    },
+    {
+      "type": "header",
+      "content": "t:sections.global.section_spacing"
+    },
+    {
+      "type": "range",
+      "id": "margin-top",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "default": 20,
+      "unit": "px",
+      "label": "t:sections.global.margin-top"
+    },
+    {
+      "type": "range",
+      "id": "margin-bottom",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "default": 20,
+      "unit": "px",
+      "label": "t:sections.global.margin-bottom",
+      "info": "t:sections.separator.settings.separator-bottom.info"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.global.colors",
+      "info": "t:sections.global.colors-info"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "default": "transparent",
+      "label": "t:sections.settings.settings.background-color.label"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Custom Button",
+      "category": "t:sections.categories.other"
+    }
+  ],
+  "disabled_on": {
+    "groups": ["header", "footer"]
+  }
+}
+{% endschema %}

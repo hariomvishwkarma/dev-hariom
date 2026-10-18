@@ -1,0 +1,128 @@
+<script>
+  try {
+    const initFreeGiftData = () => {
+      const metafields = {{ shop.metafields.avada_free_gifts | json }};
+      const optimizeAddGift = metafields.configSettings?.optimizeAddGift;
+      const enableUsOcInstock = metafields.configSettings?.enableUsOcInstock;
+
+      const collections = [];
+      const productsOfCollection = {};
+
+      if(optimizeAddGift) {
+        {%- liquid assign collection_handle = collection.handle %}
+
+        {% for product in collections[collection_handle].products %}
+          productsOfCollection[{{ product.id }}] = {};
+          {% for variant in product.variants %}
+            productsOfCollection[{{ product.id }}][{{ variant.id }}] = {
+              price: {{ variant.price }},
+            };
+          {% endfor %}
+        {% endfor %}
+      }
+
+
+      {%- liquid
+        assign first_available_variant = nil
+
+        for collection in collections
+          if collection.products_count > 0
+            for product in collection.products
+              for variant in product.variants
+                if variant.available
+                  assign first_available_variant = variant
+                  break
+                endif
+              endfor
+
+              if first_available_variant
+                break
+              endif
+            endfor
+          endif
+
+          if first_available_variant
+            break
+          endif
+        endfor
+      -%}
+
+      const metafieldVariants = {}
+      if(enableUsOcInstock){
+        {%for variant in product.variants %}
+          metafieldVariants[{{ variant.id }}] = {{ variant.metafields.custom.us_oc_instock | default: 'false' }};
+        {% endfor %}
+      }
+
+
+
+      {% for collection in product.collections %}
+      collections.push("{{ collection.id }}");
+      {% endfor %}
+      const currentCart = {{ cart | json }};
+      const cartItems = {{ cart.items | json }};
+      const productsCart = [];
+      {% for item in cart.items %}
+      productsCart.push({
+        id: {{ item.variant.id | json }},
+        collections: {{ item.product.collections | map: 'id' | json }},
+        metafieldUsOcInstock: {{ item.variant.metafields.custom.us_oc_instock | default: 'false' }},
+
+      });
+      {% endfor %}
+
+      const cartItemUpdated = cartItems.map((item) => {
+        const productInItem = productsCart.find(p => p.id === item.variant_id);
+        if (productInItem) {
+          return {
+            ...item,
+            collections: productInItem.collections,
+            ...(enableUsOcInstock && { metafieldUsOcInstock: productInItem.metafieldUsOcInstock }),
+          };
+        }
+        return item;
+      });
+
+
+      return {
+        ...metafields,
+        cart: {
+          cartItems: cartItemUpdated
+        },
+        product: {
+          id: {{ product.id | json }},
+          variants: {{ product.variants | json }},
+          selectedVariant: {{ product.selected_variant.id | json }},
+          collectionTitles: {{ product.collections | map: 'title' | json }},
+          collectionIds: {{ product.collections | map: 'id' | json }},
+          title: {{ product.title | json }},
+          type: {{ product.type | json }},
+          handle: {{ product.handle | json }},
+          vendor: {{ product.vendor | json }},
+          tags: {{ product.tags | json }},
+          price: {{ product.price | json }},
+          hasOnlyDefaultVariant: {{ product.has_only_default_variant | json }},
+          available: {{ product.available | json }},
+          image: {{ product.featured_image | json }},
+          options: {{ product.options_with_values | json }},
+          ...(enableUsOcInstock ? {metafieldVariants} : {}),
+
+        },
+        customer: {
+          id: {{ customer.id | json }},
+          email: {{ customer.email | json }},
+          first_name: {{ customer.first_name | json }},
+          last_name: {{ customer.last_name | json }},
+          isB2B: {{ customer.b2b? | json}},
+        },
+        currentCart,
+        currentRequestID: 0,
+        productsOfCollection,
+        firstAvailableVariant: {{ first_available_variant | json }}
+      }
+    };
+    if (!window.AVADA_FREE_GIFTS) window.AVADA_FREE_GIFTS = initFreeGiftData();
+  } catch (e) {
+    console.error('Error assigning aov free gift variable', e);
+  }
+</script>

@@ -1,0 +1,73 @@
+{% comment %} CHECK FREE SHIPPING AMOUNT {% endcomment %}
+{% if settings.cart_free_shipping_threshold != blank %}
+    {% assign cart_free_shipping_threshold = settings.cart_free_shipping_threshold | plus: 0 %}
+{% else %}
+    {% assign cart_free_shipping_threshold = false %}
+{% endif %}
+{% comment %} END {% endcomment %}
+
+{% assign cart_total_price = cart.total_price | divided_by: 100 %}
+
+{% comment %} CHECK SHIPPING PRICE {% endcomment %}
+{% if settings.shipping_price != blank %}
+    {% assign shipping_price = settings.shipping_price %}
+{% else %}
+    {% assign shipping_price = 0 %}
+{% endif %}
+{% comment %} END {% endcomment %}
+
+{% comment %} CHECK IF CALCULATION IS ENABLED {% endcomment %}
+{% if settings.calculation_of_free_shipping == false %}
+    {% assign shipping_price = 0 %}
+{% endif %}
+{% comment %} END {% endcomment %}
+
+{% comment %} IF FREE SHIPPING AMOUNT IS REACHED {% endcomment %}
+{% if cart_total_price >= cart_free_shipping_threshold and settings.cart_free_shipping_threshold != blank %}
+    {% assign shipping_price = 0 %}
+{% endif %}
+{% comment %} END {% endcomment %}
+
+{% comment %} CALCULATE ALWAYS TOTAL CART PRICE {% endcomment %}
+{% assign final_cart_total_price = cart.total_price | plus: shipping_price %}
+{% comment %} END {% endcomment %}
+
+<div class="totals">
+    {% comment %} IF CALCULATION OF DELIVERY FEES IS DEACTIVATED {% endcomment %}
+    {% if settings.calculation_of_free_shipping != false %}
+        {% if settings.shipping_price != blank %}
+            <div class="totals-row">
+                <h3 class="totals__subtotal">{{ 'cart.general.subtotal' | t }}</h3>
+                <span class="totals__subtotal-value">{{ cart.total_price | money }}</span>
+            </div>
+            <div class="totals-row">
+                <h3 class="totals__subtotal">{{ 'cart.general.delivery' | t }}</h3>
+                <span class="totals__subtotal-value totals__subtotal-value-price">
+                    {% if shipping_price == 0 %}
+                        <span class="free-shipping-label">{{ 'cart.general.free' | t }}</span>
+                    {% else %}
+                     {{ shipping_price | money }}
+                    {% endif %}
+                </span>
+            </div>
+            {% if settings.show_free_return != false %}
+                <div class="totals-row">
+                    <h3 class="totals__subtotal">{{ 'cart.general.return' | t }}</h3>
+                    <span class="totals__subtotal-value">
+                        <span class="free-shipping-label">{{ 'cart.general.free' | t }}</span>
+                    </span>
+                </div>
+            {% endif %}
+        {% endif %}
+    {% endif %}
+    {% comment %} END {% endcomment %}
+
+    <div class="totals-row">
+        <h3 class="total__value totals__subtotal">{{ 'cart.general.total' | t }}</h3>
+        <span class="totals__subtotal-value total-value-price">{{ final_cart_total_price | money }}</span>
+    </div>
+</div>
+
+{% comment %} IF CALCULATION OF DELIVERY FEES IS DEACTIVATED {% endcomment %}
+
+{% comment %} END {% endcomment %}

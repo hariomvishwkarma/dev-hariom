@@ -1,0 +1,505 @@
+{% comment %}
+  Renders product buy-buttons.
+  Accepts:
+  - product: {Object} product object.
+  - block: {Object} passing the block information.
+  - product_form_id: {String} product form id.
+  - section_id: {String} id of section to which this snippet belongs.
+  - show_pickup_availability: {Boolean} for the pickup availability. If true the pickup availability is rendered, false - not rendered (optional).
+
+  Usage:
+  {% render 'buy-buttons', block: block, product: product, product_form_id: product_form_id, section_id: section.id, show_pickup_availability: true %}
+{% endcomment %}
+<div {{ block.shopify_attributes }}>
+  {%- if product != blank -%}
+    {%- liquid
+      assign gift_card_recipient_feature_active = false
+      if block.settings.show_gift_card_recipient and product.gift_card?
+        assign gift_card_recipient_feature_active = true
+      endif
+
+      assign show_dynamic_checkout = false
+      if block.settings.show_dynamic_checkout and gift_card_recipient_feature_active == false
+        assign show_dynamic_checkout = true
+      endif
+    -%}
+
+    <product-form
+      class="product-form property_form"
+      data-hide-errors="{{ gift_card_recipient_feature_active }}"
+      data-section-id="{{ section.id }}"
+    >
+      <div
+        class="product-form__error-message-wrapper"
+        role="alert"
+        hidden
+      >
+        <svg
+          aria-hidden="true"
+          focusable="false"
+          class="icon icon-error"
+          viewBox="0 0 13 13"
+        >
+          <circle
+            cx="6.5"
+            cy="6.50049"
+            r="5.5"
+            stroke="white"
+            stroke-width="2" />
+          <circle
+            cx="6.5"
+            cy="6.5"
+            r="5.5"
+            fill="#EB001B"
+            stroke="#EB001B"
+            stroke-width="0.7" />
+          <path d="M5.87413 3.52832L5.97439 7.57216H7.02713L7.12739 3.52832H5.87413ZM6.50076 9.66091C6.88091 9.66091 7.18169 9.37267 7.18169 9.00504C7.18169 8.63742 6.88091 8.34917 6.50076 8.34917C6.12061 8.34917 5.81982 8.63742 5.81982 9.00504C5.81982 9.37267 6.12061 9.66091 6.50076 9.66091Z" fill="white" />
+          <path
+            d="M5.87413 3.17832H5.51535L5.52424 3.537L5.6245 7.58083L5.63296 7.92216H5.97439H7.02713H7.36856L7.37702 7.58083L7.47728 3.537L7.48617 3.17832H7.12739H5.87413ZM6.50076 10.0109C7.06121 10.0109 7.5317 9.57872 7.5317 9.00504C7.5317 8.43137 7.06121 7.99918 6.50076 7.99918C5.94031 7.99918 5.46982 8.43137 5.46982 9.00504C5.46982 9.57872 5.94031 10.0109 6.50076 10.0109Z"
+            fill="white"
+            stroke="#EB001B"
+            stroke-width="0.7">
+        </svg>
+        <span class="product-form__error-message"></span>
+      </div>
+
+      {%- form 'product',
+        product,
+        id: product_form_id,
+        class: 'form',
+        novalidate: 'novalidate',
+        data-type: 'add-to-cart-form',
+        data-loop-product-id:product.id
+      -%}
+        {% comment %}
+          {%- if show_subscription -%}
+            <div class="o product-form__input product-form__input--dropdown">
+
+              <div class="!mt-8 relative mb-8 gap-2 flex flex-wrap items-center">
+                <input
+                  type="checkbox"
+                  id="gift_subscription_{{ product.id }}"
+                  name="properties[Gift Subscription]"
+                  class="sr-only selling-group peer"
+                  checked="checked"
+                  value="Selected"
+                >
+
+                <div class="!hidden absolute left-0 top-0 peer-checked:!inline-flex">
+                  <div class="h-5 w-5 inline-flex items-center justify-center bg-accent-1 rounded-full border border-accent-1">
+                    <svg
+                      class="flex-none"
+                      width="12"
+                      height="10"
+                      viewBox="0 0 12 10"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        clip-rule="evenodd"
+                        d="M0 5.19231L1.2 3.84615L4.28571 7.30769L10.8 0L12 1.34615L4.28571 10L0 5.19231Z"
+                        fill="#ffffff" />
+                    </svg>
+                  </div>
+                </div>
+                <div class="!inline-flex absolute left-0 top-0 peer-checked:!hidden">
+                  <div class="h-5 w-5 rounded-full border border-border">&nbsp;</div>
+                </div>
+                <label class="pl-8 inline-flex z-[1] relative" for="gift_subscription_{{ product.id }}">
+                  <p class="text-body-2">Make it a gift?</p>
+                </label>
+                <div class="!hidden peer-checked:!flex basis-full mt-4">
+                  <div class="product-form__input product-form__input--dropdown">
+                    <label class="form__label" for="selling_plan"> Coffee Club Gift Duration </label>
+                    <div class="select">
+                      <select name="selling_plan" class="select__select !text-body-3 bg-transparent my-4">
+                        {%- for selling_plan_group in product.selling_plan_groups -%}
+                          {%- if forloop.index == 2 -%}
+                            {%- assign default_plan = true -%}
+                          {%- else -%}
+                            {%- assign default_plan = false -%}
+                          {%- endif -%}
+                          {%- for selling_plan in selling_plan_group.selling_plans -%}
+                            {%- if selling_plan.name contains 'Pre-pay' -%}
+                              <option
+                                id="selling_group_{{ selling_plan_group.id }}_{{ selling_plan.id }}"
+                                name="selling_plan"
+                                value="{{ selling_plan.id }}"
+                                {% if product.selected_selling_plan %}
+                                  {% if selling_plan.selected %}
+                                    selected
+                                    checked
+                                  {% endif %}
+                                {% else %}
+                                  {% if default_plan %}
+                                    selected
+                                    checked
+                                  {% endif %}
+                                {% endif %}
+                              >
+                                {{ selling_plan.name }}
+                              </option>
+                            {%- endif -%}
+                          {%- endfor -%}
+                        {%- endfor -%}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="!hidden peer-checked:!flex basis-full ">
+                  <p class="text-body-2">
+                    <strong>Reminder:</strong>
+                    Please be sure to fill out the name and address of
+                    <strong>the gift receiver</strong>
+                    at checkout.
+                  </p>
+                </div>
+              </div>
+            </div>
+          {%- endif -%}
+        {% endcomment %}
+
+        
+        {%- comment -%} Hidden properties auto-populated by JS {%- endcomment -%}
+        <input type="hidden" name="properties[Gift Plan Summary]" value="" data-gift-prop="summary">
+
+        {%- comment -%}
+        Expose a tiny map of variantId -> price (in cents) for accurate math per variant.
+        {%- endcomment -%}
+        <script id="nx-variant-prices" type="application/json">
+        {
+          {%- for v in product.variants -%}
+            "{{ v.id }}": {{ v.price }}{% unless forloop.last %},{% endunless %}
+          {%- endfor -%}
+        }
+        </script>
+
+        {%- if show_subscription or product.selling_plan_groups != blank -%}
+          {% render 'loop-widget-custom' %}
+        {%- endif -%}
+
+
+
+        {% comment %}
+          {%- if show_subscription -%}
+            <div class="product-form__input product-form__input--dropdown">
+              <label class="form__label" for="selling_plan"> Frequency </label>
+              <div class="select">
+                <select name="selling_plan" class="select__select !text-body-3 bg-transparent my-4">
+                  {%- for selling_plan_group in product.selling_plan_groups -%}
+                    {%- if forloop.index == 2 -%}
+                      {%- assign default_plan = true -%}
+                    {%- else -%}
+                      {%- assign default_plan = false -%}
+                    {%- endif -%}
+                    {%- for selling_plan in selling_plan_group.selling_plans -%}
+                      {%- if selling_plan.name contains 'week' -%}
+                        <option
+                          id="selling_group_{{ selling_plan_group.id }}_{{ selling_plan.id }}"
+                          name="selling_plan"
+                          value="{{ selling_plan.id }}"
+                          {% if product.selected_selling_plan %}
+                            {% if selling_plan.selected %}
+                              selected
+                              checked
+                            {% endif %}
+                          {% else %}
+                            {% if default_plan %}
+                              selected
+                              checked
+                            {% endif %}
+                          {% endif %}
+                        >
+                          {{ selling_plan.name }}
+                        </option>
+                      {%- endif -%}
+                    {%- endfor -%}
+                  {%- endfor -%}
+                </select>
+              </div>
+            </div>
+          {%- else -%}
+            <input
+              type="hidden"
+              name="selling_plan"
+              value="{% if product.selected_selling_plan %}{{ product.selected_selling_plan.id }}{% endif %}"
+            >
+          {%- endif -%}
+        {% endcomment %}
+        <input
+          type="hidden"
+          name="id"
+          value="{{ product.selected_or_first_available_variant.id }}"
+
+          {% if product.selected_or_first_available_variant.available == false
+            or quantity_rule_soldout
+            or product.selected_or_first_available_variant == null
+          %}
+            disabled
+          {% endif %}
+          class="product-variant-id"
+        >
+
+        {%- if block.settings.show_gift_product != blank -%}
+          <div class="o product-form__input product-form__input--dropdown">
+            <label class="block !mt-4 form__label" for="selling_plan"> Choose your free gift </label>
+
+            <div class="!mt-2 mb-8 flex gap-4 items-center">
+              <input
+                type="checkbox"
+                id="add_on_{{ product.id }}"
+                name="properties[Coffee Club Gift]"
+                class="sr-only selling-group peer"
+                checked="checked"
+                value="Selected"
+              >
+
+              <div class="!hidden peer-checked:!block">
+                <div class="h-5 w-5 flex items-center justify-center bg-accent-1 rounded-full border border-accent-1">
+                  <svg
+                    class="flex-none"
+                    width="12"
+                    height="10"
+                    viewBox="0 0 12 10"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      clip-rule="evenodd"
+                      d="M0 5.19231L1.2 3.84615L4.28571 7.30769L10.8 0L12 1.34615L4.28571 10L0 5.19231Z"
+                      fill="#ffffff" />
+                  </svg>
+                </div>
+              </div>
+              <div class="!block peer-checked:!hidden">
+                <div class="h-5 w-5 rounded-full border border-border">&nbsp;</div>
+              </div>
+              <label
+                class="border border-border z-[1] w-full flex items-center gap-4 relative"
+                for="add_on_{{ product.id }}"
+              >
+                {{
+                  block.settings.gift_product_image
+                  | image_url: width: 300, height: 300
+                  | image_tag: class: 'h-24 w-24'
+                }}
+
+                <div class="space-y-2">
+                  <h4>{{ block.settings.gift_product_title }}</h4>
+                  <p class="text-body-2 space-x-2">
+                    <s class="line-through opacity-50">
+                      {{- block.settings.gift_product_price | times: 100 | money_without_trailing_zeros -}}
+                    </s>
+                    <span>FREE!</span>
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+        {%- endif -%}
+
+        {%- if gift_card_recipient_feature_active -%}
+          {%- render 'gift-card-recipient-form', product: product, form: form, section: section -%}
+        {%- endif -%}
+
+        <div class="product-form__buttons">
+          {%- liquid
+            assign check_against_inventory = true
+            if product.selected_or_first_available_variant.inventory_management != 'shopify' or product.selected_or_first_available_variant.inventory_policy == 'continue'
+              assign check_against_inventory = false
+            endif
+            if product.selected_or_first_available_variant.quantity_rule.min > product.selected_or_first_available_variant.inventory_quantity and check_against_inventory
+              assign quantity_rule_soldout = true
+            endif
+          -%}
+          <button
+            id="ProductSubmitButton-{{ section_id }}"
+            type="submit"
+            name="add"
+            class="product-form__submit button button--full-width {% if show_dynamic_checkout %}button--primary{% else %}button--primary{% endif %}"
+
+            {% if product.selected_or_first_available_variant.available == false
+              or quantity_rule_soldout
+              or product.selected_or_first_available_variant == null
+            %}
+              disabled
+            {% endif %}
+          >
+            <span>
+              {%- if product.selected_or_first_available_variant == null -%}
+                {{ 'products.product.unavailable' | t }}
+              {%- elsif product.selected_or_first_available_variant.available == false or quantity_rule_soldout -%}
+                {{ 'products.product.sold_out' | t }}
+              {%- else -%}
+                {{ 'products.product.add_to_cart' | t }}
+              {%- endif -%}
+            </span>
+            {%- render 'loading-spinner' -%}
+          </button>
+          {%- if show_dynamic_checkout -%}
+            {{ form | payment_button }}
+          {%- endif -%}
+        </div>
+      {%- endform -%}
+    </product-form>
+  {%- else -%}
+    <div class="product-form">
+      <div class="product-form__buttons form">
+        <button
+          type="submit"
+          name="add"
+          class="product-form__submit button button--full-width button--primary"
+          disabled
+        >
+          {{ 'products.product.sold_out' | t }}
+        </button>
+      </div>
+    </div>
+  {%- endif -%}
+
+  {%- if show_shipping_policy -%}
+    {%- if cart.taxes_included or cart.duties_included or shop.shipping_policy.body != blank -%}
+      <div class="product__tax caption rte">
+        {%- if cart.duties_included and cart.taxes_included -%}
+          {{ 'products.product.duties_and_taxes_included' | t }}
+        {%- elsif cart.taxes_included -%}
+          {{ 'products.product.taxes_included' | t }}
+        {%- elsif cart.duties_included -%}
+          {{ 'products.product.duties_included' | t }}
+        {%- endif -%}
+        {%- if shop.shipping_policy.body != blank -%}
+          {{ 'products.product.shipping_policy_html' | t: link: shop.shipping_policy.url }}
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+    <div {{ block.shopify_attributes }}>
+      {%- assign product_form_installment_id = 'product-form-installment-' | append: section.id -%}
+      {%- form 'product', product, id: product_form_installment_id, class: 'installment caption rte' -%}
+        <input
+          type="hidden"
+          name="id"
+          value="{{ product.selected_or_first_available_variant.id }}"
+        >
+        {{ form | payment_terms }}
+      {%- endform -%}
+    </div>
+  {%- endif -%}
+
+  {%- if show_pickup_availability -%}
+    {{ 'component-pickup-availability.css' | asset_url | stylesheet_tag }}
+
+    {%- assign pick_up_availabilities = product.selected_or_first_available_variant.store_availabilities
+      | where: 'pick_up_enabled', true
+    -%}
+
+    <pickup-availability
+      class="product__pickup-availabilities quick-add-hidden"
+      {% if product.selected_or_first_available_variant.available and pick_up_availabilities.size > 0 %}
+        available
+      {% endif %}
+      data-root-url="{{ routes.root_url }}"
+      data-variant-id="{{ product.selected_or_first_available_variant.id }}"
+      data-has-only-default-variant="{{ product.has_only_default_variant }}"
+      data-product-page-color-scheme="gradient color-{{ section.settings.color_scheme }}"
+    >
+      <template>
+        <pickup-availability-preview class="pickup-availability-preview">
+          {% render 'icon-unavailable' %}
+          <div class="pickup-availability-info">
+            <p class="caption-large">{{ 'products.product.pickup_availability.unavailable' | t }}</p>
+            <button class="pickup-availability-button link link--text underlined-link">
+              {{ 'products.product.pickup_availability.refresh' | t }}
+            </button>
+          </div>
+        </pickup-availability-preview>
+      </template>
+    </pickup-availability>
+
+    <script src="{{ 'pickup-availability.js' | asset_url }}" defer="defer"></script>
+  {%- endif -%}
+</div>
+
+
+<script>
+(function () {
+  const moneyStrToCents = (s) => {
+    if (!s) return 0;
+    const n = (s.replace(/[^0-9.,-]/g, '') || '').replace(/,/g, '');
+    const v = parseFloat(n);
+    return isNaN(v) ? 0 : Math.round(v * 100);
+  };
+  const moneyFmt = (c) => {
+    try {
+      const cc = (window.Shopify && Shopify.currency && Shopify.currency.active) || 'USD';
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency: cc }).format(c / 100);
+    } catch { return '$' + (c / 100).toFixed(2); }
+  };
+
+  const form = document.querySelector('.property_form form[action="/cart/add"]');
+  if (!form) return;
+
+  const propSummary = form.querySelector('input[name="properties[Gift Plan Summary]"]');
+  if (!propSummary) return;
+
+  const mapEl = document.getElementById('nx-variant-prices');
+  const variantPriceMap = mapEl ? JSON.parse(mapEl.textContent || '{}') : {};
+  const getVariantId = () => (form.querySelector('input[name="id"]') || {}).value || null;
+
+  const getCheckedGroupRadio = () =>
+    document.querySelector('input.loop-subscription-group-radio[name="loop_purchase_option"]:checked');
+  const isGiftGroup = (r) => !!r && ((r.dataset.name || '').toLowerCase().includes('gift'));
+
+  const getGiftContext = () => {
+    const radio = getCheckedGroupRadio();
+    if (!isGiftGroup(radio)) return null;
+    const group = radio.closest('.loop-subscription-group');
+    if (!group) return null;
+    const lengthSelect = group.querySelector('select.loop-selling-plan-selector');
+    if (!lengthSelect) return null;
+    const priceEl = group.querySelector('.loop-subscription-group-price-amount');
+    const priceEachCents = priceEl ? moneyStrToCents(priceEl.textContent.trim()) : null;
+    let months = 0;
+    if (lengthSelect.options && lengthSelect.selectedIndex >= 0) {
+      const txt = (lengthSelect.options[lengthSelect.selectedIndex].textContent || '').trim();
+      months = parseInt(txt, 10) || 0;
+    }
+    return { months, priceEachCents };
+  };
+
+  const disableProp = () => { propSummary.value = ''; propSummary.disabled = true; };
+  const enableProp = () => { propSummary.disabled = false; };
+
+  const updateGiftProperties = () => {
+    const ctx = getGiftContext();
+    if (!ctx || !ctx.months) return disableProp();
+
+    const variantId = getVariantId();
+    const variantCents = variantPriceMap[variantId] || 0;
+    const unitCents = (typeof ctx.priceEachCents === 'number' && ctx.priceEachCents > 0) ? ctx.priceEachCents : variantCents;
+    const totalCents = unitCents * ctx.months;
+
+    enableProp();
+    propSummary.value = `Recurring subtotal – ${moneyFmt(totalCents)} for ${ctx.months} months. The subscription will automatically cancel after this period, and you will not be charged again.`;
+  };
+
+  document.querySelectorAll('input.loop-subscription-group-radio[name="loop_purchase_option"]').forEach(r =>
+    r.addEventListener('change', updateGiftProperties)
+  );
+  document.addEventListener('change', (e) => {
+    const el = e.target;
+    if (el && el.classList && el.classList.contains('loop-selling-plan-selector')) updateGiftProperties();
+  });
+  const idInput = form.querySelector('input[name="id"]');
+  if (idInput) idInput.addEventListener('change', updateGiftProperties);
+
+  const loopRoot = document.getElementById('loop-subscription-container-{{ product.id }}');
+  if (loopRoot) new MutationObserver(updateGiftProperties).observe(loopRoot, { subtree: true, childList: true, characterData: true });
+
+  form.addEventListener('submit', () => { if (!propSummary.value) propSummary.disabled = true; });
+
+  updateGiftProperties();
+})();
+</script>
+

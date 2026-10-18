@@ -1,0 +1,373 @@
+{%- comment -%}
+  Renders metal-specific product cards for collection grids.
+
+  Parameters:
+  - product {Object}
+  - custom_aspect_ratio {Number} (optional)
+  - animate {Boolean} (optional)
+  - prioritised_loading {Boolean} (optional)
+  - active_metal_slugs {String} (optional) - Pipe-wrapped slugs from native filters, e.g. |white-gold|
+  - show_all_metals {Boolean} (optional) - Show every metal card (no default hiding)
+  - wrap_as_slide {Boolean} (optional) - Wrap each card for a carousel slide
+
+  Earrings / prefer-first note:
+  - Card price still uses the cheapest variant per metal ("From $X")
+  - Product link uses the first admin-order variant for that metal (e.g. Style = Pair)
+
+  Price filter note:
+  - Shopify price filter is product-level; metal cards are filtered per-metal against the active range
+{%- endcomment -%}
+{%- liquid
+  assign metal_option_index = blank
+  for opt in product.options
+    if opt == 'Metal'
+      assign metal_option_index = forloop.index0
+      break
+    endif
+  endfor
+
+  assign prefer_first_metal_variant = false
+  assign product_type_down = product.type | downcase | strip
+  if product_type_down contains 'earring'
+    assign prefer_first_metal_variant = true
+  endif
+  if collection.handle == 'earrings'
+    assign prefer_first_metal_variant = true
+  endif
+  if product.tags contains 'prefer-first-variant'
+    assign prefer_first_metal_variant = true
+  endif
+
+  if wrap_as_slide
+    assign no_quick_buy_markup = true
+    assign no_swiping = true
+  endif
+-%}
+
+{%- if metal_option_index == blank -%}
+  {%- if wrap_as_slide -%}<div class="first-slider"><div class="popular-slider-card">{%- endif -%}
+  {%- render 'product-block', product: product, custom_aspect_ratio: custom_aspect_ratio, animate: animate, prioritised_loading: prioritised_loading, no_quick_buy_markup: no_quick_buy_markup, no_swiping: no_swiping -%}
+  {%- if wrap_as_slide -%}</div></div>{%- endif -%}
+{%- else -%}
+  {%- liquid
+    assign yg_variant = blank
+    assign wg_variant = blank
+    assign ss_variant = blank
+    assign rg_variant = blank
+    assign pt_variant = blank
+
+    assign yg_price_variant = blank
+    assign wg_price_variant = blank
+    assign ss_price_variant = blank
+    assign rg_price_variant = blank
+    assign pt_price_variant = blank
+
+    assign yg_cheapest_price = blank
+    assign wg_cheapest_price = blank
+    assign ss_cheapest_price = blank
+    assign rg_cheapest_price = blank
+    assign pt_cheapest_price = blank
+
+    assign yg_price_varies = false
+    assign wg_price_varies = false
+    assign ss_price_varies = false
+    assign rg_price_varies = false
+    assign pt_price_varies = false
+
+    for variant in product.variants
+      assign metal_value = variant.options[metal_option_index]
+      assign metal_down = metal_value | downcase
+      assign metal_slug = blank
+
+      if metal_down contains 'platinum'
+        assign metal_slug = 'platinum'
+      elsif metal_down contains 'rose' and metal_down contains 'gold'
+        assign metal_slug = 'rose-gold'
+      elsif metal_down contains 'white' and metal_down contains 'gold'
+        assign metal_slug = 'white-gold'
+      elsif metal_down contains 'sterling' or metal_down contains 'silver'
+        assign metal_slug = 'sterling-silver'
+      elsif metal_down contains 'yellow' and metal_down contains 'gold'
+        assign metal_slug = 'yellow-gold'
+      elsif metal_down contains 'gold'
+        assign metal_slug = 'yellow-gold'
+      endif
+
+      if metal_slug == 'yellow-gold'
+        if yg_variant == blank
+          assign yg_variant = variant
+          assign yg_price_variant = variant
+          assign yg_cheapest_price = variant.price
+        else
+          if variant.price != yg_cheapest_price
+            assign yg_price_varies = true
+          endif
+          if variant.price < yg_cheapest_price
+            assign yg_price_variant = variant
+            assign yg_cheapest_price = variant.price
+            unless prefer_first_metal_variant
+              assign yg_variant = variant
+            endunless
+          endif
+        endif
+      elsif metal_slug == 'white-gold'
+        if wg_variant == blank
+          assign wg_variant = variant
+          assign wg_price_variant = variant
+          assign wg_cheapest_price = variant.price
+        else
+          if variant.price != wg_cheapest_price
+            assign wg_price_varies = true
+          endif
+          if variant.price < wg_cheapest_price
+            assign wg_price_variant = variant
+            assign wg_cheapest_price = variant.price
+            unless prefer_first_metal_variant
+              assign wg_variant = variant
+            endunless
+          endif
+        endif
+      elsif metal_slug == 'sterling-silver'
+        if ss_variant == blank
+          assign ss_variant = variant
+          assign ss_price_variant = variant
+          assign ss_cheapest_price = variant.price
+        else
+          if variant.price != ss_cheapest_price
+            assign ss_price_varies = true
+          endif
+          if variant.price < ss_cheapest_price
+            assign ss_price_variant = variant
+            assign ss_cheapest_price = variant.price
+            unless prefer_first_metal_variant
+              assign ss_variant = variant
+            endunless
+          endif
+        endif
+      elsif metal_slug == 'rose-gold'
+        if rg_variant == blank
+          assign rg_variant = variant
+          assign rg_price_variant = variant
+          assign rg_cheapest_price = variant.price
+        else
+          if variant.price != rg_cheapest_price
+            assign rg_price_varies = true
+          endif
+          if variant.price < rg_cheapest_price
+            assign rg_price_variant = variant
+            assign rg_cheapest_price = variant.price
+            unless prefer_first_metal_variant
+              assign rg_variant = variant
+            endunless
+          endif
+        endif
+      elsif metal_slug == 'platinum'
+        if pt_variant == blank
+          assign pt_variant = variant
+          assign pt_price_variant = variant
+          assign pt_cheapest_price = variant.price
+        else
+          if variant.price != pt_cheapest_price
+            assign pt_price_varies = true
+          endif
+          if variant.price < pt_cheapest_price
+            assign pt_price_variant = variant
+            assign pt_cheapest_price = variant.price
+            unless prefer_first_metal_variant
+              assign pt_variant = variant
+            endunless
+          endif
+        endif
+      endif
+    endfor
+
+    assign yg_price_varies_num = 0
+    assign wg_price_varies_num = 0
+    assign ss_price_varies_num = 0
+    assign rg_price_varies_num = 0
+    assign pt_price_varies_num = 0
+
+    if yg_price_varies
+      assign yg_price_varies_num = 1
+    endif
+    if wg_price_varies
+      assign wg_price_varies_num = 1
+    endif
+    if ss_price_varies
+      assign ss_price_varies_num = 1
+    endif
+    if rg_price_varies
+      assign rg_price_varies_num = 1
+    endif
+    if pt_price_varies
+      assign pt_price_varies_num = 1
+    endif
+
+    comment
+      Shopify price filter is product-level (any variant in range = product included).
+      Metal cards are variant-level, so hide cards whose metal price falls outside the active range.
+    endcomment
+    assign price_filter_min = blank
+    assign price_filter_max = blank
+    assign has_price_filter = false
+    for filter in collection.filters
+      if filter.type == 'price_range'
+        if filter.min_value.value != nil
+          assign price_filter_min = filter.min_value.value
+          assign has_price_filter = true
+        endif
+        if filter.max_value.value != nil
+          assign price_filter_max = filter.max_value.value
+          assign has_price_filter = true
+        endif
+      endif
+    endfor
+
+    assign yg_in_price_range = true
+    assign wg_in_price_range = true
+    assign ss_in_price_range = true
+    assign rg_in_price_range = true
+    assign pt_in_price_range = true
+
+    if has_price_filter
+      if yg_price_variant != blank
+        if price_filter_min != blank and yg_price_variant.price < price_filter_min
+          assign yg_in_price_range = false
+        endif
+        if price_filter_max != blank and yg_price_variant.price > price_filter_max
+          assign yg_in_price_range = false
+        endif
+      endif
+      if wg_price_variant != blank
+        if price_filter_min != blank and wg_price_variant.price < price_filter_min
+          assign wg_in_price_range = false
+        endif
+        if price_filter_max != blank and wg_price_variant.price > price_filter_max
+          assign wg_in_price_range = false
+        endif
+      endif
+      if ss_price_variant != blank
+        if price_filter_min != blank and ss_price_variant.price < price_filter_min
+          assign ss_in_price_range = false
+        endif
+        if price_filter_max != blank and ss_price_variant.price > price_filter_max
+          assign ss_in_price_range = false
+        endif
+      endif
+      if rg_price_variant != blank
+        if price_filter_min != blank and rg_price_variant.price < price_filter_min
+          assign rg_in_price_range = false
+        endif
+        if price_filter_max != blank and rg_price_variant.price > price_filter_max
+          assign rg_in_price_range = false
+        endif
+      endif
+      if pt_price_variant != blank
+        if price_filter_min != blank and pt_price_variant.price < price_filter_min
+          assign pt_in_price_range = false
+        endif
+        if price_filter_max != blank and pt_price_variant.price > price_filter_max
+          assign pt_in_price_range = false
+        endif
+      endif
+    endif
+
+    assign yg_default_visible = false
+    assign ss_default_visible = false
+    assign wg_default_visible = false
+    assign rg_default_visible = false
+    assign pt_default_visible = false
+
+    if active_metal_slugs != blank
+      if active_metal_slugs contains '|yellow-gold|'
+        assign yg_default_visible = true
+      endif
+      if active_metal_slugs contains '|sterling-silver|'
+        assign ss_default_visible = true
+      endif
+      if active_metal_slugs contains '|white-gold|'
+        assign wg_default_visible = true
+      endif
+      if active_metal_slugs contains '|rose-gold|'
+        assign rg_default_visible = true
+      endif
+      if active_metal_slugs contains '|platinum|'
+        assign pt_default_visible = true
+      endif
+    else
+      comment
+        Default 2-card view:
+        - Silver exists → show Silver (White Gold hidden even if both exist)
+        - No Silver, White Gold exists → show White Gold
+        - Neither → Yellow Gold only
+      endcomment
+      assign yg_default_visible = true
+
+      if ss_variant != blank
+        assign ss_default_visible = true
+      elsif wg_variant != blank
+        assign wg_default_visible = true
+      endif
+    endif
+
+    assign yg_label = 'Gold'
+    assign ss_label = 'Sterling Silver'
+    assign wg_label = 'Gold'
+    assign rg_label = 'Rose Gold'
+    assign pt_label = 'Platinum'
+
+    if show_all_metals
+      assign yg_default_visible = true
+      assign ss_default_visible = true
+      assign wg_default_visible = true
+      assign rg_default_visible = true
+      assign pt_default_visible = true
+
+      if yg_variant != blank
+        assign yg_label = yg_variant.options[metal_option_index]
+      endif
+      if ss_variant != blank
+        assign ss_label = ss_variant.options[metal_option_index]
+      endif
+      if wg_variant != blank
+        assign wg_label = wg_variant.options[metal_option_index]
+      endif
+      if rg_variant != blank
+        assign rg_label = rg_variant.options[metal_option_index]
+      endif
+      if pt_variant != blank
+        assign pt_label = pt_variant.options[metal_option_index]
+      endif
+    endif
+  -%}
+
+  {%- if yg_variant != blank and yg_in_price_range -%}
+    {%- if wrap_as_slide -%}<div class="first-slider"><div class="popular-slider-card">{%- endif -%}
+    {%- render 'product-block', product: product, custom_aspect_ratio: custom_aspect_ratio, animate: animate, prioritised_loading: prioritised_loading, metal_variant: yg_variant, metal_price_variant: yg_price_variant, metal_card_label: yg_label, metal_slug: 'yellow-gold', metal_price_varies: yg_price_varies_num, metal_default_visible: yg_default_visible, no_quick_buy_markup: no_quick_buy_markup, no_swiping: no_swiping -%}
+    {%- if wrap_as_slide -%}</div></div>{%- endif -%}
+  {%- endif -%}
+
+  {%- if ss_variant != blank and ss_in_price_range -%}
+    {%- if wrap_as_slide -%}<div class="first-slider"><div class="popular-slider-card">{%- endif -%}
+    {%- render 'product-block', product: product, custom_aspect_ratio: custom_aspect_ratio, animate: animate, prioritised_loading: prioritised_loading, metal_variant: ss_variant, metal_price_variant: ss_price_variant, metal_card_label: ss_label, metal_slug: 'sterling-silver', metal_price_varies: ss_price_varies_num, metal_default_visible: ss_default_visible, no_quick_buy_markup: no_quick_buy_markup, no_swiping: no_swiping -%}
+    {%- if wrap_as_slide -%}</div></div>{%- endif -%}
+  {%- endif -%}
+
+  {%- if wg_variant != blank and wg_in_price_range -%}
+    {%- if wrap_as_slide -%}<div class="first-slider"><div class="popular-slider-card">{%- endif -%}
+    {%- render 'product-block', product: product, custom_aspect_ratio: custom_aspect_ratio, animate: animate, prioritised_loading: prioritised_loading, metal_variant: wg_variant, metal_price_variant: wg_price_variant, metal_card_label: wg_label, metal_slug: 'white-gold', metal_price_varies: wg_price_varies_num, metal_default_visible: wg_default_visible, no_quick_buy_markup: no_quick_buy_markup, no_swiping: no_swiping -%}
+    {%- if wrap_as_slide -%}</div></div>{%- endif -%}
+  {%- endif -%}
+
+  {%- if rg_variant != blank and rg_in_price_range -%}
+    {%- if wrap_as_slide -%}<div class="first-slider"><div class="popular-slider-card">{%- endif -%}
+    {%- render 'product-block', product: product, custom_aspect_ratio: custom_aspect_ratio, animate: animate, prioritised_loading: prioritised_loading, metal_variant: rg_variant, metal_price_variant: rg_price_variant, metal_card_label: rg_label, metal_slug: 'rose-gold', metal_price_varies: rg_price_varies_num, metal_default_visible: rg_default_visible, no_quick_buy_markup: no_quick_buy_markup, no_swiping: no_swiping -%}
+    {%- if wrap_as_slide -%}</div></div>{%- endif -%}
+  {%- endif -%}
+
+  {%- if pt_variant != blank and pt_in_price_range -%}
+    {%- if wrap_as_slide -%}<div class="first-slider"><div class="popular-slider-card">{%- endif -%}
+    {%- render 'product-block', product: product, custom_aspect_ratio: custom_aspect_ratio, animate: animate, prioritised_loading: prioritised_loading, metal_variant: pt_variant, metal_price_variant: pt_price_variant, metal_card_label: pt_label, metal_slug: 'platinum', metal_price_varies: pt_price_varies_num, metal_default_visible: pt_default_visible, no_quick_buy_markup: no_quick_buy_markup, no_swiping: no_swiping -%}
+    {%- if wrap_as_slide -%}</div></div>{%- endif -%}
+  {%- endif -%}
+{%- endif -%}

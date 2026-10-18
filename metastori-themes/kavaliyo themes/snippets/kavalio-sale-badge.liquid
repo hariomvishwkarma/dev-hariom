@@ -1,0 +1,60 @@
+{% comment %}
+  Kavalio sale badge markup.
+
+  Sale condition:
+  - Collection: snippets/kavalio-variant-on-sale.liquid
+  - PDP: snippets/kavalio-variant-on-sale-pdp.liquid
+  PDP live toggle: assets/custom.js → isKavalioVariantOnSale()
+
+  Collection: badge shows only if at least one purchasable variant is on sale.
+  Sold-out variants are ignored (via snippets/variant-buy-allowed.liquid).
+
+  Parameters:
+  - product: {Product} required
+  - variant: {Variant} optional — when set, badge follows this variant (PDP / grid swatch initial state)
+  - pdp_dynamic: {Boolean} optional — output badge on PDP even when hidden, for JS toggling
+  - grid_dynamic: {Boolean} optional — output badge on collection grid for swatch JS toggling
+{% endcomment %}
+
+{%- assign show_kavalio_sale_badge = false -%}
+
+{%- if variant != blank -%}
+  {%- if pdp_dynamic -%}
+    {%- capture kavalio_variant_on_sale -%}{%- render 'kavalio-variant-on-sale-pdp', variant: variant -%}{%- endcapture -%}
+  {%- else -%}
+    {%- capture kavalio_variant_on_sale -%}{%- render 'kavalio-variant-on-sale', variant: variant -%}{%- endcapture -%}
+  {%- endif -%}
+  {%- assign kavalio_variant_on_sale = kavalio_variant_on_sale | strip -%}
+  {%- if kavalio_variant_on_sale == 'true' -%}
+    {%- assign show_kavalio_sale_badge = true -%}
+  {%- endif -%}
+{%- elsif product != blank -%}
+  {%- for v in product.variants -%}
+    {%- capture kavalio_variant_on_sale -%}{%- render 'kavalio-variant-on-sale', variant: v -%}{%- endcapture -%}
+    {%- assign kavalio_variant_on_sale = kavalio_variant_on_sale | strip -%}
+    {%- if kavalio_variant_on_sale == 'true' -%}
+      {%- assign show_kavalio_sale_badge = true -%}
+      {%- break -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
+
+{%- if settings.sale_icon != blank -%}
+  {%- if show_kavalio_sale_badge or pdp_dynamic or grid_dynamic -%}
+    <span
+      class="badge badge--sale kavalio-sale-badge{% unless show_kavalio_sale_badge %} is-hidden{% endunless %}"
+      data-kavalio-sale-badge
+      {% unless show_kavalio_sale_badge %}
+        hidden
+      {% endunless %}
+      {% if pdp_dynamic %}
+        data-kavalio-sale-badge-dynamic
+      {% endif %}
+      {% if grid_dynamic %}
+        data-kavalio-sale-badge-grid
+      {% endif %}
+    >
+      {{ settings.sale_icon }}
+    </span>
+  {%- endif -%}
+{%- endif -%}

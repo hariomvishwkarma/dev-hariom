@@ -1,0 +1,289 @@
+<style>
+  #shopify-section-{{ section.id }} [class*="boost-sd"][class*="loading"],
+  #shopify-section-{{ section.id }} [class*="boost-sd"] .spinner {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  .article-item .article-item__image-container img {
+      aspect-ratio: 3 / 2;
+      object-fit: cover;
+  }
+
+  .ed_main_blog_articles_latest article-list .article-item {
+      display: grid;
+      align-items: flex-start;
+  }
+
+  .ed_main_blog_articles_latest .article-item__content.text-container {
+      display: grid;
+      align-items: start;
+      height: 100%;
+  }
+
+  .ed_main_blog_articles_latest .ed_article_item__button {
+      align-self: end;
+  }
+</style>
+<section>
+  {%- if blog.articles_count == 0 -%}
+    <div class="empty-state text-container">
+      <h1 class="heading h1">{{ blog.title }}</h1>
+
+      <p class="text--large">{{ 'blog.general.empty' | t }}</p>
+
+      <div class="button-wrapper">
+        <a href="{{ routes.root_url }}" class="button button--primary">{{ 'blog.general.back_to_home' | t }}</a>
+      </div>
+    </div>
+  {%- else -%}
+    {%- if section.settings.show_blog_title -%}
+      {% comment %} <div class="container">
+        <div class="page-header">
+          <nav aria-label="{{ 'general.breadcrumb.title' | t }}" class="breadcrumb breadcrumb--floating text--xsmall hidden-phone">
+            <ol class="breadcrumb__list" role="list">
+              <li class="breadcrumb__item">
+                <a class="breadcrumb__link" href="{{ routes.root_url }}">{{ 'general.breadcrumb.home' | t }}</a>
+              </li>
+
+              <li class="breadcrumb__item">
+                {%- if current_tags -%}
+                  <a class="breadcrumb__link" href="{{ collection.url }}">{{ blog.title }}</a>
+                {%- else -%}
+                  <span class="breadcrumb__link" aria-current="page">{{ blog.title }}</span>
+                {%- endif -%}
+              </li>
+
+              {%- if current_tags -%}
+                <li class="breadcrumb__item">
+                  <span class="breadcrumb__link" aria-current="page">{{ current_tags.first | split: '_' | last }}</span>
+                </li>
+              {%- endif -%}
+            </ol>
+          </nav>
+
+          <div class="page-header__text-wrapper text-container">
+            <h1 class="heading h1">{{ blog.title }}</h1>
+          </div>
+        </div>
+      </div> {% endcomment %}
+    {%- endif -%}
+
+    
+    {% render 'ed-blog-tags-and-sorting', section: section, blog: blog %}
+
+    <div class="vertical-breather vertical-breather--margin vertical-breather--extra-tight">
+      <div class="container">
+        {%- if section.settings.show_blog_title -%}
+          <div class="ed_main_blog_header ed_main_blog_wrapper {% if section.settings.show_aside %}ed_has__aside{% endif %}">
+            <main  class="ed_main_blog_articles">
+              {%- if section.settings.custom_blog_title != blank -%}
+                <h2 class="heading h2">{{ section.settings.custom_blog_title }}</h2>
+              {%- else -%}
+                <h2 class="heading h2">{{ blog.title }}</h2>
+              {%- endif -%}
+              {%- if section.settings.custom_blog_description != blank -%}
+                <p class="text--large">{{ section.settings.custom_blog_description }}</p>
+              {% else %}
+                <p class="text--large">{{ blog.description }}</p>
+              {% endif %}
+
+              {% if section.settings.show_blog_header_divider %}
+                {% render 'ed-heart-divider', margin: '30px' %}
+              {% endif %}
+            </main>
+
+            {% if section.settings.show_aside %}
+              <aside class="ed_main_blog_aside"></aside>
+            {% endif %}
+          </div>
+        {%- endif -%}
+
+        <div class="ed_main_blog_wrapper {% if section.settings.show_aside %}ed_has__aside{% endif %}">
+          <main class="ed_main_blog_articles">
+            {%- paginate blog.articles by section.settings.articles_per_page -%}
+              {%- if section.settings.show_latest_articles and paginate.current_page == 1 -%}
+                {%- assign latest_count = section.settings.latest_articles_count -%}
+    
+                <div class="ed_main_blog_articles_latest">
+                  <article-list {% if settings.stagger_blog_posts_apparition %}stagger-apparition{% endif %} class="article-list article-list--stacked">
+                    {%- for article in blog.articles limit: latest_count -%}
+                      {%- render 'article-item', article: article, heading_size: 'h4' -%}
+                    {%- endfor -%}
+                  </article-list>
+                  {%- if blog.articles.size > latest_count -%}
+                    {%- render 'ed-heart-divider', margin: '30px' -%}
+                  {%- endif -%}
+                </div>
+              {%- endif -%}
+
+              <article-list {% if settings.stagger_blog_posts_apparition %}stagger-apparition{% endif %} class="article-list article-list--stacked">
+                {%- if section.settings.show_latest_articles and paginate.current_page == 1 and section.settings.latest_articles_count > 0 -%}
+                  {%- for article in blog.articles offset: section.settings.latest_articles_count -%}
+                    {%- render 'article-item', article: article, heading_size: 'h4' -%}
+                  {%- endfor -%}
+                {%- else -%}
+                  {%- for article in blog.articles -%}
+                    {%- render 'article-item', article: article, heading_size: 'h4' -%}
+                  {%- endfor -%}
+                {%- endif -%}
+              </article-list>
+
+              {%- assign has_articles_below = false -%}
+              {%- if section.settings.show_latest_articles and paginate.current_page == 1 -%}
+                {%- if blog.articles.size > section.settings.latest_articles_count -%}
+                  {%- assign has_articles_below = true -%}
+                {%- endif -%}
+              {%- elsif blog.articles.size > 0 -%}
+                {%- assign has_articles_below = true -%}
+              {%- endif -%}
+              {%- if has_articles_below or paginate.pages > 1 -%}
+                {%- render 'ed-heart-divider', margin: '30px' -%}
+              {%- endif -%}
+              {%- render 'pagination', paginate: paginate -%}
+
+              {%- comment -%} Shopify doesn't sort blog by URL, so we reorder articles in the DOM when sort_by is present. {%- endcomment -%}
+              <script>
+                (function() {
+                  var sortBy = new URLSearchParams(window.location.search).get('sort_by');
+                  if (!sortBy || !['title_asc','title_desc','published_asc','published_desc'].includes(sortBy)) return;
+                  var latestCount = {{ section.settings.latest_articles_count | default: 0 }};
+                  var hasLatest = {% if section.settings.show_latest_articles and paginate.current_page == 1 %}true{% else %}false{% endif %};
+                  var articleListEl = document.querySelector('.ed_main_blog_wrapper .article-list');
+                  if (!articleListEl) return;
+                  var main = articleListEl.closest('main.ed_main_blog_articles');
+                  if (!main) return;
+                  var lists = main.querySelectorAll('article-list.article-list');
+                  if (lists.length === 0) return;
+                  var items = main.querySelectorAll('.article-item');
+                  if (items.length === 0) return;
+                  var arr = Array.from(items);
+                  var collator = new Intl.Collator(undefined, { sensitivity: 'base' });
+                  if (sortBy === 'title_asc') arr.sort(function(a, b) { return collator.compare((a.dataset.articleTitle || ''), (b.dataset.articleTitle || '')); });
+                  else if (sortBy === 'title_desc') arr.sort(function(a, b) { return collator.compare((b.dataset.articleTitle || ''), (a.dataset.articleTitle || '')); });
+                  else if (sortBy === 'published_desc') arr.sort(function(a, b) { return (b.dataset.articlePublished || '').localeCompare(a.dataset.articlePublished || ''); });
+                  else if (sortBy === 'published_asc') arr.sort(function(a, b) { return (a.dataset.articlePublished || '').localeCompare(b.dataset.articlePublished || ''); });
+                  var firstList = hasLatest && lists.length >= 2 ? lists[0] : null;
+                  var secondList = lists.length >= 2 ? lists[1] : lists[0];
+                  if (firstList && hasLatest && latestCount > 0) {
+                    for (var i = 0; i < latestCount && i < arr.length; i++) firstList.appendChild(arr[i]);
+                    for (var i = latestCount; i < arr.length; i++) secondList.appendChild(arr[i]);
+                  } else {
+                    for (var i = 0; i < arr.length; i++) secondList.appendChild(arr[i]);
+                  }
+                })();
+              </script>
+            {%- endpaginate -%}
+          </main>
+
+          {%- if section.settings.show_aside -%}
+            <aside class="ed_main_blog_aside">
+              {%- for article in blog.articles limit: section.settings.aside_articles_count -%}
+                {%- render 'article-item-aside', article: article -%}
+              {%- endfor -%}
+            </aside>
+          {%- endif -%}
+        </div>
+      </div>
+    </div>
+  {%- endif -%}
+</section>
+
+{% schema %}
+{
+  "name": "Blog",
+  "class": "shopify-section--main-blog",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_blog_title",
+      "label": "Show blog title",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "custom_blog_title",
+      "label": "Custom blog title",
+      "info": "Leave blank to use the default blog title."
+    },
+    {
+      "type": "textarea",
+      "id": "custom_blog_description",
+      "label": "Custom blog description",
+      "info": "Leave blank to use the default blog description."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_blog_header_divider",
+      "label": "Show divider below header",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_tags",
+      "label": "Show tags",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_category",
+      "label": "Show category",
+      "info": "The first article's tag will be shown as category.",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_excerpt",
+      "label": "Show excerpt",
+      "info": "Change excerpts by editing your blog posts. [Learn more](https://help.shopify.com/en/manual/online-store/blogs/writing-blogs#display-an-excerpt-from-a-blog-post)",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "articles_per_page",
+      "label": "Blog posts per page",
+      "min": 2,
+      "max": 48,
+      "step": 2,
+      "default": 8
+    },
+    {
+      "type": "header",
+      "content": "Featured articles"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_latest_articles",
+      "label": "Show featured articles at top",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "latest_articles_count",
+      "label": "Number of articles",
+      "min": 1,
+      "max": 4,
+      "step": 1,
+      "default": 2
+    },
+    {
+      "type": "header",
+      "content": "Aside sidebar"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_aside",
+      "label": "Show aside with article previews",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "aside_articles_count",
+      "label": "Number of articles in aside",
+      "min": 1,
+      "max": 6,
+      "step": 1,
+      "default": 3
+    }
+  ]
+}
+{% endschema %}

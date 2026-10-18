@@ -1,0 +1,88 @@
+{%- doc -%}
+  Renders a wavy border frame (top / bottom / left / right) inside the section's
+  max-width container. Toggle each side with the section settings wavy_border_top,
+  wavy_border_bottom, wavy_border_left, wavy_border_right and pick a colour with
+  wavy_border_color.
+
+  @param {object} section - The section the border belongs to.
+
+  @example
+  {% render 'wavy-border', section: section %}
+{%- enddoc -%}
+
+{%- liquid
+  assign wave_settings = section.settings
+  assign has_wave = false
+  if wave_settings.wavy_border_top or wave_settings.wavy_border_bottom or wave_settings.wavy_border_left or wave_settings.wavy_border_right
+    assign has_wave = true
+  endif
+  assign wave_width = wave_settings.section_width | default: 'page-width'
+  assign wave_sides = 'top,bottom,left,right' | split: ','
+-%}
+
+{%- if has_wave -%}
+  <div
+    class="wavy-frame wavy-frame--{{ wave_width }}"
+    aria-hidden="true"
+    style="--wavy-gap: {{ wave_settings.wavy_border_gap | default: 16 }}px;{% if wave_settings.wavy_border_color != blank %} --wavy-border-color: {{ wave_settings.wavy_border_color }};{% endif %}"
+  >
+    {%- for side in wave_sides -%}
+      {%- assign wave_key = 'wavy_border_' | append: side -%}
+      {%- if wave_settings[wave_key] -%}
+        <span class="wavy-frame__line wavy-frame__line--{{ side }}"></span>
+      {%- endif -%}
+    {%- endfor -%}
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .shopify-section:has(> .wavy-frame) {
+    position: relative;
+  }
+
+  .wavy-frame {
+    /* Border sits outside the content: gap + line thickness, capped to the page margin so it never clips */
+    --wavy-outset: min(calc(var(--wavy-gap, 16px) + 10px), var(--page-margin));
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin-inline: auto;
+    width: calc(min(var(--page-width) - var(--page-margin) * 2, 100% - var(--page-margin) * 2) + var(--wavy-outset) * 2);
+    pointer-events: none;
+    z-index: var(--layer-heightened);
+  }
+
+  .wavy-frame--full-width {
+    width: calc(100% - var(--page-margin) * 2 + var(--wavy-outset) * 2);
+  }
+
+  .wavy-frame__line {
+    position: absolute;
+    background-color: var(--wavy-border-color, var(--color-border));
+  }
+
+  .wavy-frame__line--top,
+  .wavy-frame__line--bottom {
+    left: 0;
+    right: 0;
+    height: 10px;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='10' viewBox='0 0 30 10'%3E%3Cpath d='M0 5Q3.75 1 7.5 5T15 5T22.5 5T30 5' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") repeat-x;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='10' viewBox='0 0 30 10'%3E%3Cpath d='M0 5Q3.75 1 7.5 5T15 5T22.5 5T30 5' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") repeat-x;
+  }
+
+  .wavy-frame__line--left,
+  .wavy-frame__line--right {
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='30' viewBox='0 0 10 30'%3E%3Cpath d='M5 0Q1 3.75 5 7.5T5 15T5 22.5T5 30' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") repeat-y;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='30' viewBox='0 0 10 30'%3E%3Cpath d='M5 0Q1 3.75 5 7.5T5 15T5 22.5T5 30' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") repeat-y;
+  }
+
+  .wavy-frame__line--top { top: 0; }
+  .wavy-frame__line--bottom { bottom: 0; }
+  .wavy-frame__line--left { left: 0; }
+  .wavy-frame__line--right { right: 0; }
+{% endstylesheet %}

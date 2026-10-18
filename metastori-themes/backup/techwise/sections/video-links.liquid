@@ -1,0 +1,266 @@
+<style>
+  .media-ratio-1-1{aspect-ratio:1/1;width:100%;height:auto;overflow:hidden}
+  .media-ratio-1-1 video,.media-ratio-1-1 img{width:100%;height:100%;object-fit:cover;display:block}
+  .media-box{width:var(--media-w,520px);max-width:100%;margin:0 auto;border-radius:var(--media-radius,0px);overflow:hidden}
+  @media (max-width:767px){.media-box{width:100%}}
+  .swipe-hint{line-height:1.4;opacity:.7;text-align:center}
+</style>
+
+{%- if section.blocks.size > 0 -%}
+  {%- assign first_block_with_media = nil -%}
+  {%- for block in section.blocks -%}
+    {% if block.settings.media_type == 'image' and block.settings.image != blank %}
+      {%- assign first_block_with_media = block -%}{%- break -%}
+    {% elsif block.settings.media_type == 'video' and block.settings.video != blank %}
+      {%- assign first_block_with_media = block -%}{%- break -%}
+    {% endif %}
+  {%- endfor -%}
+
+  <div class="color-scheme color-scheme--{{ section.settings.color_scheme.id }}">
+    {%- comment -%} ---------------- DESKTOP ---------------- {%- endcomment -%}
+    <links-with-image class="section-split {% if section.settings.image_position == 'end' %}section-split--reverse{% endif %} md-max:hidden">
+      <div class="section-split__column section-split__column--image section-split__column--flushed">
+        {% if first_block_with_media != blank %}
+          <div class="grid sticky isolate">
+            {% assign has_outputted_first = false %}
+            {% for block in section.blocks %}
+              {% if block.settings.media_type == 'image' and block.settings.image != blank %}
+                <div data-image-block-id="{{ block.id }}" class="@container/content-box span-full mix-blend-plus-lighter {% if has_outputted_first %}opacity-0{% endif %}">
+                  <div class="media-box" style="--media-w: {{ section.settings.media_width_desktop }}px; --media-radius: {{ section.settings.media_radius }}px;">
+                    <div class="media-ratio-1-1">
+                      {%- render 'media' with block.settings.image, mobile_media: block.settings.mobile_image, preload: forloop.first -%}
+                    </div>
+                  </div>
+                </div>
+                {% assign has_outputted_first = true %}
+              {% elsif block.settings.media_type == 'video' and block.settings.video != blank %}
+                <div data-image-block-id="{{ block.id }}" class="@container/content-box span-full mix-blend-plus-lighter {% if has_outputted_first %}opacity-0{% endif %}">
+                  <div class="media-box" style="--media-w: {{ section.settings.media_width_desktop }}px; --media-radius: {{ section.settings.media_radius }}px;">
+                    <div class="media-ratio-1-1">
+                      {{ block.settings.video | video_tag:
+                        autoplay: block.settings.video_autoplay,
+                        loop: block.settings.video_loop,
+                        muted: block.settings.video_muted,
+                        controls: block.settings.video_controls,
+                        playsinline: true,
+                        preload: 'metadata'
+                      }}
+                    </div>
+                  </div>
+                </div>
+                {% assign has_outputted_first = true %}
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="section-split__column {% if section.settings.separate_subheading %}h-full{% endif %}">
+        {% assign text_alignment = section.settings.text_alignment | replace: 'left','start' | replace: 'right','end' %}
+        <div class="v-stack gap-12 justify-items-{{ text_alignment }} text-{{ text_alignment }} {% if section.settings.separate_subheading %}content-between h-full{% endif %}">
+          {% if section.settings.title != blank %}
+            {%- render 'subheading', content: section.settings.title -%}
+          {% endif %}
+          <div class="w-full divide-y">
+            {% for block in section.blocks %}
+              <a href="{{ block.settings.url | default: '#' }}" class="big-link big-link--opacity justify-{{ text_alignment }}" data-block-id="{{ block.id }}">
+                <div class="v-stack gap-2">
+                  {%- render 'heading', content: block.settings.title, style: block.settings.heading_tag -%}
+                  {% if block.settings.content != blank %}<p>{{ block.settings.content }}</p>{% endif %}
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </links-with-image>
+
+    {%- comment -%} ---------------- MOBIEL (SWIPE) ---------------- {%- endcomment -%}
+    <div class="section-spacing container md:hidden">
+      <div class="section-stack">
+        {% if section.settings.title != blank %}
+          {%- render 'subheading', content: section.settings.title, class: 'justify-self-center' -%}
+        {% endif %}
+
+        {%- assign has_outputted_first = false -%}
+        <links-with-image-mobile-image-list class="grid isolate">
+          {% for block in section.blocks %}
+            {% if block.settings.media_type == 'image' and block.settings.image != blank %}
+              <div data-image-block-id="{{ block.id }}" class="@container/content-box span-full mix-blend-plus-lighter {% if has_outputted_first %}opacity-0 visibility-hidden{% endif %}">
+                <div class="media-box" style="--media-radius: {{ section.settings.media_radius }}px;">
+                  <div class="media-ratio-1-1">
+                    {%- render 'media' with block.settings.image, mobile_media: block.settings.mobile_image, preload: forloop.first -%}
+                  </div>
+                </div>
+              </div>
+              {% assign has_outputted_first = true %}
+            {% elsif block.settings.media_type == 'video' and block.settings.video != blank %}
+              <div data-image-block-id="{{ block.id }}" class="@container/content-box span-full mix-blend-plus-lighter {% if has_outputted_first %}opacity-0 visibility-hidden{% endif %}">
+                <div class="media-box" style="--media-radius: {{ section.settings.media_radius }}px;">
+                  <div class="media-ratio-1-1">
+                    {{ block.settings.video | video_tag:
+                      autoplay: block.settings.video_autoplay,
+                      loop: block.settings.video_loop,
+                      muted: block.settings.video_muted,
+                      controls: block.settings.video_controls,
+                      playsinline: true,
+                      preload: 'metadata'
+                    }}
+                  </div>
+                </div>
+              </div>
+              {% assign has_outputted_first = true %}
+            {% endif %}
+          {% endfor %}
+        </links-with-image-mobile-image-list>
+
+        {%- assign carousel_id = 'mobile-carousel-' | append: section.id -%}
+        <links-with-image-carousel id="{{ carousel_id }}" allow-swipe class="links-with-image-carousel"
+          style="margin-bottom: {{ section.settings.carousel_title_margin_bottom }}px;">
+          {% for block in section.blocks %}
+            <a href="{{ block.settings.url | default: '#' }}" data-block-id="{{ block.id }}" class="v-stack justify-center text-center gap-2.5 {% if forloop.first %}is-selected{% endif %}">
+              {%- render 'heading', content: block.settings.title, style: block.settings.heading_tag -%}
+              {% if block.settings.content != blank %}<p>{{ block.settings.content }}</p>{% endif %}
+            </a>
+          {% endfor %}
+        </links-with-image-carousel>
+
+        {% if section.blocks.size > 1 %}
+          <carousel-navigation class="scroll-marker-group scroll-marker-group--lines justify-self-center" aria-controls="{{ carousel_id }}">
+            {% for block in section.blocks %}
+              <button class="scroll-marker tap-area tap-area--sm" aria-current="{% if forloop.first %}true{% else %}false{% endif %}">
+                <span class="sr-only">{{ 'general.accessibility.go_to_item' | t: index: forloop.index }}</span>
+              </button>
+            {% endfor %}
+          </carousel-navigation>
+        {% endif %}
+
+        {%- if section.settings.show_swipe_hint and section.blocks.size > 1 -%}
+          <div class="swipe-hint"
+               style="margin-top: {{ section.settings.swipe_hint_margin_top }}px;
+                      margin-bottom: {{ section.settings.swipe_hint_margin_bottom }}px;
+                      font-size: {{ section.settings.swipe_hint_font_size }}px;">
+            {{ section.settings.swipe_hint_text }}
+          </div>
+        {%- endif -%}
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      var section = document.getElementById('shopify-section-{{ section.id }}');
+      if(!section) return;
+
+      function enhanceRoot(root, isMobile){
+        var items = root.querySelectorAll('[data-image-block-id]');
+        var triggers = root.querySelectorAll('[data-block-id]');
+        if(!items.length || !triggers.length) return;
+
+        function bringToFront(el){ var p=el.parentNode; if(p && p.lastElementChild!==el) p.appendChild(el); }
+        function select(id){
+          triggers.forEach(function(t){ t.classList.toggle('is-selected', t.getAttribute('data-block-id') === id); });
+          items.forEach(function(el){
+            var match = el.getAttribute('data-image-block-id') === id;
+            el.classList.toggle('opacity-0', !match);
+            if (el.classList.contains('visibility-hidden')) el.classList.toggle('visibility-hidden', !match);
+            if (match) bringToFront(el);
+          });
+          root.querySelectorAll('video').forEach(function(v){ try{ v.pause(); }catch(e){} });
+          var vid = root.querySelector('[data-image-block-id="'+id+'"] video');
+          if (vid) { try{ vid.play().catch(function(){}); }catch(e){} }
+        }
+
+        triggers.forEach(function(a){
+          var id = a.getAttribute('data-block-id');
+          a.addEventListener('mouseenter', function(){ if(!isMobile) select(id); });
+          a.addEventListener('focus', function(){ select(id); });
+          a.addEventListener('click', function(e){
+            var href = a.getAttribute('href') || '';
+            if (href === '' || href === '#') { e.preventDefault(); select(id); }
+          });
+        });
+
+        if (isMobile) {
+          var carousel = root.querySelector('links-with-image-carousel');
+          if (carousel) {
+            var obs = new MutationObserver(function(){
+              var sel = carousel.querySelector('.is-selected[data-block-id]');
+              if (sel) select(sel.getAttribute('data-block-id'));
+            });
+            obs.observe(carousel, { subtree:true, attributes:true, attributeFilter:['class'] });
+            var initSel = carousel.querySelector('.is-selected[data-block-id]') || triggers[0];
+            if (initSel) select(initSel.getAttribute('data-block-id'));
+          }
+        } else {
+          var initSel = triggers[0];
+          if (initSel) select(initSel.getAttribute('data-block-id'));
+        }
+      }
+
+      var desktopRoot = section.querySelector('links-with-image');
+      if (desktopRoot) enhanceRoot(desktopRoot, false);
+      var mobileRoot = section.querySelector('.section-spacing.container');
+      if (mobileRoot) enhanceRoot(mobileRoot, true);
+    })();
+  </script>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Links with media",
+  "class": "shopify-section--links-with-media",
+  "tag": "section",
+  "settings": [
+    { "type": "color_scheme", "id": "color_scheme", "label": "Kleurenschema", "default": "scheme-1" },
+    { "type": "select", "id": "image_position", "label": "Afbeeldingen positie", "options": [
+      { "value": "start", "label": "Links" },
+      { "value": "end", "label": "Rechts" }
+    ], "default": "start" },
+    { "type": "inline_richtext", "id": "title", "label": "Subheading", "default": "Our categories" },
+    { "type": "checkbox", "id": "separate_subheading", "label": "Subheading apart plaatsen", "default": true },
+    { "type": "text_alignment", "id": "text_alignment", "label": "Tekst uitlijning" },
+    { "type": "range", "id": "media_width_desktop", "label": "Media breedte (desktop)", "min": 280, "max": 900, "step": 10, "unit": "px", "default": 520 },
+    { "type": "range", "id": "media_radius", "label": "Media border radius", "min": 0, "max": 100, "step": 2, "unit": "px", "default": 0 },
+
+    { "type": "checkbox", "id": "show_swipe_hint", "label": "Toon swipe-hint (tekst) op mobiel", "default": true },
+    { "type": "inline_richtext", "id": "swipe_hint_text", "label": "Swipe-hint tekst", "default": "Swipe om meer te zien" },
+    { "type": "range", "id": "swipe_hint_margin_top", "label": "Swipe-hint: marge boven (px)", "min": -80, "max": 80, "step": 2, "unit": "px", "default": 12 },
+    { "type": "range", "id": "swipe_hint_margin_bottom", "label": "Swipe-hint: marge onder (px)", "min": -80, "max": 80, "step": 2, "unit": "px", "default": 12 },
+    { "type": "range", "id": "swipe_hint_font_size", "label": "Swipe-hint tekstgrootte (px)", "min": 10, "max": 40, "step": 1, "unit": "px", "default": 14 },
+
+    { "type": "range", "id": "carousel_title_margin_bottom", "label": "Titel: marge onder (mobiel)", "min": -80, "max": 80, "step": 2, "unit": "px", "default": 8 }
+  ],
+  "blocks": [
+    {
+      "type": "link",
+      "name": "Link",
+      "settings": [
+        { "type": "select", "id": "media_type", "label": "Media type", "options": [
+          { "value": "image", "label": "Afbeelding" },
+          { "value": "video", "label": "Video (upload)" }
+        ], "default": "image" },
+        { "type": "image_picker", "id": "image", "label": "Afbeelding (desktop)" },
+        { "type": "image_picker", "id": "mobile_image", "label": "Afbeelding (mobile)" },
+        { "type": "video", "id": "video", "label": "Video (Shopify upload)" },
+        { "type": "checkbox", "id": "video_autoplay", "label": "Autoplay", "default": true },
+        { "type": "checkbox", "id": "video_loop", "label": "Loop", "default": true },
+        { "type": "checkbox", "id": "video_muted", "label": "Muted", "default": true },
+        { "type": "checkbox", "id": "video_controls", "label": "Toon controls", "default": false },
+        { "type": "inline_richtext", "id": "image_caption", "label": "Caption" },
+        { "type": "inline_richtext", "id": "title", "label": "Titel", "default": "Title" },
+        { "type": "text", "id": "content", "label": "Tekst" },
+        { "type": "url", "id": "url", "label": "Link URL" },
+        { "type": "select", "id": "heading_tag", "label": "Kopgrootte", "options": [
+          { "value": "h1", "label": "XX-Large" },
+          { "value": "h2", "label": "X-Large" },
+          { "value": "h3", "label": "Large" },
+          { "value": "h4", "label": "Medium" },
+          { "value": "h5", "label": "Small" }
+        ], "default": "h3" }
+      ]
+    }
+  ],
+  "presets": [{ "name": "Links with media" }]
+}
+{% endschema %}

@@ -1,0 +1,224 @@
+<style>
+    #shopify-section-{{ section.id }} {
+      --section-text: {{ block.settings.text_color }};
+      --section-bg: {{ block.settings.background }};
+      --icon-size: {{ block.settings.icon_size -}}px;
+      --content-size: {{ block.settings.content_size -}}px;
+      --content-size-mobile: {{ block.settings.content_size_mobile -}}px;
+    }
+
+    .ed-cart-good-choice {
+        display: flex;
+        align-items: center;
+        {% if block.settings.text_color != 'rgba(0,0,0,0)' %}
+            color: var(--section-text);
+        {% endif %}
+        background: var(--section-bg);
+        gap: 8px;
+        justify-content: flex-start;
+        padding-block: 16px;
+        padding-inline: 0;
+    }
+
+    .ed-good-choise-icon {
+        display: flex;
+        justify-content: center;
+        margin-left: 16px;
+        width: var(--icon-size);
+    }
+
+    .ed-good-choise-content {
+        text-align: center;
+        max-width: 405px;
+        margin-right: auto;
+        margin-left: 0;
+    }
+    .ed-good-choise-content * {
+        font-size: var(--content-size);
+        line-height: 1.2;
+        color: var(--section-text);
+    }
+
+    .ed-good-choise-content strong {
+        font-weight: 600;
+    }
+    .ed-good-choise-icon svg, 
+    .ed-good-choise-icon img {
+        width: 100%;
+        height: auto;
+    }
+    .ed-good-choise-icon svg {
+        color: currentColor;
+    }
+
+    .ed-good-choise-icon svg path {
+        stroke: unset;
+    }
+
+    @media (max-width: 999px) {
+        .ed-good-choise-content * {
+            font-size: var(--content-size-mobile);
+            line-height: 1.2;
+        }
+    }
+
+    .ed-cart-good-choice.no-icon .ed-good-choise-content {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+    .ed-cart-good-choice.no-icon .ed-good-choise-content * {
+        text-align: left;
+    }
+
+    @media (max-width: 999px) {
+        .ed-good-choise-icon {
+            margin-left: 8px;
+        }
+    }
+</style>
+
+
+<div class="ed-cart-good-choice {%if block.settings.icon_as_svg == blank and block.settings.icon_as_image == blank  %}no-icon {% endif %}">
+    {%- if block.settings.icon_as_svg != blank -%}
+        <div class="ed-good-choise-icon">
+            {{ block.settings.icon_as_svg }}
+        </div>
+    {%- elsif  block.settings.icon_as_image != blank  -%}
+        {{- block.settings.icon_as_image | image_url: width: block.settings.icon_as_image.width | image_tag: sizes: '100vw', widths: '25,50', alt: block.settings.icon_as_image.alt -}}
+    {%- endif -%}
+
+    <div class="ed-good-choise-content">
+        {%- assign ed_has_giftcard = false -%}
+        {%- assign ed_has_regular = false -%}
+        {%- assign ed_giftcard_message = '' -%}
+
+        {%- for line_item in cart.items -%}
+          {%- assign ed_is_giftcard = false -%}
+          {%- assign ed_gc_prop = line_item.properties['_kavalio_gift_card_template'] | default: '' | strip -%}
+          {%- if ed_gc_prop == '1' -%}
+            {%- assign ed_is_giftcard = true -%}
+          {%- elsif line_item.product and line_item.product.gift_card? -%}
+            {%- assign ed_is_giftcard = true -%}
+          {%- endif -%}
+
+          {%- if ed_is_giftcard -%}
+            {%- assign ed_has_giftcard = true -%}
+            {%- assign ed_msg = line_item.product.metafields.standard.cart_drawer_gute_wahl_gift_card.value
+              | default: line_item.product.metafields.standard.cart_drawer_gute_wahl_gift_card
+              | strip
+            -%}
+            {%- if ed_msg != blank -%}
+              {%- assign ed_giftcard_message = ed_msg -%}
+            {%- endif -%}
+          {%- else -%}
+            {%- assign ed_has_regular = true -%}
+          {%- endif -%}
+        {%- endfor -%}
+
+        {%- assign ed_only_giftcards = false -%}
+        {%- if ed_has_giftcard and ed_has_regular == false -%}
+          {%- assign ed_only_giftcards = true -%}
+        {%- endif -%}
+
+        <div
+          data-ed-good-choice
+          data-has-giftcard="{% if ed_has_giftcard %}true{% else %}false{% endif %}"
+          data-only-giftcards="{% if ed_only_giftcards %}true{% else %}false{% endif %}"
+        >
+        {%- assign default_days = block.settings.content_days | strip -%}
+        {%- assign cart_max_days = default_days -%}
+
+        {%- for line_item in cart.items -%}
+          {%- assign ed_is_giftcard = false -%}
+          {%- assign ed_gc_prop = line_item.properties['_kavalio_gift_card_template'] | default: '' | strip -%}
+          {%- if ed_gc_prop == '1' -%}
+            {%- assign ed_is_giftcard = true -%}
+          {%- elsif line_item.product and line_item.product.gift_card? -%}
+            {%- assign ed_is_giftcard = true -%}
+          {%- endif -%}
+          {%- if ed_is_giftcard -%}
+            {%- continue -%}
+          {%- endif -%}
+
+          {%- assign item_variant = line_item.variant -%}
+          {%- assign item_range = default_days -%}
+
+          {%- comment -%} Prefer PDP line properties (same as order confirmation email) {%- endcomment -%}
+          {%- assign kav_prop_range = line_item.properties['_kavalio_delivery_range'] | default: '' | strip -%}
+          {%- if kav_prop_range != '' -%}
+            {%- assign item_range = kav_prop_range -%}
+          {%- elsif item_variant -%}
+            {%- assign lss_raw = item_variant.metafields.custom.lss.value
+              | default: item_variant.metafields.custom.lss
+              | downcase
+              | strip
+            -%}
+            {%- assign is_dropship_enabled = false -%}
+            {%- if lss_raw == 'ja' -%}
+              {%- assign is_dropship_enabled = true -%}
+            {%- endif -%}
+
+            {%- assign shop_inv_raw = item_variant.metafields.custom.shop_location_inventory.value
+              | default: item_variant.metafields.custom.shop_location_inventory
+              | strip
+            -%}
+            {%- assign shop_inv_known = false -%}
+            {%- assign shop_has_stock = false -%}
+            {%- if shop_inv_raw != blank -%}
+              {%- assign shop_inv_known = true -%}
+              {%- assign shop_inv_qty = shop_inv_raw | plus: 0 -%}
+              {%- if shop_inv_qty > 0 -%}
+                {%- assign shop_has_stock = true -%}
+              {%- endif -%}
+            {%- endif -%}
+
+            {%- assign company_entry = item_variant.metafields.custom.company.value
+              | default: item_variant.metafields.custom.company
+            -%}
+            {%- assign supplier_range = '' -%}
+            {%- if is_dropship_enabled and company_entry != blank and shop_inv_known and shop_has_stock == false -%}
+              {%- assign supplier_meta = company_entry.zusatzliche_lieferzeit.value
+                | default: company_entry.zusatzliche_lieferzeit
+              -%}
+              {%- assign supplier_range = supplier_meta | strip -%}
+            {%- endif -%}
+
+            {%- if supplier_range != '' -%}
+              {%- assign base_range = default_days -%}
+              {%- assign base_min = base_range | split: '-' | first | strip | plus: 0 -%}
+              {%- assign base_max = base_range | split: '-' | last | strip | plus: 0 -%}
+              {%- assign sup_min = supplier_range | split: '-' | first | strip | plus: 0 -%}
+              {%- assign sup_max = supplier_range | split: '-' | last | strip | plus: 0 -%}
+              {%- assign total_min = base_min | plus: sup_min -%}
+              {%- assign total_max = base_max | plus: sup_max -%}
+              {%- assign item_range = total_min | append: '-' | append: total_max -%}
+            {%- endif -%}
+          {%- endif -%}
+
+          {%- capture new_max -%}{% render 'delivery-range-max', range1: cart_max_days, range2: item_range %}{%- endcapture -%}
+          {%- assign cart_max_days = new_max | strip -%}
+        {%- endfor -%}
+
+        <div data-ed-good-choice-regular {% if ed_only_giftcards %}hidden{% endif %}>
+          <p>{% if block.settings.content_before_days != blank %}{{ block.settings.content_before_days }}{% endif %}
+              {% if block.settings.content_before_days != blank and cart_max_days != blank %} {% endif %}
+              {% if cart_max_days != blank %}{{ cart_max_days }}{% endif %}
+              {% if cart_max_days != blank and block.settings.content_after_days != blank %} {% endif %}
+              {% if block.settings.content_after_days != blank %}{{ block.settings.content_after_days }}{% endif %}
+          </p>
+        </div>
+
+        <div data-ed-good-choice-giftcard {% unless ed_only_giftcards %}hidden{% endunless %}>
+          {%- if ed_giftcard_message != blank -%}
+            {%- if ed_giftcard_message contains '<' -%}
+              <p><strong>Gute Wahl!</strong> {{ ed_giftcard_message }}</p>
+            {%- else -%}
+              <p><strong>Gute Wahl!</strong> {{ ed_giftcard_message }}</p>
+            {%- endif -%}
+          {%- endif -%}
+        </div>
+        </div>
+    </div>
+</div>

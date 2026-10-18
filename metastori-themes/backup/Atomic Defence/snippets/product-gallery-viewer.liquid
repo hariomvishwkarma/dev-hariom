@@ -1,0 +1,679 @@
+{% comment %}
+  @param product {Product}
+    The product object in question
+
+  @param selected_media {Media}
+    The current selected media in the gallery
+
+  @param aspect_ratio {string}
+    The aspect ratio setting, which is either 'short', 'tall', or 'square'
+
+  @param image_crop {boolean}
+    Defines if the image should be cropped or not
+
+  @param gallery_hover_zoom {String}
+    This is the hover zoom setting, which is either 'disabled', 'separate', or 'replace'
+{% endcomment %}
+
+<div
+  class="
+    product-gallery--viewer
+    {% if product.media.size > 0 %}
+      product-gallery--has-media
+    {% endif %}
+  "
+  data-gallery-viewer
+>
+  {% for media in product.media %}
+    <figure
+      class="
+        product-gallery--media
+        product-gallery--{{ media.media_type }}
+      "
+      tabindex="-1"
+      {% if selected_media.id != media.id %}
+        aria-hidden="true"
+      {% else %}
+        aria-hidden="false"
+      {% endif %}
+      data-gallery-figure
+      data-gallery-index="{{ forloop.index0 }}"
+      data-gallery-selected="{%- if selected_media.id == media.id -%}true{%- else -%}false{%- endif -%}"
+      data-media="{{ media.id }}"
+      data-media-type="{{ media.media_type }}"
+      {% assign max_zoom = 2400 %}
+      {% assign zoom_height = media.preview_image.height %}
+      {% assign zoom_width = media.preview_image.width %}
+      {% if image_crop %}
+        {% case aspect_ratio %}
+          {% when 'short' %}
+            {% assign min_width = media.height | times: 4 | divided_by: 3 %}
+            {% if media.width > min_width %}
+              {% assign zoom_width = min_width %}
+            {% else %}
+              {% assign zoom_height = media.width | times: 3 | divided_by: 4 %}
+            {% endif %}
+          {% when 'square' %}
+            {% comment %} Square crop {% endcomment %}
+            {% if media.height > media.width %}
+              {% assign zoom_height = media.width %}
+            {% else %}
+              {% assign zoom_width = media.height %}
+            {% endif %}
+          {% when 'tall' %}
+            {% assign min_width = media.height | times: 2 | divided_by: 3 %}
+            {% if media.width > min_width %}
+              {% assign zoom_width = min_width %}
+            {% else %}
+              {% assign zoom_height = media.width | times: 3 | divided_by: 2 %}
+            {% endif %}
+        {% endcase %}
+      {% endif %}
+
+      {% comment %} Adjust the image dimensions to be within the maximum zoom size {% endcomment %}
+      {% if zoom_height > max_zoom or zoom_width > max_zoom %}
+        {% assign crop_aspect_ratio = zoom_width | times: 1000 | divided_by: zoom_height %}
+        {% if zoom_width > zoom_height %}
+          {% assign zoom_width = max_zoom %}
+          {% assign zoom_height = max_zoom | times: 1000 | divided_by: crop_aspect_ratio %}
+        {% else %}
+          {% assign zoom_height = max_zoom %}
+          {% assign zoom_width = max_zoom | times: crop_aspect_ratio | divided_by: 1000 %}
+        {% endif %}
+      {% endif %}
+
+      {% if image_crop %}
+        data-zoom="{{ media.preview_image | img_url: '2048x', crop: 'center' }}"
+      {% else %}
+        data-zoom="{{ media.preview_image | img_url: '2048x' }}"
+      {% endif %}
+      data-image-height="{{ zoom_height }}"
+      data-image-width="{{ zoom_width }}"
+    >
+      {% case media.media_type %}
+        {% when 'image' %}
+          <div
+            class="product-gallery--image-background"
+            {% if image_crop %}
+              {% render 'rimg', img: media, size: 'x700', lazy: true, background: true %}
+            {% endif %}
+          >
+            {% render 'rimg',
+              img: media,
+              class: 'product-gallery--loaded-image',
+              size: 'x700',
+              lazy: true,
+              canvas: true
+            %}
+          </div>
+        {% when 'external_video' %}
+          {% assign external_video_url = media | external_video_url %}
+          <div class="product-gallery--external-video">
+            {% render 'video',
+              url: external_video_url,
+              cover: media.preview_image,
+              slideshow: true,
+              aspect_ratio: '16-9'
+            %}
+          </div>
+        {% when 'model' %}
+          {{
+            media
+            | model_viewer_tag:
+              image_size: '1024x',
+              reveal: 'interaction',
+              toggleable: true,
+              interaction-prompt-threshold: 0
+          }}
+          <noscript>
+            <img
+              src="{{ media.preview_image | img_url: '1024x' }}"
+              alt="{{ media.preview_image.alt | escape }}"
+              width="{{ media.preview_image.width }}"
+              height="{{ media.preview_image.height }}"
+              loading="lazy"
+            >
+          </noscript>
+        {% when 'video' %}
+          {{ media | media_tag: image_size: '1024x' }}
+        {% else %}
+          {{ media | media_tag }}
+      {% endcase %}
+    </figure>
+  {% else %}
+    <figure
+      class="
+        product-gallery--media
+        product-gallery--image
+        product-gallery--image-placeholder
+      "
+    >
+      {% if onboarding %}
+        {{ 'product-1' | placeholder_svg_tag: 'placeholder--image' }}
+      {% else %}
+        {{ 'image' | placeholder_svg_tag: 'placeholder--image' }}
+      {% endif %}
+    </figure>
+  {% endfor %}
+
+  {% assign image_count = product.media | where: 'media_type', 'image' | size %}
+  {% if image_count > 0 and gallery_click_to_zoom != 'disabled' and enable_product_share != false %}
+    <!-- Share Button with Tooltip (Desktop) and Modal (Mobile) -->
+    <div class="product-gallery--share-container">
+      <button
+        class="product-gallery--share"
+        data-gallery-share
+        aria-haspopup="true"
+        aria-label="Share product"
+        type="button"
+      >
+        {% render 'icon-library', id: 'icon-share' %}
+      </button>
+
+      <!-- Desktop Tooltip -->
+      <div class="share-tooltip" data-gallery-share-tooltip aria-hidden="true">
+        <button
+          class="share-tooltip--button share-tooltip--copy"
+          data-gallery-share-copy
+          type="button"
+          aria-label="Copy link"
+        >
+          {% render 'icon-library', id: 'icon-link' %}
+          <span>{{ copy_link_text }}</span>
+        </button>
+        <button
+          class="share-tooltip--button share-tooltip--email"
+          data-gallery-share-email
+          type="button"
+          aria-label="Share via Email"
+        >
+          {% render 'icon-library', id: 'icon-email-new' %}
+          <span>{{ email_text }}</span>
+        </button>
+        <button
+          class="share-tooltip--button share-tooltip--sms"
+          data-gallery-share-sms
+          type="button"
+          aria-label="Share via SMS"
+        >
+          {% render 'icon-library', id: 'icon-sms' %}
+          <span>{{ sms_text }}</span>
+        </button>
+      </div>
+
+      <!-- Mobile Modal -->
+      <div class="product-gallery--share-modal" data-gallery-share-modal aria-hidden="true">
+        <div class="share-modal--overlay"></div>
+        <div class="share-modal--content">
+          <div class="share-modal--header">
+            <span class="share-modal--heading">{{ share_heading }}</span>
+            <button
+              class="share-modal--close"
+              data-gallery-share-close
+              aria-label="Close share menu"
+              type="button"
+            >
+              ✕
+            </button>
+          </div>
+
+          <!-- Product Preview -->
+          <div class="share-modal--product-preview">
+            <div class="product-preview--image">
+              {% if product.featured_image %}
+                <img
+                  src="{{ product.featured_image | img_url: '300x' }}"
+                  alt="{{ product.featured_image.alt | escape }}"
+                >
+              {% endif %}
+            </div>
+            <div class="product-preview--info">
+              <h4 class="product-preview--title">{{ product.title }}</h4>
+              {% if product.selected_or_first_available_variant.price %}
+                <div class="product-preview--price">
+                  {% if product.selected_or_first_available_variant.compare_at_price
+                      > product.selected_or_first_available_variant.price
+                  %}
+                    <span class="price-original">
+                      {{- product.selected_or_first_available_variant.compare_at_price | money -}}
+                    </span>
+                  {% endif %}
+                  <span class="price-current">{{ product.selected_or_first_available_variant.price | money }}</span>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Share Buttons Grid (Mobile Only) -->
+          <div class="share-modal--buttons">
+            <button
+              class="share-modal--button share-modal--sms"
+              data-gallery-share-sms
+              type="button"
+              aria-label="Share via SMS"
+            >
+              <span class="icon_main">
+                {% render 'icon-library', id: 'icon-sms' %}
+              </span>
+              <span>{{ sms_text }}</span>
+            </button>
+            <button
+              class="share-modal--button share-modal--copy"
+              data-gallery-share-copy
+              type="button"
+              aria-label="Copy link"
+            >
+              <span class="icon_main">
+                {% render 'icon-library', id: 'icon-link' %}
+              </span>
+              <span>{{ copy_link_text }}</span>
+            </button>
+            <button
+              class="share-modal--button share-modal--email"
+              data-gallery-share-email
+              type="button"
+              aria-label="Share via Email"
+            >
+              <span class="icon_main">
+                {% render 'icon-library', id: 'icon-email-new' %}
+              </span>
+              <span>{{ email_text }}</span>
+            </button>
+            <button
+              class="share-modal--button share-modal--more"
+              data-gallery-share-more
+              type="button"
+              aria-label="More sharing options"
+            >
+              <span class="icon_main">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4.7999 14.4C4.16338 14.4 3.55293 14.1471 3.10285 13.697C2.65276 13.2469 2.3999 12.6365 2.3999 12C2.3999 11.3635 2.65276 10.753 3.10285 10.3029C3.55293 9.85283 4.16338 9.59998 4.7999 9.59998C5.43642 9.59998 6.04687 9.85283 6.49696 10.3029C6.94705 10.753 7.1999 11.3635 7.1999 12C7.1999 12.6365 6.94705 13.2469 6.49696 13.697C6.04687 14.1471 5.43642 14.4 4.7999 14.4ZM11.9999 14.4C11.3634 14.4 10.7529 14.1471 10.3028 13.697C9.85276 13.2469 9.5999 12.6365 9.5999 12C9.5999 11.3635 9.85276 10.753 10.3028 10.3029C10.7529 9.85283 11.3634 9.59998 11.9999 9.59998C12.6364 9.59998 13.2469 9.85283 13.697 10.3029C14.147 10.753 14.3999 11.3635 14.3999 12C14.3999 12.6365 14.147 13.2469 13.697 13.697C13.2469 14.1471 12.6364 14.4 11.9999 14.4ZM19.1999 14.4C18.5634 14.4 17.9529 14.1471 17.5028 13.697C17.0528 13.2469 16.7999 12.6365 16.7999 12C16.7999 11.3635 17.0528 10.753 17.5028 10.3029C17.9529 9.85283 18.5634 9.59998 19.1999 9.59998C19.8364 9.59998 20.4469 9.85283 20.897 10.3029C21.347 10.753 21.5999 11.3635 21.5999 12C21.5999 12.6365 21.347 13.2469 20.897 13.697C20.4469 14.1471 19.8364 14.4 19.1999 14.4Z" fill="black"/>
+                </svg>
+              </span>
+              <span>{{ more_text }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="share-copy-toast" data-gallery-share-copy-toast aria-hidden="true" role="status" aria-live="polite">
+        <span class="share-copy-toast__text">Link successfully copied to clipboard.</span>
+        <button class="share-copy-toast__close" data-gallery-share-copy-toast-close type="button" aria-label="Close message">
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <!-- Zoom Button -->
+    <button
+      class="
+        product-gallery--expand
+        {% if gallery_click_to_zoom == 'desktop' %}expand--hide-mobile{% endif %}
+        {% if gallery_click_to_zoom == 'mobile' %}expand--hide-desktop{% endif %}
+      "
+      data-gallery-expand
+      aria-haspopup="true"
+    >
+      {% render 'icon-library', id: 'icon-zoom-new' %}
+      {% comment %}
+        <span class="click-text" tabindex="-1">
+          {% render 'icon-library', id: 'icon-zoom-new' %}
+          {{ 'product.general.zoom' | t }}
+        </span>
+        <span class="tap-text" tabindex="-1">
+          {% render 'icon-library', id: 'icon-tap' %}
+          {{ 'product.general.zoomTapMobile' | t }}
+        </span>
+      {% endcomment %}
+    </button>
+  {% endif %}
+</div>
+
+{% if gallery_hover_zoom == 'separate' %}
+  <div class="product-gallery--zoomed-image" data-zoomed-image></div>
+{% endif %}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const shareButton = document.querySelector('[data-gallery-share]');
+    const shareTooltip = document.querySelector('[data-gallery-share-tooltip]');
+    const shareModal = document.querySelector('[data-gallery-share-modal]');
+    const shareModalContent = shareModal?.querySelector('.share-modal--content');
+    const shareClose = document.querySelector('[data-gallery-share-close]');
+    const shareModalOverlay = shareModal?.querySelector('.share-modal--overlay');
+    const copyToast = document.querySelector('[data-gallery-share-copy-toast]');
+    const copyToastClose = document.querySelector('[data-gallery-share-copy-toast-close]');
+    const modalAnimationDuration = 420;
+    let copyToastTimer = null;
+
+    if (!shareButton) return;
+
+    // Get product URL with share parameter
+    function getShareableLink() {
+      const url = new URL(window.location.href);
+      url.searchParams.set('share', 'true');
+      return url.toString();
+    }
+
+    // Check if we're on mobile
+    function isMobile() {
+      return window.innerWidth < 750;
+    }
+
+    // Detect device platform
+    function getPlatform() {
+      const ua = navigator.userAgent.toLowerCase();
+      if (ua.indexOf('iphone') > -1 || ua.indexOf('ipod') > -1) return 'iOS';
+      if (ua.indexOf('ipad') > -1) return 'iOS';
+      if (ua.indexOf('mac') > -1) return 'Mac';
+      if (ua.indexOf('windows phone') > -1 || ua.indexOf('iemobile') > -1) return 'WindowsPhone';
+      if (ua.indexOf('android') > -1) return 'Android';
+      if (ua.indexOf('windows') > -1) return 'Windows';
+      return 'Unknown';
+    }
+
+    function hideCopyToast() {
+      if (!copyToast) return;
+      if (copyToastTimer) {
+        clearTimeout(copyToastTimer);
+        copyToastTimer = null;
+      }
+      copyToast.classList.remove('is-visible');
+      copyToast.setAttribute('aria-hidden', 'true');
+    }
+
+    function showCopyToast() {
+      if (!copyToast) return;
+      if (copyToastTimer) {
+        clearTimeout(copyToastTimer);
+      }
+      copyToast.classList.add('is-visible');
+      copyToast.setAttribute('aria-hidden', 'false');
+      copyToastTimer = setTimeout(function () {
+        hideCopyToast();
+      }, 3000);
+    }
+
+    function openModal() {
+      if (!shareModal) return;
+      shareModal.classList.remove('is-closing-modal');
+      shareModal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+
+      if (shareModalContent) {
+        shareModalContent.classList.remove('is-closing');
+        shareModalContent.classList.remove('is-opening');
+        // Restart animation
+        // eslint-disable-next-line no-unused-expressions
+        shareModalContent.offsetHeight;
+        shareModalContent.classList.add('is-opening');
+      }
+    }
+
+    // Close modal
+    function closeModal(withBottomAnimation) {
+      if (shareModal) {
+        const isOpenOrAnimating =
+          shareModal.getAttribute('aria-hidden') === 'false' ||
+          shareModal.classList.contains('is-closing-modal');
+
+        // Prevent unnecessary class toggles on unrelated clicks
+        if (!isOpenOrAnimating) {
+          return;
+        }
+
+        const shouldAnimate = Boolean(withBottomAnimation && isMobile() && shareModalContent);
+
+        const closeNow = function () {
+          shareModal.classList.remove('is-closing-modal');
+          shareModal.setAttribute('aria-hidden', 'true');
+          if (shareModalContent) {
+            shareModalContent.classList.remove('is-closing');
+            shareModalContent.classList.remove('is-opening');
+          }
+          document.body.style.overflow = '';
+        };
+
+        if (shouldAnimate) {
+          shareModal.classList.add('is-closing-modal');
+          shareModalContent.classList.remove('is-opening');
+          shareModalContent.classList.add('is-closing');
+          setTimeout(closeNow, modalAnimationDuration);
+        } else {
+          closeNow();
+        }
+      }
+    }
+
+    // Close tooltip
+    function closeTooltip() {
+      if (shareTooltip) {
+        shareTooltip.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    // Share button click handler
+    shareButton.addEventListener('click', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      if (isMobile() && shareModal) {
+        // Only open modal on mobile
+        closeTooltip();
+        openModal();
+      } else if (!isMobile() && shareTooltip) {
+        // Only toggle tooltip on desktop
+        closeModal();
+        const isOpen = shareTooltip.getAttribute('aria-hidden') === 'false';
+        shareTooltip.setAttribute('aria-hidden', isOpen ? 'true' : 'false');
+      }
+    });
+
+    if (copyToastClose) {
+      copyToastClose.addEventListener('click', function (e) {
+        e.preventDefault();
+        hideCopyToast();
+      });
+    }
+
+    // Close handlers
+    if (shareClose) {
+      shareClose.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        closeModal(true);
+      });
+    }
+
+    if (shareModalOverlay) {
+      shareModalOverlay.addEventListener('click', function (e) {
+        e.stopPropagation();
+        closeModal(true);
+      });
+    }
+
+    // Close when clicking outside
+    document.addEventListener('click', function (e) {
+      if (!shareButton.contains(e.target)) {
+        if (isMobile()) {
+          if (!shareModal?.contains(e.target)) {
+            closeModal(true);
+          }
+        } else {
+          if (!shareTooltip?.contains(e.target)) {
+            closeTooltip();
+          }
+        }
+      }
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        closeTooltip();
+        closeModal(true);
+      }
+    });
+
+    // Get all SMS buttons (both tooltip and modal)
+    const allSmsButtons = document.querySelectorAll('[data-gallery-share-sms]');
+    allSmsButtons.forEach(function (smsSharingButton) {
+      smsSharingButton.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        const shareableLink = getShareableLink();
+        const productTitle =
+          document.querySelector('[data-product-title]')?.textContent || '{{ product.title | escape_liquid }}';
+
+        // SMS message
+        const smsMessage = `What do you think about this item from Atomic Defense? ${shareableLink}`;
+
+        const smsUrl = `sms:?body=${encodeURIComponent(smsMessage)}`;
+        window.location.href = smsUrl;
+
+        if (isMobile()) {
+          closeModal(true);
+        } else {
+          closeTooltip();
+        }
+      });
+    });
+
+    // Get all email buttons (both tooltip and modal)
+    const allEmailButtons = document.querySelectorAll('[data-gallery-share-email]');
+    allEmailButtons.forEach(function (emailShareButton) {
+      emailShareButton.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        const shareableLink = getShareableLink();
+        const productTitle =
+          document.querySelector('[data-product-title]')?.textContent || '{{ product.title | escape_liquid }}';
+
+        const subject = `Check out this item from Atomic Defense`;
+        const body = `What do you think about this item from Atomic Defense?\n\n${shareableLink}`;
+
+        const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.location.href = mailtoUrl;
+
+        if (isMobile()) {
+          closeModal(true);
+        } else {
+          closeTooltip();
+        }
+      });
+    });
+
+    // Get all copy link buttons (both tooltip and modal)
+    const allCopyButtons = document.querySelectorAll('[data-gallery-share-copy]');
+    allCopyButtons.forEach(function (copyLinkButton) {
+      copyLinkButton.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        const shareableLink = getShareableLink();
+
+        // Get the text span (last span in the button)
+        const spans = copyLinkButton.querySelectorAll('span');
+        const textSpan = spans[spans.length - 1];
+        const copiedFromMobileModal = isMobile() && Boolean(copyLinkButton.closest('.share-modal--button'));
+
+        function handleCopySuccess() {
+          if (copiedFromMobileModal) {
+            closeModal(true);
+            showCopyToast();
+            return;
+          }
+
+          // Existing desktop tooltip feedback
+          const originalText = textSpan.textContent;
+          textSpan.textContent = 'Copied!';
+          setTimeout(function () {
+            textSpan.textContent = originalText;
+          }, 2000);
+        }
+
+        // Use modern Clipboard API
+        if (navigator.clipboard) {
+          navigator.clipboard
+            .writeText(shareableLink)
+            .then(function () {
+              handleCopySuccess();
+            })
+            .catch(function (err) {
+              // Fallback for older browsers
+              fallbackCopyToClipboard(textSpan, copiedFromMobileModal);
+            });
+        } else {
+          fallbackCopyToClipboard(textSpan, copiedFromMobileModal);
+        }
+      });
+    });
+
+    // More sharing button (modal only)
+    const moreShareButton = document.querySelector('[data-gallery-share-more]');
+    if (moreShareButton) {
+      moreShareButton.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        const shareableLink = getShareableLink();
+        const productTitle =
+          document.querySelector('[data-product-title]')?.textContent || '{{ product.title | escape_liquid }}';
+
+        // Use Web Share API if available
+        if (navigator.share) {
+          navigator
+            .share({
+              title: productTitle,
+              text: 'What do you think about this item from Atomic Defense?',
+              url: shareableLink,
+            })
+            .then(function () {
+              closeModal(true);
+            })
+            .catch(function (err) {
+              console.log('Error sharing:', err);
+            });
+        } else {
+          // Fallback: show alert with link
+          alert('Share this link:\n' + shareableLink);
+        }
+      });
+    }
+
+    // Fallback copy to clipboard for older browsers
+    function fallbackCopyToClipboard(textSpan, copiedFromMobileModal) {
+      const shareableLink = getShareableLink();
+      const textArea = document.createElement('textarea');
+      textArea.value = shareableLink;
+      document.body.appendChild(textArea);
+      textArea.select();
+
+      try {
+        document.execCommand('copy');
+        if (copiedFromMobileModal) {
+          closeModal(true);
+          showCopyToast();
+        } else {
+          const originalText = textSpan.textContent;
+          textSpan.textContent = 'Copied!';
+          setTimeout(function () {
+            textSpan.textContent = originalText;
+          }, 2000);
+        }
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+
+      document.body.removeChild(textArea);
+    }
+
+    // Handle window resize to switch between tooltip and modal
+    window.addEventListener('resize', function () {
+      if (isMobile()) {
+        // On mobile: close tooltip, allow modal
+        closeTooltip();
+      } else {
+        // On desktop: close modal, allow tooltip
+        closeModal(isMobile());
+      }
+    });
+  });
+</script>

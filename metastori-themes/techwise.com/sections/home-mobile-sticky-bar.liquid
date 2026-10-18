@@ -1,0 +1,237 @@
+{%- if section.settings.text != blank -%}
+  {%- liquid
+    assign bar_position = section.settings.position | default: 'below_header'
+  -%}
+
+  <style>
+    {%- if bar_position == 'below_header' -%}
+      :root {
+        --home-mobile-sticky-bar-is-sticky: 1;
+      }
+    {%- endif -%}
+
+    #shopify-section-{{ section.id }} {
+      display: none;
+    }
+
+    @media screen and (max-width: 699px) {
+      #shopify-section-{{ section.id }} {
+        display: block;
+        z-index: 3;
+      }
+
+      {%- if bar_position == 'below_header' -%}
+        #shopify-section-{{ section.id }} {
+          position: sticky;
+          top: var(--home-mobile-sticky-inset-top, var(--sticky-offset));
+        }
+
+        html {
+          scroll-padding-top: calc(var(--home-mobile-sticky-inset-top, var(--sticky-offset)) + var(--home-mobile-sticky-bar-height, 0px) + 20px);
+        }
+      {%- else -%}
+        #shopify-section-{{ section.id }} {
+          position: fixed;
+          inset-block: auto 0;
+          inset-inline: 0;
+          z-index: 4;
+        }
+
+        .index #main {
+          padding-block-end: var(--home-mobile-sticky-bar-height, 0px);
+        }
+      {%- endif -%}
+    }
+  </style>
+
+  <div class="color-scheme color-scheme--{{ section.settings.color_scheme.id }}">
+    <height-observer variable="home-mobile-sticky-bar">
+      <div class="home-mobile-sticky-bar home-mobile-sticky-bar--{{ bar_position | replace: '_', '-' }}">
+        <div class="home-mobile-sticky-bar__inner container">
+          <div class="home-mobile-sticky-bar__content prose prose--compact">
+            {{- section.settings.text -}}
+          </div>
+
+          {%- if section.settings.button_label != blank -%}
+            <a
+              href="{{ section.settings.button_link | default: '#' }}"
+              class="home-mobile-sticky-bar__button"
+              {% if section.settings.button_link == blank %}aria-disabled="true"{% endif %}
+            >
+              {{- section.settings.button_label | escape -}}
+            </a>
+          {%- endif -%}
+        </div>
+      </div>
+    </height-observer>
+  </div>
+
+  {%- if bar_position == 'below_header' -%}
+    <script>
+      (function () {
+        const MOBILE_MQ = window.matchMedia('(max-width: 699px)');
+
+        function readLength(property) {
+          const value = getComputedStyle(document.documentElement).getPropertyValue(property).trim();
+          return parseFloat(value) || 0;
+        }
+
+        function syncHomeMobileStickyInsetTop() {
+          if (!MOBILE_MQ.matches) {
+            document.documentElement.style.removeProperty('--home-mobile-sticky-inset-top');
+            return;
+          }
+
+          const insetTop =
+            readLength('--announcement-bar-is-sticky') * readLength('--announcement-bar-height') +
+            readLength('--announcement-countdown-is-sticky') * readLength('--announcement-countdown-height') +
+            readLength('--header-is-sticky') * readLength('--header-is-visible') * readLength('--header-height');
+
+          document.documentElement.style.setProperty('--home-mobile-sticky-inset-top', `${insetTop}px`);
+        }
+
+        const scheduleSync = () => requestAnimationFrame(syncHomeMobileStickyInsetTop);
+
+        function bind() {
+          const headerGroup = document.querySelector('.shopify-section-group-header-group');
+          if (!headerGroup) return;
+
+          if ('ResizeObserver' in window) {
+            const resizeObserver = new ResizeObserver(scheduleSync);
+            resizeObserver.observe(headerGroup);
+            headerGroup.querySelectorAll(':scope > .shopify-section, height-observer').forEach((node) => {
+              resizeObserver.observe(node);
+            });
+          }
+
+          window.addEventListener('scroll', scheduleSync, { passive: true });
+          MOBILE_MQ.addEventListener('change', scheduleSync);
+          document.addEventListener('shopify:section:load', scheduleSync);
+          document.addEventListener('shopify:section:unload', scheduleSync);
+          document.addEventListener('shopify:block:select', scheduleSync);
+          document.fonts?.ready?.then(scheduleSync);
+
+          scheduleSync();
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', bind);
+        } else {
+          bind();
+        }
+      })();
+    </script>
+  {%- endif -%}
+{%- endif -%}
+
+{% stylesheet %}
+  .home-mobile-sticky-bar {
+    border-block-end: 1px solid rgb(var(--border-color) / 0.12);
+  }
+
+  .home-mobile-sticky-bar--bottom-screen {
+    border-block-end: none;
+    border-block-start: 1px solid rgb(var(--border-color) / 0.12);
+    box-shadow: 0 -2px 8px rgb(0 0 0 / 0.06);
+  }
+
+  .home-mobile-sticky-bar__inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-block: 8px;
+    padding-inline: var(--container-gutter);
+    text-align: center;
+  }
+
+  .home-mobile-sticky-bar__content {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 500;
+  }
+
+  .home-mobile-sticky-bar__content p {
+    margin: 0;
+  }
+
+  .home-mobile-sticky-bar__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    text-decoration: none;
+    background: rgb(var(--text-color));
+    color: rgb(var(--background));
+    transition: opacity 0.18s ease;
+  }
+
+  .home-mobile-sticky-bar__button:hover {
+    opacity: 0.85;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Home mobile sticky bar",
+  "class": "shopify-section--home-mobile-sticky-bar",
+  "tag": "section",
+  "enabled_on": {
+    "templates": ["index"]
+  },
+  "settings": [
+    {
+      "type": "select",
+      "id": "position",
+      "label": "Position",
+      "options": [
+        {
+          "value": "below_header",
+          "label": "Below header"
+        },
+        {
+          "value": "bottom_screen",
+          "label": "Bottom of screen"
+        }
+      ],
+      "default": "below_header"
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-5"
+    },
+    {
+      "type": "inline_richtext",
+      "id": "text",
+      "label": "Text",
+      "default": "<strong>🎁 Summer Sale Cashback Event: Win je volledige bestelling terug</strong>"
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button label"
+    },
+    {
+      "type": "url",
+      "id": "button_link",
+      "label": "Button link"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Home mobile sticky bar"
+    }
+  ] 
+}
+{% endschema %}

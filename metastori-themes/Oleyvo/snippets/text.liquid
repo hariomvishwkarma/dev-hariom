@@ -1,0 +1,63 @@
+{% comment %}
+  Renders a text element with a given value
+
+  Accepts:
+  - text: {String} The heading (required)
+  - class: {String} Font size of the heading (optional)
+  - tag_name: {String} Tag name (optional)
+  - duration: {Number} Duration for animate text (optional)
+  - effect: {String} Animate style (optional)
+
+  Usage:
+  {% render 'text', text: text, class: class, tag_name: tag_name, duration: duration, effect: effect %}
+{% endcomment %}
+
+{% assign text = text %}
+{%- assign duration_initial = duration | divided_by: 3.00 -%}
+{%- assign constant_initial = duration | minus: duration_initial -%}
+{% assign words = text | split: ' ' %}
+{% assign words_length = text | split: '' %}
+{%- assign constant = constant_initial | divided_by: words_length.size -%}
+{%- assign count = 0 -%}
+{%- assign tag_name = tag_name | default: 'h2' -%}
+
+<div class='xo-text{% if effect %} xo-text--{{ effect }}{% endif %}' style='--width-desktop: {{ heading_width_desktop }}%; --width-mobile: {{ heading_width_mobile }}%'>
+  {% if effect == 'reveal' or effect == 'split' %}
+    <xo-animate
+      xo-cascade
+      xo-item-used
+      xo-duration='{{ duration_initial }}'
+      {% if effect == 'reveal' %}
+        xo-type='blur'
+      {% endif -%}
+      {% if effect == 'split' %}
+        xo-easing='spring'
+        xo-strength='3'
+      {% endif %}
+    >
+      <{{ tag_name }} class='xo-text__heading {{ class }}'>
+        {% for word in words %}
+          {% assign word_index = forloop.index %}
+          <span class='xo-text__word'>
+            {% assign chars = word | split: '' %}
+            {% for char in chars %}
+              {%- assign count = count | plus: 1 -%}
+              <xo-animate-item style='--xo-constant: {{ constant }}; --xo-order: {{ count }}'>
+                <span class='xo-text__char'>{{ char }}</span>
+              </xo-animate-item>
+              {% if forloop.index == chars.size and word_index != words.size %}
+                <span class='xo-text__char'>&nbsp;</span>
+              {% endif %}
+            {% endfor %}
+          </span>
+        {% endfor %}
+      </{{ tag_name }}>
+    </xo-animate>
+  {%- else -%}
+    <{{ tag_name }} class='xo-text__heading {{ class }}'>
+      <xo-animate xo-cascade>
+        <span>{{ text }}</span>
+      </xo-animate>
+    </{{ tag_name }}>
+  {% endif %}
+</div>

@@ -1,0 +1,912 @@
+
+
+{{ 'esa-custom-widget.css' | asset_url | stylesheet_tag }}
+<subscription-widget-{{ product.id }} id="esa__subscription-widget-{{ section.id }}" data-section-id="{{ section.id }}" data-product-url="{{ product.url }}" data-currency="{{ cart.currency.iso_code }}">
+  {% assign selected_variant = product.selected_or_first_available_variant %}
+  {%- for option in product.options_with_values -%}
+    {% if option.name == 'Pack size' %}
+      {%- for value in option.values -%}
+        {% if value.selected %}
+          {% assign variant_quantity = value | remove: '-Pack' %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+  {% assign selected_variant_price_into_quantity = selected_variant.price | times: variant_quantity %}
+  {% assign selected_variant_compare_price_into_quantity = selected_variant.compare_at_price | times: variant_quantity %}
+  
+  <div class="delivery-options">
+    {% assign selling_plan_groups = selected_variant.selling_plan_allocations %}
+    {% for allocation in selling_plan_groups %}
+      {% assign selling_selected_variant_price_into_quantity = allocation.price | times: variant_quantity %}
+      <input
+        id="delivery-option-{{ selected_variant.id }}-{{ allocation.selling_plan.id }}"
+        type="radio"
+        name="purchase-type-{{ product.id }}"
+        value="{{ allocation.selling_plan.id }}"
+        data-price="{{ allocation.price }}"
+        data-compare-price="{{ allocation.compare_at_price }}"
+        data-variant-compare-price="{{ selected_variant.compare_at_price }}"
+        checked
+        hidden
+        class="esa-custom-widget-pills-input"
+      >
+      <label class="delivery-option esa-custom-widget-pills" for="delivery-option-{{ selected_variant.id }}-{{ allocation.selling_plan.id }}" style="--bg-color: {{ color_meta }}">
+        <span class="esa-subscription-badge">{{ discount_badge }}</span>
+        <div class="option-title_radio">
+          <span class="custom-radio"></span>
+          <div class="delivery-option-content">
+            <span class="delivery-label">{% if subscription_heading !=blank %}{{ subscription_heading }}{% else %}{{ allocation.selling_plan.name | split: ',' | first | strip }}{% endif %}</span>
+          </div>
+        </div>
+        <span class="price">
+          <!-- <div class="price-container"></div> -->
+           <div class="unit_top_price">
+            <div class="unit_price_esa">
+              <span>{{ allocation.unit_price | money }}.</span><span class="each-span"> /{{ each_price_label }}</span>
+            </div>
+            <div class="total_sale_price_esa">
+              <span class="sale_price_esa">Общо:{{ selling_selected_variant_price_into_quantity | money }}.</span>
+              <del>{{ selected_variant_compare_price_into_quantity | money }}.</del>
+            </div>
+           </div>
+            
+          
+          <div class="euto_prices-csa-widget">
+            <div>
+              <div class="euro_unit_subscription-price_esa" style="display:none;">
+                <span>{{ allocation.unit_price | money }}</span><span class="each-span"> /{{ each_price_label }}</span>
+              </div>
+              <div class="euro_subscription-price_esa" style="display:none;">{{ selling_selected_variant_price_into_quantity | money }}</div>
+            </div>
+            <del class="euro_compare-subscription-price_esa" style="display:none;">{{ selected_variant_compare_price_into_quantity | money }}</del>
+          </div>
+        </span>
+      </label>
+    {% endfor %}
+
+    {% comment %} Calculate unit price for one-time purchase {% endcomment %}
+    {% assign onetime_quantity = 1 %}
+    {% assign onetime_unit_price = selected_variant.price | divided_by: onetime_quantity %}
+
+    <input
+      type="radio"
+      name="purchase-type-{{ product.id }}"
+      value="one-time"
+      data-price="{{ selected_variant.price }}"
+      data-compare-price="{{ selected_variant.compare_at_price }}"
+      id="delivery-option-{{ selected_variant.id }}"
+      hidden
+      class="esa-custom-widget-pills-input"
+      {% if selling_plan_groups == blank %}
+        checked
+      {% endif %}
+    >
+    <label class="one-time-box box-style esa-custom-widget-pills" for="delivery-option-{{ selected_variant.id }}" style="--bg-color: {{ color_meta }}">
+      <div class="subscription-header">
+        {% if selling_plan_groups != blank %}
+          <div class="option-title_radio">
+            <span class="option-title">{{ onetime_label }}</span>
+          </div>
+        {% endif %}
+        
+        <span class="price">
+          <div class="unit_top_price">
+            <div class="unit_price_esa">
+              {% if selected_variant.unit_price != blank %}
+                <span>{{ selected_variant.unit_price | money }}</span><span> /{{ each_price_label }}</span>
+              {% else %}
+                <span>{{ onetime_unit_price | money }}</span><span> /{{ each_price_label }}</span>
+              {% endif %}
+            </div>
+            <div class="total_sale_price_esa">
+              <span class="price sale_price_esa">Общо:{{ selected_variant_price_into_quantity | money }}</span>
+              <del>{{ selected_variant_compare_price_into_quantity | money }}</del>
+            </div>
+          </div>
+          <div class="euto_prices-csa-widget">
+            <div>
+              <div class="euro_unit_price_esa" style="display:none;">
+                {% if selected_variant.unit_price != blank %}
+                  <span>{{ selected_variant.unit_price | money }}</span><span> /{{ each_price_label }}</span>
+                {% else %}
+                  <span>{{ onetime_unit_price | money }}</span><span> /{{ each_price_label }}</span>
+                {% endif %}
+              </div>
+              <div class="euro_price_esa" style="display:none;">{{ selected_variant_price_into_quantity | money }}</div>
+            </div>
+            <del class="euro_compare-price_esa" style="display:none;">{{ selected_variant_compare_price_into_quantity | money }}</del>
+          </div>
+        </span>
+      </div>
+    </label>
+  </div>
+
+  <input type="hidden" name="selling_plan" id="selected_selling_plan" value="">
+<script>
+class SubscriptionWidget{{ product.id }} extends HTMLElement {
+  constructor() {
+    super();
+    this.handlePurchaseTypeChange = this.handlePurchaseTypeChange.bind(this);
+    this.variantChangeHandler = this.variantChangeHandler.bind(this);
+  }
+  
+  connectedCallback() {
+    this.initWidget();
+    this.updatePricesInEUR();
+    this.updateSubscriptionPricesInEUR();
+    setTimeout(() => {
+      this.updateSellingPlanId();
+    }, 50);
+    // Listen for variant change
+    const variantSelect = document.querySelector(`[data-section="${this.dataset.sectionId}"] [name="id"]`);
+    if (variantSelect) {
+      variantSelect.addEventListener('change', this.variantChangeHandler);
+    }
+  }
+  
+  disconnectedCallback() {
+    this.removeWidgetEvents();
+  
+    const variantSelect = document.querySelector('[name="id"]');
+    if (variantSelect) {
+      variantSelect.removeEventListener('change', this.variantChangeHandler);
+    }
+  }
+  
+  initWidget() {
+    this.purchaseTypeInputs = this.querySelectorAll('input[name="purchase-type-{{ product.id }}"]');
+    this.sellingPlanInputs = this.querySelectorAll('input[name="selling_plan"]');
+  
+    this.purchaseTypeInputs.forEach(input => {
+      input.addEventListener('change', this.handlePurchaseTypeChange);
+    });
+  
+    this.updateSellingPlanId();
+  }
+  
+  removeWidgetEvents() {
+    if (this.purchaseTypeInputs) {
+      this.purchaseTypeInputs.forEach(input => {
+        input.removeEventListener('change', this.handlePurchaseTypeChange);
+      });
+    }
+  }
+  
+  updateSellingPlanId() {
+    const selectedInput = this.querySelector('input[name="purchase-type-{{ product.id }}"]:checked');
+    const sellingPlanField = document.getElementById('SelectedSellingPlan-{{ product.id }}');
+  
+    if (selectedInput && sellingPlanField) {
+      sellingPlanField.value = selectedInput.value === 'one-time' ? '' : selectedInput.value;
+    }
+  }
+  
+  handlePurchaseTypeChange() {
+    const selected = this.querySelector('input[name="purchase-type-{{ product.id }}"]:checked');
+    this.sellingPlanInputs.forEach(input => {
+      input.disabled = selected.value === 'one-time';
+    });
+    this.updateSellingPlanId();
+  
+     // Update discount badge
+    var discountBadge = document.querySelector('.prodcut__discount-badge');
+    var discountValueEl = discountBadge?.querySelector('.discount_value-per');
+    if (!selected || !discountBadge || !discountValueEl) return;
+  
+    var comparePrice, actualPrice;
+  
+    if (selected.value === 'one-time') {
+      actualPrice = parseFloat(selected.dataset.price);
+      comparePrice = parseFloat(selected.dataset.comparePrice);
+      discountValueEl.classList.remove('disocunt-color');
+    } else {
+      actualPrice = parseFloat(selected.dataset.price);
+      comparePrice = parseFloat(selected.dataset.variantComparePrice);
+      discountValueEl.classList.add('disocunt-color');
+    }
+  
+    if (!isNaN(actualPrice) && !isNaN(comparePrice) && comparePrice > 0 && actualPrice < comparePrice) {
+      const discountPercent = Math.round(((comparePrice - actualPrice) / comparePrice) * 100);
+      discountValueEl.textContent = `${discountPercent}%`;
+      discountBadge.style.display = '';
+    } else {
+      discountValueEl.textContent = `0%`;
+      discountBadge.style.display = 'none';
+      discountValueEl.classList.remove('disocunt-color');
+    }
+  }
+    
+  updatePricesInEUR() {
+    const elements = [
+      { selector: '.euro_price_esa', className: 'euro-price', label: 'Общо: €' },
+      { selector: '.euro_unit_price_esa', className: 'euro-unit-price', label: '€', suffix: '/{{ each_price_label }}' },
+      { selector: '.euro_compare-price_esa', className: 'euro-compare-price', label: '€', suffix: ' ', tag: 'del' }
+    ];
+  
+    fetch('https://open.er-api.com/v6/latest/BGN')
+      .then(res => res.json())
+      .then(data => {
+        const rate = data.rates.EUR;
+  
+        elements.forEach(({ selector, className, label, suffix = '', tag = 'span' }) => {
+          const el = this.querySelector(selector);
+          if (!el) return;
+  
+          const priceBGN = parseFloat(el.textContent.replace(/[^\d.]/g, ''));
+          if (isNaN(priceBGN)) return;
+  
+          const euroPrice = (priceBGN * rate).toFixed(2);
+          const nextEl = el.nextElementSibling;
+  
+          if (!nextEl || !nextEl.classList.contains(className)) {
+            const newEl = document.createElement(tag);
+            newEl.className = className;
+            newEl.style.marginLeft = '0px';
+            newEl.style.fontWeight = 100;
+            newEl.textContent = `${label}${euroPrice}${suffix}`;
+            el.insertAdjacentElement('afterend', newEl);
+          } else {
+            nextEl.textContent = `${label}${euroPrice}${suffix}`;
+          }
+        });
+      });
+    }
+    updateSubscriptionPricesInEUR() {
+    const elements = [
+      { selector: '.euro_subscription-price_esa', className: 'euro-subscription-price', label: 'Общо: €' },
+      { selector: '.euro_unit_subscription-price_esa', className: 'euro-unit-subscription-price', label: '€', suffix: '/{{ each_price_label }}' },
+      { selector: '.euro_compare-subscription-price_esa', className: 'euro-compare-subscription-price', label: '€', suffix: ' ', tag: 'del' }
+    ];
+  
+    fetch('https://open.er-api.com/v6/latest/BGN')
+      .then(res => res.json())
+      .then(data => {
+        const rate = data.rates.EUR;
+  
+        elements.forEach(({ selector, className, label, suffix = '', tag = 'span' }) => {
+          const el = this.querySelector(selector);
+          if (!el) return;
+  
+          const priceBGN = parseFloat(el.textContent.replace(/[^\d.]/g, ''));
+          if (isNaN(priceBGN)) return;
+  
+          const euroPrice = (priceBGN * rate).toFixed(2);
+          const nextEl = el.nextElementSibling;
+  
+          if (!nextEl || !nextEl.classList.contains(className)) {
+            const newEl = document.createElement(tag);
+            newEl.className = className;
+            newEl.style.marginLeft = '0px';
+            newEl.style.fontWeight = 100;
+            newEl.textContent = `${label}${euroPrice}${suffix}`;
+            el.insertAdjacentElement('afterend', newEl);
+          } else {
+            nextEl.textContent = `${label}${euroPrice}${suffix}`;
+          }
+        });
+      });
+    }
+  
+    variantChangeHandler(event) {
+      const variantId = event.target.value;
+      const sectionId = this.dataset.sectionId;
+      const productUrl = this.dataset.productUrl;
+      const selected = this.querySelector('input[name="purchase-type-{{ product.id }}"]:checked');
+      this.currentPurchaseType = selected?.value;
+      this.updateSubscriptionWidget(`${productUrl}?variant=${variantId}&section_id=${sectionId}`);
+    }
+    
+  updateSubscriptionWidget(url) {
+    fetch(url)
+      .then(res => res.text())
+      .then(html => {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const newWidget = doc.querySelector('#esa__subscription-widget-{{ section.id }}');
+  
+        if (newWidget) {
+          this.removeWidgetEvents();
+          this.innerHTML = newWidget.innerHTML;
+  
+          // Re-check previous selection
+          if (this.currentPurchaseType) {
+            const radioToSelect = this.querySelector(`input[name="purchase-type-{{ product.id }}"][value="${this.currentPurchaseType}"]`);
+            if (radioToSelect) {
+              radioToSelect.checked = true;
+            }
+          }
+  
+          // Re-bind logic
+          this.initWidget();
+          this.updatePricesInEUR();
+          this.updateSubscriptionPricesInEUR();
+  
+          // ✅ Ensure price + badge reflects correct option
+          setTimeout(() => {
+            this.handlePurchaseTypeChange();
+          }, 10);
+        }
+  
+        // 🔄 Update external discount badge
+        const discountBadge = document.querySelector('.prodcut__discount-badge');
+        const badgeHtml = doc.querySelector('.prodcut__discount-badge');
+        if (discountBadge && badgeHtml) {
+          discountBadge.innerHTML = badgeHtml.innerHTML;
+          discountBadge.style.display = '';
+        }
+  
+        // 🔄 Update quantity + button area
+        setTimeout(() => {
+          const btnWrapper = document.querySelector('.product-form__quantity-and-btn');
+          const btnHtml = doc.querySelector('.product-form__quantity-and-btn');
+          if (btnWrapper && btnHtml) {
+            btnWrapper.innerHTML = btnHtml.innerHTML;
+          }
+        }, 500);
+      })
+      .catch(console.error);
+  }
+}
+window.addEventListener('DOMContentLoaded', function () {
+  customElements.define('subscription-widget-{{ product.id }}', SubscriptionWidget{{ product.id }});
+});
+</script>
+<script>
+  document.addEventListener('click', function (event) {
+    const customBtn = event.target.closest('.custom-checkout-btn-esa');
+    if (!customBtn) return;
+    
+    // Look for nearest form tag
+    const form = customBtn.closest('form');
+    if (!form) {
+      console.warn('No parent form found for custom checkout button');
+      return;
+    }
+
+    // Trigger native form submission
+    form.requestSubmit
+      ? form.requestSubmit()
+      : form.querySelector('button[type="submit"]')?.click();
+    setTimeout(() => {
+      const firstVariant = document.querySelector('#variant-selects-{{ section.id }} .first-variant-pack-size');
+      if (firstVariant) firstVariant.click();
+    }, 1500);
+  });
+  document.addEventListener('DOMContentLoaded', function () {
+    const packOptions = document.querySelectorAll('#variant-selects-{{ section.id }} input[name="Pack size"]');
+    const quantityInput = document.querySelector('#{{ product_form_id }} input[name="quantity"]');
+
+    packOptions.forEach(option => {
+      option.addEventListener('change', function () {
+        if (this.checked) {
+          const packQty = this.getAttribute('pack-quantity');
+          if (quantityInput) {
+            quantityInput.value = packQty;
+          }
+        }
+      });
+    });
+  });
+</script>
+</subscription-widget-{{ product.id }}>
+
+
+
+
+
+
+// updated
+{{ 'esa-custom-widget.css' | asset_url | stylesheet_tag }}
+{% assign selected_variant = product.selected_or_first_available_variant %}
+
+{% assign remove_chars = "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,-,броя, ,брой," | split: "," %}
+{% for pack_size in product.metafields.custom.pack_size.value %}
+  {% assign number_value = pack_size %}
+  {% for ch in remove_chars %}
+    {% assign number_value = number_value | remove: ch %}
+  {% endfor %}
+  {% if number_value == '3' %}
+    {% assign variant_quantity = number_value %}
+  {% endif %}
+{% endfor %}
+<subscription-widget-{{ product.id }} class="subscription-widget" id="esa__subscription-widget-{{ section.id }}" data-section-id="{{ section.id }}" data-product-url="{{ product.url }}" data-currency="{{ cart.currency.iso_code }}"  style="--bg-color: {{ color_meta }}">
+  {% if variant_quantity != blank %}
+    {% assign discounted_price = selected_variant.price | times: variant_quantity %}
+    {% assign selected_variant_price_into_quantity = discounted_price | times: 0.9 | round %}
+    {% assign discounted_compare_price = selected_variant.compare_at_price | times: variant_quantity %}
+    {% assign selected_variant_compare_price_into_quantity = discounted_compare_price %}
+  {% else %}
+    {% assign selected_variant_price_into_quantity = selected_variant.price %}
+    {% assign selected_variant_compare_price_into_quantity = selected_variant.compare_at_price %}
+  {% endif %}
+  <div class="delivery-options">
+    {% assign selling_plan_groups = selected_variant.selling_plan_allocations %}
+    {% for allocation in selling_plan_groups %}
+      {% assign selling_plan_id = allocation.selling_plan.id %}
+      {% if variant_quantity != blank %}
+        {% assign selling_discounted_price = allocation.price | times: variant_quantity %}
+        {% assign selling_selected_variant_price_into_quantity = selling_discounted_price | times: 0.9 | round %}
+      {% else %}
+        {% assign selling_selected_variant_price_into_quantity = allocation.price %}
+      {% endif %}
+      <input
+        id="delivery-option-{{ selected_variant.id }}-selling"
+        type="radio"
+        name="purchase-type-{{ product.id }}"
+        value="{{ selling_plan_id }}"
+        data-price="{{ selling_selected_variant_price_into_quantity }}"
+        data-compare-price="{{ discounted_compare_price }}"
+        hidden
+        class="esa-custom-widget-pills-input"
+      >
+      <label class="delivery-option esa-custom-widget-pills" for="delivery-option-{{ selected_variant.id }}-selling" style="--bg-color: {{ color_meta }}">
+        <span class="esa-subscription-badge">{{ discount_badge }}</span>
+        <div class="option-title_radio">
+          <span class="custom-radio"></span>
+          <div class="delivery-option-content">
+            <span class="delivery-label">{% if subscription_heading !=blank %}{{ subscription_heading }}{% else %}{{ allocation.selling_plan.name | split: ',' | first | strip }}{% endif %}</span>
+          </div>
+        </div>
+        <span class="price">
+          <!-- <div class="price-container"></div> -->
+           <div class="unit_top_price">
+            <div class="unit_price_esa">
+              {% assign selling_discounted_unit_price = allocation.unit_price %}
+              {% assign selling_unit_price = selling_discounted_unit_price | times: 0.9 | round %}
+              <span class="unit_price_selling">{{ selling_unit_price | money }}.</span><span class="each-span"> /{{ each_price_label }}</span>
+            </div>
+            <div class="total_sale_price_esa">
+              <span class="sale_price_esa selling-price">{{ total_price_label }}:{{ selling_selected_variant_price_into_quantity | money }}.</span>
+              <del class="compare_price_selling">{{ selected_variant_compare_price_into_quantity | money }}.</del>
+            </div>
+           </div>
+            
+          
+          <div class="euto_prices-csa-widget">
+            <div>
+              <div class="euro_unit_subscription-price_esa" style="display:none;">
+                <span>{{ selling_unit_price | money }}</span><span class="each-span"> /{{ each_price_label }}</span>
+              </div>
+              <div class="euro_subscription-price_esa" style="display:none;">{{ selling_selected_variant_price_into_quantity | money }}</div>
+            </div>
+            <del class="euro_compare-subscription-price_esa" style="display:none;">{{ selected_variant_compare_price_into_quantity | money }}</del>
+          </div>
+        </span>
+      </label>
+    {% endfor %}
+
+    {% comment %} Calculate unit price for one-time purchase {% endcomment %}
+    {% assign onetime_quantity = 1 %}
+    {% assign onetime_unit_price = selected_variant.price | divided_by: onetime_quantity %}
+
+    <input
+      type="radio"
+      name="purchase-type-{{ product.id }}"
+      value="one-time"
+      data-price="{{ selected_variant_price_into_quantity }}"
+      data-compare-price="{{ discounted_compare_price }}"
+      id="delivery-option-{{ selected_variant.id }}"
+      hidden
+      class="esa-custom-widget-pills-input"
+      checked
+    >
+    <label class="one-time-box box-style esa-custom-widget-pills" for="delivery-option-{{ selected_variant.id }}">
+      <div class="subscription-header">
+        {% if selling_plan_groups != blank %}
+          <div class="option-title_radio">
+            <span class="option-title">{{ onetime_label }}</span>
+          </div>
+        {% endif %}
+        
+        <span class="price">
+          <div class="unit_top_price">
+            <div class="unit_price_esa">
+              {% if selected_variant.unit_price != blank %}
+                {% assign discounted_unit_price = selected_variant.unit_price %}
+                {% assign unit_price = discounted_unit_price | times: 0.9 | round %}
+                <span>{{ unit_price | money }}</span><span> /{{ each_price_label }}</span>
+              {% else %}
+                <span>{{ onetime_unit_price | money }}</span><span> /{{ each_price_label }}</span>
+              {% endif %}
+            </div>
+            <div class="total_sale_price_esa">
+              <span class="price sale_price_esa">{{ total_price_label }}:{{ selected_variant_price_into_quantity | money }}</span>
+              <del>{{ selected_variant_compare_price_into_quantity | money }}</del>
+            </div>
+          </div>
+          <div class="euto_prices-csa-widget">
+            <div>
+              <div class="euro_unit_price_esa" style="display:none;">
+                {% if selected_variant.unit_price != blank %}
+                  <span>{{ unit_price | money }}</span><span> /{{ each_price_label }}</span>
+                {% else %}
+                  <span>{{ onetime_unit_price | money }}</span><span> /{{ each_price_label }}</span>
+                {% endif %}
+              </div>
+              <div class="euro_price_esa" style="display:none;">{{ selected_variant_price_into_quantity | money }}</div>
+            </div>
+            <del class="euro_compare-price_esa" style="display:none;">{{ selected_variant_compare_price_into_quantity | money }}</del>
+          </div>
+        </span>
+      </div>
+    </label>
+  </div>
+  <div class="esa-pack-size-variants" id="esa-pack-size-variants-{{ section.id }}" data-section="{{ section.id }}">
+    {% assign remove_chars = "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,-,броя, ,брой," | split: "," %}
+    {% if discount_pack_2 != blank %}{% assign discount_pack_2_value = discount_pack_2 %}{% else %}{% assign discount_pack_2_value = 1 %}{% endif %}
+    {% if discount_pack_3 != blank %}{% assign discount_pack_3_value = discount_pack_3 %}{% else %}{% assign discount_pack_3_value = 1 %}{% endif %}
+    {% if discount_pack_4 != blank %}{% assign discount_pack_4_value = discount_pack_4 %}{% else %}{% assign discount_pack_4_value = 1 %}{% endif %}
+    {% if discount_pack_5 != blank %}{% assign discount_pack_5_value = discount_pack_5 %}{% else %}{% assign discount_pack_5_value = 1 %}{% endif %}
+    {% for pack_size in product.metafields.custom.pack_size.value %}
+      {% assign number_value = pack_size %}
+      {% for ch in remove_chars %}
+        {% assign number_value = number_value | remove: ch %}
+      {% endfor %}
+      {% for allocation in selling_plan_groups %}
+        {% assign mf_selling_price = allocation.price %}
+        {% assign mf_selling_discounted_price = mf_selling_price %}
+        {% if number_value == '1' %}
+          {% assign selling_price = mf_selling_discounted_price %}
+        {% elsif number_value == '2' %}
+          {% assign selling_price = mf_selling_discounted_price | times: discount_pack_2_value | round %}
+        {% elsif number_value == '3' %}
+          {% assign selling_price = mf_selling_discounted_price | times: discount_pack_3_value | round %}
+        {% elsif number_value == '4' %}
+          {% assign selling_price = mf_selling_discounted_price | times: discount_pack_4_value | round %}
+        {% elsif number_value == '5' %}
+          {% assign selling_price = mf_selling_discounted_price | times: discount_pack_5_value | round %}
+        {% endif %}
+      {% endfor %}
+      {% assign mf_onetime_discounted_price = selected_variant.price %}
+      {% if number_value == '1' %}
+        {% assign meta_selected_discounted_price = selected_variant.price %}
+      {% elsif number_value == '2' %}
+        {% assign meta_selected_discounted_price = mf_onetime_discounted_price | times: discount_pack_2_value | round %}
+      {% elsif number_value == '3' %}
+        {% assign meta_selected_discounted_price = mf_onetime_discounted_price | times: discount_pack_3_value | round %}
+      {% elsif number_value == '4' %}
+        {% assign meta_selected_discounted_price = mf_onetime_discounted_price | times: discount_pack_4_value | round %}
+      {% elsif number_value == '5' %}
+        {% assign meta_selected_discounted_price = mf_onetime_discounted_price | times: discount_pack_5_value | round %}
+      {% endif %}
+      <input 
+        class="{% if number_value == '3' %}esa-meta-pack-3{% endif %}"
+        name="pack-size-{{ product.id }}" 
+        selling-each-price="{{ selling_price | money }}" 
+        selling-price="{{ selling_price | times: number_value | money }}" 
+        selling-compare-price="{{ selected_variant.compare_at_price | times: number_value | money }}" 
+        one-time-each-price="{{ meta_selected_discounted_price | money }}" 
+        one-time-price="{{ meta_selected_discounted_price | times: number_value | money }}" 
+        one-time-compare-price="{{ selected_variant.compare_at_price | times: number_value | money }}"
+        get-selling-price="{{ selling_price | times: number_value }}"
+        get-selling-compare-price="{{ selected_variant.compare_at_price | times: number_value }}"
+        get-one-time-price="{{ meta_selected_discounted_price | times: number_value }}"
+        get-one-time-compare-price="{{ selected_variant.compare_at_price | times: number_value }}"
+        type="radio" id="{{ section.id }}-{{ pack_size }}-{{ forloop.index }}" 
+        pack-quantity="{{ number_value }}"{% if number_value == '3' %} checked{% elsif forloop.first %} checked{% endif %} hidden>
+      <label for="{{ section.id }}-{{ pack_size }}-{{ forloop.index }}">{{ pack_size }}</label>
+    {% endfor %}
+  </div>
+  <input type="hidden" name="selling_plan" id="selected_selling_plan" value="">
+<script>
+class SubscriptionWidget{{ product.id }} extends HTMLElement {
+  constructor() {
+    super();
+    this.handlePurchaseTypeChange = this.handlePurchaseTypeChange.bind(this);
+  }
+  
+  connectedCallback() {
+    this.initWidget();
+    this.updatePricesInEUR();
+    this.updateSubscriptionPricesInEUR();
+    setTimeout(() => {
+      this.updateSellingPlanId();
+    }, 50);
+    this.handlePackSizeChange();
+  }
+  
+  disconnectedCallback() {
+    this.removeWidgetEvents();
+  }
+  
+  initWidget() {
+    this.purchaseTypeInputs = this.querySelectorAll('input[name="purchase-type-{{ product.id }}"]');
+    this.sellingPlanInputs = this.querySelectorAll('input[name="selling_plan"]');
+  
+    this.purchaseTypeInputs.forEach(input => {
+      input.addEventListener('change', this.handlePurchaseTypeChange);
+    });
+  
+    this.updateSellingPlanId();
+  }
+  
+  removeWidgetEvents() {
+    if (this.purchaseTypeInputs) {
+      this.purchaseTypeInputs.forEach(input => {
+        input.removeEventListener('change', this.handlePurchaseTypeChange);
+      });
+    }
+  }
+  
+  updateSellingPlanId() {
+    const selectedInput = this.querySelector('input[name="purchase-type-{{ product.id }}"]:checked');
+    const sellingPlanField = document.getElementById('SelectedSellingPlan-{{ product.id }}');
+  
+    if (selectedInput && sellingPlanField) {
+      sellingPlanField.value = selectedInput.value === 'one-time' ? '' : selectedInput.value;
+    }
+  }
+  
+  handlePurchaseTypeChange() {
+    const selected = this.querySelector('input[name="purchase-type-{{ product.id }}"]:checked');
+    this.sellingPlanInputs.forEach(input => {
+      input.disabled = selected.value === 'one-time';
+    });
+    this.updateSellingPlanId();
+  
+     // Update discount badge
+    var discountBadge = document.querySelector('.prodcut__discount-badge-{{ section.id }}');
+    var discountValueEl = discountBadge?.querySelector('.discount_value-per-{{ section.id }}');
+    if (!selected || !discountBadge || !discountValueEl) return;
+  
+    var comparePrice, actualPrice;
+  
+    if (selected.value === 'one-time') {
+      actualPrice = parseFloat(selected.dataset.price);
+      comparePrice = parseFloat(selected.dataset.comparePrice);
+      discountValueEl.classList.remove('disocunt-color');
+    } else {
+      actualPrice = parseFloat(selected.dataset.price);
+      comparePrice = parseFloat(selected.dataset.comparePrice);
+      discountValueEl.classList.add('disocunt-color');
+    }
+  
+    if (!isNaN(actualPrice) && !isNaN(comparePrice) && comparePrice > 0 && actualPrice < comparePrice) {
+      const discountPercent = Math.round(((comparePrice - actualPrice) / comparePrice) * 100);
+      discountValueEl.textContent = `${discountPercent}%`;
+      discountBadge.style.display = '';
+    } else {
+      discountValueEl.textContent = `0%`;
+      discountBadge.style.display = 'none';
+      discountValueEl.classList.remove('disocunt-color-{{ section.id }}');
+    }
+  }
+    
+  updatePricesInEUR() {
+    const elements = [
+      { selector: '.euro_price_esa', className: 'euro-price', label: '{{total_price_label}}: €' },
+      { selector: '.euro_unit_price_esa', className: 'euro-unit-price', label: '€', suffix: '/{{ each_price_label }}' },
+      { selector: '.euro_compare-price_esa', className: 'euro-compare-price', label: '€', suffix: ' ', tag: 'del' }
+    ];
+  
+    fetch('https://open.er-api.com/v6/latest/BGN')
+      .then(res => res.json())
+      .then(data => {
+        const rate = data.rates.EUR;
+  
+        elements.forEach(({ selector, className, label, suffix = '', tag = 'span' }) => {
+          const el = this.querySelector(selector);
+          if (!el) return;
+  
+          const priceBGN = parseFloat(el.textContent.replace(/[^\d.]/g, ''));
+          if (isNaN(priceBGN)) return;
+  
+          const euroPrice = (priceBGN * rate).toFixed(2);
+          const nextEl = el.nextElementSibling;
+  
+          if (!nextEl || !nextEl.classList.contains(className)) {
+            const newEl = document.createElement(tag);
+            newEl.className = className;
+            newEl.style.marginLeft = '0px';
+            newEl.style.fontWeight = 100;
+            newEl.textContent = `${label}${euroPrice}${suffix}`;
+            el.insertAdjacentElement('afterend', newEl);
+          } else {
+            nextEl.textContent = `${label}${euroPrice}${suffix}`;
+          }
+        });
+      });
+    }
+  
+  updateSubscriptionPricesInEUR() {
+  const elements = [
+    { selector: '.euro_subscription-price_esa', className: 'euro-subscription-price', label: '{{total_price_label}}: €' },
+    { selector: '.euro_unit_subscription-price_esa', className: 'euro-unit-subscription-price', label: '€', suffix: '/{{ each_price_label }}' },
+    { selector: '.euro_compare-subscription-price_esa', className: 'euro-compare-subscription-price', label: '€', suffix: ' ', tag: 'del' }
+  ];
+
+  fetch('https://open.er-api.com/v6/latest/BGN')
+    .then(res => res.json())
+    .then(data => {
+      const rate = data.rates.EUR;
+
+      elements.forEach(({ selector, className, label, suffix = '', tag = 'span' }) => {
+        const el = this.querySelector(selector);
+        if (!el) return;
+
+        const priceBGN = parseFloat(el.textContent.replace(/[^\d.]/g, ''));
+        if (isNaN(priceBGN)) return;
+
+        const euroPrice = (priceBGN * rate).toFixed(2);
+        const nextEl = el.nextElementSibling;
+
+        if (!nextEl || !nextEl.classList.contains(className)) {
+          const newEl = document.createElement(tag);
+          newEl.className = className;
+          newEl.style.marginLeft = '0px';
+          newEl.style.fontWeight = 100;
+          newEl.textContent = `${label}${euroPrice}${suffix}`;
+          el.insertAdjacentElement('afterend', newEl);
+        } else {
+          nextEl.textContent = `${label}${euroPrice}${suffix}`;
+        }
+      });
+    });
+  }
+
+  handlePackSizeChange() {
+    const packOptions = this.querySelectorAll('#esa-pack-size-variants-{{ section.id }} input[name="pack-size-{{ product.id }}"]');
+    const quantityInput = document.querySelector('#{{ product_form_id }} input[name="quantity"]');
+    const price_selling = document.querySelector('#esa__subscription-widget-{{ section.id }} .selling-price');
+    const each_price_selling = document.querySelector('#esa__subscription-widget-{{ section.id }} .unit_price_selling');
+    const compare_price_selling = document.querySelector('#esa__subscription-widget-{{ section.id }} .compare_price_selling');
+  
+    const one_time_total_price_el = document.querySelector('#esa__subscription-widget-{{ section.id }} .one-time-box .sale_price_esa');
+    const one_time_each_price_el = document.querySelector('#esa__subscription-widget-{{ section.id }} .one-time-box .unit_price_esa span');
+    const one_time_compare_price_el = document.querySelector('#esa__subscription-widget-{{ section.id }} .one-time-box del');
+
+    const mediaImage = document.querySelectorAll('#MediaGallery-{{ section.id }} .product__media-item');
+  
+    packOptions.forEach(option => {
+      option.addEventListener('change', () => {
+        if (option.checked) {
+          const packQty = option.getAttribute('pack-quantity');
+          let matched = false;
+          mediaImage.forEach(media => {
+            const mediaImg = media.querySelector('img');
+            const mediaImgAlt = mediaImg?.getAttribute('alt');
+            if (mediaImgAlt === packQty) {
+              matched = true;
+              media.style.display = 'block';
+            } else {
+              media.style.display = 'none';
+            }
+          });
+          if (!matched) {
+            const defaultMedia = document.querySelector('#MediaGallery-{{ section.id }} .product__media-item[data-default="true"]');
+            if (defaultMedia) defaultMedia.style.display = '';
+          }
+          const selling_each_price = option.getAttribute('selling-each-price');
+          const selling_price = option.getAttribute('selling-price');
+          const selling_compare_price = option.getAttribute('selling-compare-price');
+          const get_selling_price = option.getAttribute('get-selling-price');
+          const get_selling_compare_price = option.getAttribute('get-selling-compare-price');
+  
+          const one_time_each_price = option.getAttribute('one-time-each-price');
+          const one_time_price = option.getAttribute('one-time-price');
+          const one_time_compare_price = option.getAttribute('one-time-compare-price');
+          const get_one_time_price = option.getAttribute('get-one-time-price');
+          const get_one_time_compare_price = option.getAttribute('get-one-time-compare-price');
+  
+          // Update selling prices
+          if (price_selling) price_selling.textContent = '{{total_price_label}}:' + selling_price;
+          if (each_price_selling) each_price_selling.textContent = selling_each_price;
+          if (compare_price_selling) compare_price_selling.textContent = selling_compare_price;
+  
+          // Update one-time prices
+          if (one_time_total_price_el) one_time_total_price_el.textContent = '{{total_price_label}}:' + one_time_price;
+          if (one_time_each_price_el) one_time_each_price_el.textContent = one_time_each_price;
+          if (one_time_compare_price_el) one_time_compare_price_el.textContent = one_time_compare_price;
+  
+          // Update quantity
+          if (quantityInput) quantityInput.value = packQty;
+  
+          // Also update hidden BGN values used for EUR calculation
+          const euroOneTimePrice = this.querySelector('.euro_price_esa');
+          if (euroOneTimePrice) euroOneTimePrice.textContent = one_time_price;
+          
+          const euroSubscriptionPrice = this.querySelector('.euro_subscription-price_esa');
+          if (euroSubscriptionPrice) euroSubscriptionPrice.textContent = selling_price;
+          
+          const euroComparePrice = this.querySelector('.euro_compare-price_esa');
+          if (euroComparePrice) euroComparePrice.textContent = one_time_compare_price;
+          
+          const euroCompareSubscriptionPrice = this.querySelector('.euro_compare-subscription-price_esa');
+          if (euroCompareSubscriptionPrice) euroCompareSubscriptionPrice.textContent = selling_compare_price;
+
+          const one_time_get_value = this.querySelector('input[value="one-time"]');
+          if (one_time_get_value) one_time_get_value.dataset.price = get_one_time_price;
+          if (one_time_get_value) one_time_get_value.dataset.comparePrice = get_one_time_compare_price;
+
+          const selling_get_value = this.querySelector('input[value="{{ selling_plan_id }}"]');
+          if (selling_get_value) selling_get_value.dataset.price = get_selling_price;
+          if (selling_get_value) selling_get_value.dataset.comparePrice = get_selling_compare_price;
+          
+          // now trigger the conversion
+          this.updatePricesInEUR();
+          this.updateSubscriptionPricesInEUR();
+          this.handlePurchaseTypeChange();
+        }
+      });
+    });
+  }
+
+  
+  updateSubscriptionWidget(url) {
+    fetch(url)
+      .then(res => res.text())
+      .then(html => {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const newWidget = doc.querySelector('#esa__subscription-widget-{{ section.id }}');
+  
+        if (newWidget) {
+          this.removeWidgetEvents();
+          this.innerHTML = newWidget.innerHTML;
+  
+          // Re-check previous selection
+          if (this.currentPurchaseType) {
+            const radioToSelect = this.querySelector(`input[name="purchase-type-{{ product.id }}"][value="${this.currentPurchaseType}"]`);
+            if (radioToSelect) {
+              radioToSelect.checked = true;
+            }
+          }
+  
+          // Re-bind logic
+          this.initWidget();
+          this.updatePricesInEUR();
+          this.updateSubscriptionPricesInEUR();
+  
+          // ✅ Ensure price + badge reflects correct option
+          setTimeout(() => {
+            this.handlePurchaseTypeChange();
+            this.handlePackSizeChange();
+          }, 10);
+        }
+  
+        // 🔄 Update external discount badge
+        const discountBadge = document.querySelector('.prodcut__discount-badge-{{ section.id }}');
+        const badgeHtml = doc.querySelector('.prodcut__discount-badge-{{ section.id }}');
+        if (discountBadge && badgeHtml) {
+          discountBadge.innerHTML = badgeHtml.innerHTML;
+          discountBadge.style.display = '';
+        }
+  
+        // 🔄 Update quantity + button area
+        setTimeout(() => {
+          const btnWrapper = document.querySelector('.product-form__quantity-and-btn');
+          const btnHtml = doc.querySelector('.product-form__quantity-and-btn');
+          if (btnWrapper && btnHtml) {
+            btnWrapper.innerHTML = btnHtml.innerHTML;
+          }
+        }, 500);
+      })
+      .catch(console.error);
+  }
+}
+window.addEventListener('DOMContentLoaded', function () {
+  customElements.define('subscription-widget-{{ product.id }}', SubscriptionWidget{{ product.id }});
+});
+</script>
+<script>
+  document.addEventListener('click', function (event) {
+    const customBtn = event.target.closest('.custom-checkout-btn-esa');
+    if (!customBtn) return;
+    
+    // Look for nearest form tag
+    const form = customBtn.closest('form');
+    if (!form) {
+      console.warn('No parent form found for custom checkout button');
+      return;
+    }
+
+    // Trigger native form submission
+    form.requestSubmit
+      ? form.requestSubmit()
+      : form.querySelector('button[type="submit"]')?.click();
+    setTimeout(() => {
+      const firstVariant = document.querySelector('#esa__subscription-widget-{{ section.id }} .esa-meta-pack-3');
+      if (firstVariant) firstVariant.click();
+    }, 1500);
+  });
+</script>
+</subscription-widget-{{ product.id }}>

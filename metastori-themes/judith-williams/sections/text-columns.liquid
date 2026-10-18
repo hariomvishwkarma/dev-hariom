@@ -1,0 +1,660 @@
+{% assign readMoreCount = section.settings.read_more_text_count | times: 1 %}
+
+{% style %}
+  .d-none{
+    display:none;
+  }
+  .mt-1{
+    margin-top:1rem;
+  }
+  .read-more-less-text{
+    font-size:0.8rem;
+    pointer-events: visible;
+  }
+
+  {% if section.settings.enable_mobile_slider %}
+    @media only screen and (max-width: 768px) {
+      .hidden-sm {
+        display:none;
+      }
+      .hero__image-wrapper-{{ section.id }}{
+        color: #000;
+        display: flex;
+      }
+      .section-{{ section.id }}{
+        padding: var(--pageWidthPadding);
+      }
+    }
+    @media only screen and (min-width: 768px) {
+      .hidden-md {
+        display:none;
+      }
+    }
+  {% endif %}
+{% endstyle %}
+
+{%- if section.settings.divider -%}<div class="section--divider">{%- endif -%}
+<div class="index-section color-scheme-{{ section.settings.color_scheme }} {% if section.settings.enable_mobile_slider %} hidden-sm{% endif %}">
+  {%- if section.settings.color_scheme != 'none' -%}
+    {%- render 'color-scheme-texture', color_scheme: section.settings.color_scheme -%}
+  {%- endif -%}
+
+  <div class="page-width">
+    {%- if section.settings.title != blank -%}
+      <div class="section-header text-{{ section.settings.align_text }}">
+        <{{ section.settings.heading_tag }}>{{ section.settings.title }}</{{ section.settings.heading_tag }}>
+      </div>
+    {%- endif -%}
+
+    <div class="grid{% unless section.blocks.size == 5 %} grid--uniform{% endunless %} grid--flush-bottom">
+      {%- liquid
+        assign grid_item_width = 'medium-up--one-third'
+        case section.blocks.size
+          when 1
+            assign grid_item_width = 'medium-up--one-half'
+          when 2
+            assign grid_item_width = 'medium-up--one-half'
+          when 4
+            assign grid_item_width = 'medium-up--one-half'
+        endcase
+      -%}
+      {%- for block in section.blocks -%}
+        {%- if section.blocks.size == 5 and forloop.index < 3 -%}
+          {%- assign column_width = 'medium-up--one-half' -%}
+        {%- else -%}
+          {%- assign column_width = grid_item_width -%}
+        {%- endif -%}
+        <div
+          class="grid__item {{ column_width }} text-{{ section.settings.align_text }}"
+          {{ block.shopify_attributes }}
+        >
+          {%- if block.settings.enable_image -%}
+            <div style="{% if section.settings.align_text == 'center' %}margin: 0 auto;{% endif %} max-width: {{ block.settings.image_width }}px;">
+              {%- if block.settings.button_link != blank -%}
+                <a href="{{ block.settings.button_link }}">
+              {%- endif -%}
+              {%- if block.settings.image != blank -%}
+                <div
+                  class="image-wrap text-spacing {% if block.settings.image_mask != 'none' %}svg-mask svg-mask--{{ block.settings.image_mask }}{% endif %}"
+                  style="height: 0; padding-bottom: {{ 100 | divided_by: block.settings.image.aspect_ratio }}%;"
+                >
+                  {%- render 'image-element',
+                    img: block.settings.image,
+                    sizeVariable: column_width,
+                    widths: '180, 360, 540, 720, 900, 1080',
+                    style: 'height: 100%;'
+                  -%}
+                </div>
+              {%- else -%}
+                <div class="image-wrap text-spacing">
+                  {{ 'image' | placeholder_svg_tag: 'placeholder-svg placeholder-svg--no-padding' }}
+                </div>
+              {%- endif -%}
+              {%- if block.settings.button_link != blank -%}
+                </a>
+              {%- endif -%}
+            </div>
+          {%- endif -%}
+          {%- if block.settings.title != blank -%}
+            <div class="h3 rte--block rte--block-{{ section.id }} text-elements">{{ block.settings.title }}</div>
+          {%- endif -%}
+          {%- if block.settings.text != blank -%}
+            <div class="rte-setting rte--block text-spacing read_more_text_element_wrapper text-elements">
+              {% if section.settings.enable_read_more %}
+                {% assign currentTextSize = block.settings.text | size | times: 1 %}
+
+                <div class="trimmed_text">
+                  {{ block.settings.text | slice: 0, readMoreCount | rstrip | append: '...' }}
+                  {% if currentTextSize > readMoreCount %}
+                    <b class="read_more_btn_{{ section.id }} read-more-less-text">
+                      {{ 'sections.slideshow.read_more' | t | downcase -}}
+                    </b>
+                  {% endif %}
+                </div>
+
+                <div class="full_text d-none">
+                  {{ block.settings.text | replace: '</p>', ' ' }}
+                  <b class="read_less_btn_{{ section.id }} read-more-less-text">
+                    {{- 'sections.slideshow.show_less' | t | downcase -}}
+                  </b>
+                  {{ '</p>' }}
+                </div>
+
+              {% else %}
+                {{ block.settings.text }}
+              {% endif %}
+            </div>
+          {%- endif -%}
+          {%- if block.settings.button_label != blank -%}
+            <a href="{{ block.settings.button_link }}" class="btn btn--secondary btn--small">
+              {{ block.settings.button_label }}
+            </a>
+          {%- endif -%}
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+</div>
+
+{% if section.settings.enable_mobile_slider %}
+  <div
+    class="index-section section section-{{ section.id }} section--slideshow-with-text hidden-md color-scheme-{{ section.settings.color_scheme }}"
+    {% unless section.settings.enable_mobile_slider %}
+      no-animation
+    {% endunless %}
+    data-section-id="{{ section.id }}"
+    data-section-type="slideshow-section"
+  >
+    {%- if section.settings.title != blank -%}
+      <div class="section-header text-{{ section.settings.align_text }}">
+        <{{ section.settings.heading_tag }}>{{ section.settings.title }}</{{ section.settings.heading_tag }}>
+      </div>
+    {%- endif -%}
+
+    <div class="slideshow-wrapper">
+      {%- if section.settings.autoplay and section.settings.style == 'bars' and section.blocks.size > 1 -%}
+        {%- style -%}
+          [data-bars][data-autoplay="true"] .flickity-page-dots .dot:after {
+          animation-duration: {{ section.settings.autoplay_speed | times: 1000 }}ms;
+          }
+        {%- endstyle -%}
+
+        <button type="button" class="visually-hidden slideshow__pause" data-id="{{ section.id }}" aria-live="polite">
+          <span class="slideshow__pause-stop">
+            <svg aria-hidden="true" focusable="false" role="presentation" class="icon icon-pause" viewBox="0 0 10 13">
+              <g fill="#000" fill-rule="evenodd"><path d="M0 0h3v13H0zM7 0h3v13H7z"/></g>
+            </svg>
+            <span class="icon__fallback-text">{{ 'sections.slideshow.pause_slideshow' | t }}</span>
+          </span>
+          <span class="slideshow__pause-play">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              role="presentation"
+              class="icon icon-play"
+              viewBox="18.24 17.35 24.52 28.3"
+            >
+              <path fill="#323232" d="M22.1 19.151v25.5l20.4-13.489-20.4-12.011z"/>
+            </svg>
+            <span class="icon__fallback-text">{{ 'sections.slideshow.play_slideshow' | t }}</span>
+          </span>
+        </button>
+      {%- endif -%}
+
+      <div class="hero-natural--{{ section.id }}">
+        <div
+          id="Slideshow-{{ section.id }}"
+          class="hero hero--{{ section.id }} {% if section.settings.enable_mobile_slider %}loading loading--delayed{% else %}loaded{% endif %}"
+          data-autoplay="{{ section.settings.autoplay }}"
+          data-speed="{{ section.settings.autoplay_speed | times: 1000 }}"
+          data-gallery-size
+          {% if section.settings.style == 'arrows' %}
+            data-arrows="true"
+          {% endif %}
+          {% if section.settings.style == 'dots' %}
+            data-dots="true"
+          {% endif %}
+          {% if section.settings.style == 'bars' %}
+            data-dots="true"
+            data-bars="true"
+          {% endif %}
+          data-slide-count="{{ section.blocks.size }}"
+        >
+          {% for block in section.blocks %}
+            <div
+              {{ block.shopify_attributes }}
+              class="slideshow__slide slideshow__slide--{{ block.id }} {% if forloop.index == 1 %}is-selected{% endif %}"
+              data-index="{{ forloop.index0 }}"
+              data-id="{{ forloop.index }}"
+            >
+              <div class="hero__image-wrapper hero__image-wrapper-{{ section.id }}">
+                {%- if section.blocks.size == 5 and forloop.index < 3 -%}
+                  {%- assign column_width = 'medium-up--one-half' -%}
+                {%- else -%}
+                  {%- assign column_width = grid_item_width -%}
+                {%- endif -%}
+                <div
+                  class="grid__item {{ column_width }} text-{{ section.settings.align_text }}"
+                  {{ block.shopify_attributes }}
+                >
+                  {%- if block.settings.enable_image -%}
+                    <div style="{% if section.settings.align_text == 'center' %}margin: 0 auto;{% endif %} max-width: {{ block.settings.image_width }}px;">
+                      {%- if block.settings.button_link != blank -%}
+                        <a href="{{ block.settings.button_link }}">
+                      {%- endif -%}
+                      {%- if block.settings.image != blank -%}
+                        <div
+                          class="image-wrap text-spacing {% if block.settings.image_mask != 'none' %}svg-mask svg-mask--{{ block.settings.image_mask }}{% endif %}"
+                          style="height: 0; padding-bottom: {{ 100 | divided_by: block.settings.image.aspect_ratio }}%;"
+                        >
+                          {%- render 'image-element',
+                            img: block.settings.image,
+                            sizeVariable: column_width,
+                            widths: '180, 360, 540, 720, 900, 1080',
+                            style: 'height: 100%;'
+                          -%}
+                        </div>
+                      {%- else -%}
+                        <div class="image-wrap text-spacing">
+                          {{ 'image' | placeholder_svg_tag: 'placeholder-svg placeholder-svg--no-padding' }}
+                        </div>
+                      {%- endif -%}
+                      {%- if block.settings.button_link != blank -%}
+                        </a>
+                      {%- endif -%}
+                    </div>
+                  {%- endif -%}
+                  {%- if block.settings.title != blank -%}
+                    <div class="h3 rte--block rte--block-{{ section.id }} text-elements">
+                      {{ block.settings.title }}
+                    </div>
+                  {%- endif -%}
+                  {%- if block.settings.text != blank -%}
+                    <div class="rte-setting rte--block text-spacing read_more_text_element_wrapper text-elements">
+                      {% if section.settings.enable_read_more %}
+                        {% assign currentTextSize = block.settings.text | size | times: 1 %}
+
+                        <div class="trimmed_text">
+                          {{ block.settings.text | slice: 0, readMoreCount | rstrip | append: '...' }}
+                          {% if currentTextSize > readMoreCount %}
+                            <b class="read_more_btn_{{ section.id }} read-more-less-text">
+                              {{ 'sections.slideshow.read_more' | t | downcase -}}
+                            </b>
+                          {% endif %}
+                        </div>
+
+                        <div class="full_text d-none">
+                          {{ block.settings.text | replace: '</p>', ' ' }}
+                          <b class="read_less_btn_{{ section.id }} read-more-less-text">
+                            {{- 'sections.slideshow.show_less' | t | downcase -}}
+                          </b>
+                          {{ '</p>' }}
+                        </div>
+
+                      {% else %}
+                        {{ block.settings.text }}
+                      {% endif %}
+                    </div>
+                  {%- endif -%}
+                  {%- if block.settings.button_label != blank -%}
+                    <a href="{{ block.settings.button_link }}" class="btn btn--secondary btn--small">
+                      {{ block.settings.button_label }}
+                    </a>
+                  {%- endif -%}
+                </div>
+              </div>
+            </div>
+          {%- endfor -%}
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+{% endif %}
+
+{%- if section.settings.divider -%}</div>{%- endif -%}
+
+<script>
+  var readMoreButtons = document.querySelectorAll(".read_more_btn_{{ section.id }}");
+  var readLessButtons = document.querySelectorAll(".read_less_btn_{{ section.id }}");
+  if(readMoreButtons.length > 0){
+    readMoreButtons.forEach(button=>{
+      button.addEventListener("click",function () {
+
+        var parentTag = this.closest(".read_more_text_element_wrapper");
+        if(parentTag){
+          parentTag.querySelector("div.trimmed_text").classList.add("d-none");
+          parentTag.querySelector("div.full_text").classList.remove("d-none");
+        }
+        responsive_heights_images(this);
+      })
+
+    });
+  }
+  if(readLessButtons.length > 0){
+    readLessButtons.forEach(button=>{
+      button.addEventListener("click",function () {
+        var parentTag = this.closest(".read_more_text_element_wrapper");
+        if(parentTag) {
+          parentTag.querySelector("div.trimmed_text").classList.remove("d-none");
+          parentTag.querySelector("div.full_text").classList.add("d-none");
+        }
+        responsive_heights_images(this);
+      })
+    });
+  }
+
+  function responsive_heights_images(el){
+    if (el.closest(".slideshow__slide")) {
+      el.dispatchEvent(new CustomEvent('slideshow:reload', { bubbles: true }));
+    }
+  }
+</script>
+<style>
+   .text-columns-with-images .color-scheme-none .btn{
+      background-color: #E77B8D;
+      color: #ffffff;
+      border: none;
+   }
+   .text-columns-with-images .color-scheme-1 .text-elements,.text-columns-with-images .color-scheme-1 .text-elements * {
+     color: #ffffff;
+   }
+   .text-columns-with-images .color-scheme-1 .btn{
+     border: none;
+   }
+   .text-columns-with-images .color-scheme-3 .btn{
+     border: none;
+   }
+   .text-columns-with-images .color-scheme-3 .text-elements, .text-columns-with-images .color-scheme-3 .text-elements *{
+     color: #ffffff;
+   }
+
+   .text-columns-with-images .color-scheme-none .flickity-page-dots, .text-columns-with-images .color-scheme-2 .flickity-page-dots{
+     color: #000;
+   }
+
+   .text-columns-with-images .color-scheme-1 .flickity-page-dots, .text-columns-with-images .color-scheme-3 .flickity-page-dots{
+     color: #fff;
+   }
+  .text-columns-with-images .hero[data-arrows=true] .flickity-previous {
+     left: 50%;
+     transform: translateX(calc(-100% - 3px));
+     right: unset;
+   }
+   .text-columns-with-images .hero[data-arrows=true] .flickity-next {
+     right: 50%;
+     transform: translateX(calc(100% + 3px));
+     left: unset;
+   }
+  @media (max-width: 768px){
+    .text-columns-with-images [class*=color-scheme-]:not(.color-scheme-none).index-section{
+      padding-bottom: calc(var(--indexSectionPadding) + 10px)
+    }
+  }
+  body .section--slideshow-with-text .hero[data-arrows=true] .flickity-prev-next-button{
+    bottom: -40px; 
+  }
+</style>
+{% schema %}
+{
+  "name": "t:sections.text-columns.name",
+  "class" : "text-columns-with-images",
+  "settings": [
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "t:common.heading_tag.label",
+      "options": [
+        {
+          "value": "h1",
+          "label": "t:common.heading_tag.options.h1.label"
+        },
+        {
+          "value": "h2",
+          "label": "t:common.heading_tag.options.h2.label"
+        },
+        {
+          "value": "h3",
+          "label": "t:common.heading_tag.options.h3.label"
+        }
+      ],
+      "default": "h2"
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "label": "t:sections.text-columns.settings.title.label"
+    },
+    {
+      "type": "select",
+      "id": "align_text",
+      "label": "t:sections.text-columns.settings.align_text.label",
+      "default": "left",
+      "options": [
+        {
+          "value": "left",
+          "label": "t:sections.text-columns.settings.align_text.options.left.label"
+        },
+        {
+          "value": "center",
+          "label": "t:sections.text-columns.settings.align_text.options.center.label"
+        },
+        {
+          "value": "right",
+          "label": "t:sections.text-columns.settings.align_text.options.right.label"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "divider",
+      "label": "t:sections.text-columns.settings.divider.label",
+      "default": false
+    },
+    {
+      "type": "select",
+      "id": "color_scheme",
+      "label": "t:sections.text-columns.settings.color_scheme.label",
+      "default": "none",
+      "options": [
+        {
+          "value": "none",
+          "label": "t:sections.text-columns.settings.color_scheme.options.none.label"
+        },
+        {
+          "value": "1",
+          "label": "1"
+        },
+        {
+          "value": "2",
+          "label": "2"
+        },
+        {
+          "value": "3",
+          "label": "3"
+        }
+      ]
+    },
+    {
+      "type": "header",
+      "content": "Heading"
+    },
+    {
+      "type": "header",
+      "content": "Read more"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_read_more",
+      "label": "Show read more",
+      "default": false
+    },
+    {
+      "type": "range",
+      "id": "read_more_text_count",
+      "label": "Max text count",
+      "default": 100,
+      "min": 20,
+      "max": 500,
+      "step":10
+    },
+    {
+      "type": "header",
+      "content": "Mobile Slider"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_mobile_slider",
+      "label": "Enable Slider on mobile",
+      "default": false
+    },
+    {
+      "type": "select",
+      "id": "style",
+      "label": "t:sections.slideshow-split.settings.style.label",
+      "default": "arrows",
+      "options": [
+        {
+          "value": "minimal",
+          "label": "t:sections.slideshow-split.settings.style.options.minimal.label"
+        },
+        {
+          "value": "arrows",
+          "label": "t:sections.slideshow-split.settings.style.options.arrows.label"
+        },
+        {
+          "value": "bars",
+          "label": "t:sections.slideshow-split.settings.style.options.bars.label"
+        },
+        {
+          "value": "dots",
+          "label": "t:sections.slideshow-split.settings.style.options.dots.label"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "autoplay",
+      "label": "t:sections.slideshow-split.settings.autoplay.label",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "autoplay_speed",
+      "label": "t:sections.slideshow-split.settings.autoplay_speed.label",
+      "default": 7,
+      "min": 5,
+      "max": 10,
+      "step": 1,
+      "unit": "s"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "text_block",
+      "name": "t:sections.text-columns.blocks.column.name",
+      "settings": [
+        {
+          "type": "checkbox",
+          "id": "enable_image",
+          "label": "t:sections.text-columns.blocks.column.settings.enable_image.label",
+          "default": true
+        },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "t:sections.text-columns.blocks.column.settings.image.label"
+        },
+        {
+          "type": "select",
+          "id": "image_mask",
+          "label": "t:common.image_mask.label",
+          "default": "none",
+          "options": [
+            {
+              "value": "none",
+              "label": "t:common.image_mask.options.none.label"
+            },
+            {
+              "value": "portrait",
+              "label": "t:common.image_mask.options.portrait.label"
+            },
+            {
+              "value": "landscape",
+              "label": "t:common.image_mask.options.landscape.label"
+            },
+            {
+              "value": "square",
+              "label": "t:common.image_mask.options.square.label"
+            },
+            {
+              "value": "rounded",
+              "label": "t:common.image_mask.options.rounded.label"
+            },
+            {
+              "value": "rounded-wave",
+              "label": "t:common.image_mask.options.rounded-wave.label"
+            },
+            {
+              "value": "rounded-top",
+              "label": "t:common.image_mask.options.rounded-top.label"
+            },
+            {
+              "value": "star",
+              "label": "t:common.image_mask.options.star.label"
+            },
+            {
+              "value": "splat-1",
+              "label": "t:common.image_mask.options.splat-1.label"
+            },
+            {
+              "value": "splat-2",
+              "label": "t:common.image_mask.options.splat-2.label"
+            },
+            {
+              "value": "splat-3",
+              "label": "t:common.image_mask.options.splat-3.label"
+            },
+            {
+              "value": "splat-4",
+              "label": "t:common.image_mask.options.splat-4.label"
+            }
+          ]
+        },
+        {
+          "type": "range",
+          "id": "image_width",
+          "label": "t:sections.text-columns.blocks.column.settings.image_width.label",
+          "default": 650,
+          "min": 60,
+          "max": 650,
+          "step": 10,
+          "unit": "px"
+        },
+        {
+          "type": "text",
+          "id": "title",
+          "label": "t:sections.text-columns.blocks.column.settings.title.label",
+          "default": "Example title"
+        },
+        {
+          "type": "richtext",
+          "id": "text",
+          "label": "t:sections.text-columns.blocks.column.settings.text.label",
+          "default": "<p>Use this section to explain a set of product features, to link to a series of pages, or to answer common questions.</p>"
+        },
+        {
+          "type": "text",
+          "id": "button_label",
+          "label": "t:sections.text-columns.blocks.column.settings.button_label.label",
+          "default": "Optional button"
+        },
+        {
+          "type": "url",
+          "id": "button_link",
+          "label": "t:sections.text-columns.blocks.column.settings.button_link.label"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.text-columns.presets.text_columns_with_images.name",
+      "blocks": [
+        {
+          "type": "text_block"
+        },
+        {
+          "type": "text_block"
+        },
+        {
+          "type": "text_block"
+        }
+      ]
+    }
+  ],
+  "disabled_on": {
+    "groups": ["custom.popups"]
+  }
+}
+{% endschema %}

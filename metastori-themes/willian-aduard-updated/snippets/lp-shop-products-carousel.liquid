@@ -1,0 +1,333 @@
+{% comment %}
+  Renders the LP Shop Products carousel (matches native Product list layout).
+
+  Parameters:
+  - tab_name {String} - Tab label to filter blocks (blank = all products when has_named_tabs is false)
+  - has_named_tabs {Boolean}
+  - enable_carousel {Boolean}
+  - full_width {Boolean}
+  - grid {Number}
+  - show_all_url {String}
+{% endcomment %}
+
+<div class="container{% if enable_carousel %} container--not-mobile{% endif %}{% if full_width %} container--no-max{% endif %}">
+  {%- if enable_carousel -%}
+    <carousel-slider class="carousel block collection-slider">
+  {%- endif -%}
+
+  <div class="hometitle align-center has-paging{% if enable_carousel %} slider-nav{% endif %}{% if has_named_tabs %} hometitle--tabs-nav{% endif %}">
+    {% if enable_carousel %}
+      <button name="prev" class="slider-nav__btn has-ltr-icon" type="button">
+        <span class="visually-hidden">{{ 'general.slider.previous' | t }}</span>
+        {% render 'icon-chevron-left' %}
+      </button>
+    {% endif %}
+    {%- if has_named_tabs -%}
+      <h2 class="has-paging__title h4 m-0 visually-hidden">{{ tab_name | escape }}</h2>
+    {%- elsif section.settings.heading != blank -%}
+      <h2 class="has-paging__title h4 m-0">{{ section.settings.heading }}</h2>
+    {%- else -%}
+      <h2 class="has-paging__title h4 m-0 visually-hidden">Products</h2>
+    {%- endif -%}
+    {% if enable_carousel %}
+      <button name="next" class="slider-nav__btn has-ltr-icon" type="button">
+        <span class="visually-hidden">{{ 'general.slider.next' | t }}</span>
+        {% render 'icon-chevron-right' %}
+      </button>
+    {% endif %}
+  </div>
+
+  <div class="collection-listing fade-in-up{% if enable_carousel %} slider {% if full_width %}slider--edge-peek{% endif %} slider--mobile-container-pad slider--no-scrollbar{% endif %}">
+    <div class="product-grid product-grid--per-row-{{ grid }} product-grid--per-row-mob-{{ settings.prod_thumb_mob_per_row }}{% if enable_carousel %} slider__grid product-grid--carousel{% endif %}">
+      {%- liquid
+        if settings.prod_thumb_shape == 'portrait-23'
+          assign chosen_aspect_ratio = 0.67
+        elsif settings.prod_thumb_shape == 'portrait-45'
+          assign chosen_aspect_ratio = 0.8
+        elsif settings.prod_thumb_shape == 'square'
+          assign chosen_aspect_ratio = 1.0
+        elsif settings.prod_thumb_shape == 'landscape-54'
+          assign chosen_aspect_ratio = 1.25
+        elsif settings.prod_thumb_shape == 'landscape-32'
+          assign chosen_aspect_ratio = 1.50
+        elsif settings.prod_thumb_shape == 'tallest'
+          assign chosen_aspect_ratio = 99
+          for block in section.blocks
+            if block.settings.product == blank
+              continue
+            endif
+            if has_named_tabs
+              assign block_tab = block.settings.ttl_txt | strip
+              unless block_tab == tab_name
+                continue
+              endunless
+            endif
+            assign product = block.settings.product
+            if product.featured_media.preview_image.aspect_ratio < chosen_aspect_ratio
+              assign chosen_aspect_ratio = product.featured_media.preview_image.aspect_ratio
+            endif
+          endfor
+        else
+          assign chosen_aspect_ratio = 0
+          for block in section.blocks
+            if block.settings.product == blank
+              continue
+            endif
+            if has_named_tabs
+              assign block_tab = block.settings.ttl_txt | strip
+              unless block_tab == tab_name
+                continue
+              endunless
+            endif
+            assign product = block.settings.product
+            if product.featured_media.preview_image.aspect_ratio > chosen_aspect_ratio
+              assign chosen_aspect_ratio = product.featured_media.preview_image.aspect_ratio
+            endif
+          endfor
+        endif
+      -%}
+
+      {%- for block in section.blocks -%}
+        {%- if block.settings.product == blank -%}{%- continue -%}{%- endif -%}
+
+        {%- if has_named_tabs -%}
+          {%- assign block_tab = block.settings.ttl_txt | strip -%}
+          {%- unless block_tab == tab_name -%}{%- continue -%}{%- endunless -%}
+        {%- endif -%}
+
+        {%- liquid
+          assign product = block.settings.product
+          assign selected_variant = product.selected_or_first_available_variant
+          assign metal_option_index = blank
+          assign found_override = false
+          assign use_metal_card = false
+
+          for opt in product.options
+            if opt == 'Metal'
+              assign metal_option_index = forloop.index0
+              break
+            endif
+          endfor
+
+          assign wanted_id = block.settings.variant_id | strip
+          if wanted_id != blank
+            assign wanted_id_num = wanted_id | times: 1
+            for variant in product.variants
+              if variant.id == wanted_id_num
+                assign selected_variant = variant
+                assign found_override = true
+                assign use_metal_card = true
+                break
+              endif
+            endfor
+          endif
+
+          if found_override == false
+            assign wanted_sku = block.settings.variant_sku | strip
+            if wanted_sku != blank
+              for variant in product.variants
+                if variant.sku == wanted_sku
+                  assign selected_variant = variant
+                  assign found_override = true
+                  assign use_metal_card = true
+                  break
+                endif
+              endfor
+            endif
+          endif
+
+          if found_override == false and block.settings.metal != blank and block.settings.metal != 'first'
+            assign want = block.settings.metal
+            assign use_metal_card = true
+            assign matched_first = false
+
+            for variant in product.variants
+              if metal_option_index != blank
+                assign metal_down = variant.options[metal_option_index] | downcase
+              else
+                assign metal_down = variant.title | downcase
+              endif
+
+              assign matched = false
+              if want == 'platinum'
+                if metal_down contains 'platinum'
+                  assign matched = true
+                endif
+              elsif want == 'rose-gold'
+                if metal_down contains 'rose' and metal_down contains 'gold'
+                  assign matched = true
+                endif
+              elsif want == 'white-gold'
+                if metal_down contains 'white' and metal_down contains 'gold'
+                  assign matched = true
+                endif
+              elsif want == 'sterling-silver'
+                if metal_down contains 'sterling' or metal_down contains 'silver'
+                  assign matched = true
+                endif
+              elsif want == 'yellow-gold'
+                if metal_down contains 'yellow' and metal_down contains 'gold'
+                  assign matched = true
+                elsif metal_down contains 'gold'
+                  unless metal_down contains 'white' or metal_down contains 'rose' or metal_down contains 'platinum'
+                    assign matched = true
+                  endunless
+                endif
+              endif
+
+              if matched
+                unless matched_first
+                  assign selected_variant = variant
+                  assign matched_first = true
+                endunless
+              endif
+            endfor
+          endif
+
+          assign metal_card_label = selected_variant.title | split: ' / ' | first
+          assign metal_slug = ''
+          if metal_option_index != blank
+            assign metal_card_label = selected_variant.options[metal_option_index]
+            assign metal_down = metal_card_label | downcase
+          else
+            assign metal_down = metal_card_label | downcase
+          endif
+
+          if metal_down contains 'platinum'
+            assign metal_slug = 'platinum'
+          elsif metal_down contains 'rose' and metal_down contains 'gold'
+            assign metal_slug = 'rose-gold'
+          elsif metal_down contains 'white' and metal_down contains 'gold'
+            assign metal_slug = 'white-gold'
+          elsif metal_down contains 'sterling' or metal_down contains 'silver'
+            assign metal_slug = 'sterling-silver'
+          elsif metal_down contains 'gold'
+            assign metal_slug = 'yellow-gold'
+          endif
+
+          if use_metal_card and metal_slug == blank and block.settings.metal != blank and block.settings.metal != 'first'
+            assign metal_slug = block.settings.metal
+          endif
+
+          comment
+            Price: use cheapest variant in the same metal group (lab-grown vs natural),
+            matching native Product list "From" behaviour. Variant ID/SKU overrides lock price.
+          endcomment
+          assign metal_price_variant = selected_variant
+          assign metal_price_varies_num = blank
+          assign metal_cheapest_price = blank
+          assign metal_price_seen = false
+
+          if found_override
+            assign metal_price_variant = selected_variant
+          elsif use_metal_card and metal_slug != blank
+            for variant in product.variants
+              if metal_option_index != blank
+                assign v_metal_down = variant.options[metal_option_index] | downcase
+              else
+                assign v_metal_down = variant.title | downcase
+              endif
+
+              assign v_matched = false
+              if metal_slug == 'platinum'
+                if v_metal_down contains 'platinum'
+                  assign v_matched = true
+                endif
+              elsif metal_slug == 'rose-gold'
+                if v_metal_down contains 'rose' and v_metal_down contains 'gold'
+                  assign v_matched = true
+                endif
+              elsif metal_slug == 'white-gold'
+                if v_metal_down contains 'white' and v_metal_down contains 'gold'
+                  assign v_matched = true
+                endif
+              elsif metal_slug == 'sterling-silver'
+                if v_metal_down contains 'sterling' or v_metal_down contains 'silver'
+                  assign v_matched = true
+                endif
+              elsif metal_slug == 'yellow-gold'
+                if v_metal_down contains 'yellow' and v_metal_down contains 'gold'
+                  assign v_matched = true
+                elsif v_metal_down contains 'gold'
+                  unless v_metal_down contains 'white' or v_metal_down contains 'rose' or v_metal_down contains 'platinum'
+                    assign v_matched = true
+                  endunless
+                endif
+              endif
+
+              if v_matched
+                if metal_price_seen == false
+                  assign metal_price_variant = variant
+                  assign metal_cheapest_price = variant.price
+                  assign metal_price_seen = true
+                else
+                  if variant.price != metal_cheapest_price
+                    assign metal_price_varies_num = 1
+                  endif
+                  if variant.price < metal_cheapest_price
+                    assign metal_price_variant = variant
+                    assign metal_cheapest_price = variant.price
+                  endif
+                endif
+              endif
+            endfor
+          else
+            assign metal_price_variant = product.variants | sort: 'price' | first
+            if product.price_varies
+              assign metal_price_varies_num = 1
+            endif
+            assign use_metal_card = false
+          endif
+        -%}
+
+        {%- if enable_carousel -%}
+          <div class="slider__item" {{ block.shopify_attributes }}>
+        {%- else -%}
+          <div {{ block.shopify_attributes }}>
+        {%- endif -%}
+          {%- if use_metal_card -%}
+            {%- render 'product-block',
+              product: product,
+              custom_aspect_ratio: chosen_aspect_ratio,
+              metal_variant: selected_variant,
+              metal_price_variant: metal_price_variant,
+              metal_card_label: metal_card_label,
+              metal_slug: metal_slug,
+              metal_price_varies: metal_price_varies_num,
+              metal_default_visible: true,
+              hide_metal_label: true,
+              no_quick_buy_markup: enable_carousel,
+              no_swiping: enable_carousel,
+              grid: grid
+            -%}
+          {%- else -%}
+            {%- render 'product-block',
+              product: product,
+              custom_aspect_ratio: chosen_aspect_ratio,
+              no_quick_buy_markup: enable_carousel,
+              no_swiping: enable_carousel,
+              grid: grid
+            -%}
+          {%- endif -%}
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+
+  {%- if enable_carousel -%}
+    </carousel-slider>
+  {%- endif -%}
+</div>
+
+{% if settings.quickbuy_style != 'off' and enable_carousel %}
+  <div class="quickbuy-container use-color-scheme use-color-scheme--{{ settings.quickbuy_color_scheme }} js-quickbuy">
+    <a href="#" class="close-detail" aria-label="{{ 'accessibility.close' | t }}" tabindex="-1" aria-hidden="true">{% render 'icon-close', stroke_width: 1 %}</a>
+    <div class="inner"></div>
+  </div>
+{% endif %}
+
+{% if show_all_url != blank %}
+  <div class="show-all-btn">
+    <a href="{{ show_all_url }}" class="btn-lg-secondary">Show All</a>
+  </div>
+{% endif %}

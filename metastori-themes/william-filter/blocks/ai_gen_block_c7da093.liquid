@@ -1,0 +1,663 @@
+{% doc %}
+  @prompt
+    Create a collapsible tab section with a slim, refined  layout. Include separate text size controls for desktop and mobile, allowing independent adjustment of the section heading, tab or question text, and response body text. Keep the tabs visually thin with compact vertical padding. Ensure the response content supports hyperlinks. 
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-collapsible-tabs-{{ ai_gen_id }} {
+    width: {{ block.settings.desktop_width_percent }}%;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .ai-collapsible-tabs-heading-{{ ai_gen_id }} {
+    text-align: {{ block.settings.heading_alignment }};
+    margin: 0 0 {{ block.settings.heading_spacing }}px;
+    color: {{ block.settings.heading_color }};
+  }
+
+  @media (min-width: 750px) {
+    .ai-collapsible-tabs-heading-{{ ai_gen_id }} {
+      font-size: {{ block.settings.heading_size_desktop }}px;
+    }
+  }
+
+  @media (max-width: 749px) {
+    .ai-collapsible-tabs-heading-{{ ai_gen_id }} {
+      font-size: {{ block.settings.heading_size_mobile }}px;
+    }
+  }
+
+  .ai-collapsible-tabs-list-{{ ai_gen_id }} {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .ai-collapsible-tabs-item-{{ ai_gen_id }} {
+    border-bottom: {{ block.settings.divider_width }}px solid {{ block.settings.divider_color }};
+  }
+
+  .ai-collapsible-tabs-item-{{ ai_gen_id }}:first-child {
+    border-top: {{ block.settings.divider_width }}px solid {{ block.settings.divider_color }};
+  }
+
+  .ai-collapsible-tabs-button-{{ ai_gen_id }} {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: {{ block.settings.tab_padding_vertical }}px {{ block.settings.tab_padding_horizontal }}px;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: {{ block.settings.tab_text_color }};
+    transition: background-color 0.2s ease;
+  }
+
+  .ai-collapsible-tabs-button-{{ ai_gen_id }}:hover {
+    background-color: {{ block.settings.tab_hover_bg }};
+  }
+
+  @media (min-width: 750px) {
+    .ai-collapsible-tabs-button-{{ ai_gen_id }} {
+      font-size: {{ block.settings.tab_text_size_desktop }}px;
+    }
+  }
+
+  @media (max-width: 749px) {
+    .ai-collapsible-tabs-button-{{ ai_gen_id }} {
+      font-size: {{ block.settings.tab_text_size_mobile }}px;
+    }
+  }
+
+  .ai-collapsible-tabs-icon-{{ ai_gen_id }} {
+    flex-shrink: 0;
+    margin-left: 12px;
+    transition: transform 0.3s ease;
+    width: {{ block.settings.icon_size }}px;
+    height: {{ block.settings.icon_size }}px;
+  }
+
+  .ai-collapsible-tabs-icon-{{ ai_gen_id }} svg {
+    width: 100%;
+    height: 100%;
+    stroke: {{ block.settings.icon_color }};
+  }
+
+  .ai-collapsible-tabs-button-{{ ai_gen_id }}[aria-expanded="true"] .ai-collapsible-tabs-icon-{{ ai_gen_id }} {
+    transform: rotate(180deg);
+  }
+
+  .ai-collapsible-tabs-content-{{ ai_gen_id }} {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+
+  .ai-collapsible-tabs-content-inner-{{ ai_gen_id }} {
+    padding: 0 {{ block.settings.tab_padding_horizontal }}px {{ block.settings.content_padding_bottom }}px;
+    color: {{ block.settings.content_text_color }};
+  }
+
+  @media (min-width: 750px) {
+    .ai-collapsible-tabs-content-inner-{{ ai_gen_id }} {
+      font-size: {{ block.settings.content_text_size_desktop }}px;
+    }
+  }
+
+  @media (max-width: 749px) {
+    .ai-collapsible-tabs-content-inner-{{ ai_gen_id }} {
+      font-size: {{ block.settings.content_text_size_mobile }}px;
+    }
+  }
+
+  .ai-collapsible-tabs-content-inner-{{ ai_gen_id }} a {
+    color: {{ block.settings.link_color }};
+    text-decoration: underline;
+  }
+
+  .ai-collapsible-tabs-content-inner-{{ ai_gen_id }} a:hover {
+    color: {{ block.settings.link_hover_color }};
+  }
+
+  .ai-collapsible-tabs-content-inner-{{ ai_gen_id }} p {
+    margin: 0 0 12px;
+  }
+
+  .ai-collapsible-tabs-content-inner-{{ ai_gen_id }} p:last-child {
+    margin-bottom: 0;
+  }
+{% endstyle %}
+
+<collapsible-tabs-{{ ai_gen_id }} class="ai-collapsible-tabs-{{ ai_gen_id }}" {{ block.shopify_attributes }}>
+  {% if block.settings.section_heading != blank %}
+    <h2 class="ai-collapsible-tabs-heading-{{ ai_gen_id }}">{{ block.settings.section_heading }}</h2>
+  {% endif %}
+
+  <ul class="ai-collapsible-tabs-list-{{ ai_gen_id }}">
+    {% for i in (1..10) %}
+      {% liquid
+        assign tab_enabled_key = 'tab_' | append: i | append: '_enabled'
+        assign tab_title_key = 'tab_' | append: i | append: '_title'
+        assign tab_content_key = 'tab_' | append: i | append: '_content'
+
+        assign tab_enabled = block.settings[tab_enabled_key]
+        assign tab_title = block.settings[tab_title_key]
+        assign tab_content = block.settings[tab_content_key]
+      %}
+
+      {% if tab_enabled and tab_title != blank %}
+        <li class="ai-collapsible-tabs-item-{{ ai_gen_id }}">
+          <button
+            class="ai-collapsible-tabs-button-{{ ai_gen_id }}"
+            aria-expanded="false"
+            aria-controls="ai-collapsible-tabs-content-{{ ai_gen_id }}-{{ i }}"
+          >
+            <span>{{ tab_title }}</span>
+            <span class="ai-collapsible-tabs-icon-{{ ai_gen_id }}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </span>
+          </button>
+          <div
+            class="ai-collapsible-tabs-content-{{ ai_gen_id }}"
+            id="ai-collapsible-tabs-content-{{ ai_gen_id }}-{{ i }}"
+          >
+            <div class="ai-collapsible-tabs-content-inner-{{ ai_gen_id }}">
+              {{ tab_content }}
+            </div>
+          </div>
+        </li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+</collapsible-tabs-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class CollapsibleTabs{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+        this.buttons = [];
+        this.contents = [];
+      }
+
+      connectedCallback() {
+        this.buttons = this.querySelectorAll('.ai-collapsible-tabs-button-{{ ai_gen_id }}');
+        this.contents = this.querySelectorAll('.ai-collapsible-tabs-content-{{ ai_gen_id }}');
+        this.setupEventListeners();
+      }
+
+      setupEventListeners() {
+        this.buttons.forEach((button, index) => {
+          button.addEventListener('click', () => {
+            this.toggleTab(index);
+          });
+        });
+      }
+
+      toggleTab(index) {
+        const button = this.buttons[index];
+        const content = this.contents[index];
+        const isExpanded = button.getAttribute('aria-expanded') === 'true';
+
+        if (isExpanded) {
+          button.setAttribute('aria-expanded', 'false');
+          content.style.maxHeight = '0';
+        } else {
+          button.setAttribute('aria-expanded', 'true');
+          content.style.maxHeight = content.scrollHeight + 'px';
+        }
+      }
+    }
+
+    customElements.define('collapsible-tabs-{{ ai_gen_id }}', CollapsibleTabs{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Collapsible tabs",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Section heading"
+    },
+    {
+      "type": "text",
+      "id": "section_heading",
+      "label": "Heading"
+    },
+    {
+      "type": "select",
+      "id": "heading_alignment",
+      "label": "Alignment",
+      "options": [
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "center",
+          "label": "Center"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "range",
+      "id": "heading_size_desktop",
+      "label": "Desktop size",
+      "min": 12,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 28
+    },
+    {
+      "type": "range",
+      "id": "heading_size_mobile",
+      "label": "Mobile size",
+      "min": 12,
+      "max": 36,
+      "step": 2,
+      "unit": "px",
+      "default": 22
+    },
+    {
+      "type": "range",
+      "id": "heading_spacing",
+      "label": "Bottom spacing",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Color",
+      "default": "#000000"
+    },
+    {
+      "type": "header",
+      "content": "Tab text"
+    },
+    {
+      "type": "range",
+      "id": "tab_text_size_desktop",
+      "label": "Desktop size",
+      "min": 12,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "tab_text_size_mobile",
+      "label": "Mobile size",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 15
+    },
+    {
+      "type": "color",
+      "id": "tab_text_color",
+      "label": "Color",
+      "default": "#000000"
+    },
+    {
+      "type": "header",
+      "content": "Response text"
+    },
+    {
+      "type": "range",
+      "id": "content_text_size_desktop",
+      "label": "Desktop size",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "content_text_size_mobile",
+      "label": "Mobile size",
+      "min": 12,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "color",
+      "id": "content_text_color",
+      "label": "Color",
+      "default": "#4d4d4d"
+    },
+    {
+      "type": "color",
+      "id": "link_color",
+      "label": "Link color",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "link_hover_color",
+      "label": "Link hover color",
+      "default": "#4d4d4d"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "desktop_width_percent",
+      "label": "Desktop width",
+      "min": 50,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 100
+    },
+    {
+      "type": "range",
+      "id": "tab_padding_vertical",
+      "label": "Tab vertical padding",
+      "min": 4,
+      "max": 30,
+      "step": 2,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "tab_padding_horizontal",
+      "label": "Tab horizontal padding",
+      "min": 0,
+      "max": 40,
+      "step": 4,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "content_padding_bottom",
+      "label": "Content bottom padding",
+      "min": 8,
+      "max": 40,
+      "step": 4,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "header",
+      "content": "Style"
+    },
+    {
+      "type": "color",
+      "id": "tab_hover_bg",
+      "label": "Tab hover background",
+      "default": "#f7f4f2"
+    },
+    {
+      "type": "color",
+      "id": "divider_color",
+      "label": "Divider color",
+      "default": "#e7e7e7"
+    },
+    {
+      "type": "range",
+      "id": "divider_width",
+      "label": "Divider width",
+      "min": 0,
+      "max": 4,
+      "step": 1,
+      "unit": "px",
+      "default": 1
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "label": "Icon size",
+      "min": 12,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "color",
+      "id": "icon_color",
+      "label": "Icon color",
+      "default": "#000000"
+    },
+    {
+      "type": "header",
+      "content": "Tab 1"
+    },
+    {
+      "type": "checkbox",
+      "id": "tab_1_enabled",
+      "label": "Enable tab 1",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "tab_1_title",
+      "label": "Title",
+      "default": "Question 1"
+    },
+    {
+      "type": "richtext",
+      "id": "tab_1_content",
+      "label": "Content",
+      "default": "<p>Add your answer here. You can include <a href=\"#\">hyperlinks</a> in your response.</p>"
+    },
+    {
+      "type": "header",
+      "content": "Tab 2"
+    },
+    {
+      "type": "checkbox",
+      "id": "tab_2_enabled",
+      "label": "Enable tab 2",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "tab_2_title",
+      "label": "Title",
+      "default": "Question 2"
+    },
+    {
+      "type": "richtext",
+      "id": "tab_2_content",
+      "label": "Content",
+      "default": "<p>Add your answer here. You can include <a href=\"#\">hyperlinks</a> in your response.</p>"
+    },
+    {
+      "type": "header",
+      "content": "Tab 3"
+    },
+    {
+      "type": "checkbox",
+      "id": "tab_3_enabled",
+      "label": "Enable tab 3",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "tab_3_title",
+      "label": "Title",
+      "default": "Question 3"
+    },
+    {
+      "type": "richtext",
+      "id": "tab_3_content",
+      "label": "Content",
+      "default": "<p>Add your answer here. You can include <a href=\"#\">hyperlinks</a> in your response.</p>"
+    },
+    {
+      "type": "header",
+      "content": "Tab 4"
+    },
+    {
+      "type": "checkbox",
+      "id": "tab_4_enabled",
+      "label": "Enable tab 4",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "tab_4_title",
+      "label": "Title"
+    },
+    {
+      "type": "richtext",
+      "id": "tab_4_content",
+      "label": "Content"
+    },
+    {
+      "type": "header",
+      "content": "Tab 5"
+    },
+    {
+      "type": "checkbox",
+      "id": "tab_5_enabled",
+      "label": "Enable tab 5",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "tab_5_title",
+      "label": "Title"
+    },
+    {
+      "type": "richtext",
+      "id": "tab_5_content",
+      "label": "Content"
+    },
+    {
+      "type": "header",
+      "content": "Tab 6"
+    },
+    {
+      "type": "checkbox",
+      "id": "tab_6_enabled",
+      "label": "Enable tab 6",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "tab_6_title",
+      "label": "Title"
+    },
+    {
+      "type": "richtext",
+      "id": "tab_6_content",
+      "label": "Content"
+    },
+    {
+      "type": "header",
+      "content": "Tab 7"
+    },
+    {
+      "type": "checkbox",
+      "id": "tab_7_enabled",
+      "label": "Enable tab 7",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "tab_7_title",
+      "label": "Title"
+    },
+    {
+      "type": "richtext",
+      "id": "tab_7_content",
+      "label": "Content"
+    },
+    {
+      "type": "header",
+      "content": "Tab 8"
+    },
+    {
+      "type": "checkbox",
+      "id": "tab_8_enabled",
+      "label": "Enable tab 8",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "tab_8_title",
+      "label": "Title"
+    },
+    {
+      "type": "richtext",
+      "id": "tab_8_content",
+      "label": "Content"
+    },
+    {
+      "type": "header",
+      "content": "Tab 9"
+    },
+    {
+      "type": "checkbox",
+      "id": "tab_9_enabled",
+      "label": "Enable tab 9",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "tab_9_title",
+      "label": "Title"
+    },
+    {
+      "type": "richtext",
+      "id": "tab_9_content",
+      "label": "Content"
+    },
+    {
+      "type": "header",
+      "content": "Tab 10"
+    },
+    {
+      "type": "checkbox",
+      "id": "tab_10_enabled",
+      "label": "Enable tab 10",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "tab_10_title",
+      "label": "Title"
+    },
+    {
+      "type": "richtext",
+      "id": "tab_10_content",
+      "label": "Content"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Collapsible tabs"
+    }
+  ]
+}
+{% endschema %}

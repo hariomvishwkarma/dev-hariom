@@ -1,0 +1,571 @@
+{%- if section.settings.background != settings.background and section.settings.background != 'rgba(0,0,0,0)' -%}
+  {%- assign blends_with_background = false -%}
+{%- else -%}
+  {%- assign blends_with_background = true -%}
+{%- endif -%}
+
+<style>
+  #shopify-section-{{ section.id }} {
+    {%- if section.settings.text_color == 'rgba(0,0,0,0)' -%}
+      {%- assign heading_color = settings.heading_color -%}
+      {%- assign text_color = settings.text_color -%}
+    {%- else -%}
+      {%- assign heading_color = section.settings.text_color -%}
+      {%- assign text_color = section.settings.text_color -%}
+    {%- endif -%}
+
+    {%- if section.settings.background == 'rgba(0,0,0,0)' -%}
+      {%- assign section_background = settings.background -%}
+      {%- assign secondary_background = settings.secondary_background -%}
+    {%- else -%}
+      {%- assign section_background = section.settings.background -%}
+      {%- assign secondary_background = section.settings.background | color_mix: text_color, 85 -%}
+    {%- endif -%}
+
+    --secondary-background: {{ secondary_background.red }}, {{ secondary_background.green }}, {{ secondary_background.blue }};
+    --heading-color: {{ heading_color.red }}, {{ heading_color.green }}, {{ heading_color.blue }};
+    --text-color: {{ text_color.red }}, {{ text_color.green }}, {{ text_color.blue }};
+
+    --section-background: {{ section_background.red }}, {{ section_background.green }}, {{ section_background.blue }};
+  }
+
+  @media (min-width: 1000px) {
+    #shopify-section-{{ section.id }} .section__color-wrapper {
+      padding-top: {{ section.settings.space_top }}px;
+      padding-bottom: {{ section.settings.space_bottom }}px;
+    }
+  }
+
+  @media (max-width: 999px) {
+    #shopify-section-{{ section.id }} .section__color-wrapper {
+      padding-top: {{ section.settings.space_top_mobile }}px;
+      padding-bottom: {{ section.settings.space_bottom_mobile }}px;
+    }
+  }
+
+  #shopify-section-{{ section.id }} .section__header p,
+  #shopify-section-{{ section.id }} .section__header li {
+    font-size: var(--staw-font-size-{{ section.settings.content_font_size }});
+  }
+
+  #shopify-section-{{ section.id }} .collapsible-toggle {
+    font-size: var(--staw-font-size-{{ section.settings.question_font_size }});
+  }
+
+  #shopify-section-{{ section.id }} .collapsible__content {
+    font-size: var(--staw-font-size-{{ section.settings.answer_font_size }});
+  }
+
+  #shopify-section-{{ section.id }} .text-uppercase {
+    text-transform: uppercase;
+  }
+
+  {%- if section.settings.content_max_width != 'none' -%}
+  @media screen and (min-width: 741px) {
+    #shopify-section-{{ section.id }} .container {
+      max-width: {{ section.settings.content_max_width }};
+    }
+  }
+  {%- endif -%}
+
+  #shopify-section-{{ section.id }} .faq {
+    margin-top: {{ section.settings.element_gap }}px;
+  }
+</style>
+
+{%- assign categories = section.blocks | where: 'type', 'category' -%}
+
+<section class="{% if template.name == 'page' and template.suffix contains 'faq' %}section--tight{% endif %} {% unless blends_with_background %}section--flush{% endunless %}">
+  <div class="section__color-wrapper">
+    <div class="container">
+      <div class="{% unless blends_with_background %}{% endunless %}">
+        {%- if section.settings.title != blank or section.settings.content != blank -%}
+          <header class="section__header {% if section.settings.content != blank %}section__header--tight{% endif %} text-container">
+            {%- if section.settings.title != blank -%}
+              <h2 class="heading {{ section.settings.heading_class }}{% if section.settings.heading_uppercase %} text-uppercase{% endif %}">{{ section.settings.title | escape }}</h2>
+            {%- endif -%}
+
+            {%- if section.settings.content -%}
+              {{- section.settings.content -}}
+            {%- endif -%}
+          </header>
+        {%- endif -%}
+
+        <div class="faq">
+          {%- if section.settings.show_navigation and categories.size > 0 -%}
+            <div class="faq-navigation hidden-pocket">
+              <scroll-spy class="scroll-spy">
+                <ul class="scroll-spy__list list--unstyled">
+                  {%- for category in categories -%}
+                    <li class="scroll-spy__item">
+                      <a class="scroll-spy__anchor heading heading--small" href="#category-{{ section.id }}-{{ category.id }}" data-smooth-scroll>{{ category.settings.title | escape }}</a>
+                    </li>
+                  {%- endfor -%}
+                </ul>
+              </scroll-spy>
+            </div>
+          {%- endif -%}
+
+          <div class="faq__wrapper" itemscope itemtype="https://schema.org/FAQPage">
+            {% comment %} Suchleiste - STAW {% endcomment %}
+            {%- if section.settings.show_search -%}
+            <div class="faq-search input" style="">
+              <svg
+                class="faq-search__icon"
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: rgba(var(--text-color), 0.5); pointer-events: none;"
+              >
+                <circle cx="10" cy="10" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                type="text"
+                id="faq-search-input-{{ section.id }}"
+                class="faq-search__input input__field"
+                placeholder="FAQ durchsuchen..."
+                autocomplete="off"
+                style="padding-inline-start: 48px;"
+              >
+            </div>
+            
+            <div class="faq-no-results" style="display: none; text-align: center; padding: 32px 16px; color: rgba(var(--text-color), 0.7); font-size: 15px;">
+              Keine Ergebnisse für „<span class="faq-no-results__query" style="font-weight: 600;"></span>" gefunden.
+            </div>
+            {%- endif -%}
+            {% comment %} Suchleiste Ende - STAW {% endcomment %}
+            {%- for block in section.blocks -%}
+              {%- case block.type -%}
+                {%- when 'category' -%}
+                  <h2 id="category-{{ section.id }}-{{ block.id }}" class="faq__category heading h6 anchor" {{ block.shopify_attributes }}>
+                    {{- block.settings.title |  escape -}}
+                  </h2>
+
+                {%- when 'question' -%}
+                  <div class="faq__item" itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
+                    <button is="toggle-button" class="collapsible-toggle text--strong" aria-controls="block-{{ section.id }}-{{ block.id }}" aria-expanded="false" itemprop="name">
+                      {{- block.settings.title -}}
+                      <span class="animated-plus"></span>
+                    </button>
+
+                    <collapsible-content id="block-{{ section.id }}-{{ block.id }}" class="collapsible anchor" itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer" {{ block.shopify_attributes }}>
+                      <div class="collapsible__content text-container" itemprop="text">
+                        {{ block.settings.answer }}
+                      </div>
+                    </collapsible-content>
+                  </div>
+              {%- endcase -%}
+            {%- endfor -%}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% comment %} JS für Suchleiste - STAW {% endcomment %}
+{%- if section.settings.show_search -%}
+<script>
+  (function () {
+    const sectionId = '{{ section.id }}';
+    const input = document.getElementById('faq-search-input-' + sectionId);
+    const section = input.closest('.faq');
+    const faqWrapper = section.querySelector('.faq__wrapper');
+    const noResults = section.querySelector('.faq-no-results');
+    const noResultsQuery = noResults.querySelector('.faq-no-results__query');
+    const items = faqWrapper.querySelectorAll('.faq__item');
+    const categories = faqWrapper.querySelectorAll('.faq__category');
+
+    const originalData = [];
+    items.forEach(function (item) {
+      const btn = item.querySelector('.collapsible-toggle');
+      const content = item.querySelector('.collapsible__content');
+      originalData.push({
+        el: item,
+        titleHTML: btn ? btn.innerHTML : '',
+        titleText: btn ? btn.textContent.trim() : '',
+        contentHTML: content ? content.innerHTML : '',
+        contentText: content ? content.textContent.trim() : '',
+      });
+    });
+
+    function escapeRegExp(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function highlightText(html, query) {
+      if (!query) return html;
+      var escaped = escapeRegExp(query);
+      var regex = new RegExp('(' + escaped + ')', 'gi');
+      return html.replace(/>([^<]*)</g, function (match, textContent) {
+        return (
+          '>' +
+          textContent.replace(
+            regex,
+            '<mark style="background-color: #fcbe2a; color: #000; padding: 0 2px; border-radius: 2px;">$1</mark>'
+          ) +
+          '<'
+        );
+      });
+    }
+
+    function handleSearch() {
+      var rawQuery = input.value.trim();
+      var query = rawQuery.length >= 3 ? rawQuery.toLowerCase() : '';
+
+      var categoryVisibility = new Map();
+      var currentCategory = null;
+
+      var children = Array.from(faqWrapper.children);
+      var categoryItems = new Map();
+
+      children.forEach(function (child) {
+        if (child.classList.contains('faq__category')) {
+          currentCategory = child;
+          categoryItems.set(currentCategory, []);
+        } else if (child.classList.contains('faq__item')) {
+          if (currentCategory) {
+            categoryItems.get(currentCategory).push(child);
+          }
+        }
+      });
+
+      originalData.forEach(function (data, index) {
+        var item = data.el;
+        var btn = item.querySelector('.collapsible-toggle');
+        var content = item.querySelector('.collapsible__content');
+
+        if (!query) {
+          if (btn) btn.innerHTML = data.titleHTML;
+          if (content) content.innerHTML = data.contentHTML;
+          item.style.display = '';
+          return;
+        }
+
+        var titleMatch = data.titleText.toLowerCase().indexOf(query) !== -1;
+        var contentMatch = data.contentText.toLowerCase().indexOf(query) !== -1;
+
+        if (titleMatch || contentMatch) {
+          item.style.display = '';
+          if (btn) {
+            var plusSpan = btn.querySelector('.animated-plus');
+            var plusHTML = plusSpan ? plusSpan.outerHTML : '';
+            var titleOnly = data.titleText;
+            var rawQ = input.value.trim();
+            var highlightedTitle = rawQ
+              ? titleOnly.replace(new RegExp('(' + escapeRegExp(rawQ) + ')', 'gi'), '<mark style="background-color: #fcbe2a; color: #000; padding: 0 2px; border-radius: 2px;">$1</mark>')
+              : titleOnly;
+            btn.innerHTML = '<span>' + highlightedTitle + '</span>' + plusHTML;
+          }
+          if (content) {
+            content.innerHTML = highlightText(data.contentHTML, input.value.trim());
+          }
+          if (contentMatch) {
+            var toggle = item.querySelector('.collapsible-toggle');
+            var collapsible = item.querySelector('collapsible-content');
+            if (toggle && toggle.getAttribute('aria-expanded') === 'false') {
+              toggle.click();
+            }
+          }
+        } else {
+          item.style.display = 'none';
+          if (btn) btn.innerHTML = data.titleHTML;
+          if (content) content.innerHTML = data.contentHTML;
+        }
+      });
+
+      categoryItems.forEach(function (items, category) {
+        if (!query) {
+          category.style.display = '';
+          return;
+        }
+        var hasVisible = items.some(function (item) {
+          return item.style.display !== 'none';
+        });
+        category.style.display = hasVisible ? '' : 'none';
+      });
+
+      var navItems = section.querySelectorAll('.scroll-spy__item');
+      var catIndex = 0;
+      categoryItems.forEach(function (items, category) {
+        if (navItems[catIndex]) {
+          navItems[catIndex].style.display = category.style.display;
+        }
+        catIndex++;
+      });
+
+      if (query) {
+        var anyVisible = Array.from(items).some(function (item) {
+          return item.style.display !== 'none';
+        });
+        noResultsQuery.textContent = rawQuery;
+        noResults.style.display = anyVisible ? 'none' : '';
+      } else {
+        noResults.style.display = 'none';
+      }
+    }
+
+    input.addEventListener('input', handleSearch);
+  })();
+</script>
+{%- endif -%}
+{% comment %} JS für Suchleiste Ende - STAW {% endcomment %}
+
+{% schema %}
+{
+  "name": "FAQ",
+  "class": "shopify-section--faq",
+  "disabled_on": {
+    "templates": ["password"],
+    "groups": ["header", "custom.overlay"]
+  },
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_navigation",
+      "label": "Show navigation",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_search",
+      "label": "Suchleiste anzeigen",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Heading",
+      "default": "FAQ"
+    },
+    {
+      "type": "select",
+      "id": "heading_class",
+      "label": "Überschrift – Größe",
+      "options": [
+        { "value": "h1", "label": "H1" },
+        { "value": "h2", "label": "H2" },
+        { "value": "h3", "label": "H3" },
+        { "value": "h4", "label": "H4" },
+        { "value": "h5", "label": "H5" },
+        { "value": "h6", "label": "H6" }
+      ],
+      "default": "h2"
+    },
+    {
+      "type": "checkbox",
+      "id": "heading_uppercase",
+      "label": "Überschrift – Großbuchstaben",
+      "default": false
+    },
+    {
+      "type": "richtext",
+      "id": "content",
+      "label": "Content"
+    },
+    {
+      "type": "select",
+      "id": "content_font_size",
+      "label": "Text – Schriftgröße",
+      "options": [
+        { "value": "small", "label": "Klein (14px)" },
+        { "value": "base", "label": "Standard (16px)" },
+        { "value": "medium", "label": "Mittel (18px)" },
+        { "value": "large", "label": "Groß (20px)" },
+        { "value": "xlarge", "label": "Sehr groß (22px)" }
+      ],
+      "default": "base"
+    },
+    {
+      "type": "select",
+      "id": "question_font_size",
+      "label": "Frage – Schriftgröße",
+      "options": [
+        { "value": "small", "label": "Klein (14px)" },
+        { "value": "base", "label": "Standard (16px)" },
+        { "value": "medium", "label": "Mittel (18px)" },
+        { "value": "large", "label": "Groß (20px)" },
+        { "value": "xlarge", "label": "Sehr groß (22px)" }
+      ],
+      "default": "base"
+    },
+    {
+      "type": "select",
+      "id": "answer_font_size",
+      "label": "Antwort – Schriftgröße",
+      "options": [
+        { "value": "small", "label": "Klein (14px)" },
+        { "value": "base", "label": "Standard (16px)" },
+        { "value": "medium", "label": "Mittel (18px)" },
+        { "value": "large", "label": "Groß (20px)" },
+        { "value": "xlarge", "label": "Sehr groß (22px)" }
+      ],
+      "default": "base"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "select",
+      "id": "content_max_width",
+      "label": "Inhaltsbreite",
+      "info": "Gilt ab 741px Bildschirmbreite – auf Mobilgeräten immer volle Breite",
+      "options": [
+        { "value": "640px", "label": "Schmal (640px)" },
+        { "value": "900px", "label": "Mittel (900px)" },
+        { "value": "1200px", "label": "Breit (1200px)" },
+        { "value": "none", "label": "Volle Breite" }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "range",
+      "id": "element_gap",
+      "min": 4,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "label": "Abstand zwischen Elementen",
+      "info": "Vertikaler Abstand zwischen den Blöcken",
+      "default": 24
+    },
+    {
+      "type": "header",
+      "content": "Abstände"
+    },
+    {
+      "type": "range",
+      "id": "space_top",
+      "min": 0,
+      "max": 150,
+      "step": 5,
+      "unit": "px",
+      "label": "Abstand oben",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "space_bottom",
+      "min": 0,
+      "max": 150,
+      "step": 5,
+      "unit": "px",
+      "label": "Abstand unten",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "space_top_mobile",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "label": "Abstand oben (Mobil)",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "space_bottom_mobile",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "label": "Abstand unten (Mobil)",
+      "default": 40
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background",
+      "label": "Background",
+      "default": "rgba(0,0,0,0)"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "rgba(0,0,0,0)"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "category",
+      "name": "Category",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Heading",
+          "default": "Category"
+        }
+      ]
+    },
+    {
+      "type": "question",
+      "name": "Question",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Question",
+          "default": "About your shop"
+        },
+        {
+          "type": "richtext",
+          "id": "answer",
+          "label": "Answer",
+          "default": "<p>Write content to help your customers to better understand your products or policies.</p>"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "FAQ",
+      "blocks": [
+        {
+          "type": "category",
+          "settings": {
+            "title": "Shipping"
+          }
+        },
+        {
+          "type": "question",
+          "settings": {
+            "title": "Do you ship overseas?",
+            "answer": "<p>Yes, we ship all over the world. Shipping costs will apply, and will be added at checkout. We run discounts and promotions all year, so stay tuned for exclusive deals.</p>"
+          }
+        },
+        {
+          "type": "question",
+          "settings": {
+            "title": "How long will it take to get my order?",
+            "answer": "<p>It depends on where you are. Orders processed here will take 5-7 business days to arrive. Overseas deliveries can take anywhere from 7-16 days. Delivery details will be provided in your confirmation email.</p>"
+          }
+        },
+        {
+          "type": "category",
+          "settings": {
+            "title": "Other"
+          }
+        },
+        {
+          "type": "question",
+          "settings": {
+            "title": "Any question?",
+            "answer": "<p>You can contact us through our contact page! We will be happy to assist you.</p>"
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

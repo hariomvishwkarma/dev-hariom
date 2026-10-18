@@ -1,0 +1,97 @@
+{% comment %}
+  Variant card picker — radio, title, price (no image).
+  Accepts: product, option, value, block
+{% endcomment %}
+
+{%- liquid
+  assign value_name = value.name | default: value
+  assign variant_for_value = null
+  assign option_key = 'option' | append: option.position
+
+  for variant in product.variants
+    if variant[option_key] == value_name
+      assign match = true
+      if product.options.size > 1
+        for opt in product.options_with_values
+          unless opt.position == option.position
+            assign other_key = 'option' | append: opt.position
+            if variant[other_key] != opt.selected_value
+              assign match = false
+            endif
+          endunless
+        endfor
+      endif
+      if match
+        assign variant_for_value = variant
+        break
+      endif
+    endif
+  endfor
+
+  if variant_for_value
+    assign card_title = variant_for_value.title
+  else
+    assign card_title = value_name
+  endif
+
+  assign card_badge = blank
+  assign card_description = blank
+
+  if block.settings.variant_badge_metafield != blank and variant_for_value
+    assign badge_parts = block.settings.variant_badge_metafield | strip | split: '.'
+    assign card_badge = variant_for_value.metafields[badge_parts[0]][badge_parts[1]].value
+  endif
+
+  if block.settings.variant_description_metafield != blank and variant_for_value
+    assign desc_parts = block.settings.variant_description_metafield | strip | split: '.'
+    assign card_description = variant_for_value.metafields[desc_parts[0]][desc_parts[1]].value
+  endif
+
+  assign card_image = null
+  if variant_for_value
+    assign variant_metafield_image = variant_for_value.metafields.custom.variant_image.value
+    if variant_metafield_image != blank
+      assign card_image = variant_metafield_image
+    elsif variant_for_value.featured_image != blank
+      assign card_image = variant_for_value.featured_image
+    else
+      assign card_image = product.featured_image
+    endif
+  elsif product.featured_image != blank
+    assign card_image = product.featured_image
+  endif
+-%}
+
+{% if variant_for_value.metafields.custom.text_badge != blank %}
+  <span class="f-text--badge">{{ variant_for_value.metafields.custom.text_badge }}</span>
+{% endif %}
+
+<div class="f-card_m_content">
+  {%- if card_badge != blank -%}
+    <span class="f-card__badge">{{ card_badge }}</span>
+  {%- endif -%}
+
+  <span class="f-card__radio" aria-hidden="true"></span>
+  {% if block.settings.show_variant_image == true %}
+    <span class="f-card__img" aria-hidden="true">
+      <img src="{{ card_image | image_url: width: 100 }}" width="80px" height="auto" alt="{{ card_title }}">
+    </span>
+  {% endif %}
+  <span class="f-card__content">
+    <span class="f-card__title">{{ card_title }}</span>
+    {%- if card_description != blank -%}
+      <span class="f-card__description rte">{{ card_description }}</span>
+    {%- endif -%}
+  </span>
+
+  <span class="f-card__price">
+    {%- if variant_for_value -%}
+      {%- if variant_for_value.compare_at_price > variant_for_value.price -%}
+        <span class="f-card__price-sale">{{ variant_for_value.price | money }}</span>
+        <s class="f-card__price-compare">{{ variant_for_value.compare_at_price | money }}</s>
+      {%- else -%}
+        <span class="f-card__price-regular">{{ variant_for_value.price | money }}</span>
+      {%- endif -%}
+    {%- endif -%}
+  </span>
+</div>

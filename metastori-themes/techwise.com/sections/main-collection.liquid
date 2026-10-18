@@ -1,0 +1,491 @@
+{%- if section.settings.show_filters and collection.filters.size > 0 -%}
+  {%- assign show_filters = true -%}
+{%- else -%}
+  {%- assign show_filters = false -%}
+{%- endif -%}
+
+<style>
+  #shopify-section-{{ section.id }}{
+    --qa-bg: {{ section.settings.quick_add_bg | default: '#4F6B62' }};
+    --qa-text: {{ section.settings.quick_add_text | default: '#ffffff' }};
+    --qa-border: {{ section.settings.quick_add_border | default: 'rgba(0,0,0,.10)' }};
+    --qa-hover-bg: {{ section.settings.quick_add_hover_bg | default: '#5A776D' }};
+    --qa-success-bg: {{ section.settings.quick_add_success_bg | default: '#e8f8ee' }};
+  }
+
+  /* kolommen: mobiel altijd 1 */
+  #shopify-section-{{ section.id }}{ --product-list-column-count: {{ section.settings.products_per_row_mobile | times: 1 }}; }
+  @media (max-width:699px){ #shopify-section-{{ section.id }}{ --product-list-column-count: {{ section.settings.products_per_row_mobile | times: 1 }} !important; } }
+  @media (min-width:700px){ #shopify-section-{{ section.id }}{ --product-list-column-count: {{ section.settings.products_per_row_desktop | at_most: 3 }}; } }
+  @media (min-width:1000px){ #shopify-section-{{ section.id }}{ --product-list-column-count: {{ section.settings.products_per_row_desktop }}; } }
+
+  /* grid in container */
+  #shopify-section-{{ section.id }} .tw-grid-wrap{ width:100%; }
+  #shopify-section-{{ section.id }} .tw-collection__grid{
+    list-style:none; margin:0; padding:0;
+    display:grid; gap:28px;
+    grid-template-columns: repeat(var(--product-list-column-count), minmax(0,1fr));
+  }
+
+  /* kaart + media (1:1) */
+  #shopify-section-{{ section.id }} .tw-card{ display:flex; flex-direction:column; }
+  #shopify-section-{{ section.id }} .tw-media{
+    position:relative; overflow:hidden; border-radius:12px; background:#f7f7f7; aspect-ratio:1/1;
+  }
+  #shopify-section-{{ section.id }} .tw-img{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block;
+    transition:opacity .3s ease, transform .35s ease;
+  }
+  #shopify-section-{{ section.id }} .tw-img--secondary{ opacity:0; }
+  #shopify-section-{{ section.id }} .tw-card:hover .tw-img{ transform:scale(1.02); }
+  #shopify-section-{{ section.id }} .tw-card:hover .tw-img--secondary{ opacity:1; }
+  #shopify-section-{{ section.id }} .tw-img--ph{ background:#f2f2f2; }
+
+  #shopify-section-{{ section.id }} .tw-badge{
+    display:inline-block; padding:6px 12px; line-height:1; font-weight:700; letter-spacing:.01em;
+    border-radius:12px;
+  }
+
+  /* rating (Loox) */
+  #shopify-section-{{ section.id }} .tw-rating-row{ margin-top:.7rem; margin-bottom:.15rem; min-height:22px; }
+  #shopify-section-{{ section.id }} .loox-rating{ display:inline-flex; align-items:center; gap:6px; }
+  #shopify-section-{{ section.id }} .loox-rating svg,
+  #shopify-section-{{ section.id }} .loox-icon,
+  #shopify-section-{{ section.id }} .loox-icon-star,
+  #shopify-section-{{ section.id }} .loox-icon-star-half,
+  #shopify-section-{{ section.id }} .loox-icon-star-o{
+    width:12px !important; height:12px !important; font-size:12px !important;
+    color:#FDB32E !important; fill:#FDB32E !important;
+  }
+
+  /* rij met prijs rechts wanneer highlights bestaan */
+  #shopify-section-{{ section.id }} .tw-top-row{
+    display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+    margin-top:.7rem; margin-bottom:.15rem;
+  }
+
+  /* onderrij: titel links + quick add rechts */
+  #shopify-section-{{ section.id }} .tw-info-row{
+    display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-top:.35rem;
+  }
+  #shopify-section-{{ section.id }} .tw-info-left{ min-width:0; flex:1 1 auto; }
+  #shopify-section-{{ section.id }} .tw-card-title.subheading{
+    display:block; margin:0 0 .25rem 0; line-height:1.3; font-size:16px; font-weight:600; text-decoration:none;
+  }
+  #shopify-section-{{ section.id }} .tw-price{
+    display:inline-flex; gap:.5rem; align-items:baseline; white-space:nowrap; font-size:16px; line-height:1;
+  }
+  #shopify-section-{{ section.id }} .tw-price__current{ font-weight:700; }
+  #shopify-section-{{ section.id }} .tw-price__compare{ opacity:.6; text-decoration:line-through; }
+
+  /* quick add */
+  #shopify-section-{{ section.id }} .tw-info-right{ flex:0 0 auto; }
+  #shopify-section-{{ section.id }} .tw-btn{
+    display:inline-flex; align-items:center; gap:.55rem;
+    padding:.55rem .9rem; border-radius:999px; border:1px solid var(--qa-border);
+    background:var(--qa-bg); color:var(--qa-text); font-weight:600; line-height:1; cursor:pointer;
+    transition:background .2s ease, border-color .2s ease, transform .05s ease; white-space:nowrap;
+  }
+  #shopify-section-{{ section.id }} .tw-btn:hover{ background:var(--qa-hover-bg); }
+  #shopify-section-{{ section.id }} .tw-btn[disabled]{ opacity:.6; cursor:not-allowed; }
+  #shopify-section-{{ section.id }} .tw-btn--success{ background:var(--qa-success-bg); }
+  #shopify-section-{{ section.id }} .tw-btn svg{ width:18px; height:18px; display:block; }
+  #shopify-section-{{ section.id }} .tw-plus{
+    font-family: var(--font-body-family, inherit) !important;
+    font-weight: var(--font-body-weight, 700);
+    font-style: var(--font-body-style, normal);
+    font-size: 18px; line-height: 1;
+  }
+
+  .sr-only{ position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+  /* dropdown (highlights) */
+  #shopify-section-{{ section.id }} .tw-acc{ margin-top:.5rem; border-radius:10px; }
+  #shopify-section-{{ section.id }} .tw-acc__summary{
+    list-style:none; cursor:pointer; user-select:none;
+    display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+    font-weight:600; font-size:14px; letter-spacing:.02em;
+  }
+  #shopify-section-{{ section.id }} .tw-acc__summary::-webkit-details-marker{ display:none; }
+  #shopify-section-{{ section.id }} .tw-acc__icon{ width:20px; height:20px; position:relative; flex:0 0 20px; }
+  #shopify-section-{{ section.id }} .tw-acc__icon::before,
+  #shopify-section-{{ section.id }} .tw-acc__icon::after{ content:""; position:absolute; inset:0; margin:auto; background:currentColor; width:14px; height:2px; border-radius:2px; }
+  #shopify-section-{{ section.id }} .tw-acc__icon::after{ transform:rotate(90deg); transition:transform .2s ease; }
+  #shopify-section-{{ section.id }} details[open] .tw-acc__icon::after{ transform:rotate(0deg); }
+  #shopify-section-{{ section.id }} .tw-acc__content{ margin-top:.35rem; font-size:14px; opacity:.92; }
+  #shopify-section-{{ section.id }} .tw-acc__content p{ margin:.3rem 0; }
+</style>
+
+<div class="color-scheme color-scheme--{{ section.settings.color_scheme.id }}">
+  {%- if collection.all_products_count == 0 -%}
+    <div class="container">
+      <div class="empty-state">
+        <div class="prose prose-justify-center">
+          <p class="h3">{{ 'collection.general.empty_collection' | t }}</p>
+          {%- assign button_content = 'collection.general.continue_shopping' | t -%}
+          {%- render 'button', href: routes.all_products_collection_url, size: 'xl', content: button_content -%}
+        </div>
+      </div>
+    </div>
+  {%- else -%}
+    <div id="collection" class="collection">
+      {%- render 'collection-toolbar' -%}
+
+      <div class="collection__inner">
+        {%- paginate collection.products by section.settings.products_per_page -%}
+          {%- if show_filters and section.settings.filter_layout == 'sidebar' -%}
+            <safe-sticky class="collection__sidebar">
+              <p class="subheading">{{ 'collection.faceting.filters' | t }}</p>
+              {%- render 'facets', source: collection, show_sort_by: false, open_filters_by_default: section.settings.open_filters_by_default, update_on_change: true, form_id: 'facets-sidebar-form', hash: '#collection' -%}
+            </safe-sticky>
+          {%- endif -%}
+
+          {%- if collection.products_count == 0 -%}
+            <div class="empty-state empty-state--sm">
+              <div class="prose prose-justify-center prose--compact">
+                <p>{{ 'collection.faceting.no_results' | t }}</p>
+                {%- assign button_content = 'collection.faceting.clear_filters' | t -%}
+                {%- assign button_link = collection.url | append: '#collection' -%}
+                {%- render 'button', href: button_link, is: 'facet-link', content: button_content -%}
+              </div>
+            </div>
+          {%- else -%}
+            <div class="collection__results">
+              {%- render 'active-facets', source: collection, hash: "#collection" -%}
+
+              <div class="tw-grid-wrap">
+                <ul class="tw-collection__grid" role="list">
+                  {%- assign available_products = collection.products | where: 'available', true -%}
+                  {%- assign soldout_products = collection.products | where: 'available', false -%}
+                  {%- assign sorted_products = available_products | concat: soldout_products -%}
+                  {%- for product in sorted_products -%}
+                    {%- assign product_index = forloop.index -%}
+                    {%- assign has_second = false -%}
+                    {%- if product.images.size > 1 -%}{% assign has_second = true %}{% endif %}
+
+                    {%- assign show_quick_add = product.metafields.custom.show_quick_add -%}
+                    {%- assign show_rating    = product.metafields.custom.show_rating -%}
+                    {%- assign hl_text  = product.metafields.custom.highlights -%}
+                    {%- assign hl_title = product.metafields.custom.highlights_title -%}
+
+                    {%- assign current_price = product.price | default: product.price_min -%}
+                    {%- assign compare_max = product.compare_at_price_max -%}
+
+                    <li class="tw-card" data-product-id="{{ product.id }}">
+                      <a href="{{ product.url | within: collection }}" class="tw-media">
+
+                        <div class="tw-badges {{ settings.product_card_badges_placement }}{% if settings.product_card_show_badges_vertically %} tw-badges--vertical{% endif %}">
+                          {%- render 'product-saving-badge', product: product -%}
+                          {%- for lb in section.blocks -%}
+                            {%- if lb.type != 'label' -%}{% continue %}{%- endif -%}
+                            {%- assign label_pos_str = lb.settings.position | default: '1' -%}
+                            {%- assign label_pos_num = label_pos_str | plus: 0 -%}
+                            {%- if label_pos_num == product_index -%}
+                              {%- assign downcased_text = lb.settings.text | downcase -%}
+                              {%- assign is_discount_label = false -%}
+                              {%- if downcased_text contains 'spare' or downcased_text contains 'sale' or downcased_text contains 'bespaar' or downcased_text contains 'korting' or downcased_text contains 'save' or downcased_text contains 'rabatt' or downcased_text contains 'reduziert' or downcased_text contains '%' -%}
+                                {%- assign is_discount_label = true -%}
+                              {%- endif -%}
+                              {%- unless is_discount_label -%}
+                                <span class="tw-badge"
+                                  style="
+                                    background: {{ settings.tw_badge_bg | default: '#E6F0D0' }};
+                                    color: {{ settings.tw_badge_text_color | default: '#1A1A1A' }};
+                                    font-size: {{ lb.settings.size | default: 12 }}px;
+                                    border-radius: {{ lb.settings.radius | default: 12 }}px;
+                                  "
+                                  {{ lb.shopify_attributes }}
+                                >{{ lb.settings.text | escape }}</span>
+                              {%- endunless -%}
+                            {%- endif -%}
+                          {%- endfor -%}
+                        </div>
+
+                        {%- if product.featured_media -%}
+                          {%- assign img = product.featured_media -%}
+                          {%- assign widths = "360,540,720,900,1200" | split: "," -%}
+                          <img class="tw-img tw-img--primary"
+                               src="{{ img | image_url: width: 720 }}"
+                               srcset="{% for w in widths %}{{ img | image_url: width: w | strip }} {{ w }}w{% unless forloop.last %}, {% endunless %}{% endfor %}"
+                               sizes="(min-width: 1000px) 25vw, (min-width: 700px) 33vw, 100vw"
+                               alt="{{ img.alt | escape }}" loading="lazy">
+                          {%- if has_second -%}
+                            {%- assign second_image = product.images[1] -%}
+                            <img class="tw-img tw-img--secondary"
+                                 src="{{ second_image | image_url: width: 720 }}"
+                                 srcset="{% for w in widths %}{{ second_image | image_url: width: w | strip }} {{ w }}w{% unless forloop.last %}, {% endunless %}{% endfor %}"
+                                 sizes="(min-width: 1000px) 25vw, (min-width: 700px) 33vw, 100vw"
+                                 alt="{{ second_image.alt | escape }}" loading="lazy">
+                          {%- endif -%}
+                        {%- else -%}
+                          {{ 'product-1' | placeholder_svg_tag: 'tw-img tw-img--primary tw-img--ph' }}
+                        {%- endif -%}
+                      </a>
+                      
+                      {%- if hl_text and hl_text != blank -%}
+                        <div class="tw-top-row">
+                          <div>
+                            {%- if show_rating != false -%}
+                              {%- assign loox_rating = product.metafields.loox.avg_rating
+                                | default: product.metafields.loox.rating
+                                | default: product.metafields.reviews.rating
+                                | default: product.metafields.reviews.rating.value -%}
+                              {%- assign loox_count  = product.metafields.loox.num_reviews
+                                | default: product.metafields.loox.reviews_count
+                                | default: product.metafields.reviews.rating_count
+                                | default: product.metafields.reviews.rating_count.value -%}
+                              <div class="loox-rating"
+                                   data-id="{{ product.id }}"
+                                   {% if loox_rating != blank %}data-rating="{{ loox_rating }}"{% endif %}
+                                   {% if loox_count  != blank %}data-raters="{{ loox_count }}"{% endif %}>
+                              </div>
+                            {% else %}
+                              <div class="custom-cp-tp-wdgt tw-top-row">
+                                <span>{{ settings.trustpilot_review }}</span>
+                                <svg width="71" height="26" viewBox="0 0 71 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M7 16.4792L10.0417 15.7083L11.3125 19.625L7 16.4792ZM14 11.4167H8.64583L7 6.375L5.35417 11.4167H0L4.33334 14.5417L2.6875 19.5833L7.02083 16.4583L9.6875 14.5417L14 11.4167Z" fill="#219653"></path>
+                                  <path d="M22.5762 8.46875V17H20.8242V8.46875H22.5762ZM25.2012 8.46875V9.8457H18.2402V8.46875H25.2012ZM27.375 12.043V17H25.6875V10.6602H27.2754L27.375 12.043ZM29.2852 10.6191L29.2559 12.1836C29.1738 12.1719 29.0742 12.1621 28.957 12.1543C28.8438 12.1426 28.7402 12.1367 28.6465 12.1367C28.4082 12.1367 28.2012 12.168 28.0254 12.2305C27.8535 12.2891 27.709 12.377 27.5918 12.4941C27.4785 12.6113 27.3926 12.7539 27.334 12.9219C27.2793 13.0898 27.248 13.2812 27.2402 13.4961L26.9004 13.3906C26.9004 12.9805 26.9414 12.6035 27.0234 12.2598C27.1055 11.9121 27.2246 11.6094 27.3809 11.3516C27.541 11.0938 27.7363 10.8945 27.9668 10.7539C28.1973 10.6133 28.4609 10.543 28.7578 10.543C28.8516 10.543 28.9473 10.5508 29.0449 10.5664C29.1426 10.5781 29.2227 10.5957 29.2852 10.6191ZM33.832 15.4824V10.6602H35.5195V17H33.9316L33.832 15.4824ZM34.0195 14.1816L34.5176 14.1699C34.5176 14.5918 34.4688 14.9844 34.3711 15.3477C34.2734 15.707 34.127 16.0195 33.9316 16.2852C33.7363 16.5469 33.4902 16.752 33.1934 16.9004C32.8965 17.0449 32.5469 17.1172 32.1445 17.1172C31.8359 17.1172 31.5508 17.0742 31.2891 16.9883C31.0312 16.8984 30.8086 16.7598 30.6211 16.5723C30.4375 16.3809 30.293 16.1367 30.1875 15.8398C30.0859 15.5391 30.0352 15.1777 30.0352 14.7559V10.6602H31.7227V14.7676C31.7227 14.9551 31.7441 15.1133 31.7871 15.2422C31.834 15.3711 31.8984 15.4766 31.9805 15.5586C32.0625 15.6406 32.1582 15.6992 32.2676 15.7344C32.3809 15.7695 32.5059 15.7871 32.6426 15.7871C32.9902 15.7871 33.2637 15.7168 33.4629 15.5762C33.666 15.4355 33.8086 15.2441 33.8906 15.002C33.9766 14.7559 34.0195 14.4824 34.0195 14.1816ZM40.2363 15.248C40.2363 15.127 40.2012 15.0176 40.1309 14.9199C40.0605 14.8223 39.9297 14.7324 39.7383 14.6504C39.5508 14.5645 39.2793 14.4863 38.9238 14.416C38.6035 14.3457 38.3047 14.2578 38.0273 14.1523C37.7539 14.043 37.5156 13.9121 37.3125 13.7598C37.1133 13.6074 36.957 13.4277 36.8438 13.2207C36.7305 13.0098 36.6738 12.7695 36.6738 12.5C36.6738 12.2344 36.7305 11.9844 36.8438 11.75C36.9609 11.5156 37.127 11.3086 37.3418 11.1289C37.5605 10.9453 37.8262 10.8027 38.1387 10.7012C38.4551 10.5957 38.8105 10.543 39.2051 10.543C39.7559 10.543 40.2285 10.6309 40.623 10.8066C41.0215 10.9824 41.3262 11.2246 41.5371 11.5332C41.752 11.8379 41.8594 12.1855 41.8594 12.5762H40.1719C40.1719 12.4121 40.1367 12.2656 40.0664 12.1367C40 12.0039 39.8945 11.9004 39.75 11.8262C39.6094 11.748 39.4258 11.709 39.1992 11.709C39.0117 11.709 38.8496 11.7422 38.7129 11.8086C38.5762 11.8711 38.4707 11.957 38.3965 12.0664C38.3262 12.1719 38.291 12.2891 38.291 12.418C38.291 12.5156 38.3105 12.6035 38.3496 12.6816C38.3926 12.7559 38.4609 12.8242 38.5547 12.8867C38.6484 12.9492 38.7695 13.0078 38.918 13.0625C39.0703 13.1133 39.2578 13.1602 39.4805 13.2031C39.9375 13.2969 40.3457 13.4199 40.7051 13.5723C41.0645 13.7207 41.3496 13.9238 41.5605 14.1816C41.7715 14.4355 41.877 14.7695 41.877 15.1836C41.877 15.4648 41.8145 15.7227 41.6895 15.957C41.5645 16.1914 41.3848 16.3965 41.1504 16.5723C40.916 16.7441 40.6348 16.8789 40.3066 16.9766C39.9824 17.0703 39.6172 17.1172 39.2109 17.1172C38.6211 17.1172 38.1211 17.0117 37.7109 16.8008C37.3047 16.5898 36.9961 16.3223 36.7852 15.998C36.5781 15.6699 36.4746 15.334 36.4746 14.9902H38.0742C38.082 15.2207 38.1406 15.4062 38.25 15.5469C38.3633 15.6875 38.5059 15.7891 38.6777 15.8516C38.8535 15.9141 39.043 15.9453 39.2461 15.9453C39.4648 15.9453 39.6465 15.916 39.791 15.8574C39.9355 15.7949 40.0449 15.7129 40.1191 15.6113C40.1973 15.5059 40.2363 15.3848 40.2363 15.248ZM46.0781 10.6602V11.8555H42.3867V10.6602H46.0781ZM43.3008 9.0957H44.9883V15.0898C44.9883 15.2734 45.0117 15.4141 45.0586 15.5117C45.1094 15.6094 45.1836 15.6777 45.2812 15.7168C45.3789 15.752 45.502 15.7695 45.6504 15.7695C45.7559 15.7695 45.8496 15.7656 45.9316 15.7578C46.0176 15.7461 46.0898 15.7344 46.1484 15.7227L46.1543 16.9648C46.0098 17.0117 45.8535 17.0488 45.6855 17.0762C45.5176 17.1035 45.332 17.1172 45.1289 17.1172C44.7578 17.1172 44.4336 17.0566 44.1562 16.9355C43.8828 16.8105 43.6719 16.6113 43.5234 16.3379C43.375 16.0645 43.3008 15.7051 43.3008 15.2598V9.0957ZM48.7266 11.8789V19.4375H47.0391V10.6602H48.6035L48.7266 11.8789ZM52.7402 13.7598V13.8828C52.7402 14.3438 52.6855 14.7715 52.5762 15.166C52.4707 15.5605 52.3145 15.9043 52.1074 16.1973C51.9004 16.4863 51.6426 16.7129 51.334 16.877C51.0293 17.0371 50.6777 17.1172 50.2793 17.1172C49.8926 17.1172 49.5566 17.0391 49.2715 16.8828C48.9863 16.7266 48.7461 16.5078 48.5508 16.2266C48.3594 15.9414 48.2051 15.6113 48.0879 15.2363C47.9707 14.8613 47.8809 14.459 47.8184 14.0293V13.707C47.8809 13.2461 47.9707 12.8242 48.0879 12.4414C48.2051 12.0547 48.3594 11.7207 48.5508 11.4395C48.7461 11.1543 48.9844 10.9336 49.2656 10.7773C49.5508 10.6211 49.8848 10.543 50.2676 10.543C50.6699 10.543 51.0234 10.6191 51.3281 10.7715C51.6367 10.9238 51.8945 11.1426 52.1016 11.4277C52.3125 11.7129 52.4707 12.0527 52.5762 12.4473C52.6855 12.8418 52.7402 13.2793 52.7402 13.7598ZM51.0469 13.8828V13.7598C51.0469 13.4902 51.0234 13.2422 50.9766 13.0156C50.9336 12.7852 50.8633 12.584 50.7656 12.4121C50.6719 12.2402 50.5469 12.1074 50.3906 12.0137C50.2383 11.916 50.0527 11.8672 49.834 11.8672C49.6035 11.8672 49.4062 11.9043 49.2422 11.9785C49.082 12.0527 48.9512 12.1602 48.8496 12.3008C48.748 12.4414 48.6719 12.6094 48.6211 12.8047C48.5703 13 48.5391 13.2207 48.5273 13.4668V14.2812C48.5469 14.5703 48.6016 14.8301 48.6914 15.0605C48.7812 15.2871 48.9199 15.4668 49.1074 15.5996C49.2949 15.7324 49.541 15.7988 49.8457 15.7988C50.0684 15.7988 50.2559 15.75 50.4082 15.6523C50.5605 15.5508 50.6836 15.4121 50.7773 15.2363C50.875 15.0605 50.9434 14.8574 50.9824 14.627C51.0254 14.3965 51.0469 14.1484 51.0469 13.8828ZM55.5703 10.6602V17H53.877V10.6602H55.5703ZM53.7715 9.00781C53.7715 8.76172 53.8574 8.55859 54.0293 8.39844C54.2012 8.23828 54.4316 8.1582 54.7207 8.1582C55.0059 8.1582 55.2344 8.23828 55.4062 8.39844C55.582 8.55859 55.6699 8.76172 55.6699 9.00781C55.6699 9.25391 55.582 9.45703 55.4062 9.61719C55.2344 9.77734 55.0059 9.85742 54.7207 9.85742C54.4316 9.85742 54.2012 9.77734 54.0293 9.61719C53.8574 9.45703 53.7715 9.25391 53.7715 9.00781ZM58.7461 8V17H57.0527V8H58.7461ZM59.8711 13.8945V13.7715C59.8711 13.3066 59.9375 12.8789 60.0703 12.4883C60.2031 12.0938 60.3965 11.752 60.6504 11.4629C60.9043 11.1738 61.2168 10.9492 61.5879 10.7891C61.959 10.625 62.3848 10.543 62.8652 10.543C63.3457 10.543 63.7734 10.625 64.1484 10.7891C64.5234 10.9492 64.8379 11.1738 65.0918 11.4629C65.3496 11.752 65.5449 12.0938 65.6777 12.4883C65.8105 12.8789 65.877 13.3066 65.877 13.7715V13.8945C65.877 14.3555 65.8105 14.7832 65.6777 15.1777C65.5449 15.5684 65.3496 15.9102 65.0918 16.2031C64.8379 16.4922 64.5254 16.7168 64.1543 16.877C63.7832 17.0371 63.3574 17.1172 62.877 17.1172C62.3965 17.1172 61.9688 17.0371 61.5938 16.877C61.2227 16.7168 60.9082 16.4922 60.6504 16.2031C60.3965 15.9102 60.2031 15.5684 60.0703 15.1777C59.9375 14.7832 59.8711 14.3555 59.8711 13.8945ZM61.5586 13.7715V13.8945C61.5586 14.1602 61.582 14.4082 61.6289 14.6387C61.6758 14.8691 61.75 15.0723 61.8516 15.248C61.957 15.4199 62.0938 15.5547 62.2617 15.6523C62.4297 15.75 62.6348 15.7988 62.877 15.7988C63.1113 15.7988 63.3125 15.75 63.4805 15.6523C63.6484 15.5547 63.7832 15.4199 63.8848 15.248C63.9863 15.0723 64.0605 14.8691 64.1074 14.6387C64.1582 14.4082 64.1836 14.1602 64.1836 13.8945V13.7715C64.1836 13.5137 64.1582 13.2715 64.1074 13.0449C64.0605 12.8145 63.9844 12.6113 63.8789 12.4355C63.7773 12.2559 63.6426 12.1152 63.4746 12.0137C63.3066 11.9121 63.1035 11.8613 62.8652 11.8613C62.627 11.8613 62.4238 11.9121 62.2559 12.0137C62.0918 12.1152 61.957 12.2559 61.8516 12.4355C61.75 12.6113 61.6758 12.8145 61.6289 13.0449C61.582 13.2715 61.5586 13.5137 61.5586 13.7715ZM70.0195 10.6602V11.8555H66.3281V10.6602H70.0195ZM67.2422 9.0957H68.9297V15.0898C68.9297 15.2734 68.9531 15.4141 69 15.5117C69.0508 15.6094 69.125 15.6777 69.2227 15.7168C69.3203 15.752 69.4434 15.7695 69.5918 15.7695C69.6973 15.7695 69.791 15.7656 69.873 15.7578C69.959 15.7461 70.0312 15.7344 70.0898 15.7227L70.0957 16.9648C69.9512 17.0117 69.7949 17.0488 69.627 17.0762C69.459 17.1035 69.2734 17.1172 69.0703 17.1172C68.6992 17.1172 68.375 17.0566 68.0977 16.9355C67.8242 16.8105 67.6133 16.6113 67.4648 16.3379C67.3164 16.0645 67.2422 15.7051 67.2422 15.2598V9.0957Z" fill="black"></path>
+                                </svg>
+                              </div>
+                            {%- endif -%}
+                          </div>
+                          <div class="tw-price">
+                            <span class="tw-price__current">{{ current_price | money }}</span>
+                            {%- if compare_max > current_price -%}
+                              <s class="tw-price__compare">{{ compare_max | money }}</s>
+                            {%- endif -%}
+                          </div>
+                        </div>
+                      {%- elsif show_rating != false -%}
+                          {%- assign loox_rating = product.metafields.loox.avg_rating
+                            | default: product.metafields.loox.rating
+                            | default: product.metafields.reviews.rating
+                            | default: product.metafields.reviews.rating.value -%}
+                          {%- assign loox_count  = product.metafields.loox.num_reviews
+                            | default: product.metafields.loox.reviews_count
+                            | default: product.metafields.reviews.rating_count
+                            | default: product.metafields.reviews.rating_count.value -%}
+                          <div class="tw-rating-row">
+                            <div class="loox-rating"
+                                 data-id="{{ product.id }}"
+                                 {% if loox_rating != blank %}data-rating="{{ loox_rating }}"{% endif %}
+                                 {% if loox_count  != blank %}data-raters="{{ loox_count }}"{% endif %}>
+                            </div>
+                          </div>
+                      {% else %}
+                        <!-- TrustBox widget - Micro TrustScore -->
+                        <div class="custom-cp-tp-wdgt tw-top-row">
+                          <span>{{ settings.trustpilot_review }}</span>
+                          <svg width="71" height="26" viewBox="0 0 71 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M7 16.4792L10.0417 15.7083L11.3125 19.625L7 16.4792ZM14 11.4167H8.64583L7 6.375L5.35417 11.4167H0L4.33334 14.5417L2.6875 19.5833L7.02083 16.4583L9.6875 14.5417L14 11.4167Z" fill="#219653"></path>
+                            <path d="M22.5762 8.46875V17H20.8242V8.46875H22.5762ZM25.2012 8.46875V9.8457H18.2402V8.46875H25.2012ZM27.375 12.043V17H25.6875V10.6602H27.2754L27.375 12.043ZM29.2852 10.6191L29.2559 12.1836C29.1738 12.1719 29.0742 12.1621 28.957 12.1543C28.8438 12.1426 28.7402 12.1367 28.6465 12.1367C28.4082 12.1367 28.2012 12.168 28.0254 12.2305C27.8535 12.2891 27.709 12.377 27.5918 12.4941C27.4785 12.6113 27.3926 12.7539 27.334 12.9219C27.2793 13.0898 27.248 13.2812 27.2402 13.4961L26.9004 13.3906C26.9004 12.9805 26.9414 12.6035 27.0234 12.2598C27.1055 11.9121 27.2246 11.6094 27.3809 11.3516C27.541 11.0938 27.7363 10.8945 27.9668 10.7539C28.1973 10.6133 28.4609 10.543 28.7578 10.543C28.8516 10.543 28.9473 10.5508 29.0449 10.5664C29.1426 10.5781 29.2227 10.5957 29.2852 10.6191ZM33.832 15.4824V10.6602H35.5195V17H33.9316L33.832 15.4824ZM34.0195 14.1816L34.5176 14.1699C34.5176 14.5918 34.4688 14.9844 34.3711 15.3477C34.2734 15.707 34.127 16.0195 33.9316 16.2852C33.7363 16.5469 33.4902 16.752 33.1934 16.9004C32.8965 17.0449 32.5469 17.1172 32.1445 17.1172C31.8359 17.1172 31.5508 17.0742 31.2891 16.9883C31.0312 16.8984 30.8086 16.7598 30.6211 16.5723C30.4375 16.3809 30.293 16.1367 30.1875 15.8398C30.0859 15.5391 30.0352 15.1777 30.0352 14.7559V10.6602H31.7227V14.7676C31.7227 14.9551 31.7441 15.1133 31.7871 15.2422C31.834 15.3711 31.8984 15.4766 31.9805 15.5586C32.0625 15.6406 32.1582 15.6992 32.2676 15.7344C32.3809 15.7695 32.5059 15.7871 32.6426 15.7871C32.9902 15.7871 33.2637 15.7168 33.4629 15.5762C33.666 15.4355 33.8086 15.2441 33.8906 15.002C33.9766 14.7559 34.0195 14.4824 34.0195 14.1816ZM40.2363 15.248C40.2363 15.127 40.2012 15.0176 40.1309 14.9199C40.0605 14.8223 39.9297 14.7324 39.7383 14.6504C39.5508 14.5645 39.2793 14.4863 38.9238 14.416C38.6035 14.3457 38.3047 14.2578 38.0273 14.1523C37.7539 14.043 37.5156 13.9121 37.3125 13.7598C37.1133 13.6074 36.957 13.4277 36.8438 13.2207C36.7305 13.0098 36.6738 12.7695 36.6738 12.5C36.6738 12.2344 36.7305 11.9844 36.8438 11.75C36.9609 11.5156 37.127 11.3086 37.3418 11.1289C37.5605 10.9453 37.8262 10.8027 38.1387 10.7012C38.4551 10.5957 38.8105 10.543 39.2051 10.543C39.7559 10.543 40.2285 10.6309 40.623 10.8066C41.0215 10.9824 41.3262 11.2246 41.5371 11.5332C41.752 11.8379 41.8594 12.1855 41.8594 12.5762H40.1719C40.1719 12.4121 40.1367 12.2656 40.0664 12.1367C40 12.0039 39.8945 11.9004 39.75 11.8262C39.6094 11.748 39.4258 11.709 39.1992 11.709C39.0117 11.709 38.8496 11.7422 38.7129 11.8086C38.5762 11.8711 38.4707 11.957 38.3965 12.0664C38.3262 12.1719 38.291 12.2891 38.291 12.418C38.291 12.5156 38.3105 12.6035 38.3496 12.6816C38.3926 12.7559 38.4609 12.8242 38.5547 12.8867C38.6484 12.9492 38.7695 13.0078 38.918 13.0625C39.0703 13.1133 39.2578 13.1602 39.4805 13.2031C39.9375 13.2969 40.3457 13.4199 40.7051 13.5723C41.0645 13.7207 41.3496 13.9238 41.5605 14.1816C41.7715 14.4355 41.877 14.7695 41.877 15.1836C41.877 15.4648 41.8145 15.7227 41.6895 15.957C41.5645 16.1914 41.3848 16.3965 41.1504 16.5723C40.916 16.7441 40.6348 16.8789 40.3066 16.9766C39.9824 17.0703 39.6172 17.1172 39.2109 17.1172C38.6211 17.1172 38.1211 17.0117 37.7109 16.8008C37.3047 16.5898 36.9961 16.3223 36.7852 15.998C36.5781 15.6699 36.4746 15.334 36.4746 14.9902H38.0742C38.082 15.2207 38.1406 15.4062 38.25 15.5469C38.3633 15.6875 38.5059 15.7891 38.6777 15.8516C38.8535 15.9141 39.043 15.9453 39.2461 15.9453C39.4648 15.9453 39.6465 15.916 39.791 15.8574C39.9355 15.7949 40.0449 15.7129 40.1191 15.6113C40.1973 15.5059 40.2363 15.3848 40.2363 15.248ZM46.0781 10.6602V11.8555H42.3867V10.6602H46.0781ZM43.3008 9.0957H44.9883V15.0898C44.9883 15.2734 45.0117 15.4141 45.0586 15.5117C45.1094 15.6094 45.1836 15.6777 45.2812 15.7168C45.3789 15.752 45.502 15.7695 45.6504 15.7695C45.7559 15.7695 45.8496 15.7656 45.9316 15.7578C46.0176 15.7461 46.0898 15.7344 46.1484 15.7227L46.1543 16.9648C46.0098 17.0117 45.8535 17.0488 45.6855 17.0762C45.5176 17.1035 45.332 17.1172 45.1289 17.1172C44.7578 17.1172 44.4336 17.0566 44.1562 16.9355C43.8828 16.8105 43.6719 16.6113 43.5234 16.3379C43.375 16.0645 43.3008 15.7051 43.3008 15.2598V9.0957ZM48.7266 11.8789V19.4375H47.0391V10.6602H48.6035L48.7266 11.8789ZM52.7402 13.7598V13.8828C52.7402 14.3438 52.6855 14.7715 52.5762 15.166C52.4707 15.5605 52.3145 15.9043 52.1074 16.1973C51.9004 16.4863 51.6426 16.7129 51.334 16.877C51.0293 17.0371 50.6777 17.1172 50.2793 17.1172C49.8926 17.1172 49.5566 17.0391 49.2715 16.8828C48.9863 16.7266 48.7461 16.5078 48.5508 16.2266C48.3594 15.9414 48.2051 15.6113 48.0879 15.2363C47.9707 14.8613 47.8809 14.459 47.8184 14.0293V13.707C47.8809 13.2461 47.9707 12.8242 48.0879 12.4414C48.2051 12.0547 48.3594 11.7207 48.5508 11.4395C48.7461 11.1543 48.9844 10.9336 49.2656 10.7773C49.5508 10.6211 49.8848 10.543 50.2676 10.543C50.6699 10.543 51.0234 10.6191 51.3281 10.7715C51.6367 10.9238 51.8945 11.1426 52.1016 11.4277C52.3125 11.7129 52.4707 12.0527 52.5762 12.4473C52.6855 12.8418 52.7402 13.2793 52.7402 13.7598ZM51.0469 13.8828V13.7598C51.0469 13.4902 51.0234 13.2422 50.9766 13.0156C50.9336 12.7852 50.8633 12.584 50.7656 12.4121C50.6719 12.2402 50.5469 12.1074 50.3906 12.0137C50.2383 11.916 50.0527 11.8672 49.834 11.8672C49.6035 11.8672 49.4062 11.9043 49.2422 11.9785C49.082 12.0527 48.9512 12.1602 48.8496 12.3008C48.748 12.4414 48.6719 12.6094 48.6211 12.8047C48.5703 13 48.5391 13.2207 48.5273 13.4668V14.2812C48.5469 14.5703 48.6016 14.8301 48.6914 15.0605C48.7812 15.2871 48.9199 15.4668 49.1074 15.5996C49.2949 15.7324 49.541 15.7988 49.8457 15.7988C50.0684 15.7988 50.2559 15.75 50.4082 15.6523C50.5605 15.5508 50.6836 15.4121 50.7773 15.2363C50.875 15.0605 50.9434 14.8574 50.9824 14.627C51.0254 14.3965 51.0469 14.1484 51.0469 13.8828ZM55.5703 10.6602V17H53.877V10.6602H55.5703ZM53.7715 9.00781C53.7715 8.76172 53.8574 8.55859 54.0293 8.39844C54.2012 8.23828 54.4316 8.1582 54.7207 8.1582C55.0059 8.1582 55.2344 8.23828 55.4062 8.39844C55.582 8.55859 55.6699 8.76172 55.6699 9.00781C55.6699 9.25391 55.582 9.45703 55.4062 9.61719C55.2344 9.77734 55.0059 9.85742 54.7207 9.85742C54.4316 9.85742 54.2012 9.77734 54.0293 9.61719C53.8574 9.45703 53.7715 9.25391 53.7715 9.00781ZM58.7461 8V17H57.0527V8H58.7461ZM59.8711 13.8945V13.7715C59.8711 13.3066 59.9375 12.8789 60.0703 12.4883C60.2031 12.0938 60.3965 11.752 60.6504 11.4629C60.9043 11.1738 61.2168 10.9492 61.5879 10.7891C61.959 10.625 62.3848 10.543 62.8652 10.543C63.3457 10.543 63.7734 10.625 64.1484 10.7891C64.5234 10.9492 64.8379 11.1738 65.0918 11.4629C65.3496 11.752 65.5449 12.0938 65.6777 12.4883C65.8105 12.8789 65.877 13.3066 65.877 13.7715V13.8945C65.877 14.3555 65.8105 14.7832 65.6777 15.1777C65.5449 15.5684 65.3496 15.9102 65.0918 16.2031C64.8379 16.4922 64.5254 16.7168 64.1543 16.877C63.7832 17.0371 63.3574 17.1172 62.877 17.1172C62.3965 17.1172 61.9688 17.0371 61.5938 16.877C61.2227 16.7168 60.9082 16.4922 60.6504 16.2031C60.3965 15.9102 60.2031 15.5684 60.0703 15.1777C59.9375 14.7832 59.8711 14.3555 59.8711 13.8945ZM61.5586 13.7715V13.8945C61.5586 14.1602 61.582 14.4082 61.6289 14.6387C61.6758 14.8691 61.75 15.0723 61.8516 15.248C61.957 15.4199 62.0938 15.5547 62.2617 15.6523C62.4297 15.75 62.6348 15.7988 62.877 15.7988C63.1113 15.7988 63.3125 15.75 63.4805 15.6523C63.6484 15.5547 63.7832 15.4199 63.8848 15.248C63.9863 15.0723 64.0605 14.8691 64.1074 14.6387C64.1582 14.4082 64.1836 14.1602 64.1836 13.8945V13.7715C64.1836 13.5137 64.1582 13.2715 64.1074 13.0449C64.0605 12.8145 63.9844 12.6113 63.8789 12.4355C63.7773 12.2559 63.6426 12.1152 63.4746 12.0137C63.3066 11.9121 63.1035 11.8613 62.8652 11.8613C62.627 11.8613 62.4238 11.9121 62.2559 12.0137C62.0918 12.1152 61.957 12.2559 61.8516 12.4355C61.75 12.6113 61.6758 12.8145 61.6289 13.0449C61.582 13.2715 61.5586 13.5137 61.5586 13.7715ZM70.0195 10.6602V11.8555H66.3281V10.6602H70.0195ZM67.2422 9.0957H68.9297V15.0898C68.9297 15.2734 68.9531 15.4141 69 15.5117C69.0508 15.6094 69.125 15.6777 69.2227 15.7168C69.3203 15.752 69.4434 15.7695 69.5918 15.7695C69.6973 15.7695 69.791 15.7656 69.873 15.7578C69.959 15.7461 70.0312 15.7344 70.0898 15.7227L70.0957 16.9648C69.9512 17.0117 69.7949 17.0488 69.627 17.0762C69.459 17.1035 69.2734 17.1172 69.0703 17.1172C68.6992 17.1172 68.375 17.0566 68.0977 16.9355C67.8242 16.8105 67.6133 16.6113 67.4648 16.3379C67.3164 16.0645 67.2422 15.7051 67.2422 15.2598V9.0957Z" fill="black"></path>
+                          </svg>
+                        </div>
+                        <!-- End TrustBox widget -->
+                      {%- endif -%}
+
+                      <div class="tw-info-row">
+                        <div class="tw-info-left">
+                          <a class="tw-card-title subheading" href="{{ product.url | within: collection }}">{{ product.title }}</a>
+
+                          {%- unless hl_text and hl_text != blank -%}
+                            <div class="tw-price">
+                              <span class="tw-price__current">{{ current_price | money }}</span>
+                              {%- if compare_max > current_price -%}
+                                <s class="tw-price__compare">{{ compare_max | money }}</s>
+                              {%- endif -%}
+                            </div>
+                          {%- endunless -%}
+                        </div>
+
+                        <div class="tw-info-right">
+                          {%- if show_quick_add == true and product.available -%}
+                            <form class="tw-quick-add" method="post" action="/cart/add">
+                              <input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}">
+                              <input type="hidden" name="quantity" value="1">
+                              <button type="submit" class="tw-btn" aria-label="{{ section.settings.quick_add_label | escape }} — {{ product.title | escape }}">
+                                <span class="sr-only">{{ section.settings.quick_add_label }}</span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                  <circle cx="9" cy="20" r="1"></circle>
+                                  <circle cx="16" cy="20" r="1"></circle>
+                                  <path d="M1 1h4l2.4 12.3a2 2 0 0 0 2 1.7h7.9a2 2 0 0 0 2-1.6l1.2-6.4H6.5"></path>
+                                </svg>
+                                <span class="tw-plus" aria-hidden="true">+</span>
+                              </button>
+                            </form>
+                          {%- endif -%}
+                        </div>
+                      </div>
+
+                      {%- if hl_text and hl_text != blank -%}
+                        <details class="tw-acc" {% if section.settings.dropdown_open %}open{% endif %}>
+                          <summary class="tw-acc__summary">
+                            <span>{{ hl_title | default: section.settings.dropdown_title }}</span>
+                            <span class="tw-acc__icon" aria-hidden="true"></span>
+                          </summary>
+                          <div class="tw-acc__content">
+                            {{ hl_text | metafield_tag }}
+                          </div>
+                        </details>
+                      {%- endif -%}
+                    </li>
+                  {%- endfor -%}
+                </ul>
+              </div>
+            </div>
+
+            {%- render 'pagination', paginate: paginate, facet: true, hash: '#collection' -%}
+          {%- endif -%}
+        {%- endpaginate -%}
+
+        {%- if show_filters or section.settings.show_sort_by -%}
+          {%- render 'collection-facets-floating-button' -%}
+        {%- endif -%}
+      </div>
+    </div>
+  {%- endif -%}
+</div>
+
+{%- if show_filters -%}
+  <facets-drawer class="drawer drawer--narrow drawer--facets color-scheme color-scheme--{{ settings.default_color_scheme.id }}" id="facets-drawer">
+    <h2 class="h7" slot="header">{{ 'collection.faceting.filters' | t }}</h2>
+    {%- render 'facets',
+      source: collection,
+      show_sort_by: section.settings.show_sort_by,
+      open_filters_by_default: section.settings.open_filters_by_default,
+      swatch_selector_size: section.settings.swatch_selector_size,
+      update_on_change: false,
+      form_id: 'facets-drawer-form',
+      scroll_to: '#collection'
+    -%}
+    <div slot="footer">
+      <div class="button-group button-group--same-width w-full">
+        {%- liquid
+          assign reset_button = 'collection.faceting.clear_filters' | t
+          render 'button', content: reset_button, style: 'outline', form: 'facets-drawer-form', type: 'reset'
+          assign apply_button = 'collection.faceting.apply_filters' | t
+          render 'button', content: apply_button, form: 'facets-drawer-form', type: 'submit'
+        -%}
+      </div>
+    </div>
+  </facets-drawer>
+{%- endif -%}
+
+<script>
+  (function(){
+    const root = document.getElementById('shopify-section-{{ section.id }}');
+    if(!root) return;
+
+    function openCartDrawerAndHold(){
+      try {
+        document.dispatchEvent(new CustomEvent('cart:open', {bubbles:true}));
+        const drawer = document.querySelector('cart-drawer');
+        if (drawer) {
+          if (typeof drawer.open === 'function') drawer.open();
+          drawer.setAttribute('open','');
+          drawer.classList.add('is-open','open','active','visible');
+          drawer.setAttribute('data-force-open','true');
+          const closeBtns = drawer.querySelectorAll('[data-action="close"],[aria-label*="close"],button.close,.cart-drawer__close');
+          closeBtns.forEach(btn=>{
+            btn.addEventListener('click', (e)=>{
+              if(drawer.getAttribute('data-force-open') === 'true'){
+                e.preventDefault();
+                drawer.setAttribute('open','');
+                drawer.classList.add('is-open','open','active','visible');
+              }
+            });
+          });
+          return;
+        }
+        const notif = document.querySelector('cart-notification, cart-notification-drawer, mini-cart, cart-sidebar');
+        if (notif) {
+          if (typeof notif.open === 'function') notif.open();
+          notif.classList.add('is-open','open','active','visible');
+          notif.setAttribute('open','');
+          return;
+        }
+        const toggler = document.querySelector('[data-action="open-cart"],[aria-controls*="cart"],a[href="#cart"],.header__cart-toggle,.js-cart-toggle');
+        if (toggler) toggler.dispatchEvent(new Event('click', {bubbles:true}));
+      } catch(e) {}
+    }
+
+    root.addEventListener('submit', async function(ev){
+      const form = ev.target;
+      if(!form.classList.contains('tw-quick-add')) return;
+      ev.preventDefault();
+      const btn = form.querySelector('button');
+      btn.disabled = true; btn.classList.remove('tw-btn--success');
+      try{
+        const res = await fetch('/cart/add.js', { method: 'POST', body: new FormData(form), headers: { 'Accept': 'application/json' } });
+        if(!res.ok) throw 0;
+        btn.classList.add('tw-btn--success');
+        document.dispatchEvent(new CustomEvent('cart:refresh', {bubbles:true}));
+        openCartDrawerAndHold();
+        setTimeout(()=>{ btn.disabled=false; }, 900);
+      } catch(e){ btn.disabled=false; }
+    }, {passive:false});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "t:sections.main_collection.name",
+  "class": "shopify-section--main-collection",
+  "tag": "section",
+  "max_blocks": 50,
+  "settings": [
+    { "type": "paragraph", "content": "Mobiel 1 per rij, 1:1 beelden, per-product label (positie kiezen), quick-add met plus, cart drawer." },
+    { "type": "color_scheme", "id": "color_scheme", "label": "t:global.colors.scheme", "default": "scheme-1" },
+
+    { "type": "range", "id": "products_per_page", "label": "t:global.faceting.products_per_page", "min": 8, "max": 50, "step": 1, "default": 36 },
+    { "type": "range", "id": "products_per_row_mobile", "label": "t:global.product_list.products_per_row_mobile", "min": 1, "max": 3, "default": 1 },
+    { "type": "range", "id": "products_per_row_desktop", "label": "t:global.product_list.products_per_row_desktop", "min": 1, "max": 5, "default": 4 },
+
+    { "type": "header", "content": "Quick-add" },
+    { "type": "text", "id": "quick_add_label", "label": "Verborgen label (screen readers)", "default": "Toevoegen aan winkelmand" },
+    { "type": "color", "id": "quick_add_bg", "label": "Achtergrond", "default": "#4F6B62" },
+    { "type": "color", "id": "quick_add_text", "label": "Icoon/plus kleur", "default": "#ffffff" },
+    { "type": "color", "id": "quick_add_border", "label": "Randkleur", "default": "#0000001A" },
+    { "type": "color", "id": "quick_add_hover_bg", "label": "Hover-achtergrond", "default": "#5A776D" },
+    { "type": "color", "id": "quick_add_success_bg", "label": "Achtergrond na toevoegen", "default": "#e8f8ee" },
+
+    { "type": "header", "content": "Dropdown" },
+    { "type": "text", "id": "dropdown_title", "label": "Standaard titel", "default": "VOORDELEN" },
+    { "type": "checkbox", "id": "dropdown_open", "label": "Dropdown standaard geopend", "default": false },
+
+    { "type": "header", "content": "Filters & sortering" },
+    { "type": "select", "id": "filter_layout", "label": "t:global.faceting.desktop_layout", "options": [
+      { "value": "sidebar", "label": "t:global.faceting.desktop_layout_options.sidebar" },
+      { "value": "drawer", "label": "t:global.faceting.desktop_layout_options.drawer" }
+    ], "default": "drawer" },
+    { "type": "checkbox", "id": "show_sort_by", "label": "t:global.faceting.show_sort_by", "default": true },
+    { "type": "checkbox", "id": "show_filters", "label": "t:global.faceting.show_filters", "default": true },
+    { "type": "checkbox", "id": "show_filter_group_name", "label": "t:global.faceting.show_group_name", "default": false },
+    { "type": "checkbox", "id": "show_filter_values_count", "label": "t:global.faceting.show_filter_values_count", "default": true },
+    { "type": "checkbox", "id": "open_filters_by_default", "label": "t:global.faceting.open_filters_by_default", "default": false },
+    { "type": "select", "id": "swatch_selector_size", "label": "t:global.faceting.swatch_selector_size", "options": [
+      { "value": "sm", "label": "t:global.faceting.swatch_selector_size_options.small" },
+      { "value": "lg", "label": "t:global.faceting.swatch_selector_size_options.large" }
+    ], "default": "lg" }
+  ],
+  "blocks": [
+    {
+      "type": "label",
+      "name": "Label",
+      "settings": [
+        { "type": "select", "id": "position", "label": "Voor product (positie)", "options": [
+          { "value": "1", "label": "1" }, { "value": "2", "label": "2" }, { "value": "3", "label": "3" }, { "value": "4", "label": "4" },
+          { "value": "5", "label": "5" }, { "value": "6", "label": "6" }, { "value": "7", "label": "7" }, { "value": "8", "label": "8" },
+          { "value": "9", "label": "9" }, { "value": "10", "label": "10" }, { "value": "11", "label": "11" }, { "value": "12", "label": "12" },
+          { "value": "13", "label": "13" }, { "value": "14", "label": "14" }, { "value": "15", "label": "15" }, { "value": "16", "label": "16" }
+        ], "default": "1" },
+        { "type": "text", "id": "text", "label": "Tekst", "default": "SALE" },
+        { "type": "color", "id": "color", "label": "Tekstkleur", "default": "#1A1A1A" },
+        { "type": "color", "id": "bg", "label": "Achtergrondkleur", "default": "#E6F0D0" },
+        { "type": "range", "id": "size", "label": "Tekstgrootte (px)", "min": 10, "max": 28, "step": 1, "default": 12 },
+        { "type": "range", "id": "radius", "label": "Border radius (px)", "min": 0, "max": 28, "step": 1, "default": 12 }
+      ]
+    }
+  ]
+}
+{% endschema %}

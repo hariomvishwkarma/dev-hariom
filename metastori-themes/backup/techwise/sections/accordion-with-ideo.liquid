@@ -1,0 +1,479 @@
+<style>
+.video-accordion-section {
+  padding: 60px 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.video-accordion-container {
+  display: flex;
+  gap: 40px;
+  justify-content: space-between;
+  align-items: start;
+}
+
+.accordion-wrapper {
+    width: 40%;
+}
+
+.accordion-wrapper h2 {
+  font-size: 2rem;
+  margin-bottom: 30px;
+  font-weight: 700;
+}
+
+.accordion-item {
+  cursor: pointer;
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.accordion-header {
+  padding: 20px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: .8s;
+}
+
+.accordion-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.accordion-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 7px;
+  color: #333;
+}
+
+.accordion-description {
+  font-size: 0.95rem;
+  color: #666;
+  margin: 0;
+}
+
+.progress-bar {
+  height: 8px;
+  background-color: #f0f0f0;
+  position: absolute;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s;
+  top: 0px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.accordion-item.active .progress-bar {
+  opacity: 1;
+  
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #DBE1A9;
+  width: 0%;
+  transition: width linear;
+  position: absolute;
+  top: 0;
+}
+
+.accordion-item.active .accordion-item-container {
+    border: 2px solid #eaeaea;
+    border-radius: 8px;
+}
+
+.manual-active .progress-bar {
+  background-color: #DBE1A9;
+}
+
+.video-container {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+  aspect-ratio: 1/1;
+  width: 40%;!
+}
+
+.video-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-label {
+  position: absolute;
+  bottom: 30px;
+  right: 30px;
+  color: #ff6b35;
+  font-size: 3rem;
+  font-weight: 700;
+  text-transform: lowercase;
+  z-index: 10;
+}
+.accordion-description {
+  overflow: hidden;
+  max-height: 0;
+}
+
+.accordion-item.active .accordion-description {
+  max-height: 500px;
+  transition: max-height 0.8s ease;
+}
+
+.active .accordion-header {
+    padding-top: 35px;
+}
+
+.video-accordion-header {
+    text-align: center;
+    max-width: 50%;
+    margin: auto;
+    margin-bottom: 4rem;
+}
+
+.video-accordion-header h2 {
+    font-size: 50px;
+    line-height: 1;
+    margin-bottom: 18px;
+}
+
+@media (max-width: 989px) {
+  .video-accordion-header h2 {
+    font-size: 25px;
+    margin-bottom: 10px;
+  }
+  .video-accordion-header {
+    max-width: 100%;
+    margin-bottom: 2rem;
+  }
+  .video-accordion-container {
+    flex-direction: column;
+  }
+  .video-container {
+    order: -1;
+  }
+  .accordion-wrapper, .video-container { 
+    width: 100%
+  }
+  .accordion-header {
+    padding-top: 25px;
+  }
+  .accordion-title {
+    font-size: 20px;
+  }
+  .accordion-description {
+    font-size: 16px;
+  }
+  .accordion-header {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .active .accordion-header {
+    padding-left: 16px;
+    padding-right: 16px;
+    transition: none;
+  }
+}
+</style>
+
+<div class="video-accordion-section">
+  <div class="video-accordion-header">
+    <h2>{{ section.settings.heading }}</h2>
+    {{ section.settings.description }}
+  </div>
+  <div class="video-accordion-container">
+    <div class="accordion-wrapper">     
+      <div class="accordion-list">
+        {% for block in section.blocks %}
+          <div class="accordion-item {% if forloop.first %}active{% endif %}" 
+               data-index="{{ forloop.index0 }}" 
+               data-duration="{{ block.settings.progress_duration }}"
+               {{ block.shopify_attributes }}>
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            <div class="accordion-item-container">
+                <div class="accordion-header">
+                <div class="accordion-content-wrapper">
+                    <div class="accordion-title">{{ block.settings.title }}</div>
+                    <p class="accordion-description">{{ block.settings.description }}</p>
+                </div>
+                </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="video-container" data-videos-loaded="false">
+      {% for block in section.blocks %}
+        {% if block.settings.video != blank %}
+          <template data-video-index="{{ forloop.index0 }}">
+            {{ block.settings.video | video_tag:
+              autoplay: false,
+              loop: true,
+              muted: true,
+              playsinline: true,
+              controls: false,
+              preload: 'none',
+              class: 'video-item',
+              style: 'display:none'
+            }}
+          </template>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+
+  </div>
+</div>
+
+<script>
+(function () {
+  const section = document.querySelector('.video-accordion-section');
+  if (!section) return;
+
+  const accordionItems = section.querySelectorAll('.accordion-item');
+  const videoContainer = section.querySelector('.video-container');
+  const videoTemplates = videoContainer.querySelectorAll('template');
+
+  let currentIndex = 0;
+  let progressTimeout = null;
+  let isManualClick = false;
+  let videosLoaded = false;
+
+  function getVideos() {
+    return videoContainer.querySelectorAll('video');
+  }
+
+  /* ----------------------------
+     LAZY LOAD VIDEOS ON VIEWPORT
+  ----------------------------- */
+  function loadVideos() {
+    if (videosLoaded) return;
+
+    videoTemplates.forEach(template => {
+      const clone = template.content.cloneNode(true);
+      videoContainer.appendChild(clone);
+    });
+
+    videosLoaded = true;
+  }
+
+  const observer = new IntersectionObserver(
+    entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          loadVideos();
+          observer.disconnect();
+        }
+      });
+    },
+    { threshold: 0.3 }
+  );
+
+  observer.observe(section);
+
+  /* ----------------------------
+     ACCORDION LOGIC
+  ----------------------------- */
+  function switchAccordion(index, manual = false) {
+    if (index < 0 || index >= accordionItems.length) return;
+    if (!videosLoaded) return; // safety guard
+
+    isManualClick = manual;
+    stopProgress();
+
+    const videos = getVideos();
+
+    // Reset accordion states
+    accordionItems.forEach(item => {
+      item.classList.remove('active', 'manual-active');
+    });
+
+    // Hide & pause all videos
+    videos.forEach(video => {
+      video.pause();
+      video.style.display = 'none';
+    });
+
+    // Activate current accordion
+    accordionItems[index].classList.add('active');
+
+    if (manual) {
+      accordionItems[index].classList.add('manual-active');
+    }
+
+    // Show & play current video
+    if (videos[index]) {
+      videos[index].style.display = 'block';
+      videos[index].play().catch(() => {});
+    }
+
+    currentIndex = index;
+
+    // Auto progress only if not manual
+    if (!manual) {
+      startProgress(index);
+    }
+  }
+
+  function startProgress(index) {
+    const item = accordionItems[index];
+    const progressFill = item.querySelector('.progress-fill');
+    const duration = parseInt(item.dataset.duration, 10) * 1000;
+
+    if (!progressFill || !duration) return;
+
+    progressFill.style.transition = 'none';
+    progressFill.style.width = '0%';
+
+    // force reflow
+    progressFill.offsetHeight;
+
+    progressFill.style.transition = `width ${duration}ms linear`;
+    progressFill.style.width = '100%';
+
+    progressTimeout = setTimeout(() => {
+      const nextIndex = (index + 1) % accordionItems.length;
+      switchAccordion(nextIndex, false);
+    }, duration);
+  }
+
+  function stopProgress() {
+    if (progressTimeout) {
+      clearTimeout(progressTimeout);
+      progressTimeout = null;
+    }
+
+    accordionItems.forEach(item => {
+      const progressFill = item.querySelector('.progress-fill');
+      if (!progressFill) return;
+      progressFill.style.transition = 'none';
+      progressFill.style.width = '0%';
+    });
+  }
+
+  /* ----------------------------
+     CLICK HANDLERS
+  ----------------------------- */
+  accordionItems.forEach((item, index) => {
+    item.addEventListener('click', () => {
+      if (!videosLoaded) loadVideos();
+      if (currentIndex !== index) {
+        switchAccordion(index, true);
+      }
+    });
+  });
+
+  /* ----------------------------
+     INITIAL STATE (AFTER LOAD)
+  ----------------------------- */
+  const waitForVideos = setInterval(() => {
+    if (videosLoaded) {
+      clearInterval(waitForVideos);
+      if (accordionItems.length > 0) {
+        switchAccordion(0, false);
+      }
+    }
+  }, 100);
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Video Accordion",
+  "settings": [
+    {
+      "type": "inline_richtext",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Maak kennis met de nieuwe TS Compact"
+    },
+    {
+      "type": "richtext",
+      "id": "description",
+      "label": "Description"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "accordion_item",
+      "name": "Accordion Item",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title",
+          "default": "Kills 99.9% of bacteria & viruses*"
+        },
+        {
+          "type": "inline_richtext",
+          "id": "description",
+          "label": "Description",
+          "default": "Clean any surfaces without added chemicals."
+        },
+        {
+          "type": "video",
+          "id": "video",
+          "label": "Video"
+        },
+        {
+          "type": "range",
+          "id": "progress_duration",
+          "label": "Progress Duration (seconds)",
+          "min": 3,
+          "max": 10,
+          "step": 1,
+          "unit": "s",
+          "default": 5
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Video Accordion",
+      "blocks": [
+        {
+          "type": "accordion_item",
+          "settings": {
+            "title": "Kills 99.9% of bacteria & viruses*",
+            "description": "Clean any surfaces without added chemicals.",
+            "progress_duration": 5
+          }
+        },
+        {
+          "type": "accordion_item",
+          "settings": {
+            "title": "A solution for allergy relief",
+            "description": "Reduce allergens effectively.",
+            "progress_duration": 5
+          }
+        },
+        {
+          "type": "accordion_item",
+          "settings": {
+            "title": "Don't wait to refill",
+            "description": "Easy refilling system.",
+            "progress_duration": 5
+          }
+        },
+        {
+          "type": "accordion_item",
+          "settings": {
+            "title": "Tools for every surface",
+            "description": "Versatile cleaning tools included.",
+            "progress_duration": 5
+          }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

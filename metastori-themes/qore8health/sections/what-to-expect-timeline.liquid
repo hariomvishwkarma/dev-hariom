@@ -1,0 +1,523 @@
+{%- comment -%}
+  Section: What To Expect Timeline
+  --------------------------------
+  Left  : one responsive image (desktop + mobile) from the metaobject.
+  Right : up to 6 scroll-activated text blocks (badge / heading / description).
+          Only the CURRENT (focused) block is highlighted; markers fill cumulatively.
+
+  The metaobject entry is chosen per product via a PRODUCT metafield —
+  there is NO metaobject picker in the section settings.
+
+  --- Metaobject definition (type handle: "what_to_expect_timeline") ---
+    desktop_image        File (images)
+    mobile_image         File (images)
+    block_1_badge        Single line text
+    block_1_heading      Single line text
+    block_1_description  Rich text
+    block_2_badge / block_2_heading / block_2_description
+    block_3_badge / block_3_heading / block_3_description
+    block_4_badge / block_4_heading / block_4_description
+    block_5_badge / block_5_heading / block_5_description
+    block_6_badge / block_6_heading / block_6_description
+    (2 images + 6 x 3 = 20 fields)
+
+  --- Product metafield (selects which entry to show) ---
+    namespace.key : custom.what_to_expect_timeline
+    type          : Metaobject -> "what_to_expect_timeline"
+    Liquid path   : product.metafields.custom.what_to_expect_timeline.value
+{%- endcomment -%}
+
+{%- liquid
+  assign entry = product.metafields.custom.what_to_expect_timeline.value
+  assign max_blocks = 6
+
+  assign accent_current = section.settings.accent_current
+  assign accent_completed = section.settings.accent_completed
+  assign text_active = section.settings.text_active
+  assign text_muted = section.settings.text_muted
+  assign title_color = section.settings.title_color
+  assign badge_inactive = section.settings.badge_color_inactive
+  assign badge_active = section.settings.badge_color_active
+  assign badge_bg_inactive = section.settings.badge_bg_inactive
+  assign badge_bg_active = section.settings.badge_bg_active
+
+  if section.settings.enable_sticky
+    assign media_pos = 'sticky'
+  else
+    assign media_pos = 'static'
+  endif
+
+  # Resolve the two images once, so the style block can use them too.
+  assign dimg = entry.desktop_image.value
+  assign mimg = entry.mobile_image.value
+  if mimg == blank
+    assign mimg = dimg
+  endif
+
+  # Image aspect ratio (setting).
+  case section.settings.image_ratio
+    when 'landscape'
+      assign media_ratio = '4 / 3'
+    when 'square'
+      assign media_ratio = '1 / 1'
+    when 'auto'
+      if dimg != blank and dimg.aspect_ratio != blank
+        assign media_ratio = dimg.aspect_ratio
+      else
+        assign media_ratio = '4 / 5'
+      endif
+    else
+      assign media_ratio = '4 / 5'
+  endcase
+
+  # Count how many blocks actually have content (used for the empty-state check)
+  assign filled = 0
+  if entry != blank
+    for i in (1..max_blocks)
+      assign bk = 'block_' | append: i | append: '_badge'
+      assign hk = 'block_' | append: i | append: '_heading'
+      assign dk = 'block_' | append: i | append: '_description'
+      if entry[bk].value != blank or entry[hk].value != blank or entry[dk].value != blank
+        assign filled = filled | plus: 1
+      endif
+    endfor
+  endif
+-%}
+{%- if filled > 0 -%}
+  {%- style -%}
+    #wte-{{ section.id }} {
+      --wte-accent-current: {{ accent_current }};
+      --wte-accent-completed: {{ accent_completed }};
+      --wte-text-active: {{ text_active }};
+      --wte-text-muted: {{ text_muted }};
+      --wte-title: {{ title_color }};
+      --wte-badge-inactive: {{ badge_inactive }};
+      --wte-badge-active: {{ badge_active }};
+      --wte-badge-bg-inactive: {{ badge_bg_inactive }};
+      --wte-badge-bg-active: {{ badge_bg_active }};
+      --wte-ratio: {{ media_ratio }};
+      --wte-line: rgba(0, 0, 0, 0.08);
+      --wte-radius: 24px;
+      --wte-marker: 30px;
+
+      padding-top: {{ section.settings.padding_top }}px;
+      padding-bottom: {{ section.settings.padding_bottom }}px;
+    }
+
+    #wte-{{ section.id }} .wte__grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+      gap: clamp(32px, 5vw, 72px);
+      align-items: start;
+    }
+
+    /* ---------- Media (left) ---------- */
+    #wte-{{ section.id }} .wte__media {
+      position: {{ media_pos }};
+      top: {{ section.settings.sticky_offset }}px;
+      border-radius: var(--wte-radius);
+      overflow: hidden;
+      aspect-ratio: var(--wte-ratio);
+      background: #f1f1f1;
+    }
+    #wte-{{ section.id }} .wte__media-img,
+    #wte-{{ section.id }} .wte__media picture { display: block; width: 100%; height: 100%; }
+    #wte-{{ section.id }} .wte__media-img { object-fit: cover; }
+
+    #wte-{{ section.id }} .wte__media-placeholder {
+      position: absolute; inset: 0; display: grid; place-items: center; color: #b9b9b9;
+    }
+    #wte-{{ section.id }} .wte__media-placeholder svg { width: 64px; height: 64px; }
+
+    /* ---------- Content (right) ---------- */
+    #wte-{{ section.id }} .wte__title {
+      color: var(--wte-title);
+      font-size: clamp(2rem, 4vw, 3.25rem);
+      line-height: 1.05;
+      margin: 0 0 clamp(28px, 4vw, 48px);
+      letter-spacing: -0.01em;
+    }
+
+    #wte-{{ section.id }} .wte__list { position: relative; list-style: none; margin: 0; padding: 0; }
+
+    /* Vertical track behind markers. JS sets exact top/height (first->last marker centre);
+      the calc() values are only a pre-JS / no-JS fallback. */
+    #wte-{{ section.id }} .wte__track {
+      position: absolute;
+      top: calc(var(--wte-marker) / 2);
+      bottom: calc(var(--wte-marker) / 2);
+      left: calc(var(--wte-marker) / 2);
+      width: 3px;
+      transform: translateX(-50%);
+      background: var(--wte-line);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    #wte-{{ section.id }} .wte__track-progress {
+      position: absolute; top: 0; left: 0; width: 100%; height: 0%;
+      background: var(--wte-accent-completed);
+      border-radius: 3px;
+      transition: height 600ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    #wte-{{ section.id }} .wte__item {
+      position: relative;
+      display: grid;
+      grid-template-columns: var(--wte-marker) 1fr;
+      column-gap: 20px;
+      padding-bottom: clamp(36px, 5vw, 64px);
+    }
+    #wte-{{ section.id }} .wte__item:last-child { padding-bottom: 0; }
+
+    /* Marker / checkmark — cumulative: passed = completed colour, current = current colour */
+    #wte-{{ section.id }} .wte__marker {
+      position: relative; z-index: 1;
+      width: var(--wte-marker); height: var(--wte-marker);
+      border-radius: 50%; display: grid; place-items: center;
+      background: #fff; border: 2px solid var(--wte-line); color: #cfd6d5;
+      transition: background 400ms ease, border-color 400ms ease, color 400ms ease, transform 400ms ease;
+    }
+    #wte-{{ section.id }} .wte__marker svg { width: 16px; height: 16px; }
+    #wte-{{ section.id }} .wte__item.is-active .wte__marker {
+      background: var(--wte-accent-completed); border-color: var(--wte-accent-completed); color: #fff;
+    }
+    #wte-{{ section.id }} .wte__item.is-current .wte__marker {
+      background: var(--wte-accent-current); border-color: var(--wte-accent-current); transform: scale(1.08);
+    }
+
+    /* Text highlight — only the CURRENT block is highlighted, the rest stay faded */
+    #wte-{{ section.id }} .wte__body { padding-top: 1px; opacity: 0.5; transition: opacity 400ms ease; }
+    #wte-{{ section.id }} .wte__item.is-active .wte__body { opacity: 0.5; }
+    #wte-{{ section.id }} .wte__item.is-current .wte__body { opacity: 1; }
+    
+    
+    #wte-{{ section.id }} .wte__badge {
+      display: inline-block;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 7px 14px; border-radius: 999px;
+      background: var(--wte-badge-bg-inactive); color: var(--wte-badge-inactive);
+      transition: background 400ms ease, color 400ms ease;
+    }
+    #wte-{{ section.id }} .wte__item.is-active .wte__badge { background: var(--wte-badge-bg-inactive); }
+
+    #wte-{{ section.id }} .wte__item.is-current .wte__badge {
+      background: var(--wte-badge-bg-active); color: var(--wte-badge-active);
+    }
+    
+    #wte-{{ section.id }} .wte__heading {
+      margin: 14px 0 10px;
+      font-size: clamp(1.25rem, 2vw, 1.6rem); line-height: 1.2;
+      color: var(--wte-text-muted); transition: color 400ms ease;
+    }
+    #wte-{{ section.id }} .wte__desc {
+      margin: 0; line-height: 1.6;
+      color: var(--wte-text-muted); transition: color 400ms ease;
+    }
+    #wte-{{ section.id }} .wte__desc > * { margin: 0 0 0.5em; }
+    #wte-{{ section.id }} .wte__desc > *:last-child { margin-bottom: 0; }
+    #wte-{{ section.id }} .wte__item.is-current .wte__heading,
+    #wte-{{ section.id }} .wte__item.is-current .wte__desc { color: var(--wte-text-active); }
+
+    #wte-{{ section.id }} .wte__empty { color: var(--wte-text-muted); font-size: 0.95rem; line-height: 1.6; }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 990px) {
+      #wte-{{ section.id }} .wte__grid { grid-template-columns: 1fr; gap: 28px; }
+      #wte-{{ section.id }} .wte__media { position: {{ media_pos }}; top: 12px; max-height: 80vh; }
+    }
+    @media (max-width: 600px) {
+      #wte-{{ section.id }} .wte__inner { padding: 0 16px; }
+      #wte-{{ section.id }} .wte__item { column-gap: 14px; }
+      #wte-{{ section.id }} .wte__heading { margin-top: 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #wte-{{ section.id }} .wte__track-progress,
+      #wte-{{ section.id }} .wte__marker,
+      #wte-{{ section.id }} .wte__badge,
+      #wte-{{ section.id }} .wte__heading,
+      #wte-{{ section.id }} .wte__desc,
+      #wte-{{ section.id }} .wte__body { transition: none; }
+    }
+  {%- endstyle -%}
+
+  <section id="wte-{{ section.id }}" class="wte" data-animate="{{ section.settings.enable_animation }}">
+    <div class="wte__inner wt-section__wrapper">
+      <div class="wte__grid">
+
+        {%- comment -%} -------- LEFT: single responsive image -------- {%- endcomment -%}
+        <div class="wte__media">
+          {%- if dimg != blank -%}
+            <picture>
+              {%- if mimg != blank -%}
+                <source
+                  media="(max-width: 749px)"
+                  srcset="{{ mimg | image_url: width: 600 }} 600w, {{ mimg | image_url: width: 900 }} 900w, {{ mimg | image_url: width: 1200 }} 1200w"
+                  sizes="100vw">
+              {%- endif -%}
+              {{
+                dimg
+                | image_url: width: 1400
+                | image_tag:
+                  loading: 'lazy',
+                  widths: '480, 720, 990, 1200, 1400',
+                  sizes: '(max-width: 990px) 100vw, 45vw',
+                  class: 'wte__media-img',
+                  alt: product.title | default: ''
+              }}
+            </picture>
+          {%- else -%}
+            <div class="wte__media-placeholder">
+              {{ 'image' | placeholder_svg_tag: 'wte__placeholder-svg' }}
+            </div>
+          {%- endif -%}
+        </div>
+
+        {%- comment -%} -------- RIGHT: title + scroll-activated blocks -------- {%- endcomment -%}
+        <div class="wte__content">
+          {%- if section.settings.section_title != blank -%}
+            <h2 class="wte__title">{{ section.settings.section_title }}</h2>
+          {%- endif -%}
+
+          {%- if entry != blank and filled > 0 -%}
+            <ol class="wte__list" data-wte-list>
+              <span class="wte__track" aria-hidden="true">
+                <span class="wte__track-progress" data-wte-progress></span>
+              </span>
+
+              {%- assign slot = 0 -%}
+              {%- for i in (1..max_blocks) -%}
+                {%- assign bk = 'block_' | append: i | append: '_badge' -%}
+                {%- assign hk = 'block_' | append: i | append: '_heading' -%}
+                {%- assign dk = 'block_' | append: i | append: '_description' -%}
+                {%- assign badge = entry[bk].value -%}
+                {%- assign heading = entry[hk].value -%}
+                {%- assign description = entry[dk] -%}
+                {%- assign description_value = entry[dk].value -%}
+
+                {%- if badge != blank or heading != blank or description_value != blank -%}
+                  {%- assign item_class = 'wte__item' -%}
+                  {%- if slot == 0 -%}{%- assign item_class = 'wte__item is-active is-current' -%}{%- endif -%}
+                  <li class="{{ item_class }}" data-wte-item data-index="{{ slot }}">
+                    <span class="wte__marker" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </span>
+                    <div class="wte__body">
+                      {%- if badge != blank -%}<span class="wte__badge">{{ badge }}</span>{%- endif -%}
+                      {%- if heading != blank -%}<h3 class="wte__heading">{{ heading }}</h3>{%- endif -%}
+                      {%- if description_value != blank -%}<div class="wte__desc">{{ description | metafield_tag }}</div>{%- endif -%}
+                    </div>
+                  </li>
+                  {%- assign slot = slot | plus: 1 -%}
+                {%- endif -%}
+              {%- endfor -%}
+            </ol>
+          {%- else -%}
+            <p class="wte__empty">
+              No timeline content yet. Create a <strong>What To Expect Timeline</strong>
+              metaobject entry, then link it to this product via the
+              <strong>custom.what_to_expect_timeline</strong> metafield.
+            </p>
+          {%- endif -%}
+        </div>
+
+      </div>
+    </div>
+
+    <noscript>
+      <style>
+        #wte-{{ section.id }} .wte__body { opacity: 1; }
+        #wte-{{ section.id }} .wte__heading,
+        #wte-{{ section.id }} .wte__desc { color: var(--wte-text-active); }
+        #wte-{{ section.id }} .wte__badge {
+          background: var(--wte-badge-bg-active); color: var(--wte-badge-active);
+        }
+        #wte-{{ section.id }} .wte__marker {
+          background: var(--wte-accent-completed); border-color: var(--wte-accent-completed); color: #fff;
+        }
+        #wte-{{ section.id }} .wte__track-progress { height: 100%; }
+      </style>
+    </noscript>
+  </section>
+
+  <script>
+    (function () {
+      var root = document.getElementById('wte-{{ section.id }}');
+      if (!root) return;
+
+      var animate = root.getAttribute('data-animate') === 'true';
+      var list = root.querySelector('[data-wte-list]');
+      var track = root.querySelector('.wte__track');
+      var progress = root.querySelector('[data-wte-progress]');
+      var items = Array.prototype.slice.call(root.querySelectorAll('[data-wte-item]'));
+      if (!items.length) return;
+
+      var current = -1;
+      var centers = [];
+
+      // Measure each marker's centre relative to the list, then make the track
+      // run from the first marker centre to the LAST marker centre — so the
+      // progress fill never extends past the final checkmark.
+      function measure() {
+        if (!list || !track) return;
+        var listTop = list.getBoundingClientRect().top;
+        centers = items.map(function (item) {
+          var m = item.querySelector('.wte__marker');
+          var r = m.getBoundingClientRect();
+          return (r.top - listTop) + (r.height / 2);
+        });
+        var first = centers[0];
+        var last = centers[centers.length - 1];
+        track.style.top = first + 'px';
+        track.style.bottom = 'auto';
+        track.style.height = Math.max(0, last - first) + 'px';
+        paintProgress();
+      }
+
+      function paintProgress() {
+        if (!progress || !centers.length) return;
+        var first = centers[0];
+        var last = centers[centers.length - 1];
+        var span = last - first;
+        var idx = current < 0 ? 0 : current;
+        var pos = centers[idx] - first;
+        var pct = span > 0 ? (pos / span) * 100 : 100;
+        progress.style.height = Math.max(0, Math.min(100, pct)) + '%';
+      }
+
+      function apply(index) {
+        if (index === current) return;
+        current = index;
+        items.forEach(function (item, i) {
+          item.classList.toggle('is-active', i <= index);
+          item.classList.toggle('is-current', i === index);
+        });
+        paintProgress();
+      }
+
+      apply(0);
+      measure();
+
+      // Re-measure whenever layout can shift (fonts, images, resize, content reflow).
+      window.addEventListener('load', measure);
+      window.addEventListener('resize', measure);
+      if (window.ResizeObserver && list) {
+        new ResizeObserver(function () { measure(); }).observe(list);
+      }
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(measure);
+      }
+
+      // No animation, or no IntersectionObserver -> reveal everything.
+      if (!animate || !('IntersectionObserver' in window)) {
+        items.forEach(function (item) { item.classList.add('is-active', 'is-current'); });
+        current = items.length - 1;
+        paintProgress();
+        return;
+      }
+
+      var visible = new Set();
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          var i = parseInt(e.target.getAttribute('data-index'), 10);
+          if (e.isIntersecting) { visible.add(i); } else { visible.delete(i); }
+        });
+        if (visible.size) { apply(Math.max.apply(null, Array.from(visible))); }
+      }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+
+      items.forEach(function (item) { observer.observe(item); });
+    })();
+  </script>
+{% endif %}
+{% schema %}
+{
+  "name": "What To Expect Timeline",
+  "tag": "section",
+  "class": "section-wte-timeline",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "section_title",
+      "label": "Section title",
+      "default": "What to expect"
+    },
+    {
+      "type": "paragraph",
+      "content": "Timeline content comes from this product's 'custom.what_to_expect_timeline' metafield (a What To Expect Timeline metaobject entry). Up to 6 blocks are shown."
+    },
+    {
+      "type": "header",
+      "content": "Image"
+    },
+    {
+      "type": "select",
+      "id": "image_ratio",
+      "label": "Image ratio",
+      "options": [
+        { "value": "auto", "label": "Auto (use image)" },
+        { "value": "portrait", "label": "Portrait (4:5)" },
+        { "value": "landscape", "label": "Landscape (4:3)" },
+        { "value": "square", "label": "Square (1:1)" }
+      ],
+      "default": "portrait"
+    },
+    {
+      "type": "header",
+      "content": "Behaviour"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_animation",
+      "label": "Enable scroll animation",
+      "default": true,
+      "info": "When off, all blocks show as active."
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sticky",
+      "label": "Sticky image (desktop)",
+      "default": true,
+      "info": "Keeps the image pinned while the timeline scrolls. Turn off to let it scroll with the page."
+    },
+    {
+      "type": "range",
+      "id": "sticky_offset",
+      "label": "Sticky image offset",
+      "min": 0,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "default": 40,
+      "info": "Only applies when Sticky image is on."
+    },
+    {
+      "type": "header",
+      "content": "Colours"
+    },
+    { "type": "color", "id": "title_color", "label": "Title", "default": "#0f5e62" },
+    { "type": "color", "id": "accent_current", "label": "Current step accent", "default": "#0f5e62" },
+    { "type": "color", "id": "accent_completed", "label": "Completed step accent", "default": "#f59331" },
+    { "type": "color", "id": "badge_color_inactive", "label": "Badge label (inactive)", "default": "#b6c1c0" },
+    { "type": "color", "id": "badge_color_active", "label": "Badge label (active)", "default": "#1f2a2a" },
+    { "type": "color", "id": "badge_bg_inactive", "label": "Badge background (inactive)", "default": "#eef0f0" },
+    { "type": "color", "id": "badge_bg_active", "label": "Badge background (active)", "default": "#fdecd9" },
+    { "type": "color", "id": "text_active", "label": "Active text", "default": "#1f2a2a" },
+    { "type": "color", "id": "text_muted", "label": "Faded text", "default": "#b6c1c0" },
+    {
+      "type": "header",
+      "content": "Spacing"
+    },
+    { "type": "range", "id": "padding_top", "label": "Top padding", "min": 0, "max": 160, "step": 4, "unit": "px", "default": 72 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding", "min": 0, "max": 160, "step": 4, "unit": "px", "default": 72 }
+  ],
+  "presets": [
+    { "name": "What To Expect Timeline" }
+  ]
+}
+{% endschema %}

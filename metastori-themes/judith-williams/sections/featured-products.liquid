@@ -1,0 +1,272 @@
+{%- if section.settings.divider -%}<div class="section--divider">{%- endif -%}
+
+{% style %}
+  {% if section.settings.heading_position == 'right' %}
+    #CollectionSection-{{ section.id }} .section-header__link {
+      padding-left: 20px;
+    }
+
+    @media only screen and (max-width: 768px) {
+      #CollectionSection-{{ section.id }} .section-header__link {
+        padding-left: 10px;
+      }
+    }
+  {% elsif section.settings.heading_position == 'center' %}
+    #CollectionSection-{{ section.id }} .section-header {
+      position: relative;
+    }
+
+    #CollectionSection-{{ section.id }} .section-header__link {
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+
+    @media only screen and (max-width: 768px) {
+      #CollectionSection-{{ section.id }} .section-header__link {
+        position: relative;
+      }
+    }
+  {% endif %}
+
+  {%- if section.settings.view_all -%}
+    @media only screen and (max-width: 768px) {
+      #shopify-section-{{ section.id }} .section-header__title {
+        text-align: left !important;
+      }
+    }
+  {% endif %}
+{% endstyle %}
+
+<div
+  id="CollectionSection-{{ section.id }}"
+  data-section-id="{{ section.id }}"
+  data-section-type="collection-template">
+  {%- if section.settings.title != blank -%}
+    <div class="page-width text-{{ section.settings.heading_position }}">
+      <div class="section-header{% if section.settings.view_all %} section-header--with-link{% endif %}">
+        <{{ section.settings.heading_tag }} class="section-header__title {{ section.settings.heading_size }}">
+          {{ section.settings.title }}
+        </{{ section.settings.heading_tag }}>
+      </div>
+    </div>
+  {%- endif -%}
+
+  {%- liquid
+    capture gridView
+      render 'products_per_row', products_per_row: section.settings.products_per_row
+    endcapture
+   -%}
+
+  {%- liquid
+    if section.settings.mobile_scrollable
+      assign fallback = '45vw'
+    else
+      assign fallback = 'variable'
+    endif
+  -%}
+
+  <div class="page-width{% if section.settings.mobile_scrollable %} page-width--flush-small{% endif %}">
+    <div
+      class="new-grid product-grid{% if section.settings.mobile_scrollable %} scrollable-grid--small{% endif %}"
+      data-view="{{ gridView }}">
+      {%- if section.blocks.size == 0 -%}
+
+        {%- liquid
+          for i in (1..3)
+            unless section.settings.mobile_scrollable
+              assign item_classes = ''
+              if forloop.index > section.settings.count
+                assign item_classes = 'hide'
+                assign mod = forloop.index | modulo: 2
+                if mod == 0
+                  assign item_classes = 'medium-up--hide'
+                endif
+              endif
+            endunless
+            render 'onboarding-product-grid-item', i: i, classes: item_classes
+          endfor
+        -%}
+
+      {%- else -%}
+
+        {%- liquid
+          for block in section.blocks
+            assign item_classes = ''
+            unless section.settings.mobile_scrollable
+              if forloop.index > section.settings.count
+                assign item_classes = 'hide'
+                assign mod = forloop.index | modulo: 2
+                if mod == 0
+                  assign item_classes = 'medium-up--hide'
+                endif
+              endif
+            endunless
+
+            if block.settings.product
+              render 'product-grid-item', product: block.settings.product, classes: item_classes, sizeVariable: section.settings.products_per_row, fallback: fallback, button_text: block.settings.btn_text, show_atc: true
+
+              if settings.quick_shop_enable
+                render 'quick-shop-modal', product: block.settings.product
+              endif
+            endif
+          endfor
+        -%}
+
+      {%- endif -%}
+    </div>
+    {%- if section.settings.btn_text != blank and section.settings.btn_link != blank -%}
+      <div class="flex--center">
+        <a class="btn" href="{{ section.settings.btn_link }}">{{ section.settings.btn_text }}</a>
+      </div>
+    {%- endif -%}
+  </div>
+</div>
+
+{%- if section.settings.divider -%}</div>{%- endif -%}
+
+{% schema %}
+{
+  "name": "t:sections.featured-products.name",
+  "class": "index-section",
+  "settings": [
+    {
+      "type": "select",
+      "id": "heading_tag",
+      "label": "t:common.heading_tag.label",
+      "default": "none",
+      "options": [
+        {
+          "value": "h1",
+          "label": "t:common.heading_tag.options.h1.label"
+        },
+        {
+          "value": "h2",
+          "label": "t:common.heading_tag.options.h2.label"
+        },
+        {
+          "value": "h3",
+          "label": "t:common.heading_tag.options.h3.label"
+        }
+      ],
+      "default": "h2"
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "label": "t:sections.featured-products.settings.title.label",
+      "default": "Featured products"
+    },
+    {
+      "type": "select",
+      "id": "heading_size",
+      "label": "t:common.heading_size.label",
+      "default": "h2",
+      "options": [
+        {
+          "value": "h3",
+          "label": "t:common.heading_size.options.small.label"
+        },
+        {
+          "value": "h2",
+          "label": "t:common.heading_size.options.medium.label"
+        },
+        {
+          "value": "h1",
+          "label": "t:common.heading_size.options.large.label"
+        },
+        {
+          "value": "h0",
+          "label": "t:common.heading_size.options.extra_large.label"
+        }
+      ]
+    },
+    {
+      "type": "select",
+      "id": "heading_position",
+      "label": "t:common.heading_position.label",
+      "default": "left",
+      "options": [
+        {
+          "value": "left",
+          "label": "t:common.heading_position.options.left.label"
+        },
+        {
+          "value": "center",
+          "label": "t:common.heading_position.options.center.label"
+        },
+        {
+          "value": "right",
+          "label": "t:common.heading_position.options.right.label"
+        }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "products_per_row",
+      "label": "t:sections.featured-products.settings.products_per_row.label",
+      "default": 3,
+      "min": 2,
+      "max": 5,
+      "step": 1
+    },
+    {
+      "type": "checkbox",
+      "id": "mobile_scrollable",
+      "label": "t:sections.featured-products.settings.mobile_scrollable.label",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "divider",
+      "label": "t:sections.featured-products.settings.divider.label",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "t:sections.featured-products.settings.btn_header.label"
+    },
+    {
+      "type": "text",
+      "id": "btn_text",
+      "label": "t:sections.featured-products.settings.btn_text.label"
+    },
+    {
+      "type": "url",
+      "id": "btn_link",
+      "label": "t:sections.featured-products.settings.btn_link.label"
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.featured-products.presets.featured_products.name"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "product",
+      "name": "t:sections.featured-products.blocks.product.name",
+      "settings": [
+        {
+          "type": "product",
+          "id": "product",
+          "label": "t:sections.featured-products.blocks.product.settings.product.label"
+        },
+        {
+          "type": "header",
+          "content": "t:sections.featured-products.blocks.product.settings.btn_header.label"
+        },
+        {
+          "type": "text",
+          "id": "btn_text",
+          "label": "t:sections.featured-products.blocks.product.settings.btn_text.label",
+          "default": "Zum Produkt"
+        }
+      ]
+    }
+  ],
+  "disabled_on": {
+    "groups": ["footer", "header", "custom.popups"]
+  }
+}
+{% endschema %}

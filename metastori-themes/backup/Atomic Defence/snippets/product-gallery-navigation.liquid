@@ -1,0 +1,157 @@
+{% if product.media.size > 0 %}
+  {% assign thumb_dimensions = 'x75' %}
+  {% if image_crop %}
+    {% case aspect_ratio %}
+      {% when 'short' -%}
+        {%- assign thumb_dimensions = '100x75' %}
+      {% when 'tall' -%}
+        {%- assign thumb_dimensions = '50x75' %}
+      {% when 'square' -%}
+        {%- assign thumb_dimensions = '75x75' %}
+    {% endcase %}
+  {% endif %}
+
+  <div class="product-gallery--navigation loading" data-gallery-navigation>
+    <div
+      class="gallery-navigation--scroller {% if product.media.size <= 5 %}gallery-navigation--center{% endif %}"
+      data-gallery-scroller
+    >
+      {% for media in product.media %}
+        {%- assign is_sixth = false -%}
+        {%- if forloop.index == 6 and product.media.size > 6 -%}
+          {%- assign is_sixth = true -%}
+        {%- endif -%}
+
+        <button
+          class="
+            product-gallery--media-thumbnail product-gallery--{{ media.media_type }}-thumbnail
+            {% if is_sixth %}has-more-overlay{% endif %}
+            {% if forloop.index > 6 %}is-hidden-from-grid{% endif %}
+          "
+          type="button"
+          tab-index="0"
+          aria-label="{{ media.alt }}"
+          data-gallery-thumbnail
+          data-gallery-index="{{ forloop.index0 }}"
+          data-gallery-selected="{%- if selected_media.id == media.id -%}true{%- else -%}false{%- endif -%}"
+          data-media="{{ media.id }}"
+          data-media-type="{{ media.media_type }}"
+          onmouseover="if(!document.querySelector('.pswp--open') && !this.classList.contains('has-more-overlay')) { this.click(); }"
+          {% if is_sixth %}
+            onclick="if(this.classList.contains('has-more-overlay') && !this.closest('[data-photoswipe]')) { document.querySelector('[data-gallery-expand]').click(); }"
+          {% endif %}
+        >
+          <span class="product-gallery--media-thumbnail-img-wrapper" tabindex="-1">
+            {% render 'rimg',
+              class: 'product-gallery--media-thumbnail-img',
+              img: media.preview_image,
+              size: thumb_dimensions,
+              crop: 'center'
+            %}
+            {% comment %} Video Play Icon Overlay {% endcomment %}
+            {% if media.media_type == 'video' or media.media_type == 'external_video' %}
+              <div class="thumbnail-video-overlay">
+                {% render 'icon-library', id: 'icon-play-thumb-new' %}
+              </div>
+            {% endif %}
+
+            {% if is_sixth %}
+              <div class="thumbnail-more-overlay">
+                <span>+{{ product.media.size | minus: 5 }} <span class="more_text">View all</span></span>
+              </div>
+            {% endif %}
+          </span>
+        </button>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+<style>
+  /* Hide thumbnails after the 6th one on the product page */
+  @media (min-width:768px){
+    .product-gallery--media-thumbnail.is-hidden-from-grid {
+      display: none !important;
+    }
+  }
+
+  /* More overlay styling */
+  .product-gallery--media-thumbnail { position: relative; }
+  .thumbnail-more-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(18, 18, 18, 0.6);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 10;
+  }
+    /* 1. Ensure the overlay is visible on the main page */
+  .product-gallery--media-thumbnail.has-more-overlay .thumbnail-more-overlay {
+    display: flex !important; /* Forces visibility */
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* 2. Hide the overlay AND the "hidden" restriction when inside the popup */
+  [data-photoswipe] .product-gallery--media-thumbnail.has-more-overlay .thumbnail-more-overlay {
+    display: none !important;
+  }
+
+  [data-photoswipe] .product-gallery--media-thumbnail.is-hidden-from-grid {
+    display: inline-block !important; /* Shows all images in popup */
+  }
+
+  /* 3. Make sure the 6th image doesn't look darkened in the popup */
+  [data-photoswipe] .product-gallery--media-thumbnail.has-more-overlay {
+    background: none !important;
+  }
+  .thumbnail-more-overlay span {
+    font-size: 18px;
+  }
+  .thumbnail-more-overlay span.more_text {
+    font-size: 10px;
+    font-weight: 700;
+    display: block;
+  }
+  /* Video Overlay Styling */
+  .thumbnail-video-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(18, 18, 18, 0.6); 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  /* Make sure the icon is white and appropriately sized */
+  .thumbnail-video-overlay svg {
+    width: 24px;
+    height: 24px;
+    fill: white;
+    color: white;
+  }
+
+  /* Ensure that if an image is BOTH a video AND the 6th image, 
+    the 'More' overlay takes visual priority */
+  .has-more-overlay .thumbnail-video-overlay {
+    display: none !important;
+  }
+
+  /* Hide play icon in the popup if you only want clean thumbnails there */
+
+  [data-photoswipe] .product-gallery--media-thumbnail {
+    display: inline-flex !important;
+  }
+  @media screen and (min-width: 720px){
+    .pswp .product-zoom--thumbnails {
+      right: 80px;
+    }
+  }
+  
+</style>

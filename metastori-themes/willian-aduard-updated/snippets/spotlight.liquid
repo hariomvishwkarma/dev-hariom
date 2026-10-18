@@ -1,0 +1,115 @@
+    <style>
+        spotlight-block.spotlight-block-{{ block.id }} {
+            position: relative;
+            grid-row-start: var(--start-row);
+            grid-row-end: calc(var(--start-row) + var(--rows));
+            grid-column-start: var(--start-col);
+            grid-column-end: calc(var(--start-col) + var(--cols));
+            padding-bottom: calc(var(--rows) / var(--cols) * var(--thumb-ratio));
+            list-style-type: none;
+            overflow: hidden;
+            opacity: 1;
+            transform: translateY(0px);
+            transition: 
+            opacity 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+            transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        @media screen and (max-width: 749px) {
+            spotlight-block.spotlight-block-{{ block.id }} {
+                grid-row-start: var(--m-start-row);
+                grid-row-end: calc(var(--m-start-row) + var(--m-rows));
+                grid-column-start: var(--m-start-col);
+                grid-column-end: calc(var(--m-start-col) + var(--m-cols));
+
+                padding-bottom: calc(var(--m-rows) / var(--m-cols) * var(--m-thumb-ratio));
+            }
+        }
+    </style>
+    <spotlight-block 
+        class="product-block spotlight-block spotlight-block-{{ block.id }}"
+        style="
+            --cols: {{ block_settings.cols }};
+            --rows: {{ block_settings.rows }};
+            --start-row: {{ block_settings.start_row }};
+            --start-col: {{ block_settings.start_col }};
+            
+            --m-cols: {{ block_settings.m_cols }};
+            --m-rows: {{ block_settings.m_rows }};
+            --m-start-row: {{ block_settings.m_start_row }};
+            --m-start-col: 1;
+
+            --thumb-ratio: {{ block_settings.thumb_ratio }}%;
+            --m-thumb-ratio: {{ block_settings.mobile_thumb_ratio | default: 170 }}%;
+            --overlay-color: {{ block_settings.overlay_color }};
+            --overlay-opacity: {{ block_settings.overlay_opacity | divided_by: 100.0 }};
+            --text-color: {{ block_settings.text_color }};
+        "
+    >
+        <div class="collection-image-block">
+            <div class="collection-image-block__media media">
+                <div class="spotlight-overlay"></div>
+                {% if block_settings.image != blank or block_settings.mobile_image != blank %}
+                {%- assign widths = '165, 360, 535, 750, 1070, 1500' -%}
+                {%- capture sizes -%}
+                    (min-width: {{ settings.page_width }}px) {{ settings.page_width | minus: 100 | divided_by: 2 }}px,
+                    (min-width: 750px) calc((100vw - 130px) / 2), calc((100vw - 50px) / 2)
+                {%- endcapture -%}
+                <picture>
+                    {% if block_settings.mobile_image != blank %}
+                        <source
+                            media="(max-width: 749px)"
+                            srcset="{{ block_settings.mobile_image | image_url: width: 1500 }}"
+                        >
+                    {% endif %}
+                    {{
+                        block_settings.image
+                        | default: block_settings.mobile_image
+                        | image_url: width: 1500
+                        | image_tag: sizes: sizes, widths: widths, fetchpriority: fetch_priority
+                    }}
+                </picture>
+                {% else %}
+                {{ 'detailed-apparel-1' | placeholder_svg_tag: 'placeholder-svg' }}
+                {% endif %}
+                {% if block_settings.button_link != blank and block_settings.button_label == blank %}
+                    <a href="{{ block_settings.button_link }}"
+                        class="collection-image-block__overlay-link"
+                        aria-label="collection-image-block-link"
+                        {{ block.shopify_attributes }}
+                    >
+                    <span class="hidden">{{ block_settings.button_label | escape }}</span>
+                    </a>
+                {% endif %}
+            </div>
+            {%- if block_settings.subheading != blank or block_settings.heading != blank or block_settings.button_label != blank -%}
+                <div class="collection-image-block__content overflow-scrollbar vertical-position__{{ block_settings.vertical_alignment }} horizontal-position__{{ block_settings.horizontal_alignment }}">
+                <div class="image-block-content__inner sp-small color-{{ block_settings.color_scheme }}">
+                    {%- if block_settings.subheading != blank -%}
+                    <div class="subheading__text rte">
+                        <p>{{ block_settings.subheading }}</p>
+                    </div>
+                    {%- endif -%}
+                    <h3
+                    class="image-with-text__heading inline-richtext">
+                    {{ block_settings.heading }}
+                    </h3>
+                    {%- if block_settings.button_label != blank -%}
+                    <div class="image-block__buttons rte">
+                        <a
+                        {% if block_settings.button_link == blank %}
+                            role="link" aria-disabled="true"
+                        {% else %}
+                            href="{{ block_settings.button_link }}"
+                        {% endif %}
+                        class="button button--primary"
+                        {{ block.shopify_attributes }}
+                        >
+                        {{ block_settings.button_label | escape }}
+                        </a>
+                    </div>
+                    {%- endif -%}
+                </div>
+                </div>
+            {% endif %}
+        </div>
+    </spotlight-block>

@@ -1,0 +1,203 @@
+<style>
+  #shopify-section-{{ section.id }} {
+    {%- if section.settings.background == 'rgba(0,0,0,0)' -%}
+      {%- assign section_background = settings.background -%}
+    {%- else -%}
+      {%- assign section_background = section.settings.background -%}
+    {%- endif -%}
+
+    --section-background: {{ section_background.red }}, {{ section_background.green }}, {{ section_background.blue }};
+
+    background-color: rgb(var(--section-background));
+  }
+
+  @media (min-width: 1000px) {
+    #shopify-section-{{ section.id }} {
+      padding-top: {{ section.settings.space_top }}px;
+      padding-bottom: {{ section.settings.space_bottom }}px;
+    }
+  }
+
+  @media (max-width: 999px) {
+    #shopify-section-{{ section.id }} {
+      padding-top: {{ section.settings.space_top_mobile }}px;
+      padding-bottom: {{ section.settings.space_bottom_mobile }}px;
+    }
+  }
+</style>
+
+<section class="">
+  <div class="container">
+    <div class="staw-country-select text-container">
+      <h2 class="heading h2">{{ page.title }}</h2>
+
+      <div id="step-1">
+        <p class="staw-country-select__desc">Liegt dein Bestelldatum vor dem 29. April 2026?</p>
+
+        <form class="staw-country-select__form" onsubmit="handleStep1(event)">
+          <div class="staw-country-select__select-wrap">
+            <select id="date-select" class="input__field staw-country-select__select">
+              <option value="" disabled selected>Bitte auswählen</option>
+              <option value="shopware">Ja</option>
+              <option value="shopify">Nein</option>
+            </select>
+            <svg class="staw-country-select__chevron" aria-hidden="true" focusable="false" width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+
+          <button type="submit" class="button button--secondary staw-country-select__btn">
+            Weiter
+          </button>
+        </form>
+      </div>
+
+      <div id="step-2" style="display: none;">
+        <p class="staw-country-select__desc">Bitte gib deine Bestellnummer ein und wähle dein Land, um zur passenden Rücksendung zu gelangen.</p>
+
+        <form class="staw-country-select__form" onsubmit="handleStep2(event)">
+          <div class="staw-country-select__select-wrap">
+            <input type="text" id="order-number" class="input__field staw-country-select__select" placeholder="Bestellnummer eingeben...">
+          </div>
+
+          <div class="staw-country-select__select-wrap">
+            <select id="country-select" class="input__field staw-country-select__select">
+              <option value="" disabled selected>Land auswählen...</option>
+              <option value="/pages/parcellab-returns-de-de" data-country="de">Deutschland</option>
+              <option value="/pages/parcellab-returns-nl-de" data-country="nl">Niederlande</option>
+              {% comment %} <option value="/pages/parcellab-returns-be-de" data-country="be">Belgien</option> {% endcomment %}
+              <option value="/pages/parcellab-returns-at-de" data-country="at">Österreich</option>
+              <option value="/pages/parcellab-returns-lu-de" data-country="lu">Luxemburg</option>
+              <option value="/pages/parcellab-returns-ww-de" data-country="ww">Anderes Land</option>
+            </select>
+            <svg class="staw-country-select__chevron" aria-hidden="true" focusable="false" width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+
+          <button type="submit" class="button button--secondary staw-country-select__btn">
+            Weiter
+          </button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<script>
+  var selectedSystem = '';
+
+  function handleStep1(event) {
+    event.preventDefault();
+    const dateSelect = document.getElementById('date-select');
+
+    if (!dateSelect.value) {
+      alert('Bitte triff eine Auswahl.');
+      return;
+    }
+
+    selectedSystem = dateSelect.value;
+
+    const orderInput = document.getElementById('order-number');
+    orderInput.placeholder = selectedSystem === 'shopware' ? 'z.B. 1234567' : 'z.B. KV12345';
+
+    document.getElementById('step-1').style.display = 'none';
+    document.getElementById('step-2').style.display = 'block';
+  }
+
+  function handleStep2(event) {
+    event.preventDefault();
+    const orderNumber = document.getElementById('order-number').value.trim();
+    const select = document.getElementById('country-select');
+
+    if (!orderNumber) {
+      alert('Bitte gib deine Bestellnummer ein.');
+      return;
+    }
+
+    if (!select.value) {
+      alert('Bitte wähle zuerst ein Land aus.');
+      return;
+    }
+
+    let targetUrl = select.value;
+
+    if (selectedSystem === 'shopify') {
+      targetUrl = targetUrl.replace('/parcellab-returns-', '/parcellab-returns-sh');
+    }
+
+    window.location.href = targetUrl + '?orderNumber=' + encodeURIComponent(orderNumber);
+  }
+</script>
+
+{% schema %}
+{
+  "name": "STAW | Länderauswahl",
+  "class": "shopify-section--staw-country-select",
+  "disabled_on": {
+    "groups": ["header", "custom.overlay"]
+  },
+  "settings": [
+    {
+      "type": "header",
+      "content": "Abstände"
+    },
+    {
+      "type": "range",
+      "id": "space_top",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "label": "Abstand oben",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "space_bottom",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "label": "Abstand unten",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "space_top_mobile",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "label": "Abstand oben (Mobil)",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "space_bottom_mobile",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "label": "Abstand unten (Mobil)",
+      "default": 40
+    },
+    {
+      "type": "header",
+      "content": "Farben"
+    },
+    {
+      "type": "color",
+      "id": "background",
+      "label": "Hintergrund",
+      "default": "rgba(0,0,0,0)"
+    }
+  ],
+  "presets": [
+    {
+      "name": "STAW | Länderauswahl"
+    }
+  ]
+}
+{% endschema %}

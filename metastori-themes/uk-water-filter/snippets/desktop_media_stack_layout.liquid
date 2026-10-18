@@ -1,0 +1,109 @@
+<div class="desktop_media_stack_layout">
+{% for image in product.media %}
+    {% if forloop.index == 5 and product.media.size > 4 %}
+      {% comment %} Static image at 4th position {% endcomment %}
+      <div class="stack_media_item" data-gallery-index="static">
+        {% comment %} <img src="{{ settings.default_image | image_url }}" alt="{{ product.title }}-static-image" width="auto" height="auto"/> {% endcomment %}
+        {{
+          settings.default_image
+          | image_url: width: 700
+          | image_tag:
+            widths: '400,600,700,800',
+            sizes: '100vw',
+            loading: 'lazy',
+            alt: product.title,
+            height: nil
+        }}
+      </div>
+    {% endif %}
+
+    {% if forloop.index > 4 %}
+      {% break %}
+    {% endif %}
+
+    <div class="stack_media_item" data-gallery-index="{{ forloop.index0 }}">
+      {{
+        image
+        | image_url: width: 700
+        | image_tag:
+          widths: '400,600,700,800',
+          sizes: '100vw',
+          loading: 'lazy',
+          alt: image.alt,
+          height: nil
+      }}
+
+      {% if forloop.first %}
+        <div class="old_gurantee_fit">
+          <img src="https://cdn.shopify.com/s/files/1/0665/1782/7878/files/product-image-emblem_png_x360.png?v=1707849109" height="auto" width="auto" alt="Guranteed to fit logo">
+        </div>
+      {% endif %}
+      
+    </div>
+    {% if forloop.first %}
+      {% for block in section.blocks %}
+        {% if block.type == 'gallery_icon_text' %}
+          <div class="gallery_icon_text_list">
+            {% for count in (1..3) %}
+              {% assign icon_img = 'icon_' | append:count %}
+              {% assign text_t = 'text_' | append:count %}
+                {% if block.settings[icon_img] != blank or block.settings[text_t] != blank %}
+                  <div class="gallery_icon_text_item">
+                    {% if block.settings[icon_img] != blank %}
+                      <img src="{{ block.settings[icon_img] | image_url }}" width="auto" height="auto" alt="icon"/>
+                    {% endif %}
+                    <span class="gallery_icon_text">{{ block.settings[text_t] }}</span>
+                  </div>
+                {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+  {% if product.media.size < 4 %}
+    {% comment %} Static image at last when images <= 4 {% endcomment %}
+    <div class="stack_media_item" data-gallery-index="static">
+      <img src="{{ settings.default_image | image_url }}" alt="{{ product.title }}-static-image" width="auto" height="auto"/>
+    </div>
+  {% endif %}
+
+  <script>
+    document.querySelectorAll('.stack_media_item').forEach(function(item) {
+      item.addEventListener('click', function() {
+        const mediaIndex = item.getAttribute('data-gallery-index');
+        console.log('mediaIndex:',mediaIndex);
+        const target = document.querySelector(
+          '.product-gallery--navigation .product-gallery--media-thumbnail[data-gallery-index="' + mediaIndex + '"]'
+        );
+        target.click();
+        const main_target = document.querySelector(
+          '[data-gallery-viewer] .product-gallery--media[data-gallery-selected="true"]'
+        );
+        main_target.click();
+        document.body.classList.add('image_modal_opened');
+      });
+    });
+
+    document.addEventListener('click', function (event) {
+      const target = event.target;
+      if (target.matches('.pswp__button--close') || target.closest('.pswp__button--close')) {
+        document.body.classList.remove('image_modal_opened');
+      }
+    });
+
+
+    history.pushState(null, null, location.href);
+    window.addEventListener('popstate', function (event) {
+      const body = document.body;
+      if (body.classList.contains('image_modal_opened')) {
+        history.pushState(null, null, location.href);
+        body.classList.remove('image_modal_opened');
+        document.querySelector('.pswp--open .pswp__button--close').click();
+      }else {
+        history.back();
+      }
+    });
+  </script>
+  
+</div>

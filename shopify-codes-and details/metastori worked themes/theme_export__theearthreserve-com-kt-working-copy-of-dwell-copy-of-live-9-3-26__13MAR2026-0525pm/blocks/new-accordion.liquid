@@ -1,0 +1,364 @@
+<style>
+    .new-accoridion-wrapper {
+        display: flex;
+        gap: 20px;
+        max-width: 1000px;
+    }
+
+    .feature-box {
+        text-align: center;
+        cursor: pointer;
+        width: 100px;
+        transition: 0.3s;
+        position: relative;
+    }
+
+    .feature-box img {
+        margin-bottom: 10px;
+        border-radius: 10px;
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+    }
+
+    .feature-box.active {
+        border-color: #000;
+    }
+
+    .feature-description {
+        width: 100%;
+    }
+
+    .desc {
+        display: none;
+    }
+
+    .desc.active {
+        display: block;
+    }
+    .feature-box h4 {
+        font-size: 13px;
+        text-transform: capitalize;
+        line-height: 1.2;
+    }
+    .tooltip-icon {
+        margin-left: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        color: #555;
+        position: absolute;
+        top: 5px;
+        right: 6px;
+    }
+
+    .tooltip-box {
+        position: fixed;
+        background: #000;
+        color: #fff;
+        padding: 8px 10px;
+        font-size: 12px;
+        border-radius: 6px;
+        max-width: min(240px, 90vw);
+        z-index: 9999;
+        display: none;
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    @media screen and (max-width: 749px) {
+        .feature-box {
+            width: 66px;
+        }
+        .feature-box img {
+            width: 66px;
+            height: 66px;
+        }
+        .feature-box h4 {
+            font-size: 12px;
+        }
+        .tooltip-icon {
+            font-size: 11px;
+        }
+    }
+</style>
+{% assign features = product.metafields.custom.ingriedents.value %}
+{% if features != blank %}
+    <div class="new-accoridion-container">
+        <div class="new-accoridion-wrapper">
+        {% for feature in features %}
+            <div class="feature-box{% if forloop.first %} active{% endif %}" 
+                data-target="desc{{ forloop.index }}">
+            {% if feature.image != blank %}
+                <img src="{{ feature.image | image_url: width: 400 }}" alt="{{ feature.title }}">
+            {% endif %}
+            <h4>
+                {{ feature.title }}
+                {% if feature.description != blank %}
+                    <span class="tooltip-icon" data-tooltip="desc{{ forloop.index }}">ⓘ</span>
+                {% endif %}
+            </h4>
+            </div>
+        {% endfor %}
+        </div>
+
+        <div class="feature-description" style="display:none;">
+            {% for feature in features %}
+                <div id="desc{{ forloop.index }}" class="desc {% if forloop.first %}active{% endif %}">
+                    {{ feature.description | metafield_tag  }}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}
+<script>
+    const boxes = document.querySelectorAll('.feature-box');
+    const descriptions = document.querySelectorAll('.desc');
+
+    boxes.forEach(box => {
+        box.addEventListener('click', () => {
+        const targetId = box.dataset.target;
+
+        // remove active
+        boxes.forEach(b => b.classList.remove('active'));
+        descriptions.forEach(d => d.classList.remove('active'));
+
+        // add active
+        box.classList.add('active');
+        document.getElementById(targetId).classList.add('active');
+        });
+    });
+    document.addEventListener("DOMContentLoaded", function () {
+        const featureWrapper = document.querySelector('.new-accoridion-container');
+        const target = document.getElementById('ingrediants-list');
+
+        if (featureWrapper && target) {
+            target.appendChild(featureWrapper);
+        }
+    });
+    document.querySelectorAll('.tooltip-icon').forEach(icon => {
+        let tooltip;
+
+        function showTooltip() {
+            const targetId = icon.dataset.tooltip;
+            const descEl = document.getElementById(targetId);
+            if (!descEl) return;
+
+            if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.className = 'tooltip-box';
+            tooltip.innerHTML = descEl.innerHTML;
+            document.body.appendChild(tooltip);
+            }
+
+            tooltip.style.display = 'block';
+
+            const iconRect = icon.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const gap = 8;
+
+            let top = iconRect.top + iconRect.height / 2 - tooltipRect.height / 2;
+            let left = iconRect.right + gap;
+
+            // 👉 Right overflow
+            if (left + tooltipRect.width > window.innerWidth) {
+            left = iconRect.left - tooltipRect.width - gap;
+            }
+
+            // 👉 Left overflow
+            if (left < gap) {
+            left = gap;
+            }
+
+            // 👉 Top overflow
+            if (top < gap) {
+            top = gap;
+            }
+
+            // 👉 Bottom overflow
+            if (top + tooltipRect.height > window.innerHeight) {
+            top = window.innerHeight - tooltipRect.height - gap;
+            }
+
+            // 📱 Mobile: force bottom
+            if (window.innerWidth < 750) {
+            top = iconRect.bottom + gap;
+            left = Math.max(
+                gap,
+                Math.min(
+                iconRect.left + iconRect.width / 2 - tooltipRect.width / 2,
+                window.innerWidth - tooltipRect.width - gap
+                )
+            );
+            }
+
+            tooltip.style.top = `${top}px`;
+            tooltip.style.left = `${left}px`;
+        }
+
+        function hideTooltip() {
+            if (tooltip) tooltip.style.display = 'none';
+        }
+
+        icon.addEventListener('mouseenter', showTooltip);
+        icon.addEventListener('mouseleave', hideTooltip);
+
+        // 📱 mobile tap support
+        icon.addEventListener('click', e => {
+            e.stopPropagation();
+            showTooltip();
+        });
+
+        document.addEventListener('click', hideTooltip);
+    });
+</script>
+
+{% schema %}
+{
+  "name": "New accordian",
+  "tag": null,
+  "settings": [
+    {
+        "type": "color_scheme",
+        "id": "color_scheme",
+        "label": "Color scheme",
+        "default": "scheme-1"
+    },
+    {
+        "type": "range",
+        "id": "block_position",
+        "min": 1,
+        "max": 24,
+        "step": 1,
+        "default": 5,
+        "label": "Image placement",
+        "info": "Displaying the image before indicating the number of products."
+    },
+    {
+        "type": "image_picker",
+        "id": "image",
+        "label": "Image"
+    },
+    {
+        "type": "select",
+        "id": "image_ratio",
+        "options": [
+        {
+            "value": "normal",
+            "label": "Normal"
+        },
+        {
+            "value": "original",
+            "label": "Original"
+        },
+        {
+            "value": "portrait",
+            "label": "Portrait"
+        },
+        {
+            "value": "square",
+            "label": "Square"
+        }
+        ],
+        "default": "normal",
+        "label": "Image ratio"
+    },
+    {
+        "type": "select",
+        "id": "image_width",
+        "label": "Image width",
+        "default": "medium",
+        "options": [
+        {
+            "label": "Extra small",
+            "value": "extra_small"
+        },
+        {
+            "label": "Small",
+            "value": "small"
+        },
+        {
+            "label": "Medium",
+            "value": "medium"
+        },
+        {
+            "label": "Large",
+            "value": "large"
+        },
+        {
+            "label": "Full width",
+            "value": "full_width"
+        }
+        ]
+    },
+    {
+        "type": "inline_richtext",
+        "id": "subheading",
+        "label": "Subheading",
+        "default": "Subheading"
+    },
+    {
+        "type": "inline_richtext",
+        "id": "heading",
+        "label": "Heading",
+        "default": "Heading"
+    },
+    {
+        "type": "text",
+        "id": "button_label",
+        "label": "Button label",
+        "default": "Button label"
+    },
+    {
+        "type": "url",
+        "id": "button_link",
+        "label": "Button link"
+    },
+    {
+        "type": "select",
+        "id": "vertical_alignment",
+        "label": "Arrange content position",
+        "default": "bottom",
+        "options": [
+        {
+            "label": "Top",
+            "value": "top"
+        },
+        {
+            "value": "middle",
+            "label": "Middle"
+        },
+        {
+            "label": "Bottom",
+            "value": "bottom"
+        }
+        ]
+    },
+    {
+        "type": "select",
+        "id": "horizontal_alignment",
+        "label": "Arrange content alignment",
+        "default": "left",
+        "options": [
+        {
+            "label": "Left",
+            "value": "left"
+        },
+        {
+            "label": "Center",
+            "value": "center"
+        },
+        {
+            "label": "Right",
+            "value": "right"
+        }
+        ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "New accordian",
+      "category": "t:categories.basic"
+    }
+  ]
+}
+{% endschema %}

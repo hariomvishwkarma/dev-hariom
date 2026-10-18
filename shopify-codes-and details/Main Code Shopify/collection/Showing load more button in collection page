@@ -1,0 +1,48 @@
+Showing load more button in collection page
+
+https://greerchicago.com/collections/all
+
+
+<div class="product-count-button">    
+<div class="product-count">
+  VIEWING <span id="current-count">{{ collection.products | size }}</span> OF {{ collection.products_count }} ITEMS
+</div>
+  
+<button id="load-more-button" data-page="2" {% if paginate.next == blank %}style="display:none;"{% endif %}>Load More</button>
+</div>
+
+  <script>
+
+    document.getElementById("load-more-button").addEventListener("click", function() {
+  const button = this;
+  let currentPage = parseInt(button.getAttribute("data-page"));
+  
+  fetch(`/collections/{{ collection.handle }}?page=${currentPage}`)
+    .then(response => response.text())
+    .then(data => {
+      const parser = new DOMParser();
+      const htmlDoc = parser.parseFromString(data, 'text/html');
+      const newProducts = htmlDoc.querySelectorAll("#main-collection-product-grid .product-item");
+
+      // Append new products to the product grid
+      const productGrid = document.getElementById("main-collection-product-grid");
+      newProducts.forEach(product => productGrid.appendChild(product));
+
+      // Update the current count
+      const currentCount = document.getElementById("current-count");
+      currentCount.textContent = parseInt(currentCount.textContent) + newProducts.length;
+
+      // Update the page number
+      button.setAttribute("data-page", currentPage + 1);
+
+      // Hide button if all products are loaded
+      if (parseInt(currentCount.textContent) >= {{ collection.products_count }}) {
+        button.style.display = "none";
+      }
+    });
+});
+
+</script>
+
+
+https://community.shopify.com/c/shopify-design/how-to-add-load-more-button-on-the-collection-page/m-p/2659512#M697685

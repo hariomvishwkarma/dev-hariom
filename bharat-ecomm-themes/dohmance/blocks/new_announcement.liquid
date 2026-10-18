@@ -1,0 +1,383 @@
+{% render 'text-block-styles' %}
+
+{%- assign block_settings = block.settings -%}
+{%- assign p1 = block_settings.text_1 | strip_newlines | strip_html | strip -%}
+{%- assign p2 = block_settings.text_2 | strip_newlines | strip_html | strip -%}
+{%- assign p3 = block_settings.text_3 | strip_newlines | strip_html | strip -%}
+{%- assign block_index = section.blocks | find_index: 'id', block.id -%}
+
+{%- assign item_count = 0 -%}
+{%- if p1 != '' -%}{%- assign item_count = item_count | plus: 1 -%}{%- endif -%}
+{%- if p2 != '' -%}{%- assign item_count = item_count | plus: 1 -%}{%- endif -%}
+{%- if p3 != '' -%}{%- assign item_count = item_count | plus: 1 -%}{%- endif -%}
+
+{%- if item_count > 0 -%}
+  <slideshow-slide
+    ref="slides[]"
+    class="
+      announcement-bar__slide
+      announcement-bar__slide--multi
+      text-block
+      text-block--{{ block.id }}
+      text-block--align-center
+      text-block--full-width
+      custom-typography
+      {% if block_settings.font_size != "" %}custom-font-size{% endif %}
+      {% if block_settings.weight != "" %}custom-font-weight{% endif %}
+    "
+    style="
+      {% render 'typography-style', settings: block_settings, preset: 'custom' %}
+      {% if block_settings.text_color != blank %}--color: {{ block_settings.text_color }}; --color-rgb: {{ block_settings.text_color.rgb }};{% endif %}
+      --width: 100%;
+      --text-align: center;
+      --line-height: 1;
+      --multi-gap: {{ block_settings.gap }}px;
+      --dot-size: {{ block_settings.dot_size }}px;
+      --dot-color: {{ block_settings.dot_color }};
+      --slide-time: {{ block_settings.slide_time }}s;
+    "
+    {{ block.shopify_attributes }}
+    aria-hidden="{% if block_index == 0 %}false{% else %}true{% endif %}"
+  >
+    <div class="announcement-bar__multi" data-count="{{ item_count }}">
+      {%- assign has_prev = false -%}
+      {%- assign visible_index = 0 -%}
+
+      {%- for i in (1..3) -%}
+        {%- liquid
+          case i
+            when 1
+              assign item_text = block_settings.text_1
+              assign item_link = block_settings.link_1
+            when 2
+              assign item_text = block_settings.text_2
+              assign item_link = block_settings.link_2
+            when 3
+              assign item_text = block_settings.text_3
+              assign item_link = block_settings.link_3
+          endcase
+          assign item_plain = item_text | strip_newlines | strip_html | strip
+        -%}
+
+        {%- unless item_plain == '' -%}
+          {%- if has_prev -%}
+            <span class="announcement-bar__dot" aria-hidden="true"></span>
+          {%- endif -%}
+
+          {%- if item_link != blank -%}
+            <a
+              class="announcement-bar__text announcement-bar__multi-item"
+              style="--i: {{ visible_index }};"
+              href="{{ item_link }}"
+            >
+              {{ item_text }}
+            </a>
+          {%- else -%}
+            <p
+              class="announcement-bar__text announcement-bar__multi-item"
+              style="--i: {{ visible_index }};"
+            >
+              {{ item_text }}
+            </p>
+          {%- endif -%}
+
+          {%- assign has_prev = true -%}
+          {%- assign visible_index = visible_index | plus: 1 -%}
+        {%- endunless -%}
+      {%- endfor -%}
+    </div>
+  </slideshow-slide>
+{%- endif -%}
+
+{% stylesheet %}
+  /* ---------- Desktop: all messages in one row with dots ---------- */
+  .announcement-bar__multi {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    column-gap: var(--multi-gap, 20px);
+    row-gap: 4px;
+    width: 100%;
+  }
+
+  .announcement-bar__multi-item {
+    margin: 0;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  a.announcement-bar__multi-item:hover {
+    text-decoration: underline;
+  }
+
+  .announcement-bar__dot {
+    flex-shrink: 0;
+    width: var(--dot-size, 6px);
+    height: var(--dot-size, 6px);
+    border-radius: 50%;
+    background-color: var(--dot-color, #ffffff);
+  }
+
+  @media screen and (min-width: 750px) {
+    .announcement-bar__multi-item {
+      white-space: nowrap;
+    }
+  }
+
+  /* ---------- Mobile: one message at a time, sliding ---------- */
+  @media screen and (max-width: 749px) {
+    .announcement-bar__multi {
+      display: grid;
+      overflow: hidden;
+      justify-items: center;
+      align-items: center;
+    }
+
+    .announcement-bar__dot {
+      display: none;
+    }
+
+    .announcement-bar__multi-item {
+      grid-area: 1 / 1;
+      width: 100%;
+      text-align: center;
+    }
+
+    .announcement-bar__multi[data-count='2'] .announcement-bar__multi-item {
+      animation: announcement-slide-2 calc(var(--slide-time, 3s) * 2) infinite both;
+      animation-delay: calc(var(--i) * var(--slide-time, 3s));
+    }
+
+    .announcement-bar__multi[data-count='3'] .announcement-bar__multi-item {
+      animation: announcement-slide-3 calc(var(--slide-time, 3s) * 3) infinite both;
+      animation-delay: calc(var(--i) * var(--slide-time, 3s));
+    }
+  }
+
+  @keyframes announcement-slide-2 {
+    0% { opacity: 0; visibility: hidden; transform: translateX(40px); }
+    6% { opacity: 1; visibility: visible; transform: translateX(0); }
+    44% { opacity: 1; visibility: visible; transform: translateX(0); }
+    50% { opacity: 0; visibility: visible; transform: translateX(-40px); }
+    51%, 100% { opacity: 0; visibility: hidden; transform: translateX(-40px); }
+  }
+
+  @keyframes announcement-slide-3 {
+    0% { opacity: 0; visibility: hidden; transform: translateX(40px); }
+    4% { opacity: 1; visibility: visible; transform: translateX(0); }
+    29% { opacity: 1; visibility: visible; transform: translateX(0); }
+    33% { opacity: 0; visibility: visible; transform: translateX(-40px); }
+    34%, 100% { opacity: 0; visibility: hidden; transform: translateX(-40px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) and (max-width: 749px) {
+    .announcement-bar__multi {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .announcement-bar__multi-item {
+      animation: none !important;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "New Announcement",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Message 1"
+    },
+    {
+      "type": "inline_richtext",
+      "id": "text_1",
+      "label": "Text 1",
+      "default": "Contact us for customised party orders"
+    },
+    {
+      "type": "url",
+      "id": "link_1",
+      "label": "Link 1"
+    },
+    {
+      "type": "header",
+      "content": "Message 2"
+    },
+    {
+      "type": "inline_richtext",
+      "id": "text_2",
+      "label": "Text 2",
+      "default": "Free delivery above 2499"
+    },
+    {
+      "type": "url",
+      "id": "link_2",
+      "label": "Link 2"
+    },
+    {
+      "type": "header",
+      "content": "Message 3"
+    },
+    {
+      "type": "inline_richtext",
+      "id": "text_3",
+      "label": "Text 3",
+      "default": "Order by 2 pm to enjoy same day delivery"
+    },
+    {
+      "type": "url",
+      "id": "link_3",
+      "label": "Link 3"
+    },
+    {
+      "type": "header",
+      "content": "Desktop: separator dot"
+    },
+    {
+      "type": "color",
+      "id": "dot_color",
+      "label": "Dot color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "dot_size",
+      "label": "Dot size",
+      "min": 4,
+      "max": 12,
+      "step": 1,
+      "unit": "px",
+      "default": 6
+    },
+    {
+      "type": "range",
+      "id": "gap",
+      "label": "Space between text and dot",
+      "min": 8,
+      "max": 48,
+      "step": 4,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "header",
+      "content": "Mobile: slider"
+    },
+    {
+      "type": "range",
+      "id": "slide_time",
+      "label": "Seconds per message",
+      "min": 2,
+      "max": 8,
+      "step": 1,
+      "unit": "s",
+      "default": 3
+    },
+    {
+      "type": "header",
+      "content": "t:content.typography"
+    },
+    {
+      "type": "select",
+      "id": "font",
+      "label": "t:settings.font",
+      "options": [
+        {
+          "value": "var(--font-body--family)",
+          "label": "t:options.body"
+        },
+        {
+          "value": "var(--font-subheading--family)",
+          "label": "t:options.subheading"
+        },
+        {
+          "value": "var(--font-heading--family)",
+          "label": "t:options.heading"
+        },
+        {
+          "value": "var(--font-accent--family)",
+          "label": "t:options.accent"
+        }
+      ],
+      "default": "var(--font-body--family)"
+    },
+    {
+      "type": "select",
+      "id": "font_size",
+      "label": "t:settings.size",
+      "options": [
+        { "value": "", "label": "t:options.default" },
+        { "value": "0.625rem", "label": "10px" },
+        { "value": "0.75rem", "label": "12px" },
+        { "value": "0.875rem", "label": "14px" },
+        { "value": "1rem", "label": "16px" },
+        { "value": "1.125rem", "label": "18px" },
+        { "value": "1.25rem", "label": "20px" },
+        { "value": "1.5rem", "label": "24px" },
+        { "value": "2rem", "label": "32px" }
+      ],
+      "default": "0.75rem"
+    },
+    {
+      "type": "select",
+      "id": "weight",
+      "label": "t:settings.weight",
+      "options": [
+        { "value": "", "label": "t:options.default" },
+        { "value": "100", "label": "t:options.thin" },
+        { "value": "300", "label": "t:options.light" },
+        { "value": "400", "label": "t:options.regular" },
+        { "value": "500", "label": "t:options.medium" },
+        { "value": "600", "label": "t:options.semibold" },
+        { "value": "700", "label": "t:options.bold" },
+        { "value": "900", "label": "t:options.black" }
+      ],
+      "default": ""
+    },
+    {
+      "type": "select",
+      "id": "letter_spacing",
+      "label": "t:settings.letter_spacing",
+      "options": [
+        { "value": "tight", "label": "t:options.tight" },
+        { "value": "normal", "label": "t:options.normal" },
+        { "value": "loose", "label": "t:options.loose" }
+      ],
+      "default": "normal"
+    },
+    {
+      "type": "select",
+      "id": "case",
+      "label": "t:settings.case",
+      "options": [
+        { "value": "none", "label": "t:options.default" },
+        { "value": "uppercase", "label": "t:options.uppercase" }
+      ],
+      "default": "none"
+    },
+    {
+      "type": "header",
+      "content": "t:content.appearance"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "t:settings.text_color",
+      "placeholder": "t:settings.default"
+    }
+  ],
+  "presets": [
+    {
+      "name": "New Announcement",
+      "settings": {
+        "font": "var(--font-subheading--family)",
+        "font_size": "0.75rem"
+      }
+    }
+  ]
+}
+{% endschema %}

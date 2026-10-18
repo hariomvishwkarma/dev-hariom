@@ -1,0 +1,240 @@
+{% comment %}
+  Video multi column (image or Shopify-uploaded video, no controls)
+  Extra: editor-controls voor BLOCK TITLE (niet de heading) + zij-padding/breedte.
+{% endcomment %}
+
+<section
+  id="section-{{ section.id }}"
+  class="multicolumn-media"
+  style="
+    --columns: {{ section.settings.columns_desktop }};
+    --gap: {{ section.settings.column_gap }}px;
+    --radius: {{ section.settings.media_radius }}px;
+    --aspect: {{ section.settings.aspect_ratio }};
+    --mw: {{ section.settings.max_width_desktop }}px;
+    --pad-side-m: {{ section.settings.side_padding_mobile }}px;
+    --pad-side-d: {{ section.settings.side_padding_desktop }}px;
+
+    /* BLOCK TITLE controls */
+    --item-title-size-m: {{ section.settings.item_title_size_mobile }}px;
+    --item-title-size-d: {{ section.settings.item_title_size_desktop }}px;
+    --item-title-letter: {{ section.settings.item_title_letter_spacing }}px;
+    --item-title-weight: {{ section.settings.item_title_font_weight }};
+
+    padding-top: {{ section.settings.padding_top }}px;
+    padding-bottom: {{ section.settings.padding_bottom }}px;
+  "
+>
+  <div class="multicolumn-media__inner wm--{{ section.settings.width_mode }}">
+    {% if section.settings.heading != blank %}
+      <h2 class="multicolumn-media__heading">{{ section.settings.heading | escape }}</h2>
+    {% endif %}
+
+    <div class="multicolumn-media__grid">
+      {%- for block in section.blocks -%}
+        {%- assign media_type = block.settings.media_type -%}
+        <div class="multicolumn-media__item" {{ block.shopify_attributes }}>
+          <div class="multicolumn-media__media">
+            {%- if media_type == 'video' and block.settings.video != blank -%}
+              {%- assign poster_url = blank -%}
+              {%- if block.settings.poster_image != blank -%}
+                {%- assign poster_url = block.settings.poster_image | image_url: width: 1600 -%}
+              {%- endif -%}
+              <video
+                class="multicolumn-media__video js-autoplay-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                preload="metadata"
+                tabindex="-1"
+                aria-hidden="true"
+                disablepictureinpicture
+                controlslist="nodownload noplaybackrate noremoteplayback nofullscreen"
+                oncontextmenu="return false"
+                {% if poster_url %}poster="{{ poster_url }}"{% endif %}
+              >
+                {%- for s in block.settings.video.sources -%}
+                  <source src="{{ s.url }}" type="{{ s.mime_type }}">
+                {%- endfor -%}
+                Je browser ondersteunt het video-element niet.
+              </video>
+
+            {%- elsif block.settings.image != blank -%}
+              {%- assign img = block.settings.image -%}
+              {%- capture img_srcset -%}
+                {{ img | image_url: width: 400 }} 400w,
+                {{ img | image_url: width: 800 }} 800w,
+                {{ img | image_url: width: 1200 }} 1200w,
+                {{ img | image_url: width: 1600 }} 1600w
+              {%- endcapture -%}
+              <img
+                class="multicolumn-media__image"
+                src="{{ img | image_url: width: 800 }}"
+                srcset="{{ img_srcset | strip }}"
+                sizes="(min-width: 990px) calc((100vw - 100px)/{{ section.settings.columns_desktop }}), 100vw"
+                alt="{{ block.settings.alt | default: img.alt | escape }}"
+                loading="lazy"
+                width="{{ img.width }}"
+                height="{{ img.height }}"
+              >
+            {%- else -%}
+              <div class="multicolumn-media__placeholder">Voeg een afbeelding of video toe</div>
+            {%- endif -%}
+          </div>
+
+          {% if block.settings.title != blank or block.settings.text != blank or block.settings.link != blank %}
+            <div class="multicolumn-media__content">
+              {% if block.settings.title != blank %}
+                <h3 class="multicolumn-media__title">{{ block.settings.title | escape }}</h3>
+              {% endif %}
+              {% if block.settings.text != blank %}
+                <div class="multicolumn-media__text">{{ block.settings.text }}</div>
+              {% endif %}
+              {% if block.settings.link != blank and block.settings.link_label != blank %}
+                <a class="multicolumn-media__link" href="{{ block.settings.link }}">{{ block.settings.link_label | escape }}</a>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+
+  <style>
+    /* Container width & side padding modes */
+    .multicolumn-media__inner { margin-left: auto; margin-right: auto; }
+    .multicolumn-media__inner.wm--contained   { max-width: var(--mw); width: 100%; padding-left: var(--pad-side-m); padding-right: var(--pad-side-m); }
+    .multicolumn-media__inner.wm--full_pad    { width: 100%; padding-left: var(--pad-side-m); padding-right: var(--pad-side-m); }
+    .multicolumn-media__inner.wm--full_nopad  { width: 100%; padding-left: 0; padding-right: 0; }
+    @media (min-width: 990px) {
+      .multicolumn-media__inner.wm--contained,
+      .multicolumn-media__inner.wm--full_pad { padding-left: var(--pad-side-d); padding-right: var(--pad-side-d); }
+    }
+
+    /* Section heading (ongewijzigd, alleen spacing) */
+    .multicolumn-media__heading { margin: 0 0 1.25rem; line-height: 1.2; }
+
+    /* BLOCK TITLE controls – dit is de tekst uit je screenshot */
+    .multicolumn-media__title {
+      margin: 0;
+      line-height: 1.15;
+      font-size: var(--item-title-size-m);
+      letter-spacing: var(--item-title-letter);
+      font-weight: var(--item-title-weight);
+    }
+    @media (min-width: 990px) {
+      .multicolumn-media__title { font-size: var(--item-title-size-d); }
+    }
+
+    /* Grid & media */
+    .multicolumn-media__grid { display: grid; grid-template-columns: repeat(var(--columns), minmax(0, 1fr)); gap: var(--gap); }
+    @media (max-width: 989px) { .multicolumn-media__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 749px) { .multicolumn-media__grid { grid-template-columns: 1fr; } }
+    .multicolumn-media__item { display: flex; flex-direction: column; gap: 0.75rem; }
+    .multicolumn-media__media { position: relative; border-radius: var(--radius); overflow: hidden; background: rgba(0,0,0,.04); display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: var(--aspect); }
+    .multicolumn-media__image, .multicolumn-media__video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    /* Hide native video UI */
+    .multicolumn-media__video::-webkit-media-controls,
+    .multicolumn-media__video::-webkit-media-controls-enclosure { display: none !important; }
+    .multicolumn-media__video { pointer-events: none; }
+
+    .multicolumn-media__text { opacity: .9; }
+    .multicolumn-media__link { display: inline-block; margin-top: .25rem; text-decoration: underline; }
+    .multicolumn-media__placeholder { width: 100%; min-height: 200px; display: grid; place-items: center; color: rgba(0,0,0,.4); font-size: .9rem; }
+  </style>
+
+  <script>
+    (function() {
+      const vids = document.querySelectorAll('#section-{{ section.id }} .js-autoplay-video');
+      if (!vids.length) return;
+      const playSafe = v => { try { v.muted = true; v.play().catch(()=>{}); } catch(e) {} };
+      const io = ('IntersectionObserver' in window) ? new IntersectionObserver(entries => {
+        entries.forEach(({isIntersecting, target}) => { if (isIntersecting) playSafe(target); });
+      }, {threshold: 0.25}) : null;
+      vids.forEach(v => {
+        if (io) io.observe(v); else playSafe(v);
+        v.addEventListener('pause', () => playSafe(v));
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) playSafe(v); });
+      });
+      window.addEventListener('pointerdown', () => vids.forEach(playSafe), { once: true });
+    })();
+  </script>
+</section>
+
+{% schema %}
+{
+  "name": "Video multi column",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Onze features" },
+
+    { "type": "select", "id": "width_mode", "label": "Breedte modus", "default": "full_pad", "options": [
+      { "value": "contained", "label": "Gecentreerd (max + pad)" },
+      { "value": "full_pad", "label": "Volledige breedte + pad" },
+      { "value": "full_nopad", "label": "Volledige breedte (geen pad)" }
+    ]},
+    { "type": "range", "id": "max_width_desktop", "label": "Max-breedte desktop (px)", "min": 960, "max": 1920, "step": 10, "default": 1320 },
+    { "type": "range", "id": "side_padding_mobile", "label": "Zij-padding mobiel (px)", "min": 0, "max": 60, "step": 1, "default": 22 },
+    { "type": "range", "id": "side_padding_desktop", "label": "Zij-padding desktop (px)", "min": 0, "max": 120, "step": 2, "default": 30 },
+
+    { "type": "select", "id": "columns_desktop", "label": "Kolommen op desktop", "default": "3", "options": [
+      { "value": "2", "label": "2" }, { "value": "3", "label": "3" }, { "value": "4", "label": "4" }
+    ]},
+    { "type": "range", "id": "column_gap", "label": "Kolomafstand (px)", "min": 8, "max": 48, "step": 2, "default": 24 },
+    { "type": "range", "id": "media_radius", "label": "Media radius (px)", "min": 0, "max": 32, "step": 1, "default": 12 },
+    { "type": "select", "id": "aspect_ratio", "label": "Media aspect ratio", "default": "16/9", "options": [
+      { "value": "16/9", "label": "16:9" }, { "value": "4/3", "label": "4:3" }, { "value": "1/1", "label": "1:1 (vierkant)" }, { "value": "3/4", "label": "3:4 (portret)" }, { "value": "auto", "label": "Auto" }
+    ]},
+    { "type": "range", "id": "padding_top", "label": "Witruimte boven (px)", "min": 0, "max": 160, "step": 4, "default": 56 },
+    { "type": "range", "id": "padding_bottom", "label": "Witruimte onder (px)", "min": 0, "max": 160, "step": 4, "default": 56 },
+
+    /* BLOCK TITLE controls in editor */
+    { "type": "range", "id": "item_title_size_mobile", "label": "Titelgrootte items – mobiel (px)", "min": 12, "max": 64, "step": 1, "default": 22 },
+    { "type": "range", "id": "item_title_size_desktop", "label": "Titelgrootte items – desktop (px)", "min": 16, "max": 96, "step": 1, "default": 32 },
+    { "type": "range", "id": "item_title_letter_spacing", "label": "Titel letter-spacing (px)", "min": -2, "max": 10, "step": 0.5, "default": 0 },
+    { "type": "select", "id": "item_title_font_weight", "label": "Titel font weight", "default": "700", "options": [
+      { "value": "400", "label": "400 (Regular)" },
+      { "value": "500", "label": "500 (Medium)" },
+      { "value": "600", "label": "600 (Semibold)" },
+      { "value": "700", "label": "700 (Bold)" },
+      { "value": "800", "label": "800 (Extra Bold)" }
+    ]}
+  ],
+  "blocks": [
+    {
+      "type": "column",
+      "name": "Kolom",
+      "limit": 12,
+      "settings": [
+        { "type": "select", "id": "media_type", "label": "Media type", "default": "image", "options": [
+          { "value": "image", "label": "Afbeelding" },
+          { "value": "video", "label": "Video (Bestanden)" }
+        ]},
+        { "type": "image_picker", "id": "image", "label": "Afbeelding" },
+        { "type": "video", "id": "video", "label": "Video" },
+        { "type": "image_picker", "id": "poster_image", "label": "Poster/fallback image" },
+        { "type": "text", "id": "alt", "label": "Alt-tekst" },
+
+        { "type": "text", "id": "title", "label": "Titel" },
+        { "type": "richtext", "id": "text", "label": "Tekst" },
+        { "type": "url", "id": "link", "label": "Link" },
+        { "type": "text", "id": "link_label", "label": "Link label", "default": "Lees meer" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Video multi column",
+      "category": "Afbeeldingen",
+      "blocks": [
+        { "type": "column", "settings": { "title": "Kolom 1" } },
+        { "type": "column", "settings": { "title": "Kolom 2" } },
+        { "type": "column", "settings": { "title": "Kolom 3" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

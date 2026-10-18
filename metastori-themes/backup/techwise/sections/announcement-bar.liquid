@@ -1,0 +1,285 @@
+{%- if section.blocks.size > 0 -%}
+  <style>
+    :root {
+      --announcement-bar-is-sticky: {% if section.settings.enable_sticky %}1{% else %}0{% endif %};
+    }
+
+    {%- if section.settings.enable_sticky -%}
+      #shopify-section-{{ section.id }} {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      .shopify-section--header ~ #shopify-section-{{ section.id }} {
+        top: calc(var(--header-is-sticky, 0) * var(--header-is-visible, 0) * var(--header-height, 0px));
+      }
+    {%- endif -%}
+
+    /* === Typography controls === */
+    #shopify-section-{{ section.id }} .announcement-bar .announcement-bar__message-list p {
+      font-size: {{ section.settings.font_size_desktop }}px;
+      font-weight: {{ section.settings.font_weight }};
+      letter-spacing: {{ section.settings.letter_spacing_desktop }}px;
+      line-height: 1.3;
+      margin: 0;
+    }
+
+    @media (max-width: 749px) {
+      #shopify-section-{{ section.id }} .announcement-bar .announcement-bar__message-list p {
+        font-size: {{ section.settings.font_size_mobile }}px;
+        letter-spacing: {{ section.settings.letter_spacing_mobile }}px;
+      }
+    }
+
+    /* === Announcement bar inner layout === */
+    #shopify-section-{{ section.id }} .announcement-bar__message-list > * {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 4px 12px;
+    }
+
+    /* === CTA Button === */
+    .announcement-bar__cta-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.4;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      flex-shrink: 0;
+    }
+
+    .announcement-bar__cta-btn:hover {
+      opacity: 0.85;
+      transform: scale(1.03);
+    }
+
+    .announcement-bar__cta-btn:active {
+      transform: scale(0.97);
+    }
+
+    /* Mobile: inline text flow — text + button stay on same line */
+    @media (max-width: 749px) {
+      #shopify-section-{{ section.id }} .announcement-bar__message-list > * {
+        display: block;
+        text-align: center;
+        padding: 6px 12px;
+      }
+      #shopify-section-{{ section.id }} .announcement-bar__message-list p {
+        display: inline;
+      }
+      .announcement-bar__cta-btn {
+        display: inline-flex;
+        vertical-align: middle;
+        margin-left: 8px;
+        font-size: 12px;
+        padding: 4px 13px;
+      }
+    }
+  </style>
+
+  <div class="color-scheme color-scheme--{{ section.settings.color_scheme.id }}">
+    <height-observer variable="announcement-bar">
+      {%- assign carousel_id = 'carousel-' | append: section.id -%}
+
+      <announcement-bar id="{{ carousel_id }}" allow-swipe cell-selector=".announcement-bar__message-list > *" {% if section.settings.autoplay %}autoplay="{{ section.settings.cycle_speed }}"{% endif %} class="announcement-bar">
+        {%- if section.blocks.size > 1 -%}
+          <carousel-prev-button aria-controls="{{ carousel_id }}">
+            <button type="button" class="tap-area">
+              <span class="sr-only">{{ 'general.accessibility.previous' | t }}</span>
+              {%- render 'icon' with 'arrow-left', direction_aware: true -%}
+            </button>
+          </carousel-prev-button>
+        {%- endif -%}
+
+        <div class="announcement-bar__message-list">
+          {%- for block in section.blocks -%}
+            {%- if block.settings.text != blank -%}
+              <div class="{% if forloop.first %}is-selected{% endif %} prose prose-justify-center" {{ block.shopify_attributes }}>
+                <p class="subheading subheading-xs">{{ block.settings.text }}</p>
+
+                {%- if block.settings.button_label != blank -%}
+                  <a
+                    href="{{ block.settings.button_link | default: '#' }}"
+                    class="announcement-bar__cta-btn"
+                    style="background-color: {{ block.settings.button_bg_color }}; color: {{ block.settings.button_text_color }};"
+                    {% if block.settings.button_link contains 'http' %}target="_blank" rel="noopener"{% endif %}
+                  >
+                    {{- block.settings.button_label -}}
+                  </a>
+                {%- endif -%}
+              </div>
+            {%- endif -%}
+          {%- endfor -%}
+        </div>
+
+        {%- if section.blocks.size > 1 -%}
+          <carousel-next-button aria-controls="{{ carousel_id }}">
+            <button type="button" class="tap-area">
+              <span class="sr-only">{{ 'general.accessibility.next' | t }}</span>
+              {%- render 'icon' with 'arrow-right', direction_aware: true -%}
+            </button>
+          </carousel-next-button>
+        {%- endif -%}
+      </announcement-bar>
+    </height-observer>
+  </div>
+
+  <script>
+    document.documentElement.style.setProperty('--announcement-bar-height', `${Math.round(document.getElementById('shopify-section-{{ section.id }}').clientHeight)}px`);
+  </script>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "t:sections.announcement_bar.name",
+  "class": "shopify-section--announcement-bar",
+  "max_blocks": 5,
+  "tag": "aside",
+  "enabled_on": {
+    "groups": ["header"]
+  },
+  "settings": [
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:global.colors.scheme",
+      "default": "scheme-1"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sticky",
+      "label": "t:sections.announcement_bar.enable_sticky",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "autoplay",
+      "label": "t:sections.announcement_bar.auto_rotate_between_messages",
+      "default": false
+    },
+    {
+      "type": "range",
+      "min": 3,
+      "max": 20,
+      "step": 1,
+      "unit": "s",
+      "id": "cycle_speed",
+      "label": "t:sections.announcement_bar.cycle_speed",
+      "default": 5,
+      "visible_if": "{{ section.settings.autoplay }}"
+    },
+    {
+      "type": "range",
+      "id": "font_size_desktop",
+      "min": 10,
+      "max": 36,
+      "step": 1,
+      "unit": "px",
+      "label": "Tekstgrootte (desktop)",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "font_size_mobile",
+      "min": 10,
+      "max": 30,
+      "step": 1,
+      "unit": "px",
+      "label": "Tekstgrootte (mobiel)",
+      "default": 13
+    },
+    {
+      "type": "select",
+      "id": "font_weight",
+      "label": "Font weight",
+      "default": "500",
+      "options": [
+        { "value": "300", "label": "Light (300)" },
+        { "value": "400", "label": "Regular (400)" },
+        { "value": "500", "label": "Medium (500)" },
+        { "value": "600", "label": "Semibold (600)" },
+        { "value": "700", "label": "Bold (700)" }
+      ]
+    },
+    {
+      "type": "range",
+      "id": "letter_spacing_desktop",
+      "min": -2,
+      "max": 10,
+      "step": 1,
+      "unit": "px",
+      "label": "Letter spacing (desktop)",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "letter_spacing_mobile",
+      "min": -2,
+      "max": 10,
+      "step": 1,
+      "unit": "px",
+      "label": "Letter spacing (mobiel)",
+      "default": 0
+    }
+  ],
+  "blocks": [
+    {
+      "type": "message",
+      "name": "t:sections.announcement_bar.blocks.message.name",
+      "settings": [
+        {
+          "type": "inline_richtext",
+          "id": "text",
+          "label": "t:sections.announcement_bar.blocks.message.text",
+          "default": "Announce something here"
+        },
+        {
+          "type": "header",
+          "content": "Button"
+        },
+        {
+          "type": "text",
+          "id": "button_label",
+          "label": "Button text",
+          "default": "Shop now"
+        },
+        {
+          "type": "url",
+          "id": "button_link",
+          "label": "Button link"
+        },
+        {
+          "type": "color",
+          "id": "button_bg_color",
+          "label": "Button background color",
+          "default": "#ffffff"
+        },
+        {
+          "type": "color",
+          "id": "button_text_color",
+          "label": "Button text color",
+          "default": "#0f2137"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.announcement_bar.name"
+    }
+  ]
+}
+{% endschema %}

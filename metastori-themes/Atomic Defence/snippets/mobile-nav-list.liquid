@@ -1,0 +1,119 @@
+{% comment %}
+  This is the nav list for the mobile menu.
+
+  @param menu LinkedList
+    The menu handle to look up.
+
+  @param blocks Array
+    Array of blocks possibly containing meganav information
+
+{% endcomment %}
+
+{% assign menu_list = linklists[menu].links %}
+{% assign menu_title = linklists[menu].title %}
+<style>
+  .mb-nav-img {
+    height: 50px;
+  }
+  .navmenu-button {
+    top: 1.25rem !important;
+  }
+</style>
+<ul
+  class="navmenu navmenu-depth-1"
+  data-navmenu
+  {% if menu_title %}aria-label="{{ menu_title }}"{% endif %}
+>
+  {% assign sideNavArray = "https://cdn.shopify.com/s/files/1/0004/0635/5980/files/HighCom-Armor-Striker-RCHMC-Rifle-Combat-Helmet-Mid-Cut-OD-Green-Fully-Loaded-TQ-600x600.jpg?v=1697829917,https://cdn.shopify.com/s/files/1/0004/0635/5980/files/cqcmtm-full-face-bulletproof-mask-or-nij-level-iiia-atomic-defense-specialized-equipment-1.jpg?v=1689628264,https://cdn.shopify.com/s/files/1/0004/0635/5980/products/VESTS-BLACK-CAP-FRONT.jpg?v=1692907738,https://cdn.shopify.com/s/files/1/0004/0635/5980/files/buddy-strap-resque-device-k19-plate-carrier-loadout_544x544_12f025ea-55c5-4e95-a681-76e64e267ab4.jpg?v=1695849084,https://cdn.shopify.com/s/files/1/0004/0635/5980/files/jansport-bulletproof-backpack-atomic-defense-backpack-5_1.jpg?v=1689783523,https://cdn.shopify.com/s/files/1/0004/0635/5980/products/nij-level-iii-body-armor-plate-or-esapi-or-light-weight-atomic-defense-body-armor-plates-1.jpg?v=1670285795,https://cdn.shopify.com/s/files/1/0004/0635/5980/files/3M-PELTOR-ComTac-VII-MT14H41A-300NA-CY-1.jpg?v=1689027557" | split: ',' %}
+  {% assign counter = 0 %}
+  {% for menu_item in menu_list %}
+    {% assign sideNavArrayValue = sideNavArray[counter] %}
+    {% assign show_subnav = true %}
+    {% if linklists[menu_item.handle] == blank %}
+      {% assign show_subnav = false %}
+    {% endif %}
+
+    {% assign meganav_block = null %}
+    {% assign meganav_trigger = null %}
+    {% if blocks.size > 0 %}
+      {% for block in blocks %}
+        {% if block.type == 'meganav_images' %}
+          {% assign meganav_trigger = block.settings.meganav_trigger | handle | strip %}
+
+          {% if menu_item.handle == meganav_trigger and menu_item.links.size > 0 %}
+            {% assign meganav_block = block %}
+          {% elsif menu_item.title == meganav_trigger %}
+            {% assign meganav_block = block %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+    {%- capture navmenu_item_classes -%}
+      navmenu-item
+      {% if show_subnav %}navmenu-item-parent{% endif %}
+      navmenu-id-{{ menu_item.handle }}
+    {%- endcapture -%}
+
+    <li
+      class="{{ navmenu_item_classes | strip_newlines }}"
+      {% if show_subnav %}data-navmenu-parent{% endif %}
+    >
+      
+      <a
+        class="navmenu-link {% if show_subnav %}navmenu-link-parent{% endif %} {% if menu_item.active %}navmenu-link-active{% endif %}"
+        href="{{ menu_item.url }}"
+        {% if show_subnav %}
+          aria-haspopup="true"
+          aria-expanded="false"
+          style="display: flex; align-items: center;"
+        {% endif %}
+      > 
+<!-- <img src="{{ sideNavArrayValue }}" class="mb-nav-img" loading="lazy"> -->
+        {{ menu_item.title }}
+      </a>
+    {% assign counter = counter | plus:1 %}
+
+      {% if show_subnav %}
+        {%
+          render 'mobile-navmenu-button',
+          button_label: menu_item.title,
+        %}
+      {% endif %}
+
+      {% assign accordion_level = 2 %}
+      {% if meganav_block %}
+        {% assign accordion_level = 3 %}
+        <div class="navmenu-submenu navmenu-meganav" data-navmenu-submenu data-accordion-content>
+        {%
+          render 'meganav-promo',
+          block: meganav_block,
+          position: 'first'
+        %}
+      {% endif %}
+
+      {% if show_subnav %}
+        {%
+          render 'navlist',
+          menu_list: linklists[menu_item.handle].links,
+          menu_title: menu_title,
+          depth: 2,
+          max_depth: 3,
+          show_arrows: true,
+          aria_expanded: false,
+          is_mobile: true,
+          accordion_level: accordion_level,
+        %}
+      {% endif %}
+
+      {% if meganav_block %}
+        {%
+          render 'meganav-promo',
+          block: meganav_block,
+          position: 'last'
+        %}
+        </div>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ul>

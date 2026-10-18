@@ -1,0 +1,205 @@
+{% comment %}
+  @param product {Product}
+    The product object in question or false. Onboards if false or blank.
+
+  @param select_first_available_variant {Boolean}
+    Whether to auto-select first available variant
+
+  @param aspect_ratio {string}
+    This is the gallery aspect ratio, can be one of 'natural', 'short', 'square', 'long'
+
+  @param thumbnail_position {string}
+    This is the gallery thumbnail position, can be one of 'below', or 'left'
+
+  @param image_crop {boolean}
+    Whether to crop images
+
+  @param gallery_hover_zoom {String}
+    This is the hover zoom setting, which is either 'disabled', 'separate', or 'replace'
+
+  @param gallery_click_to_zoom {String}
+    This is the click to zoom setting, which is either 'disabled', 'mobile', 'desktop', or 'always'
+{% endcomment %}
+
+{% assign onboarding = false %}
+{% if product == false or product == blank %}
+  {% assign onboarding = true %}
+{% endif %}
+
+{% assign selected_variant = product.selected_or_first_available_variant %}
+
+{% if select_first_available_variant %}
+  {% assign selected_media = selected_variant.featured_media | default: product.featured_media %}
+{% else %}
+  {% assign selected_media = product.featured_media %}
+{% endif %}
+
+<div
+  class="
+    product-gallery
+    {% if gallery_hover_zoom != 'disabled' %}hover-zoom-enabled{% endif %}
+    {% if gallery_click_to_zoom != 'disabled' and gallery_click_to_zoom != 'mobile' %}click-to-zoom-enabled{% endif %}
+  "
+  data-product-gallery
+  {% if image_crop %}data-product-gallery-image-crop{% endif %}
+  data-product-gallery-aspect-ratio="{{ aspect_ratio }}"
+  data-product-gallery-thumbnails="{{ thumbnail_position }}"
+>
+  {% render 'desktop_media_stack_layout', section:section %}
+  <div class="sticky-element">
+  {%
+    render 'product-gallery-viewer'
+    product: product,
+    selected_media: selected_media,
+    aspect_ratio: aspect_ratio,
+    image_crop: image_crop,
+    gallery_hover_zoom: gallery_hover_zoom,
+    onboarding: onboarding,
+    gallery_click_to_zoom: gallery_click_to_zoom,
+  %}
+
+  {%
+    render 'product-gallery-navigation'
+    product: product,
+    selected_media: selected_media,
+    aspect_ratio: aspect_ratio,
+    image_crop: image_crop
+  %}
+
+  {% assign first_model = product.media | where: "media_type", "model" | first %}
+  {% if selected_media.media_type == 'model' %}
+    {% assign model = selected_media %}
+  {% else %}
+    {% assign model = first_model %}
+  {% endif %}
+  {% if model %}
+    <script>
+      window.ShopifyXR=window.ShopifyXR||function(){(ShopifyXR.q=ShopifyXR.q||[]).push(arguments)}
+      {% assign models = product.media | where: 'media_type', 'model' | json %}
+      ShopifyXR('addModels', {{ models }});
+    </script>
+    <button
+      class="product-gallery--viewinyourspace"
+      data-default-model-id="{{ first_model.id }}"
+      data-shopify-xr
+      data-shopify-model3d-id="{{ model.id }}"
+      data-shopify-title="{{ product.title }}"
+      data-shopify-xr-hidden
+    >
+      {% render 'icon-library', id: 'icon-3D' %}
+      {{ 'product.media.view_in_your_space' | t }}
+    </button>
+  {% endif %}
+</div>
+
+  {% comment %} {% assign product_gallery_badges = product.metafields.custom.product_gallery_badges.value %}
+  {% if product_gallery_badges != blank %}
+    <div class="product_gallery_badges">
+      {% for badge in product_gallery_badges %}
+        <div class="gallery_badge_item">
+          <img src="{{ badge | image_url }}" width="auto" height="auto" alt="{{ product.title }}-badge">
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %} {% endcomment %}
+  
+{% assign badges_entries = shop.metaobjects.badges.values %}
+{% assign current_product_gid = '"gid://shopify/Product/' | append: product.id | append: '"' %}
+{% if badges_entries != blank %}
+  <div class="product_gallery_badges desktop">
+    {% for entry in badges_entries %}
+      {% comment %} Badge 1 {% endcomment %}
+      {% if entry.badge_1 != blank %}
+        {% assign show_badge_1 = false %}
+        {% if entry.badge_1_all_product == true or entry.badge_1_all_product == 'true' %}
+          {% assign show_badge_1 = true %}
+        {% elsif entry.badge_1_product != blank %}
+          {% assign badge_1_raw = entry.badge_1_product | append: '' %}
+          {% if badge_1_raw contains current_product_gid %}
+            {% assign show_badge_1 = true %}
+          {% endif %}
+        {% endif %}
+        {% if show_badge_1 %}
+          <div class="gallery_badge_item">
+            <img src="{{ entry.badge_1 | image_url }}" width="auto" height="auto" alt="{{ product.title }}-badge-1">
+          </div>
+        {% endif %}
+      {% endif %}
+
+      {% comment %} Badge 2 {% endcomment %}
+      {% if entry.badge_2 != blank %}
+        {% assign show_badge_2 = false %}
+        {% if entry.badge_2_all_product == true or entry.badge_2_all_product == 'true' %}
+          {% assign show_badge_2 = true %}
+        {% elsif entry.badge_2_product != blank %}
+          {% assign badge_2_raw = entry.badge_2_product | append: '' %}
+          {% if badge_2_raw contains current_product_gid %}
+            {% assign show_badge_2 = true %}
+          {% endif %}
+        {% endif %}
+        {% if show_badge_2 %}
+          <div class="gallery_badge_item">
+            <img src="{{ entry.badge_2 | image_url }}" width="auto" height="auto" alt="{{ product.title }}-badge-2">
+          </div>
+        {% endif %}
+      {% endif %}
+
+      {% comment %} Badge 3 {% endcomment %}
+      {% if entry.badge_3 != blank %}
+        {% assign show_badge_3 = false %}
+        {% if entry.badge_3_all_product == true or entry.badge_3_all_product == 'true' %}
+          {% assign show_badge_3 = true %}
+        {% elsif entry.badge_3_product != blank %}
+          {% assign badge_3_raw = entry.badge_3_product | append: '' %}
+          {% if badge_3_raw contains current_product_gid %}
+            {% assign show_badge_3 = true %}
+          {% endif %}
+        {% endif %}
+        {% if show_badge_3 %}
+          <div class="gallery_badge_item">
+            <img src="{{ entry.badge_3 | image_url }}" width="auto" height="auto" alt="{{ product.title }}-badge-3">
+          </div>
+        {% endif %}
+      {% endif %}
+
+      {% comment %} Badge 4 {% endcomment %}
+      {% if entry.badge_4 != blank %}
+        {% assign show_badge_4 = false %}
+        {% if entry.badge_4_all_product == true or entry.badge_4_all_product == 'true' %}
+          {% assign show_badge_4 = true %}
+        {% elsif entry.badge_4_product != blank %}
+          {% assign badge_4_raw = entry.badge_4_product | append: '' %}
+          {% if badge_4_raw contains current_product_gid %}
+            {% assign show_badge_4 = true %}
+          {% endif %}
+        {% endif %}
+        {% if show_badge_4 %}
+          <div class="gallery_badge_item">
+            <img src="{{ entry.badge_4 | image_url }}" width="auto" height="auto" alt="{{ product.title }}-badge-3">
+          </div>
+        {% endif %}
+      {% endif %}
+
+      {% comment %} Badge 5 {% endcomment %}
+      {% if entry.badge_5 != blank %}
+        {% assign show_badge_5 = false %}
+        {% if entry.badge_5_all_product == true or entry.badge_5_all_product == 'true' %}
+          {% assign show_badge_5 = true %}
+        {% elsif entry.badge_5_product != blank %}
+          {% assign badge_5_raw = entry.badge_5_product | append: '' %}
+          {% if badge_5_raw contains current_product_gid %}
+            {% assign show_badge_5 = true %}
+          {% endif %}
+        {% endif %}
+        {% if show_badge_5 %}
+          <div class="gallery_badge_item">
+            <img src="{{ entry.badge_5 | image_url }}" width="auto" height="auto" alt="{{ product.title }}-badge-3">
+          </div>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endif %}
+
+</div>
+  

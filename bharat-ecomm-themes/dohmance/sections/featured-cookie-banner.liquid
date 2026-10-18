@@ -1,0 +1,552 @@
+{%- comment -%}
+  Featured Product Spotlight (cookie style) — for Horizon theme
+  Drop into /sections, then add it from the theme editor: Add section > Featured product spotlight.
+{%- endcomment -%}
+
+{%- liquid
+  assign product = section.settings.product
+  assign custom_image = section.settings.image
+  assign display_image = custom_image | default: product.featured_image
+  assign current_variant = product.selected_or_first_available_variant
+
+  if section.settings.title != blank
+    assign display_title = sectioan.settings.title
+  else
+    assign display_title = product.title
+  endif
+
+  if section.settings.description != blank
+    assign display_description = section.settings.description
+  else
+    assign display_description = product.description | strip_html | truncatewords: section.settings.description_words
+  endif
+
+  if section.settings.size_label != blank
+    assign display_size = section.settings.size_label
+  elsif current_variant.weight > 0
+    assign display_size = current_variant.weight | weight_with_unit: current_variant.weight_unit
+  endif
+
+  if section.settings.view_link_label != blank and product != blank
+    assign view_url = product.url
+  endif
+-%}
+
+{%- liquid
+  assign can_add_to_cart = current_variant.available
+  assign default_atc_text = 'actions.add_to_cart' | t
+  assign product_form_id = 'Spotlight-ProductForm-' | append: section.id
+  assign atc_id = 'BuyButtons-ProductSubmitButton-' | append: section.id
+  assign atc_class = 'add-to-cart-button ' | append: section.settings.button_style
+-%}
+{% render 'add-to-cart-button-styles' %}
+{% render 'fly-to-cart-styles' %}
+
+<style>
+  #shopify-section-{{ section.id }} {
+    --fps-bg: {{ section.settings.bg_color }};
+    --fps-text: {{ section.settings.text_color }};
+    --fps-muted: {{ section.settings.muted_color }};
+    --fps-tag-bg: {{ section.settings.tag_bg }};
+    --fps-tag-text: {{ section.settings.tag_text }};
+    --fps-line: {{ section.settings.line_color }};
+    --fps-badge-bg: {{ section.settings.badge_bg }};
+    --fps-badge-text: {{ section.settings.badge_text_color }};
+    --fps-pad-top: {{ section.settings.padding_top }}px;
+    --fps-pad-bottom: {{ section.settings.padding_bottom }}px;
+    --fps-title-size: {{ section.settings.title_size }}px;
+    --fps-img-max: {{ section.settings.image_max_width }}px;
+  }
+
+  #shopify-section-{{ section.id }} .fps {
+    background: var(--fps-bg);
+    color: var(--fps-text);
+    padding: var(--fps-pad-top) 0 var(--fps-pad-bottom);
+    overflow: hidden;
+  }
+
+  #shopify-section-{{ section.id }} .fps__inner {
+    max-width: {{ section.settings.max_width }}px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    align-items: center;
+  }
+
+  #shopify-section-{{ section.id }} .fps__media {
+    position: relative;
+    justify-self: center;
+    width: 100%;
+    max-width: var(--fps-img-max);
+  }
+
+  #shopify-section-{{ section.id }} .fps__image,
+  #shopify-section-{{ section.id }} .fps__media img,
+  #shopify-section-{{ section.id }} .fps__media svg.fps__placeholder {
+    display: block;
+    width: 100%;
+    height: auto;
+    {% if section.settings.image_rotate != 0 %}
+    transform: rotate({{ section.settings.image_rotate }}deg);
+    {% endif %}
+  }
+
+  #shopify-section-{{ section.id }} .fps__badge {
+    position: absolute;
+    top: 2%;
+    left: 2%;
+    width: clamp(70px, 16%, 110px);
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    z-index: 2;
+    transform: rotate(-8deg);
+  }
+
+  #shopify-section-{{ section.id }} .fps__badge svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  #shopify-section-{{ section.id }} .fps__badge polygon {
+    fill: var(--fps-badge-bg);
+    stroke: var(--fps-badge-text);
+    stroke-width: 1.2;
+    vector-effect: non-scaling-stroke;
+  }
+
+  #shopify-section-{{ section.id }} .fps__badge span {
+    position: relative;
+    color: var(--fps-badge-text);
+    font-weight: 600;
+    font-size: clamp(0.8rem, 1.6vw, 1rem);
+    text-align: center;
+    line-height: 1.1;
+    padding: 0 6px;
+  }
+
+  #shopify-section-{{ section.id }} .fps__tags-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  #shopify-section-{{ section.id }} .fps__tags {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  #shopify-section-{{ section.id }} .fps__tag {
+    background: var(--fps-tag-bg);
+    color: var(--fps-tag-text);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 1.05rem;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  #shopify-section-{{ section.id }} .fps__squiggle {
+    display: none;
+  }
+
+  #shopify-section-{{ section.id }} .fps__title {
+    margin: 0;
+    font-size: clamp(2rem, 6vw, var(--fps-title-size));
+    line-height: 1.05;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--fps-text);
+  }
+
+  #shopify-section-{{ section.id }} .fps__size {
+    margin: 12px 0 0;
+    padding-left: 12px;
+    font-size: 1.15rem;
+    color: var(--fps-muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #shopify-section-{{ section.id }} .fps__size::before {
+    content: '';
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  #shopify-section-{{ section.id }} .fps__desc {
+    margin: 10px 0 0;
+    max-width: 34em;
+    color: var(--fps-muted);
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+
+  #shopify-section-{{ section.id }} .fps__price {
+    margin: 28px 0 0;
+    font-size: 1.35rem;
+    font-weight: 600;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+
+  #shopify-section-{{ section.id }} .fps__price s {
+    font-weight: 400;
+    font-size: 1rem;
+    color: var(--fps-muted);
+  }
+
+  #shopify-section-{{ section.id }} .fps__form {
+    margin: 0;
+  }
+
+  #shopify-section-{{ section.id }} .fps__variant {
+    margin-top: 16px;
+    appearance: none;
+    background: transparent;
+    color: var(--fps-text);
+    border: 1px solid var(--fps-muted);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font: inherit;
+    min-width: 180px;
+  }
+
+  #shopify-section-{{ section.id }} .fps__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 24px;
+    margin-top: 24px;
+  }
+
+
+  #shopify-section-{{ section.id }} .fps__link {
+    color: var(--fps-text);
+    text-decoration: none;
+    font-size: 1.05rem;
+    background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
+    transition: background-size 0.25s ease;
+  }
+
+  #shopify-section-{{ section.id }} .fps__link:hover { background-size: 100% 1px; }
+
+  #shopify-section-{{ section.id }} .fps__error {
+    margin: 10px 0 0;
+    color: #b3261e;
+    font-size: 0.9rem;
+  }
+
+  #shopify-section-{{ section.id }} .fps__empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--fps-muted);
+  }
+
+
+  /* Wavy section border (same wave as the squiggle), kept inside max-width */
+  #shopify-section-{{ section.id }} .fps__inner { position: relative; }
+  #shopify-section-{{ section.id }} .fps__inner.has-border-top { padding-top: 32px; }
+  #shopify-section-{{ section.id }} .fps__inner.has-border-bottom { padding-bottom: 32px; }
+  #shopify-section-{{ section.id }} .fps__inner.has-border-left { padding-left: 36px; }
+  #shopify-section-{{ section.id }} .fps__inner.has-border-right { padding-right: 36px; }
+
+  #shopify-section-{{ section.id }} .fps__border {
+    position: absolute;
+    background-color: var(--fps-line);
+    pointer-events: none;
+    -webkit-mask-repeat: repeat;
+    mask-repeat: repeat;
+  }
+  #shopify-section-{{ section.id }} .fps__border--top,
+  #shopify-section-{{ section.id }} .fps__border--bottom {
+    left: 0;
+    right: 0;
+    height: 10px;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='10' viewBox='0 0 30 10'%3E%3Cpath d='M0 5Q3.75 1 7.5 5T15 5T22.5 5T30 5' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='10' viewBox='0 0 30 10'%3E%3Cpath d='M0 5Q3.75 1 7.5 5T15 5T22.5 5T30 5' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E");
+    -webkit-mask-repeat: repeat-x;
+    mask-repeat: repeat-x;
+  }
+  #shopify-section-{{ section.id }} .fps__border--top { top: 0; }
+  #shopify-section-{{ section.id }} .fps__border--bottom { bottom: 0; }
+  #shopify-section-{{ section.id }} .fps__border--left,
+  #shopify-section-{{ section.id }} .fps__border--right {
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='30' viewBox='0 0 10 30'%3E%3Cpath d='M5 0Q1 3.75 5 7.5T5 15T5 22.5T5 30' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='30' viewBox='0 0 10 30'%3E%3Cpath d='M5 0Q1 3.75 5 7.5T5 15T5 22.5T5 30' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E");
+    -webkit-mask-repeat: repeat-y;
+    mask-repeat: repeat-y;
+  }
+  #shopify-section-{{ section.id }} .fps__border--left { left: 0; }
+  #shopify-section-{{ section.id }} .fps__border--right { right: 0; }
+
+  /* Tablet+ : side by side with the wavy line running behind the tags */
+  @media (min-width: 750px) {
+    #shopify-section-{{ section.id }} .fps__inner {
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+    }
+
+    {% if section.settings.image_position == 'left' %}
+    #shopify-section-{{ section.id }} .fps__media { order: -1; }
+    {% endif %}
+
+    #shopify-section-{{ section.id }} .fps__squiggle {
+      display: block;
+      position: absolute;
+      top: 50%;
+      height: 10px;
+      transform: translateY(-50%);
+      {% if section.settings.image_position == 'left' %}
+      left: -156px;
+      right: -50px;
+      {% else %}
+      right: -169px;
+      left: -50px;
+      {% endif %}
+      background-color: transparent;
+      color: var(--fps-line);
+    }
+
+    #shopify-section-{{ section.id }} .fps__squiggle svg { width: 100%; height: 100%; display: block; }
+    {% if section.settings.image_position == 'right' %}
+      #shopify-section-{{ section.id }} .fps__content  { padding-left: 20px; }
+    {% endif %}
+  }
+
+  /* Mobile: image first, badge stays on the image */
+  @media (max-width: 749px) {
+    #shopify-section-{{ section.id }} .fps__media { order: -1; max-width: min(100%, 420px); }
+    #shopify-section-{{ section.id }} .fps__tags-row { margin-bottom: 16px; }
+    #shopify-section-{{ section.id }} .fps__actions { gap: 18px; }
+  }
+</style>
+
+<section class="fps" data-section-id="{{ section.id }}">
+  {%- if product == blank -%}
+    <div class="fps__empty">{{ 'Select a product in the section settings.' }}</div>
+  {%- else -%}
+    <div class="fps__inner{% if section.settings.border_top %} has-border-top{% endif %}{% if section.settings.border_bottom %} has-border-bottom{% endif %}{% if section.settings.border_left %} has-border-left{% endif %}{% if section.settings.border_right %} has-border-right{% endif %}">
+      {%- assign border_sides = 'top,bottom,left,right' | split: ',' -%}
+      {%- for side in border_sides -%}
+        {%- assign key = 'border_' | append: side -%}
+        {%- if section.settings[key] -%}<span class="fps__border fps__border--{{ side }}" aria-hidden="true"></span>{%- endif -%}
+      {%- endfor -%}
+      <div class="fps__content">
+        <div class="fps__tags-row">
+          <span class="fps__squiggle" aria-hidden="true">
+            <svg viewBox="0 0 400 10" preserveAspectRatio="none" fill="none">
+              <defs>
+                <pattern id="fps-wave-{{ section.id }}" width="30" height="10" patternUnits="userSpaceOnUse">
+                  <path d="M0 5 Q 3.75 1 7.5 5 T 15 5 T 22.5 5 T 30 5" stroke="currentColor" stroke-width="1" fill="none"/>
+                </pattern>
+              </defs>
+              <rect width="400" height="10" fill="url(#fps-wave-{{ section.id }})"/>
+            </svg>
+          </span>
+          <div class="fps__tags">
+            {%- if section.settings.tag_1 != blank -%}<span class="fps__tag">{{ section.settings.tag_1 }}</span>{%- endif -%}
+            {%- if section.settings.tag_2 != blank -%}<span class="fps__tag">{{ section.settings.tag_2 }}</span>{%- endif -%}
+            {%- if section.settings.tag_3 != blank -%}<span class="fps__tag">{{ section.settings.tag_3 }}</span>{%- endif -%}
+          </div>
+        </div>
+
+        <h2 class="fps__title">{{ display_title }}</h2>
+
+        {%- if display_size != blank -%}
+          <p class="fps__size">{{ display_size }}</p>
+        {%- endif -%}
+
+        {%- if display_description != blank -%}
+          <div class="fps__desc">{{ display_description }}</div>
+        {%- endif -%}
+
+        {%- if section.settings.show_price -%}
+          <p class="fps__price">
+            <span data-fps-price>{{ current_variant.price | money_without_trailing_zeros }}</span>
+            {%- if current_variant.compare_at_price > current_variant.price -%}
+              <s data-fps-compare>{{ current_variant.compare_at_price | money_without_trailing_zeros }}</s>
+            {%- endif -%}
+          </p>
+        {%- endif -%}
+
+        {%- if can_add_to_cart -%}
+          {%- assign atc_text = section.settings.button_label | default: default_atc_text -%}
+        {%- else -%}
+          {%- assign atc_text = 'products.product.sold_out' | t -%}
+        {%- endif -%}
+
+        <product-form-component
+          data-section-id="{{ section.id }}"
+          data-product-id="{{ product.id }}"
+          data-product-url="{{ product.url }}"
+          on:submit="/handleSubmit"
+          data-quantity-default="{{ current_variant.quantity_rule.min | default: 1 }}"
+          data-quantity-error-max="{{ 'products.product.quantity_error_max' | t }}"
+        >
+          <div class="visually-hidden" aria-live="assertive" role="status" aria-atomic="true" ref="liveRegion"></div>
+          {%- form 'product', product, id: product_form_id, class: 'fps__form', data-type: 'add-to-cart-form' -%}
+            <input type="hidden" name="id" ref="variantId" value="{{ current_variant.id }}" data-fps-variant-id>
+            <input type="hidden" name="quantity" value="{{ current_variant.quantity_rule.min | default: 1 }}">
+
+            {%- if product.variants.size > 1 and section.settings.show_variant_picker -%}
+              <select class="fps__variant" aria-label="{{ 'products.product.variant' | t | default: 'Variant' }}" data-fps-select>
+                {%- for variant in product.variants -%}
+                  <option
+                    value="{{ variant.id }}"
+                    data-price="{{ variant.price | money_without_trailing_zeros }}"
+                    data-compare="{%- if variant.compare_at_price > variant.price -%}{{ variant.compare_at_price | money_without_trailing_zeros }}{%- endif -%}"
+                    {% if variant == current_variant %}selected{% endif %}
+                    {% unless variant.available %}disabled{% endunless %}
+                  >{{ variant.title }}{% unless variant.available %} — {{ 'products.product.sold_out' | t }}{% endunless %}</option>
+                {%- endfor -%}
+              </select>
+            {%- endif -%}
+
+            <div class="fps__actions">
+              <span class="product-form-text__error hidden" ref="addToCartTextError">
+                <span class="svg-wrapper">{{- 'icon-error.svg' | inline_asset_content -}}</span>
+              </span>
+              {% render 'add-to-cart-button',
+                id: atc_id,
+                class: atc_class,
+                can_add_to_cart: can_add_to_cart,
+                show_icon: section.settings.show_cart_icon,
+                product: product,
+                add_to_cart_text: atc_text,
+                data_testid: 'spotlight-add-to-cart'
+              %}
+              {%- if view_url != blank -%}
+                <a class="fps__link" href="{{ view_url }}">{{ section.settings.view_link_label }}</a>
+              {%- endif -%}
+            </div>
+          {%- endform -%}
+        </product-form-component>
+      </div>
+
+      <div class="fps__media">
+        {%- if section.settings.badge_text != blank -%}
+          <div class="fps__badge" aria-hidden="true">
+            <svg viewBox="0 0 100 100"><polygon points="96.0,50.0 97.4,51.9 98.1,53.8 97.9,55.7 96.8,57.4 95.1,59.0 93.4,60.4 92.1,61.9 91.6,63.5 91.8,65.4 92.5,67.6 93.1,69.8 93.0,71.9 92.1,73.6 90.4,74.8 88.2,75.6 86.1,76.2 84.3,77.1 83.2,78.4 82.7,80.3 82.5,82.5 82.2,84.8 81.4,86.7 79.9,87.9 77.9,88.4 75.6,88.2 73.3,88.0 71.4,88.1 69.8,89.0 68.7,90.5 67.6,92.5 66.4,94.5 64.9,95.9 63.1,96.5 61.1,96.1 59.0,95.1 57.0,94.0 55.1,93.4 53.4,93.6 51.8,94.6 50.0,96.0 48.1,97.4 46.2,98.1 44.3,97.9 42.6,96.8 41.0,95.1 39.6,93.4 38.1,92.1 36.5,91.6 34.6,91.8 32.4,92.5 30.2,93.1 28.1,93.0 26.4,92.1 25.2,90.4 24.4,88.2 23.8,86.1 22.9,84.3 21.6,83.2 19.7,82.7 17.5,82.5 15.2,82.2 13.3,81.4 12.1,79.9 11.6,77.9 11.8,75.6 12.0,73.3 11.9,71.4 11.0,69.8 9.5,68.7 7.5,67.6 5.5,66.4 4.1,64.9 3.5,63.1 3.9,61.1 4.9,59.0 6.0,57.0 6.6,55.1 6.4,53.4 5.4,51.8 4.0,50.0 2.6,48.1 1.9,46.2 2.1,44.3 3.2,42.6 4.9,41.0 6.6,39.6 7.9,38.1 8.4,36.5 8.2,34.6 7.5,32.4 6.9,30.2 7.0,28.1 7.9,26.4 9.6,25.2 11.8,24.4 13.9,23.8 15.7,22.9 16.8,21.6 17.3,19.7 17.5,17.5 17.8,15.2 18.6,13.3 20.1,12.1 22.1,11.6 24.4,11.8 26.7,12.0 28.6,11.9 30.2,11.0 31.3,9.5 32.4,7.5 33.6,5.5 35.1,4.1 36.9,3.5 38.9,3.9 41.0,4.9 43.0,6.0 44.9,6.6 46.6,6.4 48.2,5.4 50.0,4.0 51.9,2.6 53.8,1.9 55.7,2.1 57.4,3.2 59.0,4.9 60.4,6.6 61.9,7.9 63.5,8.4 65.4,8.2 67.6,7.5 69.8,6.9 71.9,7.0 73.6,7.9 74.8,9.6 75.6,11.8 76.2,13.9 77.1,15.7 78.4,16.8 80.3,17.3 82.5,17.5 84.8,17.8 86.7,18.6 87.9,20.1 88.4,22.1 88.2,24.4 88.0,26.7 88.1,28.6 89.0,30.2 90.5,31.3 92.5,32.4 94.5,33.6 95.9,35.1 96.5,36.9 96.1,38.9 95.1,41.0 94.0,43.0 93.4,44.9 93.6,46.6 94.6,48.2"/></svg>
+            <span>{{ section.settings.badge_text }}</span>
+          </div>
+        {%- endif -%}
+
+        {%- if display_image != blank -%}
+          {{
+            display_image
+            | image_url: width: 1400
+            | image_tag:
+              class: 'fps__image',
+              widths: '400, 600, 800, 1000, 1400',
+              sizes: '(min-width: 750px) 50vw, 100vw',
+              loading: 'lazy',
+              alt: display_image.alt | default: display_title
+          }}
+        {%- else -%}
+          {{ 'product-1' | placeholder_svg_tag: 'fps__placeholder' }}
+        {%- endif -%}
+      </div>
+    </div>
+  {%- endif -%}
+</section>
+
+<script>
+  (function () {
+    var root = document.querySelector('[data-section-id="{{ section.id }}"]');
+    var select = root && root.querySelector('[data-fps-select]');
+    if (!select || select.dataset.fpsInit) return;
+    select.dataset.fpsInit = 'true';
+    var variantInput = root.querySelector('[data-fps-variant-id]');
+    var priceEl = root.querySelector('[data-fps-price]');
+    var compareEl = root.querySelector('[data-fps-compare]');
+
+    select.addEventListener('change', function () {
+      var opt = select.options[select.selectedIndex];
+      variantInput.value = opt.value;
+      if (priceEl) priceEl.textContent = opt.dataset.price;
+      if (compareEl) {
+        compareEl.textContent = opt.dataset.compare || '';
+        compareEl.hidden = !opt.dataset.compare;
+      }
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Product spotlight",
+  "tag": "div",
+  "class": "fps-section",
+  "settings": [
+    { "type": "header", "content": "Product" },
+    { "type": "product", "id": "product", "label": "Product" },
+    { "type": "text", "id": "title", "label": "Title override", "info": "Leave empty to use the product title." },
+    { "type": "text", "id": "size_label", "label": "Size / weight label", "info": "e.g. 100 g. Leave empty to use the variant weight." },
+    { "type": "textarea", "id": "description", "label": "Description override", "info": "Leave empty to use the product description." },
+    { "type": "range", "id": "description_words", "label": "Auto description length (words)", "min": 10, "max": 80, "step": 5, "default": 30 },
+    { "type": "checkbox", "id": "show_price", "label": "Show price", "default": true },
+    { "type": "checkbox", "id": "show_variant_picker", "label": "Show variant picker", "default": true },
+
+    { "type": "header", "content": "Tags" },
+    { "type": "text", "id": "tag_1", "label": "Tag 1", "default": "#008" },
+    { "type": "text", "id": "tag_2", "label": "Tag 2", "default": "#October drop" },
+    { "type": "text", "id": "tag_3", "label": "Tag 3" },
+
+    { "type": "header", "content": "Image & badge" },
+    { "type": "image_picker", "id": "image", "label": "Image override", "info": "Leave empty to use the product's featured image. Transparent PNG/WebP works best." },
+    { "type": "select", "id": "image_position", "label": "Image position (desktop)", "default": "right", "options": [ { "value": "right", "label": "Right" }, { "value": "left", "label": "Left" } ] },
+    { "type": "range", "id": "image_max_width", "label": "Image max width", "min": 280, "max": 800, "step": 20, "default": 600, "unit": "px" },
+    { "type": "range", "id": "image_rotate", "label": "Image rotation", "min": -15, "max": 15, "step": 1, "default": 0, "unit": "°" },
+    { "type": "text", "id": "badge_text", "label": "Badge text", "default": "New", "info": "Leave empty to hide the badge." },
+
+    { "type": "header", "content": "Buttons" },
+    { "type": "text", "id": "button_label", "label": "Add to cart label", "default": "+ Add to Cart" },
+    { "type": "text", "id": "view_link_label", "label": "View link label", "default": "View Cookie →", "info": "Leave empty to hide the link." },
+    { "type": "select", "id": "button_style", "label": "Button style", "default": "button", "options": [ { "value": "button", "label": "Primary" }, { "value": "button-secondary", "label": "Secondary" } ], "info": "Edit button styles in theme settings." },
+    { "type": "checkbox", "id": "show_cart_icon", "label": "Show cart icon on button", "default": false },
+
+    { "type": "header", "content": "Layout" },
+    { "type": "range", "id": "max_width", "label": "Max content width", "min": 960, "max": 1800, "step": 20, "default": 1320, "unit": "px" },
+    { "type": "range", "id": "title_size", "label": "Title size (desktop)", "min": 32, "max": 96, "step": 2, "default": 52, "unit": "px" },
+    { "type": "range", "id": "padding_top", "label": "Top padding", "min": 0, "max": 160, "step": 4, "default": 48, "unit": "px" },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding", "min": 0, "max": 160, "step": 4, "default": 48, "unit": "px" },
+
+    { "type": "header", "content": "Wavy border" },
+    { "type": "checkbox", "id": "border_top", "label": "Top border", "default": false },
+    { "type": "checkbox", "id": "border_bottom", "label": "Bottom border", "default": false },
+    { "type": "checkbox", "id": "border_left", "label": "Left border", "default": false },
+    { "type": "checkbox", "id": "border_right", "label": "Right border", "default": false },
+
+    { "type": "header", "content": "Colors" },
+    { "type": "color", "id": "bg_color", "label": "Background", "default": "#f5f5f5" },
+    { "type": "color", "id": "text_color", "label": "Text", "default": "#111111" },
+    { "type": "color", "id": "muted_color", "label": "Secondary text", "default": "#3d4030" },
+    { "type": "color", "id": "tag_bg", "label": "Tag background", "default": "#f2d3d3" },
+    { "type": "color", "id": "tag_text", "label": "Tag text", "default": "#111111" },
+    { "type": "color", "id": "line_color", "label": "Wavy line", "default": "#b9b9b9" },
+    { "type": "color", "id": "badge_bg", "label": "Badge background", "default": "#dfe6cf" },
+    { "type": "color", "id": "badge_text_color", "label": "Badge text / outline", "default": "#111111" }
+  ],
+  "presets": [
+    {
+      "name": "Product spotlight"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,84 @@
+{% comment %}
+  Renders a product info content quickview with thumbnails.
+
+  Accepts:
+  - zoom_enabled: {Boolean} Whether to enable zoom on the main image (optional)
+
+  Usage:
+  {% render 'product-info-content-quickview' %}
+{% endcomment %}
+
+<div class='product-info-content-quickview'>
+  <div class='product-info-content-quickview__content'>
+    <div class='product-info-content-quickview__vendor'>
+      <p>{{ product.vendor }}</p>
+    </div>
+    <h5 class='product-info-content-quickview__title h5'>{{ product.title }}</h5>
+    <div class='product-info-content-quickview__price'>
+      <xo-animate xo-cascade>
+        <xo-product-will-change xo-unique-id='product-price-{{ product.id }}'>
+          {% render 'price', product: product, use_variant: true %}
+          {% if cart.taxes_included == true %}
+            <span>{{ 'products.product.price.include_tax' | t }}</span>
+          {% endif %}
+        </xo-product-will-change>
+      </xo-animate>
+    </div>
+    <div class='product-info-content-quickview__variant {% if product.variants.size > 1 %}product-info-content-quickview__variant--pd{% endif %}'>
+      {% if product.options_with_values[0].name != 'Title' %}
+        {%- for option in product.options_with_values -%}
+            {% if option.name == 'Color' %}
+              {% render 'product-variant', option: option, style: "color", product: product %}
+            {% else %}
+              {% render 'product-variant', option: option, style: "boxed", product: product %}
+            {% endif %}
+        {%- endfor -%}
+      {% endif %}
+    </div>
+    <div class='product-info-content-quickview__group-button'>
+      {% liquid
+        assign form_id = 'product_form_id-' | append: section.id
+        assign button_view_detail_text = 'products.product.view_full_detail' | t
+      %}
+      <div class='product-info-content-quickview__quantity'>
+        {%- render 'quantity', size: 'md', form_id: form_id %}
+      </div>
+      <div class='product-info-content-quickview__row'>
+        {% if product and product != empty %}
+          <div class='product-info-content-quickview__buy-now'>
+            {% render 'buy-button', show_dynamic_checkout: true %}
+          </div>
+        {% else %}          
+          <div class='product-info-content-quickview__buy-now'>
+            {% assign button_buy_now = 'products.product.buy_now' | t %}
+            {% render 'button', style: 'primary', text: button_buy_now, size: 'md', block: true %}
+          </div>
+        {% endif %}
+        <div class='product-info-content-quickview__add-cart'>
+          <xo-product-will-change class='product-info-content-quickview__add-cart-inner' style='--lg: 2;' xo-unique-id='product-add-button-{{ product.id }}'>
+            <xo-cart-add
+              class='product-info-content-quickview__button-add-cart'
+              xo-product-id='{{ product.selected_or_first_available_variant.id }}'
+              {% if product.selected_or_first_available_variant.available == false %}
+                xo-disabled
+              {% endif %}
+            >
+              {% if product.selected_or_first_available_variant.available %}
+                {% assign button_text = 'products.product.add_to_cart' | t %}
+                {% assign button_text_unavailable = 'products.product.unavailable' | t %}
+                {% render 'button', style: 'secondary', text: button_text, size: 'md', block: true, text_unavailable: button_text_unavailable %}
+              {%- else -%}
+                {% assign button_text = 'products.product.sold_out' | t %}
+                {% assign button_text_unavailable = 'products.product.unavailable' | t %}
+                {% render 'button', style: 'secondary', text: button_text, size: 'md', block: true. text_unavailable: button_text_unavailable %}
+              {% endif %}
+            </xo-cart-add>
+          </xo-product-will-change>
+        </div>
+      </div>
+      <div class='product-info-content-quickview__view-full-detail'>
+        {% render 'button', link: product.url, style: 'link', text: button_view_detail_text, size: 'md' %}
+      </div>
+    </div>
+  </div>
+</div>

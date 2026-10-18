@@ -1,0 +1,394 @@
+{%- comment -%}
+----------------------------------------------------------------------------------------------------------------------
+DISCOUNT BADGE
+----------------------------------------------------------------------------------------------------------------------
+
+Renders a discount badge after the price, supporting both automatic and manual discount types.
+
+********************************************
+Supported variables
+********************************************
+
+* block.settings.discount_type        - "automatic" or "manual"
+* block.settings.discount_label       - Label text shown in badge (manual: coupon code, auto: label like "Special Offer")
+* block.settings.badge_bg_color       - Background color of badge
+* block.settings.badge_text_color     - Text color of badge
+* block.settings.show_copy_icon       - Boolean: show copy icon for manual discount
+* block.settings.copy_icon_color      - Color of the copy icon
+* product                             - Current product object
+* variant                             - Current selected variant (for automatic discount price)
+{%- endcomment -%}
+<style>
+  /* =============================================================================
+    DISCOUNT BADGE  —  assets/discount-badge.css
+    Global badge styles used on product page AND collection cards.
+    CSS custom properties are set inline by the snippet from theme settings.
+    ============================================================================= */
+
+  /* Wrapper sits inline next to price-list */
+  .discount-badge-wrapper {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* ── Badge shell ──────────────────────────────────────────────────────────── */
+  .discount-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 100px;
+    background-color: var(--db-bg, #F5E642);
+    color: var(--db-color, #1A1A1A);
+    font-weight: 500;
+    line-height: 1.2;
+    position: relative;
+    white-space: nowrap;
+    width: 100%;
+    justify-content: center;
+  }
+  .discount-badge svg {
+    color: var(--db-color, #1A1A1A);
+  }
+  /* Size variants */
+  .discount-badge--md {
+    padding: 5px 12px 5px 14px;
+    font-size: 0.85rem;
+  }
+
+  .discount-badge--sm {
+    padding: 3px 9px 3px 11px;
+    font-size: 0.75rem;
+  }
+
+  /* ── Dashed left separator ────────────────────────────────────────────────── */
+  .discount-badge__sep {
+    display: block;
+    position: absolute;
+    left: -1px;
+    top: 15%;
+    height: 70%;
+    width: 0;
+    border-left: 2px dashed currentColor;
+    opacity: 0.35;
+  }
+
+  /* ── Price ────────────────────────────────────────────────────────────────── */
+  .discount-badge__price {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── Label / code ─────────────────────────────────────────────────────────── */
+  .discount-badge__label {
+    display: inline-flex;
+    align-items: center;
+    border-left: 1px dashed #000000;
+    padding-left: 4px;
+  }
+
+  .discount-badge__code {
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  /* ── Copy button ──────────────────────────────────────────────────────────── */
+  .discount-badge__copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0 0 0 3px;
+    margin: 0;
+    cursor: pointer;
+    color: var(--db-copy-color, currentColor);
+    opacity: 0.7;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    line-height: 1;
+  }
+
+  .discount-badge__copy-btn:hover {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+ 
+  .discount-badge__copy-btn:active {
+    transform: scale(0.95);
+  }
+
+  /* Icon states */
+  .discount-badge__icon--check {
+    display: none;
+  }
+
+  .discount-badge__copy-btn.is-copied .discount-badge__icon--copy {
+    display: none;
+  }
+  span.discount-badge__label span {
+    margin-right: 4px;
+  }
+  .discount-badge__copy-btn.is-copied .discount-badge__icon--check {
+    display: inline-flex;
+  }
+  span.discount-badge__label span {
+    margin-right: 4px;
+  }
+
+  @keyframes discount-badge-pop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+
+  .discount-badge__copy-btn.is-copied {
+    animation: discount-badge-pop 0.28s ease;
+  }
+
+  /* ── Price-list flex integration ──────────────────────────────────────────── */
+  /*
+    Ensures badge sits inline with sale-price / compare-at-price elements.
+    Only adds gap if not already set by theme.
+  */
+  .price-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+</style>
+
+{%- liquid
+  assign db_enabled        = settings.discount_badge_enabled
+  assign db_percent        = settings.discount_badge_percent | times: 1
+  assign db_label          = settings.discount_badge_label
+  assign db_with_label          = settings.discount_badge_with_label
+  assign db_bg             = settings.discount_badge_bg_color
+  assign db_color          = settings.discount_badge_text_color
+  assign db_show_copy      = settings.discount_badge_show_copy
+  assign db_copy_color     = settings.discount_badge_copy_icon_color
+  assign db_target         = settings.discount_badge_target
+  assign db_product_list   = settings.discount_badge_products
+
+  assign show_badge = false
+  if db_enabled and db_percent > 0
+    if db_target == 'all'
+      assign show_badge = true
+    elsif db_target == 'specific' and product != blank
+      for p in db_product_list
+        if p.id == product.id
+          assign show_badge = true
+          break
+        endif
+      endfor
+    endif
+  endif
+  
+
+  comment
+    Resolve the price source depending on what was passed in.
+    Priority: variant > product selected/first available variant
+  endcomment
+
+  if variant != blank
+    assign badge_variant = variant
+  elsif product != blank
+    assign badge_variant = product.selected_or_first_available_variant
+  endif
+
+  if badge_variant == blank
+    assign show_badge = false
+  endif
+-%}
+
+{%- if show_badge -%}
+  {%- liquid
+    assign discount_amount  = badge_variant.price | times: db_percent | divided_by: 100
+    assign discounted_price = badge_variant.price | minus: discount_amount
+  -%}
+
+  {%- assign badge_size_class = 'discount-badge--md' -%}
+  {%- if context == 'card' -%}
+    {%- assign badge_size_class = 'discount-badge--sm' -%}
+  {%- endif -%}
+ 
+  <div
+    class="discount-badge-wrapper"
+    data-discount-badge
+    data-discount-percent="{{ db_percent }}"
+    data-original-price="{{ badge_variant.price }}"
+    style="--db-bg:{{ db_bg }};--db-color:{{ db_color }};--db-copy-color:{{ db_copy_color }};"
+  >
+    <div
+      class="discount-badge {{ badge_size_class }}"
+      aria-label="{{ db_percent }}% off — {{ discounted_price | money }}"
+    >
+      {%- comment -%} Discounted price (updated by JS on variant change) {%- endcomment -%}
+      <span class="discount-badge__price" data-discount-price>
+        {%- if settings.currency_code_enabled -%}
+          {{- discounted_price | money_with_currency -}}
+        {%- else -%}
+          {{- discounted_price | money -}}
+        {%- endif -%}
+      </span>
+
+      {%- if db_label != blank -%}
+        <span class="discount-badge__label">
+          <span>{{ db_with_label }}</span>
+          <strong class="discount-badge__code">{{ db_label | escape }}</strong>
+        </span>
+      {%- endif -%}
+
+      {%- if db_show_copy and db_label != blank -%}
+        <button
+          class="discount-badge__copy-btn"
+          type="button"
+          data-copy-text="{{ db_label | escape }}"
+          aria-label="Copy code {{ db_label | escape }}"
+          title="Copy code"
+        >
+          <span class="discount-badge__icon discount-badge__icon--copy" aria-hidden="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </span>
+          <span class="discount-badge__icon discount-badge__icon--check" aria-hidden="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </span>
+        </button>
+      {%- endif -%}
+    </div>
+  </div>
+{%- endif -%}
+
+{% javascript %}
+  (function () {
+    'use strict';
+
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.discount-badge__copy-btn');
+      if (!btn) return;
+      var text = btn.dataset.copyText;
+      if (!text) return;
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text)
+          .then(function () { showCopied(btn); })
+          .catch(function () { fallbackCopy(text, btn); });
+      } else {
+        fallbackCopy(text, btn);
+      }
+    });
+
+    function showCopied(btn) {
+      btn.classList.add('is-copied');
+      setTimeout(function () { btn.classList.remove('is-copied'); }, 2000);
+    }
+
+    function fallbackCopy(text, btn) {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showCopied(btn);
+      } catch (err) {
+        console.warn('[discount-badge] Copy failed:', err);
+      }
+    }
+
+    function updateBadgesForVariant(variantPrice) {
+      var wrappers = document.querySelectorAll('[data-discount-badge]');
+      wrappers.forEach(function (wrapper) {
+        var pct = parseInt(wrapper.dataset.discountPercent, 10);
+        if (!pct || !variantPrice) return;
+
+        var discountAmt   = Math.round(variantPrice * pct / 100);
+        var discountedAmt = variantPrice - discountAmt;
+
+        var priceEl = wrapper.querySelector('[data-discount-price]');
+        if (!priceEl) return;
+
+        priceEl.textContent = formatMoney(discountedAmt);
+        wrapper.dataset.originalPrice = variantPrice;
+      });
+    }
+
+    /* ── Event: Dawn / most themes — fires on document ── */
+    document.addEventListener('variant:changed', function (e) {
+      var v = e.detail && (e.detail.variant || e.detail);
+      if (v && v.price) updateBadgesForVariant(v.price);
+    });
+
+    /* ── Event: some themes use this name ── */
+    document.addEventListener('variantChanged', function (e) {
+      var v = e.detail && (e.detail.variant || e.detail);
+      if (v && v.price) updateBadgesForVariant(v.price);
+    });
+
+    /* ── Event: Shopify product-form web component ── */
+    document.addEventListener('change', function (e) {
+      var form = e.target.closest('product-form, [data-product-form]');
+      if (!form) return;
+      setTimeout(function () { tryReadVariantFromForm(form); }, 80);
+    });
+
+    function tryReadVariantFromForm(form) {
+      var input = form.querySelector('input[name="id"]');
+      if (!input) return;
+      var id = input.value;
+      var variants = window.__discountBadgeVariants || [];
+      var v = variants.find(function (x) { return String(x.id) === String(id); });
+      if (v && v.price) updateBadgesForVariant(v.price);
+    }
+
+    function formatMoney(cents) {
+      var moneyFormat =
+        (window.Shopify && window.Shopify.money_format) ||
+        (window.theme && window.theme.moneyFormat) ||
+        '{{amount}}';
+
+      var amount       = (cents / 100).toFixed(2);
+      var amountInt    = Math.round(cents / 100).toString();
+      var amountComma  = amount.replace('.', ',');
+      var currency     = (window.Shopify && window.Shopify.currency && window.Shopify.currency.active) || '';
+
+      return moneyFormat
+        .replace(/\{\{\s*amount\s*\}\}/g,                    amount)
+        .replace(/\{\{\s*amount_no_decimals\s*\}\}/g,        amountInt)
+        .replace(/\{\{\s*amount_with_comma_separator\s*\}\}/g, amountComma)
+        .replace(/\{\{\s*amount_with_currency\s*\}\}/g,      amount + ' ' + currency)
+        .replace(/\{\{\s*amount_no_decimals_with_currency\s*\}\}/g, amountInt + ' ' + currency);
+    }
+
+    function init() {
+      /* Try to find variant data exposed by theme in a <script type="application/json"> */
+      document.querySelectorAll('script[type="application/json"]').forEach(function (tag) {
+        try {
+          var data = JSON.parse(tag.textContent);
+          /* Array of variants directly */
+          if (Array.isArray(data) && data[0] && data[0].price !== undefined) {
+            window.__discountBadgeVariants = (window.__discountBadgeVariants || []).concat(data);
+          }
+          /* {variants: [...]} shape */
+          if (data && Array.isArray(data.variants)) {
+            window.__discountBadgeVariants = (window.__discountBadgeVariants || []).concat(data.variants);
+          }
+        } catch (e) { /* not JSON — ignore */ }
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+
+  })();
+{% endjavascript %}

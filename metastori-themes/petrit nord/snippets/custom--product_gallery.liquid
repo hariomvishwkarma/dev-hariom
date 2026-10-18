@@ -1,0 +1,311 @@
+{%- assign initial_media_id = product.featured_media.id -%}
+{%- assign initial_media_index = 0 -%}
+{%- assign media_count = 0 -%}
+{%- assign hidden_media = 92 -%}
+{%- assign media_position = 0 -%}
+{%- assign filter =  "" -%}
+{%- assign hover_index =  2 -%}
+
+{% comment %}Show video for products:{% endcomment %}
+{% assign custom_video = "" %}
+{% assign custom_thumbnail = "" %}
+{% for block in section.blocks %}
+{% if block.type == "video" %}
+  {% for item in block.settings.product_list %}
+    {% if item.id == product.id %}
+      {% assign custom_video = block.settings.video %}
+      {% assign custom_thumbnail = block.settings.thumbnail | img_url: "100x" %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+{% endfor %}
+
+{% if product.handle == "21722-a-cognac" %}
+  {%- assign hover_index =  2 -%}
+  {%- assign filter =  ".png" -%}
+{% endif %}
+
+{%- capture slideshow_media -%}
+  {%- for media in product.media -%}
+    {%- if media.alt == 'featured' or media.alt == 'featured mobile' or forloop.index == hover_index -%}
+      {%- continue -%}
+    {% else %}
+      {% comment %}
+      {%- unless media contains filter  -%}
+        {%- continue -%}
+      {%- endunless -%}
+      {% endcomment %}
+      {%- assign media_position = media_position | plus: 1 -%}
+    {%- endif -%}
+
+    {%- if product.selected_variant and media.id == product.selected_variant.featured_media.id -%}
+      {%- assign initial_media_index = media_count -%}
+      {%- assign initial_media_id = media.id -%}
+    {%- endif -%}
+
+    {%- capture supported_sizes -%}{%- render 'image-size', sizes: '200,400,600,700,800,900,1000,1200,1400,1600', image: media -%}{%- endcapture -%}
+
+    {%- if forloop.index != hidden_media -%}
+    {%- case media.media_type -%}
+      {%- when 'image' -%}
+        <div id="Media{{ media.id }}" tabindex="0" class="Product__SlideItem Product__SlideItem--image Carousel__Cell {% if initial_media_id == media.id %}is-selected{% endif %}" data-media-type="image" data-media-id="{{ media.id }}" data-media-position="{{ media_position }}" data-image-media-position="{% increment image_position %}">
+          <div class="AspectRatio AspectRatio--withFallback" style="padding-bottom: {{ 100.0 | divided_by: media.aspect_ratio }}%; --aspect-ratio: {{ media.aspect_ratio }};">
+            {% if forloop.first %}
+              <div class="gallery-badges"> 
+                {% if show_preorder %}
+                  <span class="badge preorder">{{ settings.preorder_badge }}</span> 
+                {% endif %}
+                {% if show_sale and show_preorder == false %}
+                  <span class="badge preorder">{{ settings.sale_badge }}</span>
+                {% endif %}
+              </div>
+            {% endif %}
+      
+      
+            {% assign image_url = media | img_url: '1x1' | replace: '_1x1.', '_{width}x.' %}
+            <img {% if forloop.index == 1 %}rel="preload" fetchpriority="high"{% endif %} class="Image--lazyLoad Image--fadeIn" data-src="{{ image_url }}" data-widths="[{{ supported_sizes }}]" data-sizes="auto" data-expand="-100" alt="{{ media.alt | escape }}" data-max-width="{{ media.width }}" data-max-height="{{ media.height }}" data-original-src="{{ media | img_url: 'master' }}">
+            <span class="Image__Loader"></span>
+            <noscript>
+              <img src="{{ media | img_url: '800x' }}" alt="{{ media.alt | escape }}">
+            </noscript>
+          </div>
+        </div>
+
+      {%- when 'external_video' -%}
+        <div id="Media{{ media.id }}" tabindex="-1" class="Product__SlideItem Product__SlideItem--video Carousel__Cell {% if initial_media_id == media.id %}is-selected{% endif %}" data-media-type="external_video" data-media-id="{{ media.id }}" data-media-position="{{ media.position }}" data-video-host="{{ media.host | escape }}" data-video-id="{{ media.external_id | escape }}">
+          <div class="Image--lazyLoad Image--fadeIn" data-expand="-100">
+            <div class="VideoWrapper">
+              {{- media | external_video_tag: image_size: '1024x' -}}
+            </div>
+          </div>
+        </div>
+
+      {%- when 'video' -%}
+        <div id="Media{{ media.id }}" tabindex="-1" class="Product__SlideItem Product__SlideItem--video Carousel__Cell {% if initial_media_id == media.id %}is-selected{% endif %}" data-media-type="video" data-media-id="{{ media.id }}" data-media-position="{{ media.position }}">
+          <div class="Image--lazyLoad Image--fadeIn" data-expand="-100">
+            <div class="VideoWrapper VideoWrapper--native" style="padding-bottom: {{ 100.0 | divided_by: media.aspect_ratio }}%">
+              {{- media | video_tag: image_size: '1024x', controls: true -}}
+            </div>
+          </div>
+        </div>
+            
+      {%- when 'model' -%}
+        <div id="Media{{ media.id }}" tabindex="-1" class="Product__SlideItem Product__SlideItem--model Carousel__Cell {% if initial_media_id == media.id %}is-selected{% endif %}" data-media-type="model" data-media-id="{{ media.id }}" data-media-position="{{ media.position }}">
+          <div class="Image--lazyLoad Image--fadeIn" data-expand="-100">
+            <div class="ModelWrapper">
+              {{- media | model_viewer_tag: image_size: '1024x', reveal: 'interaction', toggleable: true -}}
+            </div>
+          </div>
+        </div>
+    {%- endcase -%}
+    {% endif %}
+    {%- assign media_count = media_count | plus: 1 -%}
+  {%- endfor -%}
+  {% if custom_video != "" %}
+      <div id="Media1a1" tabindex="-1" class="Product__SlideItem Product__SlideItem--video Carousel__Cell" data-media-type="video" data-media-id="12345" data-media-position="{{ media_count | plus: 1 }}" data-image-media-position="{% increment image_position %}">
+        <div class="Image--lazyLoad Image--fadeIn" data-expand="-100">
+          <div class="VideoWrapper VideoWrapper--native" style="padding-bottom: 130.0%">
+            <video controls playsinline>
+              <source src="{{ custom_video }}" type="video/mp4">
+            </video>
+          </div>
+        </div>
+      </div>
+    {%- assign media_count = media_count | plus: 1 -%}
+  {% endif %}
+
+
+
+{%- endcapture -%}
+
+{%- if product.media.size > 0 -%}
+  <div class="Product__Gallery {% if section.settings.stack_images %}Product__Gallery--stack{% endif %} {% if section.settings.show_thumbnails and media_count > 1 %}Product__Gallery--withThumbnails{% else %}Product__Gallery--withDots{% endif %}">
+    <span id="ProductGallery" class="Anchor"></span>
+
+    {%- if action_list_items != blank -%}
+      <div class="Product__ActionList hidden-lap-and-up {% if product.media[initial_media_index].media_type != 'image' %}is-hidden{% endif %}">
+        {{ action_list_items }}
+      </div>
+    {%- endif -%}
+
+    {%- capture slideshow_nav -%}
+      {%- if media_count > 0 -%}
+        {%- if section.settings.show_thumbnails -%}
+          <div class="Product__SlideshowNav Product__SlideshowNav--thumbnails hide--medium-down">
+            {%- if media_count < 0 -%}
+            <div class="Product__SlideshowNavScroller">
+              {%- for media in product.media -%}
+                {%- if media.alt == 'featured' or media.alt == 'featured mobile' or forloop.index == hover_index -%}
+                  {%- continue -%}
+                {%- endif -%}
+              
+                {%- unless media contains filter  -%}
+                  {%- continue -%}
+                {%- endunless -%}
+
+                {%- capture nav_item_badge -%}
+                  {%- case media.media_type -%}
+                    {%- when 'model' -%}
+                      <span class="Product__SlideshowNavBadge">{% render 'icon', icon: 'media-model-badge' %}</span>
+
+                    {%- when 'video' or 'external_video' -%}
+                      <span class="Product__SlideshowNavBadge">{% render 'icon', icon: 'media-video-badge' %}</span>
+                  {%- endcase -%}
+                {%- endcapture -%}
+
+                {%- if section.settings.stack_images -%}
+                  <a href="#Media{{ media.id }}" data-offset="-25" data-focus-on-click data-media-id="{{ media.id }}" class="Product__SlideshowNavImage {% if forloop.first %}is-selected{% endif %}" style="--aspect-ratio: {{ media.preview_image.aspect_ratio }}">
+                    <img src="{{ media | img_url: '160x' }}" alt="{{ media.alt | escape }}">
+                    {{- nav_item_badge -}}
+                  </a>
+                {%- else -%}
+                  <a href="{{ media | img_url: '1024x' }}" data-media-id="{{ media.id }}" class="Product__SlideshowNavImage {% if forloop.first %}is-selected{% endif %}" style="--aspect-ratio: {{ media.preview_image.aspect_ratio }}">
+                    <img src="{{ media | img_url: '160x' }}" alt="{{ media.alt | escape }}">
+                    {{- nav_item_badge -}}
+                  </a>
+                {%- endif -%}
+              {%- endfor -%}
+            </div>
+            {% else %}
+            
+            <div class="swiper-container">
+              <div class="swiper-wrapper">
+                {%- for media in product.media -%}
+                
+                  {%- if media.alt == 'featured' or media.alt == 'featured mobile' or forloop.index == hover_index -%}
+                    {%- continue -%}
+                  {%- endif -%}
+                
+                  {%- unless media contains filter  -%}
+                    {%- continue -%}
+                  {%- endunless -%}
+                
+                {%- if forloop.index != hidden_media and media.media_type != "video" -%}
+                <div class="swiper-slide">
+                  {%- capture nav_item_badge -%}
+                    {%- case media.media_type -%}
+                      {%- when 'model' -%}
+                        <span class="Product__SlideshowNavBadge">{% render 'icon', icon: 'media-model-badge' %}</span>
+
+                      {%- when 'video' or 'external_video' -%}
+                        <span class="Product__SlideshowNavBadge">{% render 'icon', icon: 'media-video-badge' %}</span>
+                    {%- endcase -%}
+                  {%- endcapture -%}
+
+                  {%- if section.settings.stack_images -%}
+                    <a href="#Media{{ media.id }}" data-offset="-25" data-focus-on-click data-media-id="{{ media.id }}" class="Product__SlideshowNavImage AspectRatio {% if forloop.first %}is-selected{% endif %}" style="--aspect-ratio: {{ media.preview_image.aspect_ratio }}">
+                      <img src="{{ media | img_url: '160x' }}" alt="{{ media.alt | escape }}">
+                      {{- nav_item_badge -}}
+                    </a>
+                  {%- else -%}
+                    <a href="{{ media | img_url: '1024x' }}" data-media-id="{{ media.id }}" class="Product__SlideshowNavImage AspectRatio {% if forloop.first %}is-selected{% endif %}" style="--aspect-ratio: {{ media.preview_image.aspect_ratio }}">
+                      <img src="{{ media | img_url: '160x' }}" alt="{{ media.alt | escape }}">
+                      {{- nav_item_badge -}}
+                    </a>
+                  {%- endif -%}
+                  </div>
+                {% endif %}
+                {%- endfor -%}
+              
+                {% if custom_video != "" %}
+                  <div class="swiper-slide">
+                    {%- if section.settings.stack_images -%}
+                      <a href="#12345" data-offset="-25" data-focus-on-click data-media-id="12345" class="Product__SlideshowNavImage AspectRatio" style="--aspect-ratio: 1">
+                        <img src="{{ custom_thumbnail }}">
+                        <span class="Product__SlideshowNavBadge">{% render 'icon', icon: 'media-video-badge' %}</span>
+                      </a>
+                    {%- else -%}
+                      <a href="#12345" data-media-id="12345" class="Product__SlideshowNavImage AspectRatio" style="--aspect-ratio: 1">
+                        <img src="{{ custom_thumbnail }}">
+                        <span class="Product__SlideshowNavBadge">{% render 'icon', icon: 'media-video-badge' %}</span>
+                      </a>
+                    {%- endif -%}
+                    </div>
+                {% endif %}
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        {%- endif -%}
+
+        {%- if section.settings.stack_images -%}
+          <div class="Product__SlideshowNav Product__SlideshowNav--dots">
+            <div class="Product__SlideshowNavScroller">
+              {%- for media in product.media -%}
+                {%- if media.alt == 'featured' or media.alt == 'featured mobile' or forloop.index == hover_index -%}
+                  {%- continue -%}
+                {%- endif -%}
+              
+                {%- unless media contains filter  -%}
+                  {%- continue -%}
+                {%- endunless -%}
+
+                <a href="#Media{{ media.id }}" data-offset="-25" data-focus-on-click class="Product__SlideshowNavDot {% if forloop.first %}is-selected{% endif %}"></a>
+              {%- endfor -%}
+            </div>
+          </div>
+        {%- endif -%}
+      {%- endif -%}
+    {%- endcapture -%}
+
+    {%- if section.settings.stack_images -%}
+      {{- slideshow_nav -}}
+    {%- endif -%}
+
+    {%- capture flickity_options -%}
+    {
+      "prevNextButtons": true,
+      "pageDots": true,
+      "adaptiveHeight": true,
+      "watchCSS": true,
+      "dragThreshold": 8,
+      "initialIndex": {{ initial_media_index }},
+      "wrapAround": true
+    }
+    {%- endcapture -%}
+
+    <div class="Product__Slideshow--wrapper">
+      
+    {%- unless section.settings.stack_images -%}
+      {{- slideshow_nav -}}
+    {%- endunless -%}
+
+      <div class="Product__Slideshow {% if section.settings.enable_image_zoom %}Product__Slideshow--zoomable{% endif %} Carousel" data-flickity-config='{{ flickity_options }}'>
+        {{ slideshow_media }}
+      </div>
+    </div>
+
+    {%- comment -%}Add the "view in your space" button, which allows to show the product in customer's environment (if the device supports it){%- endcomment -%}
+    {%- assign first_3d_model = product.media | where: 'media_type', 'model' | first -%}
+
+    {%- if first_3d_model -%}
+      <button class="Product__ViewInSpace Button Button--full" data-shopify-xr data-shopify-model3d-id="{{ first_3d_model.id }}" data-shopify-model3d-default-id="{{ first_3d_model.id }}" data-shopify-title="{{ product.title | escape }}" data-shopify-xr-hidden>
+        {%- render 'icon', icon: 'media-view-in-space' -%} {{- 'product.general.view_in_space' | t -}}
+      </button>
+    {%- endif -%}
+
+    {%- if media_count > 1 -%}
+      {%- comment -%}
+        IMPLEMENTATION NOTE: The reason we create ourselves our own UI instead of relying of the built-in feature of Flickity is that,
+        since the media API, Shopify requires to add arrows next to the dot. Unfortunately this layout is not
+        achievable easily using Flickity options only, so we have to run our own
+      {%- endcomment -%}
+
+      <div class="Product__SlideshowMobileNav {% if section.settings.stack_images or section.settings.show_thumbnails %}hidden-desk{% endif %} hide">
+        <button class="Product__SlideshowNavArrow Product__SlideshowNavArrow--previous" type="button" data-direction="previous" aria-label="{{ 'general.accessibility.previous' | t }}">
+          {% render 'icon' with 'media-arrow-left' %}
+        </button>
+
+        <div class="flickity-page-dots">
+          {%- for i in (1..media_count) -%}
+            <button type="button" aria-label="{{ 'product.slideshow.go_to_image' | t: i: i | escape }}" class="dot {% if forloop.index0 == initial_media_index %}is-selected{% endif %}" data-index="{{ forloop.index0 }}"></button>
+          {%- endfor -%}
+        </div>
+
+        <button class="Product__SlideshowNavArrow Product__SlideshowNavArrow--next" type="button" data-direction="next" aria-label="{{ 'general.accessibility.next' | t }}">
+          {% render 'icon' with 'media-arrow-right' %}
+        </button>
+      </div>
+    {%- endif -%}
+  </div>
+{%- endif -%}

@@ -1,0 +1,281 @@
+{% comment %}
+  @param attr {String}
+    Stock level attributes
+
+  @param inventory_display {String}
+    How the inventory quantity is displayed
+
+  @param inventory_transfer {Boolean}
+    If true, show the inventory transfer notice
+
+  @param variant {Object}
+    The product variant
+
+  @param verbose {Boolean}
+    If true, show additional text/elements
+{% endcomment %}
+
+{% liquid
+  assign stock_level = ''
+  assign inventory_quantity = variant.inventory_quantity
+
+  if variant.inventory_policy == 'continue'
+    if inventory_quantity <= 0 and variant.product.template_suffix contains 'pre-order'
+      assign stock_level = 'pre-order'
+    elsif inventory_quantity > 0
+      assign stock_level = 'available'
+    else
+      assign stock_level = 'continue-selling'
+    endif
+  elsif inventory_quantity > settings.low_stock_threshold
+    assign stock_level = 'high'
+  elsif inventory_quantity > 0 and inventory_quantity <= settings.low_stock_threshold
+    assign stock_level = 'low'
+  elsif inventory_quantity <= 0
+    assign stock_level = 'none'
+  endif
+
+  if inventory_display == 'hidden'
+    assign inventory_quantity = ''
+  elsif inventory_display == 'low_stock_only' and stock_level == 'high'
+    assign inventory_quantity = ''
+  elsif inventory_display == 'low_stock_threshold' and stock_level == 'high'
+    assign inventory_quantity = settings.low_stock_threshold
+  else
+    assign inventory_quantity = inventory_quantity
+  endif
+%}
+
+{% capture stock_badge_classes %}
+  product-stock-level
+  product-stock-level--{{ stock_level }}
+  {% if variant.incoming and inventory_transfer %}
+    product-stock-level--incoming
+  {% endif %}
+{% endcapture %}
+
+{% capture stock_badge_text %}
+  {% if stock_level == 'pre-order' %}
+    {{ 'product.status.pre_order' | t }}
+  {% elsif stock_level == 'continue-selling' %}
+    {{ 'product.status.continue_selling' | t }}
+  {% elsif stock_level == 'high' %}
+    {% if inventory_display == 'low_stock_threshold' %}
+      {% if verbose %}
+        {{ 'product.status.in_stock_threshold_verbose' | t: inventory_quantity: inventory_quantity }}
+      {% else %}
+        {{ 'product.status.in_stock_threshold' | t: inventory_quantity: inventory_quantity }}
+      {% endif %}
+    {% elsif verbose %}
+      {{ 'product.status.in_stock_verbose' | t: inventory_quantity: inventory_quantity }}
+    {% else %}
+      {% if inventory_display == 'hidden' %}
+        {{ 'product.status.in_stock_hidden' | t }}
+      {% else %}
+        {{ 'product.status.in_stock' | t: inventory_quantity: inventory_quantity }}
+      {% endif %}
+    {% endif %}
+  {% elsif stock_level == 'low' %}
+    {% if inventory_display == 'hidden' %}
+      {{ 'product.status.low_stock_hidden' | t }}
+    {% else %}
+      {{ 'product.status.low_stock' | t: inventory_quantity: inventory_quantity }}
+    {% endif %}
+  {% elsif stock_level == 'none' %}
+    {% if variant.incoming and inventory_transfer %}
+      {{ 'product.status.incoming_stock' | t: inventory_quantity: inventory_quantity }}
+    {% else %}
+      <!-- {{ 'product.status.no_stock' | t: inventory_quantity: inventory_quantity }} -->
+      <div class="product-stock-level__badge-text">
+          Backorder
+      </div>
+    {% endif %}
+  {% endif %}
+{% endcapture %}
+
+<div class="product-stock-level-wrapper" {{ attr }}>
+  {% if variant.inventory_management %}
+    <span class="{{ stock_badge_classes }}">
+      <span class="product-stock-level__text">
+        {% if verbose and stock_level == 'high' %}
+          {% render 'icon-library', id: 'icon-checkmark-circle' %}
+        {% endif %}
+        {% if stock_level != 'none' %}
+          {% if stock_level == 'continue-selling' and stock_badge_text != 'Available for purchase' %}
+            <div class="product-stock-level__badge-text">
+              FREE delivery <span style="font-weight: bold;"> {% render 'shipping-timeline', id: 'normal' %}</span>
+              <p class="tooltip-container">
+                <svg
+                  {{ shared_svg_attrs }}
+                  class="product-icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 44 45"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M22.1522 2.36196C10.5087 2.36196 1.06885 10.1591 1.06885 19.7786C1.06885 29.3981 10.5087 37.1953 22.1522 37.1953C33.7975 37.1953 43.2355 29.3981 43.2355 19.7786C43.2355 10.1591 33.7975 2.36196 22.1522 2.36196Z" stroke="#0073C6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M23.069 28.0286V17.0286C23.069 16.5424 22.8759 16.0761 22.532 15.7323C22.1882 15.3884 21.7219 15.1953 21.2357 15.1953H19.4023" stroke="#0073C6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M19.4023 28.0286H26.7357" stroke="#0073C6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M22.5662 10.5857C22.8194 10.5857 23.0246 10.7909 23.0246 11.0441C23.0246 11.2972 22.8194 11.5024 22.5662 11.5024C22.3131 11.5024 22.1079 11.2972 22.1079 11.0441C22.1079 10.7909 22.3131 10.5857 22.5662 10.5857" stroke="#0073C6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="tooltip">
+                  Timeframe is estimated for orders placed today and is calculated based on scheduled deliveries and
+                  production, but may change. More already in production. Free shipping on orders over $95, in the US.
+                </span>
+              </p>
+            </div>
+            <div class="product-stock-level__badge-text">
+              Or fastest delivery
+              <span style="font-weight: bold ;"> {% render 'shipping-timeline', id: 'fastest' %}</span>
+              <p class="tooltip-container">
+                Details
+                <span class="tooltip"
+                  >Timeframe is estimated for orders placed today and is calculated based on scheduled deliveries and
+                  production, but may change. More already in production. Free shipping on orders over $95, in the US.</span
+                >
+              </p>
+            </div>
+          {% else %}
+            {% if variant.inventory_quantity > 0 and variant.inventory_quantity < settings.low_stock_threshold %}
+              <div style="display: flex; flex-direction: column; justify-content: center; align-items: start; gap: 8px;">
+                <span
+                  class="product-stock-level__badge-text"
+                  style="color: #CC1313; font-weight: bold; font-size: 19px; display: flex; align-items: center; gap: 6px;"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" fill="#CC131380"/>  <circle cx="12" cy="12" r="7" fill="#CC1313" opacity="0.7"/>
+                  </svg>
+                  Low stock - {{ variant.inventory_quantity }} left
+                </span>
+                <span style="color: black; font-size: 16px; font-weight: 600; display: inline;"
+                  >FREE delivery. Available immediately!</span
+                >
+              </div>
+            {% else %}
+              <div style="display: flex; flex-direction: column; justify-content: center; align-items: start;">
+                <div class="product-stock-level__badge-text" style="color: green; font-weight: bold; font-size: 19px;">
+                  In Stock
+                </div>
+                <p style="color: black; font-size: 16px; font-weight: 600;">FREE delivery. Available immediately!</p>
+              </div>
+            {% endif %}
+          {% endif %}
+        {% endif %}
+      </span>
+    </span>
+  {% else %}
+    <span class="{{ stock_badge_classes }}">
+      <div class="product-stock-level__badge-text-wrapper">
+        <div class="product-stock-level__badge-text">
+          FREE Delivery <span style="font-weight: bold;">{% render 'shipping-timeline', id: 'normal' %}</span>
+          <p class="tooltip-container">
+            <svg
+              {{ shared_svg_attrs }}
+              class="product-icon"
+              width="14"
+              height="14"
+              viewBox="0 0 44 45"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M22.1522 2.36196C10.5087 2.36196 1.06885 10.1591 1.06885 19.7786C1.06885 29.3981 10.5087 37.1953 22.1522 37.1953C33.7975 37.1953 43.2355 29.3981 43.2355 19.7786C43.2355 10.1591 33.7975 2.36196 22.1522 2.36196Z" stroke="#0073C6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M23.069 28.0286V17.0286C23.069 16.5424 22.8759 16.0761 22.532 15.7323C22.1882 15.3884 21.7219 15.1953 21.2357 15.1953H19.4023" stroke="#0073C6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M19.4023 28.0286H26.7357" stroke="#0073C6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M22.5662 10.5857C22.8194 10.5857 23.0246 10.7909 23.0246 11.0441C23.0246 11.2972 22.8194 11.5024 22.5662 11.5024C22.3131 11.5024 22.1079 11.2972 22.1079 11.0441C22.1079 10.7909 22.3131 10.5857 22.5662 10.5857" stroke="#0073C6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="tooltip"
+              >Product will be shipped directly from the manufacturer. Date range is an estimate if ordered today.
+              Please contact support with any questions or concerns. Free shipping on orders over $95, in the US.
+            </span>
+          </p>
+        </div>
+        <div class="product-stock-level__badge-text">
+          Or fastest delivery <span style="font-weight: bold;"> {% render 'shipping-timeline', id: 'fastest' %}</span>
+          <p class="tooltip-container">
+            Details
+            <span class="tooltip">
+              Product will be shipped directly from the manufacturer. Date range is an estimate if ordered today. Please
+              contact support with any questions or concerns. Free shipping on orders over $95, in the US.
+            </span>
+          </p>
+        </div>
+      </div>
+    </span>
+  {% endif %}
+</div>
+
+<!--
+  {% if verbose %}
+            <span class="product-stock-level__availability"> {{ 'product.status.availability' | t }}: </span>
+          {% endif %}
+
+          <span class="product-stock-level__text">
+            {% if verbose and stock_level == 'high' %}
+              {% render 'icon-library', id: 'icon-checkmark-circle' %}
+            {% endif %}
+            {% comment %}
+              {{ stock_badge_text }} changed to available
+            {% endcomment %}
+            <div class="product-stock-level__badge-text" style="color: #268C0B;">Backorder</div>
+          </span>
+      </span>
+  </div>
+-->
+<style>
+  .tooltip-container {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+    color: #0073C6;
+    margin: 0;
+    text-decoration: underline;
+    }
+
+  .tooltip {
+    color: #000;
+      height: 120px;
+      width: 250px;
+      padding: 16px;
+    border-radius: 8px;
+      line-height: 16px;
+      box-shadow: 0 0 32px 16px rgba(0, 0, 0, 0.1);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-90%);
+      background-color: #fafaf0;
+      border-radius: 5px;
+      font-size: 12px;
+      display: none;
+      z-index: 1000;
+    }
+
+    .tooltip-container:hover .tooltip,
+    .tooltip.active {
+      display: block;
+    }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+      const tooltipContainer = document.querySelector(".tooltip-container");
+      const tooltip = tooltipContainer.querySelector(".tooltip");
+
+      // Toggle tooltip on click
+      tooltipContainer.addEventListener("click", function (event) {
+        event.stopPropagation(); // Prevent click from bubbling up
+        tooltip.classList.toggle("active");
+      });
+
+      // Hide tooltip when clicking anywhere else
+      document.addEventListener("click", function () {
+        tooltip.classList.remove("active");
+      });
+
+      // Prevent tooltip from closing when clicking inside it
+      tooltip.addEventListener("click", function (event) {
+        event.stopPropagation();
+      });
+    });
+</script>

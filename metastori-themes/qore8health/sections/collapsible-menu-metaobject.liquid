@@ -1,0 +1,556 @@
+{% assign background_rgb = section.settings.background_color | color_to_rgb %}
+{% assign text_rgb = section.settings['color-body-text'] | color_to_rgb %}
+{% assign heading_rgb = section.settings.heading_color | color_to_rgb %}
+{% assign overlay_opacity = section.settings.background_overlay_opacity | default: 0 | divided_by: 100.0 %}
+{% assign overlay_color = section.settings.background_overlay_color | default: '#ffffff' | color_modify: 'alpha', overlay_opacity %}
+{% assign faq_image = product.metafields.custom.faq_image.value | default: section.settings.fallback_image %}
+{% assign main_heading = section.settings.section_heading | default: product.title %}
+{% assign image_col_width = section.settings.image_column_width | default: 50 %}
+{% assign content_col_width = 100 | minus: image_col_width %}
+{% assign image_render_width = section.settings.image_width | default: 800 %}
+
+<style>
+  [data-section-id="{{ section.id }}"] {
+    {% if section.settings.margin-top %}
+      --section-gap-top: {{ section.settings.margin-top }}px;
+    {% endif %}
+
+    {% if section.settings.margin-bottom %}
+      --section-gap-bottom: {{ section.settings.margin-bottom }}px;
+    {% endif %}
+
+    --faq-icon-color: {{ section.settings.icon_color | default: '#f5a623' }};
+    --faq-separator-color: {{ section.settings.separator_color | default: 'rgba(0, 0, 0, 0.12)' }};
+    --faq-toggle-icon-size: {{ section.settings.toggle_icon_size | default: 24 }}px;
+    --faq-image-col-width: {{ image_col_width }}%;
+    --faq-content-col-width: {{ content_col_width }}%;
+    --faq-image-min-height: {{ section.settings.image_min_height | default: 320 }}px;
+    --faq-image-min-height-mobile: {{ section.settings.image_min_height_mobile | default: 220 }}px;
+  }
+
+  [id="shopify-section-{{ section.id }}"] {
+    position: relative;
+
+    {% if section.settings.background_image != blank %}
+      background-image: url('{{ section.settings.background_image | image_url: width: 2400 }}') !important;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    {% elsif background_rgb != 'rgba(0, 0, 0, 0.0)' %}
+      --color-background: {{ section.settings.background_color }};
+    {% endif %}
+
+    {% if text_rgb != 'rgba(0, 0, 0, 0.0)' %}
+      --color-custom-text: {{ section.settings.color-body-text }};
+      --custom-section-color-border: {{ section.settings.separator_color | default: section.settings.color-body-text }};
+    {% endif %}
+  }
+
+  {% if section.settings.background_image != blank and section.settings.background_overlay_opacity > 0 %}
+  [id="shopify-section-{{ section.id }}"]::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: {{ overlay_color }};
+    pointer-events: none;
+    z-index: 0;
+  }
+  {% endif %}
+
+  [id="shopify-section-{{ section.id }}"] .wt-collapse__section__inner {
+    position: relative;
+    z-index: 1;
+    background-color: transparent;
+  }
+
+  [data-section-id="{{ section.id }}"],
+  [data-section-id="{{ section.id }}"] .wt-collapse__wrapper,
+  [data-section-id="{{ section.id }}"] .wt-faq-layout {
+    background: transparent;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse {
+    background: transparent;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse__wrapper .wt-collapse:not(:last-child) {
+    border-bottom: 1px solid var(--faq-separator-color);
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse__section-heading {
+    text-align: left;
+    margin-bottom: 24px;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-faq-subheading {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+    color: inherit;
+    opacity: 0.85;
+    font-weight: 600;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse__section-heading h2 {
+    margin: 0;
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1.15;
+    {% if heading_rgb != 'rgba(0, 0, 0, 0.0)' %}
+      color: {{ section.settings.heading_color }};
+    {% endif %}
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse-left-noimage .wt-collapse__section-heading {
+    text-align: left;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-faq-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 40px;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-faq-image-col {
+    width: var(--faq-image-col-width);
+    flex-shrink: 0;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-faq-image-col img {
+    width: 100%;
+    height: 100%;
+    min-height: var(--faq-image-min-height);
+    object-fit: cover;
+    display: block;
+    border-radius: {{ section.settings.image_border_radius }}px;
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-faq-content-col {
+    width: var(--faq-content-col-width);
+    min-width: 0;
+    padding: 10px 30px 10px 0;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse-left-noimage .wt-faq-layout {
+    justify-content: flex-start;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse-left-noimage .wt-faq-content-col {
+    width: 100%;
+    padding-right: 0;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse-left-image .wt-faq-content-col {
+    padding-top: 40px;
+    padding-bottom: 40px;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse__trigger__title {
+    font-weight: 600;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse__target--text {
+    opacity: 0.85;
+    font-size: calc(var(--font-base-size) * 0.95);
+    line-height: 1.6;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse__trigger .wt-icon {
+    color: var(--faq-icon-color);
+    width: var(--faq-toggle-icon-size);
+    height: var(--faq-toggle-icon-size);
+    flex-shrink: 0;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse__trigger .wt-icon svg {
+    width: var(--faq-toggle-icon-size);
+    height: var(--faq-toggle-icon-size);
+    color: var(--faq-icon-color);
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse__trigger .wt-icon svg rect {
+    fill: var(--faq-icon-color);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse__trigger .wt-icon svg rect.icon-plus-y,
+  [data-section-id="{{ section.id }}"] .wt-collapse__trigger .wt-icon svg rect.icon-minus {
+    transform: scaleY(1.75);
+  }
+
+  [data-section-id="{{ section.id }}"] .wt-collapse__trigger .wt-icon svg rect.icon-plus-x {
+    transform: scaleX(1.75);
+  }
+  .wt-collapse__trigger--active rect.icon-plus-x {
+      display: none;
+  }
+  @media (max-width: 749px) {
+    [data-section-id="{{ section.id }}"] .wt-collapse__section-heading h2 {
+      font-size: 27px;
+    }
+
+    [data-section-id="{{ section.id }}"] .wt-faq-content-col {
+      padding: 0 0 0 0;
+      width: 100%;
+    }
+
+    [data-section-id="{{ section.id }}"] .wt-faq-layout {
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    [data-section-id="{{ section.id }}"] .wt-faq-image-col {
+      width: 100%;
+    }
+
+    [data-section-id="{{ section.id }}"] .wt-collapse-left-image .wt-faq-content-col {
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+
+    [data-section-id="{{ section.id }}"] .wt-faq-image-col img {
+      min-height: var(--faq-image-min-height-mobile);
+    }
+  }
+  
+</style>
+
+{%- assign faq_list = product.metafields.custom.faq.value -%}
+{%- if faq_list != blank -%}
+  <section
+    class="wt-collapse__section__inner{% if faq_image != blank %} wt-collapse-left-image{% else %} wt-collapse-left-noimage{% endif %}"
+    data-section-id="{{ section.id }}"
+  >
+    <div
+      class="wt-collapse__wrapper wt-collapse-menu{% if section.settings.compact-size-enabled == true %} wt-collapse__wrapper--compact{% endif %} rte"
+    >
+      <div class="wt-faq-layout">
+        {%- if faq_image != blank -%}
+          <div class="wt-faq-image-col">
+            <img
+              src="{{ faq_image | image_url: width: image_render_width }}"
+              alt="{{ faq_image.alt | default: product.title }}"
+              width="{{ image_render_width }}"
+              height="{{ image_render_width | divided_by: faq_image.aspect_ratio | round }}"
+              loading="lazy"
+            >
+          </div>
+        {%- endif -%}
+
+        <div class="wt-faq-content-col">
+          {% if section.settings.subheading != blank or main_heading != blank %}
+            <div class="wt-collapse__section-heading">
+              {% if section.settings.subheading != blank %}
+                <p class="wt-faq-subheading">{{ section.settings.subheading }}</p>
+              {% endif %}
+              {% if main_heading != blank %}
+                <h2>{{ main_heading }}</h2>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {%- assign first_faq_opened = false -%}
+          {%- for faq in faq_list -%}
+            {%- if faq.question != blank or faq.answer != blank -%}
+              {%- assign open_this_faq = false -%}
+              {%- unless first_faq_opened -%}
+                {%- assign first_faq_opened = true -%}
+                {%- if section.settings.open_first_item -%}
+                  {%- assign open_this_faq = true -%}
+                {%- endif -%}
+              {%- endunless -%}
+              <collapsible-section
+                {% if open_this_faq %}data-open="true"{% endif %}
+                {% if settings.animations %}
+                  data-cascade
+                  style="--animation-order: {{ forloop.index }};"
+                {% endif %}
+                class="wt-collapse wt-collapse--always {% if settings.animations %} scroll-trigger animate--slide-in {% endif %} {% if settings.disabled_animations_on_mobile %} disabled-on-mobile {% endif %}"
+              >
+                <div
+                  class="wt-collapse__trigger wt-collapsible__trigger{% if open_this_faq %} wt-collapse__trigger--active{% endif %}"
+                  role="button"
+                  tabindex="0"
+                  {% if open_this_faq %}data-open="true"{% else %}data-open="false"{% endif %}
+                  aria-expanded="{% if open_this_faq %}true{% else %}false{% endif %}"
+                  aria-controls="CollapsibleTab-{{ section.id }}-{{ forloop.index }}"
+                >
+                  <div class="wt-collapse__trigger__text">
+                    {% if section.settings.icon != 'none' %}
+                      <div class="wt-collapse__trigger__icon">
+                        {% render 'icon-accordion', icon: section.settings.icon %}
+                      </div>
+                    {% endif %}
+                    <span class="wt-collapse__trigger__title">
+                      {{- faq.question -}}
+                    </span>
+                  </div>
+                  <div class="wt-icon" aria-hidden="true">
+                    {% render 'icons', id: 'plus' %}
+                  </div>
+                </div>
+                <div class="wt-collapse__target wt-collapsible__target" id="CollapsibleTab-{{ section.id }}-{{ forloop.index }}">
+                  <div class="wt-collapse__target--text rte">
+                    {{ faq.answer | metafield_tag }}
+                  </div>
+                </div>
+              </collapsible-section>
+            {%- endif -%}
+          {%- endfor -%}
+        </div>
+      </div>
+    </div>
+  </section>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "FAQ Accordion",
+  "tag": "section",
+  "class": "wt-collapse__section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "FAQ Settings"
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Frequently Asked Questions"
+    },
+    {
+      "type": "text",
+      "id": "section_heading",
+      "label": "Main heading",
+      "info": "Leave blank to use the product title"
+    },
+    {
+      "type": "paragraph",
+      "content": "FAQs automatically pull from product metafield: custom.faq"
+    },
+    {
+      "type": "checkbox",
+      "id": "open_first_item",
+      "label": "Open first item by default",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Background"
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Section background image"
+    },
+    {
+      "type": "color",
+      "id": "background_overlay_color",
+      "label": "Background overlay color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "background_overlay_opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 0,
+      "label": "Background overlay opacity"
+    },
+    {
+      "type": "header",
+      "content": "Image Settings"
+    },
+    {
+      "type": "paragraph",
+      "content": "Primary image pulls from product metafield: custom.faq_image. Use the fallback image below if the metafield is empty."
+    },
+    {
+      "type": "image_picker",
+      "id": "fallback_image",
+      "label": "Fallback image"
+    },
+    {
+      "type": "range",
+      "id": "image_column_width",
+      "min": 25,
+      "max": 70,
+      "step": 5,
+      "unit": "%",
+      "default": 50,
+      "label": "Image column width (desktop)"
+    },
+    {
+      "type": "range",
+      "id": "image_width",
+      "min": 400,
+      "max": 1400,
+      "step": 50,
+      "unit": "px",
+      "default": 800,
+      "label": "Image resolution",
+      "info": "Higher values improve quality on large screens"
+    },
+    {
+      "type": "range",
+      "id": "image_min_height",
+      "min": 200,
+      "max": 700,
+      "step": 10,
+      "unit": "px",
+      "default": 320,
+      "label": "Image minimum height (desktop)"
+    },
+    {
+      "type": "range",
+      "id": "image_min_height_mobile",
+      "min": 150,
+      "max": 500,
+      "step": 10,
+      "unit": "px",
+      "default": 220,
+      "label": "Image minimum height (mobile)"
+    },
+    {
+      "type": "range",
+      "id": "image_border_radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 16,
+      "label": "Image border radius"
+    },
+    {
+      "type": "select",
+      "id": "icon",
+      "options": [
+        { "value": "none", "label": "None" },
+        { "value": "box", "label": "Box" },
+        { "value": "chat_bubble", "label": "Chat bubble" },
+        { "value": "check_mark", "label": "Check mark" },
+        { "value": "dryer", "label": "Dryer" },
+        { "value": "eye", "label": "Eye" },
+        { "value": "heart", "label": "Heart" },
+        { "value": "iron", "label": "Iron" },
+        { "value": "leaf", "label": "Leaf" },
+        { "value": "leather", "label": "Leather" },
+        { "value": "lock", "label": "Lock" },
+        { "value": "map_pin", "label": "Map pin" },
+        { "value": "pants", "label": "Pants" },
+        { "value": "plane", "label": "Plane" },
+        { "value": "price_tag", "label": "Price tag" },
+        { "value": "question_mark", "label": "Question mark" },
+        { "value": "return", "label": "Return" },
+        { "value": "ruler", "label": "Ruler" },
+        { "value": "shirt", "label": "Shirt" },
+        { "value": "shoe", "label": "Shoe" },
+        { "value": "silhouette", "label": "Silhouette" },
+        { "value": "star", "label": "Star" },
+        { "value": "truck", "label": "Truck" },
+        { "value": "washing", "label": "Washing" }
+      ],
+      "default": "none",
+      "label": "Icon (applied to all items)"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.global.colors",
+      "info": "t:sections.global.colors-info"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "default": "#1a3d4d",
+      "label": "Main heading color"
+    },
+    {
+      "type": "color",
+      "id": "color-body-text",
+      "default": "#333333",
+      "label": "t:sections.settings.settings.text-color.label"
+    },
+    {
+      "type": "color",
+      "id": "icon_color",
+      "default": "#f5a623",
+      "label": "Toggle icon color"
+    },
+    {
+      "type": "range",
+      "id": "toggle_icon_size",
+      "min": 18,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 24,
+      "label": "Toggle icon size"
+    },
+    {
+      "type": "color",
+      "id": "separator_color",
+      "default": "#dddddd",
+      "label": "Item separator color"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "default": "transparent",
+      "label": "t:sections.settings.settings.background-color.label",
+      "info": "Used when no background image is set"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.global.section_spacing"
+    },
+    {
+      "type": "checkbox",
+      "id": "compact-size-enabled",
+      "label": "t:sections.main-product.blocks.collapsible_tab.settings.compact-size-enabled.label",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "margin-top",
+      "min": 0,
+      "max": 100,
+      "unit": "px",
+      "step": 4,
+      "default": 20,
+      "label": "t:sections.settings.settings.distance-top.label"
+    },
+    {
+      "type": "range",
+      "id": "margin-bottom",
+      "min": 0,
+      "max": 100,
+      "unit": "px",
+      "step": 4,
+      "default": 20,
+      "label": "t:sections.settings.settings.distance-bottom.label",
+      "info": "t:sections.settings.settings.distance-bottom.info"
+    }
+  ],
+  "presets": [
+    {
+      "name": "FAQ Accordion (Metaobject)",
+      "category": "Text"
+    }
+  ],
+  "enabled_on": {
+    "templates": ["product"]
+  }
+}
+{% endschema %}

@@ -1,0 +1,281 @@
+{% comment %}
+  This component is just a standard list of navigation items. It acts recursively
+  so that navigation can be nested. This navigation is always a submenu of another
+  parent navigation link.
+
+  @param menu_list {LinkedList}
+    The list of links
+
+  @param depth {Number}
+    The starting depth to use for the class names.
+
+  @param max_depth {Number}
+    The maximum depth to traverse.
+
+  @param aria_expanded {Bool}
+    a11y helper
+
+  @param menu_title {String}
+    Menu title must be passed in
+
+  @param show_arrows {Bool}
+    Option to display dropdown arrows.
+
+  @param is_mobile {Bool}
+    This is true if the navlist is to be presented on the mobile nav.
+
+  @param show_prod_count {Bool}
+    This is true on collection pages when the product count should be
+    displayed on collection links
+
+  @param accordion_level {Number}
+    Attribute for Accordion will be included if depth is >= this value.
+
+  @param show_images_for {String}
+    Comma separated list of link types for which to show images. Possible values are `product_link` and `collection_link`
+
+  @param navmenu_classes {String}
+    Additional classes to apply to the nav menu element.
+{% endcomment %}
+
+{% assign menu_title = menu_title | default: nil %}
+{% assign show_arrows = show_arrows | default: false %}
+{% assign show_prod_count = show_prod_count | default: false %}
+{% assign accordion_level = accordion_level | default: nil %}
+{% assign show_item_images = show_item_images | default: false %}
+{% assign has_input = has_input | default: false %}
+{% assign include_accordion = false %}
+
+{% if depth >= accordion_level %}
+  {% assign include_accordion = true %}
+{% endif %}
+
+{% if is_mobile == blank %}
+  {% assign is_mobile = false %}
+{% endif %}
+
+<ul
+  class="
+    navmenu
+    navmenu-depth-{{ depth }}
+    {% if depth > 1 %}navmenu-submenu{% endif %}
+    {{ navmenu_classes }}
+  "
+  data-navmenu
+  {% if include_accordion %}data-accordion-content{% endif %}
+  {% if depth > 1 %}data-navmenu-submenu{% endif %}
+  {% if menu_title %}aria-label="{{ menu_title }}"{% endif %}
+>
+
+  {% comment %}
+  <style>
+    .hb-form {
+      padding: 20px 20px 20px 0!important;
+      text-align: left!important;
+    }
+    .hb-form h4 {
+      display: none;
+    }
+  </style>
+
+  <li class="navmenu-item  navmenu-item-parent navmenu-id-blog" data-navmenu-parent="">
+  <details data-navmenu-details="">
+  <summary data-href="/blogs/news" class="navmenu-link navmenu-link-parent " aria-expanded="true">
+  Shop Our Entire Range
+  </summary>
+  {% render 'entire-range-form' %}
+  </details>
+  </li>
+
+  {% endcomment %}
+
+  
+  {% for menu_item in menu_list %}
+    {% assign d = depth | plus: 1 %}
+
+    {% assign show_subnav = true %}
+    {% if d > max_depth or linklists[menu_item.handle] == blank %}
+      {% assign show_subnav = false %}
+    {% endif %}
+
+    {% assign product_count = false %}
+    {% if show_prod_count and menu_item.type == 'collection_link' or menu_item.type == 'catalog_link' %}
+      {% if menu_item.type == 'collection_link' %}
+        {% capture product_count %}
+          ({{ menu_item.object.products_count }})
+        {% endcapture %}
+      {% else if menu_item.type == 'catalog_link' %}
+        {% capture product_count %}
+          ({{ shop.products_count }})
+        {% endcapture %}
+      {% endif %}
+    {% endif %}
+
+    {% if show_images_for contains menu_item.type %}
+      {% case menu_item.type %}
+        {% when 'collection_link' %}
+          {% if menu_item.object.image %}
+            {% assign menu_item_image = menu_item.object.image %}
+          {% else %}
+            {% assign menu_item_image = menu_item.object.products.first.featured_media.preview_image %}
+          {% endif %}
+        {% when 'product_link' %}
+          {% assign menu_item_image = menu_item.object.featured_media.preview_image %}
+        {% else %}
+          {% assign menu_item_image = blank %}
+      {% endcase %}
+
+      {% capture menu_item_image_markup %}
+        {% if menu_item_image != blank %}
+          <div class="navmenu-item__image-wrapper">
+            {%
+              render 'rimg',
+              img: menu_item_image,
+              class: 'navmenu-item__image',
+              size: '600x',
+              alt: menu_item.title,
+            %}
+          </div>
+        {% endif %}
+      {% endcapture %}
+    {% else %}
+      {% assign menu_item_image_markup = '' %}
+    {% endif %}
+
+    {% unless show_subnav %}
+      <li
+        class="navmenu-item navmenu-id-{{ menu_item.handle }}"
+      >
+        <a
+        class="
+          navmenu-link
+          navmenu-link-depth-{{ depth }}
+          {% if menu_item.active %}navmenu-link-active{% endif %}
+        "
+        href="{{ menu_item.url }}"
+        >
+          {% if has_input %}
+            <input id="custom-checkbox-{{ forloop.index }}" type="checkbox" class="nav_menu_input custom-checkbox"  {% if menu_item.active %}checked{% endif %}
+             onclick="window.location.href = '{{ menu_item.url }}'"
+            >
+          {% endif %}
+          {{ menu_item_image_markup }}
+          {{ menu_item.title }}
+          {%- if product_count -%}
+            {{ product_count }}
+          {%- endif -%}
+        </a>
+        
+      </li>
+    {% else %}
+      {%- capture navmenu_item_classes -%}
+        navmenu-item
+        navmenu-item-parent
+        navmenu-id-{{ menu_item.handle }}
+      {%- endcapture -%}
+
+      <li
+        class="{{ navmenu_item_classes | strip_newlines }}"
+        data-navmenu-parent
+      >
+        {% if is_mobile != true %}
+          <details class="" data-navmenu-details {% comment %}{% if forloop.first %}open{% endif %}{% endcomment %}>
+          <summary
+            data-href="{{ menu_item.url }}"
+            class="navmenu-link navmenu-link-parent {% if menu_item.active %}navmenu-link-active{% endif %}"
+            {% if aria_expanded %}
+              aria-expanded="true"
+            {% else %}
+              aria-haspopup="true"
+              aria-expanded="false"
+            {% endif %}
+          >
+            <a
+              href="{{ menu_item.url }}"
+              class="navmenu-link-text"
+              data-navmenu-text-link
+            >
+              {{ menu_item_image_markup }}
+              {{ menu_item.title }}
+              {%- if product_count -%}
+                {{ product_count }}
+              {%- endif -%}
+            </a>
+
+            {% if show_arrows %}
+              <span
+                class="navmenu-icon navmenu-icon-depth-{{ depth }}"
+                data-navmenu-trigger
+              >
+                {% render 'icon-chevron-down-small' %}
+              </span>
+            {% endif %}
+          </summary>
+        {% else %}
+          <a
+            href="{{ menu_item.url }}"
+            class="navmenu-link navmenu-link-parent {% if menu_item.active %}navmenu-link-active{% endif %}"
+            {% if aria_expanded %}
+              aria-expanded="true"
+            {% else %}
+              aria-haspopup="true"
+              aria-expanded="false"
+            {% endif %}
+          >
+            {{ menu_item_image_markup }}
+            {{ menu_item.title }}
+            {%- if product_count -%}
+              {{ product_count }}
+            {%- endif -%}
+          </a>
+        {% endif %}
+
+        {% if show_arrows and is_mobile == true %}
+          {%
+            render 'mobile-navmenu-button',
+            button_label: menu_item.title,
+            depth: depth,
+          %}
+        {% endif %}
+
+        {% unless d > max_depth %}
+          {%
+            render 'navlist',
+            menu_list: linklists[menu_item.handle].links,
+            menu_title: menu_title,
+            depth: d,
+            has_input: has_input,
+            max_depth: max_depth,
+            show_arrows: show_arrows,
+            aria_expanded: aria_expanded,
+            is_mobile: is_mobile,
+            show_prod_count: show_prod_count,
+            accordion_level: accordion_level,
+            show_item_images: show_item_images,
+          %}
+        {% endunless %}
+        {% if is_mobile != true %}
+          </details>
+        {% endif %}
+      </li>
+    {% endunless %}
+  {% endfor %}
+</ul>
+
+{% if depth == 1 %}
+  <script>
+    if (!window.__navlistSummaryInit) {
+      window.__navlistSummaryInit = true;
+      document.addEventListener('click', function (e) {
+        var link = e.target.closest('[data-navmenu-text-link]');
+        if (!link) return;
+
+        var sidebar = link.closest('.productgrid--sidebar-menu, .page-menu');
+        if (!sidebar) return;
+
+        e.preventDefault();
+        window.location.href = link.href;
+      }, true);
+    }
+  </script>
+{% endif %}

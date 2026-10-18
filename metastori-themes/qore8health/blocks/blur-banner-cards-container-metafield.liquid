@@ -1,0 +1,702 @@
+{% assign text_rgb = block.settings.color_body_text | color_to_rgb %}
+{% assign background_card_rgb = block.settings.background_card_color | color_to_rgb %}
+
+{%- liquid
+  assign ingredients_list = product.metafields.custom.ingredient_details.value
+  assign card_count = ingredients_list.size | default: 0
+  assign use_contained_layout = false
+  assign use_full_width_slider = false
+
+  if card_count > 0 and card_count <= 3
+    assign use_contained_layout = true
+  endif
+
+  if card_count > 3 and block.settings.enable_slider
+    assign use_full_width_slider = true
+  endif
+
+  assign desktop_cols = block.settings.columns_desktop
+  if use_contained_layout
+    if card_count == 1
+      assign desktop_cols = 1
+    elsif card_count == 2
+      assign desktop_cols = 2
+    else
+      assign desktop_cols = 3
+    endif
+  endif
+-%}
+{%- liquid
+  assign overlay_bg = block.settings.background_color
+  if overlay_bg == blank or overlay_bg == 'rgba(0,0,0,0)'
+    assign overlay_bg = '#f6f1ea'
+  endif
+  assign active_background_color = block.settings.active_background_color
+-%}
+<style>
+  [data-block-id="{{ block.id }}"] {
+    {% if background_card_rgb != 'rgba(0, 0, 0, 0.0)' %}
+      --card-background-color-rgb: {{ block.settings.background_card_color | color_to_rgb | remove: 'rgb(' | remove: ')' }};
+      --card-background-opacity: {{ block.settings.background_card_opacity | default: 100 | divided_by: 100.0 }};
+    {% endif %}
+
+    {% if text_rgb != 'rgba(0, 0, 0, 0.0)' %}
+      --color-custom-text: {{ block.settings.color_body_text }};
+    {% endif %}
+
+    {% if block.settings.margin_top %}
+      --block-gap-top: {{ block.settings.margin_top }}px;
+    {% endif %}
+
+    {% if block.settings.margin_bottom %}
+      --block-gap-bottom: {{ block.settings.margin_bottom }}px;
+    {% endif %}
+
+    --mobile-cols: {{ block.settings.columns_mobile }};
+    --tablet-cols: {{ block.settings.columns_tablet }};
+    --desktop-cols: {{ desktop_cols }};
+    --gap-mobile: {{ block.settings.gap_mobile }}px;
+    --gap-tablet: {{ block.settings.gap_tablet }}px;
+    --gap-desktop: {{ block.settings.gap_desktop }}px;
+    --card-image-aspect-ratio: {% if block.settings.image_ratio == 'square' %}1{% elsif block.settings.image_ratio == 'landscape' %}4/3{% else %}auto{% endif %};
+  }
+
+  @media (min-width: 900px) {
+    .wt-blur-banner__content__bottom:has([data-block-id="{{ block.id }}"].wt-blur-banner-cards-container--contained) .hero__wrapper,
+    .wt-blur-banner__content__bottom:has([data-block-id="{{ block.id }}"].wt-blur-banner-cards-container--contained) .hero__wrapper--full {
+      max-width: var(--site-max-width);
+      margin-left: auto;
+      margin-right: auto;
+      padding-left: calc(calc(var(--gap, 8px) * 2) + calc(var(--gap, 8px) * 2));
+      padding-right: calc(calc(var(--gap, 8px) * 2) + calc(var(--gap, 8px) * 2));
+    }
+
+    [data-block-id="{{ block.id }}"].wt-blur-banner-cards-container--contained .wt-blur-banner-cards-container__grid {
+      padding-left: 0;
+      overflow-x: visible;
+      display: grid;
+      flex-wrap: unset;
+    }
+
+    [data-block-id="{{ block.id }}"].wt-blur-banner-cards-container--contained .wt-blur-banner-cards-container__item {
+      width: auto;
+    }
+
+    .wt-blur-banner__content:has([data-block-id="{{ block.id }}"].wt-blur-banner-cards-container--contained) .wt-blur-banner__content__top .hero {
+      margin-left: auto;
+    }
+  }
+
+  @media (min-width: 1800px) {
+    .wt-blur-banner__content__bottom:has([data-block-id="{{ block.id }}"].wt-blur-banner-cards-container--contained) .hero__wrapper,
+    .wt-blur-banner__content__bottom:has([data-block-id="{{ block.id }}"].wt-blur-banner-cards-container--contained) .hero__wrapper--full {
+      max-width: var(--site-max-width-big);
+    }
+  }
+
+  {%- if block.settings.background_color != blank and block.settings.background_color != 'rgba(0,0,0,0)' -%}
+    [data-block-id="{{ block.id }}"] .wt-blur-banner-card {
+      --card-background-color-rgb: {{ block.settings.background_color | color_to_rgb | remove: 'rgb(' | remove: ')' }};
+      --card-background-opacity: {{ block.settings.background_opacity | divided_by: 100.0 }};
+    }
+  {%- endif -%}
+
+  [data-block-id="{{ block.id }}"] .wt-blur-banner-card__heading {
+    --font-headline-scale-desk: {{ block.settings.size_heading | divided_by: 100.0 }};
+    --font-headline-scale: {{ block.settings.size_heading_mobile | divided_by: 100.0 }};
+  }
+
+  /* ===== Card base ===== */
+  .wt-blur-banner-card {
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* hidden but focusable toggle (keyboard) */
+  .wt-blur-banner-card__toggle {
+    position: absolute;
+    width: 1px; height: 1px;
+    opacity: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* ===== Content overlay on image, anchored to bottom ===== */
+  .wt-blur-banner-card__content {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    max-height: 100%;
+    overflow: hidden;
+    background: var(--wt-card-overlay-bg, #f6f1ea);
+    padding: 30px 20;
+    z-index: 2;
+    transition: padding .35s ease;
+    overflow-y: auto;
+  }
+  .wt-blur-banner-card__content:has(.wt-blur-banner-card__toggle:checked) { padding-bottom: 16px; background: var(--wt-active-bg-color);}
+
+  /* ===== Smooth expand / collapse (grid 0fr -> 1fr) ===== */
+  .wt-blur-banner-card__view {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .35s ease;
+    max-width: calc(100% - 40px);
+  }
+  .wt-blur-banner-card__view-inner {
+    min-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity .3s ease;
+  }
+  .wt-blur-banner-card__heading h3 {
+    padding: 0;
+    padding-bottom: 8px;
+    font-size: 22px;
+  }
+
+  /* default = collapsed open */
+  .wt-blur-banner-card__view--collapsed { grid-template-rows: 1fr; }
+  .wt-blur-banner-card__view--collapsed .wt-blur-banner-card__view-inner { opacity: 1; }
+
+  /* checked = expanded open, collapsed closed
+     NOTE: input must precede these elements in the DOM for ~ to match */
+  .wt-blur-banner-card__toggle:checked ~ .wt-blur-banner-card__view--collapsed { grid-template-rows: 0fr; }
+  .wt-blur-banner-card__toggle:checked ~ .wt-blur-banner-card__view--collapsed .wt-blur-banner-card__view-inner { opacity: 0; }
+  .wt-blur-banner-card__toggle:checked ~ .wt-blur-banner-card__view--expanded { grid-template-rows: 1fr; }
+  .wt-blur-banner-card__toggle:checked ~ .wt-blur-banner-card__view--expanded .wt-blur-banner-card__view-inner { opacity: 1; }
+
+  /* divider */
+  .wt-blur-banner-card__divider {
+    border: 0;
+    height: 1px;
+    background: var(--wt-card-divider, rgba(0,0,0,.12));
+    margin: 16px 0;
+  }
+
+  /* ===== Toggle button ===== */
+  .wt-blur-banner-card__toggle-btn {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;            /* collapsed: bottom-right */
+    top: 12px;
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    background: var(--wt-card-toggle-bg, #fff);
+    color: var(--wt-card-toggle-icon, #111);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 3;
+    transition: box-shadow .2s ease;
+  }
+  .wt-blur-banner-card__toggle-btn:hover { box-shadow: 0 2px 8px rgba(0,0,0,.22); }
+
+  /* expanded: button moves to top-right */
+  .wt-blur-banner-card__toggle:checked ~ .wt-blur-banner-card__toggle-btn {
+    top: 12px;
+    bottom: auto;
+  }
+
+  /* focus ring (keyboard) */
+  .wt-blur-banner-card__toggle:focus-visible ~ .wt-blur-banner-card__toggle-btn {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  /* + / x icon */
+  .wt-blur-banner-card__toggle-icon {
+    position: relative;
+    display: block;
+    width: 14px; height: 14px;
+    transition: transform .25s ease;
+  }
+  .wt-blur-banner-card__toggle-icon::before,
+  .wt-blur-banner-card__toggle-icon::after {
+    content: '';
+    position: absolute;
+    background: currentColor;
+  }
+  .wt-blur-banner-card__toggle-icon::before { top: 50%; left: 0; width: 100%; height: 2px; transform: translateY(-50%); }
+  .wt-blur-banner-card__toggle-icon::after  { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+
+  /* checked: rotate the + by 45deg into an x */
+  .wt-blur-banner-card__toggle:checked ~ .wt-blur-banner-card__toggle-btn .wt-blur-banner-card__toggle-icon {
+    transform: rotate(45deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wt-blur-banner-card__view,
+    .wt-blur-banner-card__view-inner,
+    .wt-blur-banner-card__content,
+    .wt-blur-banner-card__toggle-icon { transition: none; }
+  }
+
+  /* ===== Slider / carousel mode ===== */
+  .wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__grid {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: var(--gap-mobile);
+    padding-bottom: 24px; 
+  }
+  .wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__item {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    /* mobile: width from per-view value (supports half cards like 2.5) */
+    width: calc((100% - (var(--slider-per-view-mobile) - 1) * var(--gap-mobile)) / var(--slider-per-view-mobile));
+  }
+
+  @media (min-width: 750px) {
+    .wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__grid { gap: var(--gap-tablet); }
+    .wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__item {
+      width: calc((100% - (var(--slider-per-view-tablet) - 1) * var(--gap-tablet)) / var(--slider-per-view-tablet));
+    }
+  }
+  @media (min-width: 990px) {
+    .wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__grid { gap: var(--gap-desktop); }
+    .wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__item {
+      width: calc((100% - (var(--slider-per-view-desktop) - 1) * var(--gap-desktop)) / var(--slider-per-view-desktop));
+    }
+  }
+
+  /* ===== Slider scrollbar (thin line only) ===== */
+  .wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__grid::-webkit-scrollbar {
+    height: 4.5px;
+  }
+  .wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__grid::-webkit-scrollbar-track {
+    background: var(--wt-slider-track, #e8e3d9);
+    margin-left: 36px;          /* yahi line ko right ki taraf 36px shift karegi */
+  }
+  .wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__grid::-webkit-scrollbar-thumb {
+    background: var(--wt-slider-thumb, #555);
+  }
+  .wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__grid::-webkit-scrollbar-thumb:hover {
+    background: var(--wt-slider-thumb, #444);
+  }
+  .wt-blur-banner-card__description .metafield-rich_text_field p {
+    margin: 0 !important;
+    font-size: 14px;
+  }
+  .wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__grid {
+    cursor: grab;
+    user-select: none;
+  }
+  .wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__grid.wt-is-dragging {
+    cursor: grabbing;
+    scroll-behavior: auto;
+  }
+  @media (max-width: 749px) {
+    .wt-blur-banner-card__heading h3 {
+      font-size: 18px;
+    }
+    .wt-blur-banner-card__description .metafield-rich_text_field p {
+      font-size: 12px;
+    }
+  }
+</style>
+
+{%- if ingredients_list != blank and ingredients_list.size > 0 -%}
+<div
+  class="wt-blur-banner-cards-container wt-blur-banner-cards-container--slider {% if use_contained_layout %} wt-blur-banner-cards-container--contained{% endif %}{% if block.settings.image_ratio == 'adapt' %} wt-blur-banner-cards-container--image-adapt{% endif %} {% if background_card_rgb == 'rgba(0, 0, 0, 0.0)' %}wt-blur-banner-cards-container--no-card-bg{% endif %}"
+  data-block-id="{{ block.id }}"
+  {{ block.shopify_attributes }}
+  style="--wt-card-divider: {{ block.settings.divider_color | default: '#00000020' }}; --wt-card-toggle-bg: {{ block.settings.toggle_bg | default: '#ffffff' }}; --wt-card-toggle-icon: {{ block.settings.toggle_icon_color | default: '#111111' }}; --wt-card-overlay-bg: {{ overlay_bg }};
+  --slider-per-view-desktop: {{ block.settings.slider_per_view_desktop | default: 2.5 }};
+  --slider-per-view-tablet: {{ block.settings.slider_per_view_tablet | default: 2.5 }};
+  --slider-per-view-mobile: {{ block.settings.slider_per_view_mobile | default: 1.5 }};
+  --wt-slider-track: {{ block.settings.slider_track_color | default: '#e8e3d9' }};
+  --wt-slider-thumb: {{ block.settings.slider_thumb_color | default: '#555555' }};
+  --wt-active-bg-color: {{ active_background_color }};"
+>
+  <div class="wt-blur-banner-cards-container__grid">
+    {%- for item in ingredients_list -%}
+      {%- assign card_bg_rgb = block.settings.background_color | color_to_rgb -%}
+      {%- assign card_uid = block.id | append: '-' | append: forloop.index -%}
+      {%- liquid
+        assign has_section_1 = false
+        if item.expanded_title_1 != blank or item.expanded_text_1 != blank
+          assign has_section_1 = true
+        endif
+        assign has_section_2 = false
+        if item.expanded_title_2 != blank or item.expanded_text_2 != blank
+          assign has_section_2 = true
+        endif
+        assign has_expanded = false
+        if has_section_1 or has_section_2
+          assign has_expanded = true
+        endif
+      -%}
+      <div class="wt-blur-banner-cards-container__item">
+        <div
+          class="wt-blur-banner-card {% if has_expanded %}wt-blur-banner-card--expandable{% endif %} {% if card_bg_rgb == 'rgba(0, 0, 0, 0.0)' %}wt-blur-banner-card--no-bg{% endif %}"
+          style="--wt-card-divider: {{ block.settings.divider_color | default: '#00000020' }}; --wt-card-toggle-bg: {{ block.settings.toggle_bg | default: '#ffffff' }}; --wt-card-toggle-icon: {{ block.settings.toggle_icon_color | default: '#111111' }};"
+        >
+          {%- comment -%} Image — visible in both states {%- endcomment -%}
+          {%- if item.image != blank -%}
+            <div class="wt-blur-banner-card__image">
+              {{
+                item.image
+                | image_url: width: 800
+                | image_tag:
+                  loading: 'lazy',
+                  sizes: '(min-width: 1000px) 400px, 100vw',
+                  widths: '375, 550, 750, 800',
+                  class: 'wt-blur-banner-card__image-tag',
+                  alt: item.title
+              }}
+            </div>
+          {%- else -%}
+            <div class="wt-blur-banner-card__image wt-blur-banner-card__image--placeholder">
+              {{ 'product-apparel-1' | placeholder_svg_tag: 'wt-blur-banner-card__image-tag placeholder-svg' }}
+            </div>
+          {%- endif -%}
+
+          <div class="wt-blur-banner-card__content">
+            {%- comment -%} Toggle MUST come first inside content so the ~ sibling selectors match {%- endcomment -%}
+            {%- if has_expanded -%}
+              <input type="checkbox" id="wt-card-toggle-{{ card_uid }}" class="wt-blur-banner-card__toggle">
+            {%- endif -%}
+
+            {%- comment -%} Collapsed view {%- endcomment -%}
+            <div class="wt-blur-banner-card__view wt-blur-banner-card__view--collapsed">
+              <div class="wt-blur-banner-card__view-inner">
+                {%- if item.title != blank -%}
+                  <div class="wt-blur-banner-card__heading headline headline--rich">
+                    <h3>{{ item.title }}</h3>
+                  </div>
+                {%- endif -%}
+                {%- if item.text != blank -%}
+                  <div class="wt-blur-banner-card__description rte">
+                    {{ item.text | metafield_tag }}
+                  </div>
+                {%- endif -%}
+              </div>
+            </div>
+
+            {%- comment -%} Expanded view {%- endcomment -%}
+            {%- if has_expanded -%}
+              <div class="wt-blur-banner-card__view wt-blur-banner-card__view--expanded">
+                <div class="wt-blur-banner-card__view-inner">
+                  {%- if has_section_1 -%}
+                    {%- if item.expanded_title_1 != blank -%}
+                      <div class="wt-blur-banner-card__heading headline headline--rich">
+                        <h3>{{ item.expanded_title_1 }}</h3>
+                      </div>
+                    {%- endif -%}
+                    {%- if item.expanded_text_1 != blank -%}
+                      <div class="wt-blur-banner-card__description rte">
+                        {{ item.expanded_text_1 | metafield_tag }}
+                      </div>
+                    {%- endif -%}
+                  {%- endif -%}
+
+                  {%- if has_section_1 and has_section_2 -%}
+                    <hr class="wt-blur-banner-card__divider">
+                  {%- endif -%}
+
+                  {%- if has_section_2 -%}
+                    {%- if item.expanded_title_2 != blank -%}
+                      <div class="wt-blur-banner-card__heading headline headline--rich">
+                        <h3>{{ item.expanded_title_2 }}</h3>
+                      </div>
+                    {%- endif -%}
+                    {%- if item.expanded_text_2 != blank -%}
+                      <div class="wt-blur-banner-card__description rte">
+                        {{ item.expanded_text_2 | metafield_tag }}
+                      </div>
+                    {%- endif -%}
+                  {%- endif -%}
+                </div>
+              </div>
+
+              {%- comment -%} Toggle button — placed after input so ~ selectors reach it {%- endcomment -%}
+              <label
+                for="wt-card-toggle-{{ card_uid }}"
+                class="wt-blur-banner-card__toggle-btn"
+                aria-label="Toggle details"
+              >
+                <span class="wt-blur-banner-card__toggle-icon" aria-hidden="true"></span>
+              </label>
+            {%- endif -%}
+          </div>
+        </div>
+      </div>
+    {%- endfor -%}
+  </div>
+</div>
+{%- endif -%}
+<script>
+  (function () {
+    var block = document.querySelector('[data-block-id="{{ block.id }}"]');
+    if (!block) return;
+
+    /* ===== Poore card par click karne se open/close ===== */
+    var cards = block.querySelectorAll('.wt-blur-banner-card--expandable');
+    cards.forEach(function (card) {
+      var toggle = card.querySelector('.wt-blur-banner-card__toggle');
+      if (!toggle) return;
+
+      card.addEventListener('click', function (e) {
+        // link / button / label / checkbox par normal behavior chalne do
+        if (e.target.closest('a, button, label, input, .wt-blur-banner-card__toggle-btn')) return;
+        if (window.getSelection && window.getSelection().toString().length > 0) return;
+        toggle.checked = !toggle.checked;
+      });
+    });
+
+    /* ===== Slider drag (pehle jaisa hi) ===== */
+    var slider = block.querySelector('.wt-blur-banner-cards-container--slider .wt-blur-banner-cards-container__grid');
+    if (!slider) return;
+
+    var isDown = false, startX = 0, startScroll = 0, moved = false;
+    var DRAG_THRESHOLD = 5;
+
+    slider.addEventListener('mousedown', function (e) {
+      if (e.target.closest('input, label, a, button')) return;
+      isDown = true;
+      moved = false;
+      slider.classList.add('wt-is-dragging');
+      startX = e.pageX - slider.offsetLeft;
+      startScroll = slider.scrollLeft;
+    });
+
+    slider.addEventListener('mousemove', function (e) {
+      if (!isDown) return;
+      e.preventDefault();
+      var x = e.pageX - slider.offsetLeft;
+      var walk = x - startX;
+      if (Math.abs(walk) > DRAG_THRESHOLD) moved = true;
+      slider.scrollLeft = startScroll - walk;
+    });
+
+    function endDrag() {
+      isDown = false;
+      slider.classList.remove('wt-is-dragging');
+    }
+    slider.addEventListener('mouseup', endDrag);
+    slider.addEventListener('mouseleave', endDrag);
+
+    slider.addEventListener('click', function (e) {
+      if (moved) {
+        e.preventDefault();
+        e.stopPropagation();
+        moved = false;
+      }
+    }, true);
+  })();
+</script>
+{% schema %}
+{
+  "name": "Ingredient Cards",
+  "class": "block__cards-container",
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "Cards are auto-generated from product metafield: custom.ingredient_details (List of Ingredient Details metaobjects)."
+    },
+    {
+      "type": "select",
+      "id": "image_ratio",
+      "options": [
+        { "value": "adapt", "label": "t:blocks.blur_banner_cards_container.settings.image_ratio.options__1.label" },
+        { "value": "square", "label": "t:blocks.blur_banner_cards_container.settings.image_ratio.options__2.label" },
+        { "value": "landscape", "label": "t:blocks.blur_banner_cards_container.settings.image_ratio.options__3.label" }
+      ],
+      "default": "square",
+      "label": "t:blocks.blur_banner_cards_container.settings.image_ratio.label"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.global.desktop_version"
+    },
+    {
+      "type": "select",
+      "id": "columns_desktop",
+      "options": [
+        { "value": "1", "label": "1" },
+        { "value": "2", "label": "2" },
+        { "value": "3", "label": "3" },
+        { "value": "4", "label": "4" }
+      ],
+      "default": "3",
+      "label": "t:blocks.blur_banner_cards_container.settings.columns_number.label"
+    },
+    {
+      "type": "range",
+      "id": "gap_desktop",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "default": 20,
+      "unit": "px",
+      "label": "t:sections.settings.settings.gap.label"
+    },
+    {
+      "type": "range",
+      "id": "size_heading",
+      "min": 50,
+      "max": 500,
+      "step": 10,
+      "default": 100,
+      "label": "t:sections.settings.settings.size-heading.label",
+      "unit": "%"
+    },
+    {
+      "type": "header",
+      "content": "Tablet"
+    },
+    {
+      "type": "select",
+      "id": "columns_tablet",
+      "options": [
+        { "value": "1", "label": "1" },
+        { "value": "2", "label": "2" },
+        { "value": "3", "label": "3" },
+        { "value": "4", "label": "4" }
+      ],
+      "default": "2",
+      "label": "t:blocks.blur_banner_cards_container.settings.columns_number.label"
+    },
+    {
+      "type": "range",
+      "id": "gap_tablet",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "default": 20,
+      "unit": "px",
+      "label": "t:sections.settings.settings.gap.label"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.global.mobile_version"
+    },
+    {
+      "type": "select",
+      "id": "columns_mobile",
+      "options": [
+        { "value": "1", "label": "1" },
+        { "value": "2", "label": "2" }
+      ],
+      "default": "1",
+      "label": "t:blocks.blur_banner_cards_container.settings.columns_number.label"
+    },
+    {
+      "type": "range",
+      "id": "gap_mobile",
+      "min": 0,
+      "max": 40,
+      "step": 4,
+      "default": 20,
+      "unit": "px",
+      "label": "t:sections.settings.settings.gap.label"
+    },
+    {
+      "type": "range",
+      "id": "size_heading_mobile",
+      "min": 80,
+      "max": 300,
+      "step": 10,
+      "default": 100,
+      "label": "t:sections.settings.settings.size-heading-mobile.label",
+      "unit": "%"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.global.colors",
+      "info": "t:sections.global.colors-info"
+    },
+    {
+      "type": "color",
+      "id": "color_body_text",
+      "default": "transparent",
+      "label": "t:sections.settings.settings.text-color.label"
+    },
+    {
+      "type": "color",
+      "id": "background_card_color",
+      "default": "transparent",
+      "label": "t:blocks.blur_banner_cards_container.settings.background_card_color.label"
+    },
+    {
+      "type": "range",
+      "id": "background_card_opacity",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 100,
+      "label": "t:sections.settings.settings.background-opacity.label"
+    },
+    {
+      "type": "header",
+      "content": "Card Background"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "default": "transparent",
+      "label": "t:sections.settings.settings.background-color.label"
+    },
+    {
+      "type": "color",
+      "id": "active_background_color",
+      "default": "transparent",
+      "label": "Active Background color"
+    },
+    {
+      "type": "range",
+      "id": "background_opacity",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 100,
+      "label": "t:sections.settings.settings.background-opacity.label"
+    },
+    {
+      "type": "header",
+      "content": "t:blocks.blur_banner_cards_container.settings.block_spacing.label"
+    },
+    {
+      "type": "range",
+      "id": "margin_top",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "default": 20,
+      "unit": "px",
+      "label": "t:sections.settings.settings.distance-top.label"
+    },
+    {
+      "type": "range",
+      "id": "margin_bottom",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "default": 20,
+      "unit": "px",
+      "label": "t:sections.settings.settings.distance-bottom.label",
+      "info": "t:sections.settings.settings.distance-bottom.info"
+    },
+    { "type": "color", "id": "divider_color",      "label": "Divider color",            "default": "#00000020" },
+    { "type": "color", "id": "toggle_bg",          "label": "Toggle button background",  "default": "#ffffff" },
+    { "type": "color", "id": "toggle_icon_color",  "label": "Toggle icon color",         "default": "#111111" },
+    { "type": "header", "content": "Slider / Carousel" },
+    { "type": "checkbox", "id": "enable_slider", "label": "Enable slider (horizontal scroll)", "default": false },
+    { "type": "range", "id": "slider_per_view_desktop", "min": 1, "max": 5, "step": 0.5, "default": 2.5,   "label": "Cards per view (desktop)" },
+    { "type": "range", "id": "slider_per_view_tablet",  "min": 1, "max": 4, "step": 0.5, "default": 2.5, "label": "Cards per view (tablet)" },
+    { "type": "range", "id": "slider_per_view_mobile",  "min": 1, "max": 3, "step": 0.2, "default": 1.2, "label": "Cards per view (mobile)" },
+    { "type": "color", "id": "slider_track_color", "label": "Scrollbar track color", "default": "#e8e3d9" },
+    { "type": "color", "id": "slider_thumb_color", "label": "Scrollbar thumb color", "default": "#555555" }
+  ],
+  "presets": [
+    {
+      "name": "Ingredient Cards (Metafield)"
+    }
+  ]
+}
+{% endschema %}

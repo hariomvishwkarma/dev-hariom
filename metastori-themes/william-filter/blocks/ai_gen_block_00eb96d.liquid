@@ -1,0 +1,652 @@
+{% doc %}
+  @prompt
+    Create a Shopify theme section with a 4-column row of 1:1 square image blocks. Each block should include an image, a heading underneath, and a “LEARN MORE” button underneath the heading.
+    
+    On desktop, the text should be centred. On mobile, the text should be left aligned.
+    
+    The desktop button should have a white background with black text, and on hover it should change to a black background with white text.
+    
+    On mobile, replace the button with a simple underlined text link that says “Learn More”.
+    
+    The section needs customisable settings for left and right padding, image gap spacing, heading text size, and button text size. Each of these settings should be independently adjustable for desktop and mobile.
+    
+    On mobile, the blocks should not stack vertically. They should display as a horizontal carousel with arrow navigation. By default, there should be 15px of padding to the left of the first image on mobile.
+    
+    The carousel arrow buttons should sit inside a square frame. The arrows should be vertically centred relative to the image area only, not the full content block.
+    
+    Only show arrow buttons for directions the user can actually navigate. For example, the left arrow should be hidden on initial load and only appear once the user has scrolled or navigated to the right.
+    
+    Each arrow click should move the carousel horizontally by exactly one mobile item width, including the image width and the gap between images. Do not resize or shrink the mobile images to make this work. The mobile image size should remain the same; only the scroll position should change.
+    , make sure the second column is visible slightly on the right of the page so people know they can navigate
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-image-grid-{{ ai_gen_id }} {
+    display: block;
+    width: 100%;
+    position: relative;
+  }
+
+  .ai-image-grid-container-{{ ai_gen_id }} {
+    padding-left: {{ block.settings.desktop_padding_left }}px;
+    padding-right: {{ block.settings.desktop_padding_right }}px;
+  }
+
+  .ai-image-grid-wrapper-{{ ai_gen_id }} {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: {{ block.settings.desktop_gap }}px;
+  }
+
+  .ai-image-grid-item-{{ ai_gen_id }} {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .ai-image-grid-image-wrapper-{{ ai_gen_id }} {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .ai-image-grid-image-{{ ai_gen_id }} {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ai-image-grid-placeholder-{{ ai_gen_id }} {
+    width: 100%;
+    height: 100%;
+    background-color: #f4f4f4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ai-image-grid-placeholder-{{ ai_gen_id }} svg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ai-image-grid-heading-{{ ai_gen_id }} {
+    font-size: {{ block.settings.desktop_heading_size }}px;
+    margin: 0 0 16px 0;
+    color: {{ block.settings.heading_color }};
+  }
+
+  .ai-image-grid-button-{{ ai_gen_id }} {
+    background-color: {{ block.settings.button_bg_color }};
+    color: {{ block.settings.button_text_color }};
+    border: 1px solid {{ block.settings.button_border_color }};
+    padding: 12px 24px;
+    font-size: {{ block.settings.desktop_button_size }}px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .ai-image-grid-button-{{ ai_gen_id }}:hover {
+    background-color: {{ block.settings.button_hover_bg_color }};
+    color: {{ block.settings.button_hover_text_color }};
+  }
+
+  .ai-image-grid-mobile-link-{{ ai_gen_id }} {
+    display: none;
+  }
+
+  .ai-image-grid-nav-{{ ai_gen_id }} {
+    display: none;
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-image-grid-container-{{ ai_gen_id }} {
+      padding-left: 0;
+      padding-right: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ai-image-grid-wrapper-{{ ai_gen_id }} {
+      display: flex;
+      gap: {{ block.settings.mobile_gap }}px;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      padding-left: {{ block.settings.mobile_padding_left }}px;
+      padding-right: {{ block.settings.mobile_padding_right }}px;
+    }
+
+    .ai-image-grid-item-{{ ai_gen_id }} {
+      flex: 0 0 auto;
+      width: calc(100vw - {{ block.settings.mobile_padding_left }}px - {{ block.settings.mobile_padding_right }}px - {{ block.settings.mobile_peek }}px);
+      align-items: flex-start;
+      text-align: left;
+    }
+
+    .ai-image-grid-heading-{{ ai_gen_id }} {
+      font-size: {{ block.settings.mobile_heading_size }}px;
+    }
+
+    .ai-image-grid-button-{{ ai_gen_id }} {
+      display: none;
+    }
+
+    .ai-image-grid-mobile-link-{{ ai_gen_id }} {
+      display: inline;
+      color: {{ block.settings.link_color }};
+      text-decoration: underline;
+      font-size: {{ block.settings.mobile_button_size }}px;
+    }
+
+    .ai-image-grid-nav-{{ ai_gen_id }} {
+      display: block;
+    }
+
+    .ai-image-grid-nav-button-{{ ai_gen_id }} {
+      position: absolute;
+      top: 0;
+      width: {{ block.settings.arrow_size }}px;
+      height: {{ block.settings.arrow_size }}px;
+      background-color: {{ block.settings.arrow_bg_color }};
+      border: 1px solid {{ block.settings.arrow_border_color }};
+      cursor: pointer;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s ease;
+    }
+
+    .ai-image-grid-nav-button-{{ ai_gen_id }}:disabled {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .ai-image-grid-nav-button-{{ ai_gen_id }}--prev {
+      left: 8px;
+    }
+
+    .ai-image-grid-nav-button-{{ ai_gen_id }}--next {
+      right: 8px;
+    }
+
+    .ai-image-grid-nav-button-{{ ai_gen_id }} svg {
+      width: 20px;
+      height: 20px;
+      fill: {{ block.settings.arrow_color }};
+    }
+  }
+{% endstyle %}
+
+<image-grid-carousel-{{ ai_gen_id }}
+  class="ai-image-grid-{{ ai_gen_id }}"
+  {{ block.shopify_attributes }}
+>
+  <div class="ai-image-grid-container-{{ ai_gen_id }}">
+    <div class="ai-image-grid-wrapper-{{ ai_gen_id }}" data-carousel-wrapper>
+      {% for i in (1..4) %}
+        {% liquid
+          assign image_key = 'image_' | append: i
+          assign heading_key = 'heading_' | append: i
+          assign link_key = 'link_' | append: i
+
+          assign image = block.settings[image_key]
+          assign heading = block.settings[heading_key]
+          assign link = block.settings[link_key]
+        %}
+
+        <div class="ai-image-grid-item-{{ ai_gen_id }}">
+          <div class="ai-image-grid-image-wrapper-{{ ai_gen_id }}">
+            {% if image %}
+              <img
+                src="{{ image | image_url: width: 800 }}"
+                alt="{{ image.alt | escape }}"
+                loading="lazy"
+                width="{{ image.width }}"
+                height="{{ image.height }}"
+                class="ai-image-grid-image-{{ ai_gen_id }}"
+              >
+            {% else %}
+              <div class="ai-image-grid-placeholder-{{ ai_gen_id }}">
+                {{ 'image' | placeholder_svg_tag }}
+              </div>
+            {% endif %}
+          </div>
+
+          {% if heading != blank %}
+            <h3 class="ai-image-grid-heading-{{ ai_gen_id }}">{{ heading }}</h3>
+          {% endif %}
+
+          {% if link != blank %}
+            <a href="{{ link }}" class="ai-image-grid-button-{{ ai_gen_id }}">
+              {{ block.settings.button_text }}
+            </a>
+            <a href="{{ link }}" class="ai-image-grid-mobile-link-{{ ai_gen_id }}">
+              {{ block.settings.mobile_link_text }}
+            </a>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="ai-image-grid-nav-{{ ai_gen_id }}">
+      <button
+        class="ai-image-grid-nav-button-{{ ai_gen_id }} ai-image-grid-nav-button-{{ ai_gen_id }}--prev"
+        data-nav-prev
+        aria-label="Previous"
+        disabled
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+        </svg>
+      </button>
+      <button
+        class="ai-image-grid-nav-button-{{ ai_gen_id }} ai-image-grid-nav-button-{{ ai_gen_id }}--next"
+        data-nav-next
+        aria-label="Next"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</image-grid-carousel-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class ImageGridCarousel{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+        this.currentIndex = 0;
+        this.totalItems = 4;
+      }
+
+      connectedCallback() {
+        this.wrapper = this.querySelector('[data-carousel-wrapper]');
+        this.prevButton = this.querySelector('[data-nav-prev]');
+        this.nextButton = this.querySelector('[data-nav-next]');
+
+        if (!this.wrapper || !this.prevButton || !this.nextButton) return;
+
+        this.setupCarousel();
+      }
+
+      setupCarousel() {
+        this.prevButton.addEventListener('click', () => this.navigate(-1));
+        this.nextButton.addEventListener('click', () => this.navigate(1));
+
+        this.wrapper.addEventListener('scroll', () => this.updateButtons());
+
+        this.updateArrowPosition();
+        window.addEventListener('resize', () => this.updateArrowPosition());
+      }
+
+      navigate(direction) {
+        if (window.innerWidth > 749) return;
+
+        const items = this.wrapper.querySelectorAll('.ai-image-grid-item-{{ ai_gen_id }}');
+        if (items.length === 0) return;
+
+        const gap = {{ block.settings.mobile_gap }};
+        const peek = {{ block.settings.mobile_peek }};
+        const paddingLeft = {{ block.settings.mobile_padding_left }};
+        const paddingRight = {{ block.settings.mobile_padding_right }};
+        const itemWidth = window.innerWidth - paddingLeft - paddingRight - peek;
+        const scrollAmount = itemWidth + gap;
+
+        this.currentIndex += direction;
+        this.currentIndex = Math.max(0, Math.min(this.currentIndex, this.totalItems - 1));
+
+        const scrollPosition = this.currentIndex * scrollAmount;
+        this.wrapper.scrollTo({
+          left: scrollPosition,
+          behavior: 'smooth'
+        });
+
+        this.updateButtons();
+      }
+
+      updateButtons() {
+        if (window.innerWidth > 749) {
+          this.prevButton.disabled = true;
+          this.nextButton.disabled = true;
+          return;
+        }
+
+        const scrollLeft = this.wrapper.scrollLeft;
+        const maxScroll = this.wrapper.scrollWidth - this.wrapper.clientWidth;
+
+        this.prevButton.disabled = scrollLeft <= 1;
+        this.nextButton.disabled = scrollLeft >= maxScroll - 1;
+      }
+
+      updateArrowPosition() {
+        if (window.innerWidth > 749) return;
+
+        const items = this.wrapper.querySelectorAll('.ai-image-grid-item-{{ ai_gen_id }}');
+        if (items.length === 0) return;
+
+        const firstItem = items[0];
+        const imageWrapper = firstItem.querySelector('.ai-image-grid-image-wrapper-{{ ai_gen_id }}');
+        if (!imageWrapper) return;
+
+        const imageHeight = imageWrapper.offsetHeight;
+        const arrowSize = {{ block.settings.arrow_size }};
+        const topPosition = (imageHeight - arrowSize) / 2;
+
+        this.prevButton.style.top = topPosition + 'px';
+        this.nextButton.style.top = topPosition + 'px';
+      }
+    }
+
+    customElements.define('image-grid-carousel-{{ ai_gen_id }}', ImageGridCarousel{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Image grid carousel",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Desktop layout"
+    },
+    {
+      "type": "range",
+      "id": "desktop_padding_left",
+      "label": "Left padding",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "desktop_padding_right",
+      "label": "Right padding",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "desktop_gap",
+      "label": "Image gap",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "desktop_heading_size",
+      "label": "Heading size",
+      "min": 12,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "desktop_button_size",
+      "label": "Button text size",
+      "min": 10,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "header",
+      "content": "Mobile layout"
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_left",
+      "label": "Left padding",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_right",
+      "label": "Right padding",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "mobile_peek",
+      "label": "Next item peek",
+      "min": 20,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "mobile_gap",
+      "label": "Image gap",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "mobile_heading_size",
+      "label": "Heading size",
+      "min": 12,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "mobile_button_size",
+      "label": "Link text size",
+      "min": 10,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "button_bg_color",
+      "label": "Button background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button text",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "button_border_color",
+      "label": "Button border",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "button_hover_bg_color",
+      "label": "Button hover background",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "button_hover_text_color",
+      "label": "Button hover text",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "link_color",
+      "label": "Mobile link color",
+      "default": "#000000"
+    },
+    {
+      "type": "header",
+      "content": "Mobile arrows"
+    },
+    {
+      "type": "range",
+      "id": "arrow_size",
+      "label": "Arrow button size",
+      "min": 30,
+      "max": 60,
+      "step": 5,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "color",
+      "id": "arrow_bg_color",
+      "label": "Arrow background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "arrow_border_color",
+      "label": "Arrow border",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "arrow_color",
+      "label": "Arrow icon color",
+      "default": "#000000"
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Desktop button text",
+      "default": "LEARN MORE"
+    },
+    {
+      "type": "text",
+      "id": "mobile_link_text",
+      "label": "Mobile link text",
+      "default": "Learn More"
+    },
+    {
+      "type": "header",
+      "content": "Image 1"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_1",
+      "label": "Image"
+    },
+    {
+      "type": "text",
+      "id": "heading_1",
+      "label": "Heading"
+    },
+    {
+      "type": "url",
+      "id": "link_1",
+      "label": "Link"
+    },
+    {
+      "type": "header",
+      "content": "Image 2"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_2",
+      "label": "Image"
+    },
+    {
+      "type": "text",
+      "id": "heading_2",
+      "label": "Heading"
+    },
+    {
+      "type": "url",
+      "id": "link_2",
+      "label": "Link"
+    },
+    {
+      "type": "header",
+      "content": "Image 3"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_3",
+      "label": "Image"
+    },
+    {
+      "type": "text",
+      "id": "heading_3",
+      "label": "Heading"
+    },
+    {
+      "type": "url",
+      "id": "link_3",
+      "label": "Link"
+    },
+    {
+      "type": "header",
+      "content": "Image 4"
+    },
+    {
+      "type": "image_picker",
+      "id": "image_4",
+      "label": "Image"
+    },
+    {
+      "type": "text",
+      "id": "heading_4",
+      "label": "Heading"
+    },
+    {
+      "type": "url",
+      "id": "link_4",
+      "label": "Link"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Image grid carousel"
+    }
+  ]
+}
+{% endschema %}

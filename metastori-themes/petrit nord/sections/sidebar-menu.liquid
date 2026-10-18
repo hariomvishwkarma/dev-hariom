@@ -1,0 +1,372 @@
+{% comment %}SAFE TO COPY/PASTE{% endcomment %}
+
+{%- assign main_menu_handle = section.settings.primary_menu | default: 'main-menu' -%}
+{%- assign main_menu = linklists[main_menu_handle] -%}
+{%- assign mega_menu_names = '' -%}
+{%- assign show_review_section = false -%}
+{%- for block in section.blocks -%}
+  {%- if block.type == 'mega_menu' -%}
+    {%- assign trim_mega_menu_name = block.settings.navigation_mega_menu | strip -%}
+    {%- assign mega_menu_names = mega_menu_names | append: trim_mega_menu_name | append: ',' -%}
+  {%- endif -%}
+
+  
+  {%- if block.type == 'review' -%}
+    {%- assign show_review_section = true -%}
+  {% endif %}
+{%- endfor -%}
+
+{%- assign mega_menu_names = mega_menu_names | downcase | split: ',' | compact -%}
+
+<section id="sidebar-menu" class="SidebarMenu Drawer Drawer--small Drawer--fromLeft" aria-hidden="true" data-section-id="{{ section.id }}" data-section-type="sidebar-menu">
+    <header class="Drawer__Header" data-drawer-animated-left>
+      
+      <div style="visibility: visible; opacity: 1; pointer-events: all; position: static;" id="Search" class="Search" aria-hidden="true">
+        <div class="Search__Inner">
+          <div class="Search__SearchBar" data-width="--mobile_search">
+            <form action="{{ routes.search_url }}" name="GET" role="search" class="Search__Form">
+              <div class="Search__InputIconWrapper">
+                <span class="hidden-tablet-and-up">{%- render 'icon' with 'search' -%}</span>
+                <span class="hidden-phone">{%- render 'icon' with 'search-desktop' -%}</span>
+              </div>
+      
+              <input type="search" class="Search__Input Heading" name="q" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="{{ 'search.general.input_placeholder' | t }}" placeholder="{{ 'search.general.input_placeholder' | t }}">
+              <input type="hidden" name="type" value="product">
+            </form>
+            <button class="Search__Close Link Link--primary hide" data-action="close-search" aria-label="{{ 'header.navigation.close_search' | t }}">{% render 'icon' with 'close' %}</button>
+          </div>
+      
+          <div class="Search__Results" aria-hidden="true">
+            {%- if settings.search_mode != 'product' -%}
+              <div class="PageLayout PageLayout--breakLap">
+                <div class="PageLayout__Section"></div>
+                <div class="PageLayout__Section PageLayout__Section--secondary"></div>
+              </div>
+            {%- endif -%}
+          </div>
+        </div>
+      </div>
+      <button style="position: relative;top: 0;left: 0;right: 0;" class="Drawer__Close Icon-Wrapper--clickable" data-action="close-drawer" data-drawer-id="sidebar-menu" aria-label="{{ 'header.navigation.close_sidebar' | t }}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none">
+          <path fill="currentColor" d="M.3.3a1 1 0 0 1 1.4 0L7 5.58l5.3-5.3a1 1 0 0 1 1.52 1.28l-.11.14L8.4 7l5.3 5.3.11.13a1 1 0 0 1-1.53 1.28L7 8.4l-5.3 5.3a1 1 0 0 1-1.52-1.28l.11-.14L5.6 7 .29 1.7l-.11-.13A1 1 0 0 1 .29.29Z"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="Drawer__Content Drawer__Extended" data-scrollable>
+<div style="display: flex;
+    flex-direction: column;">
+  
+      <div class="Drawer__Collections">
+        <ul>
+        {%- for block in section.blocks -%}
+          {%- if block.type == 'collection' -%}
+            <li>
+              <a href="{{ block.settings.collection.url }}" class="image--wrapper">
+                <img src="{{ block.settings.image | img_url: "300x" }}"/>
+                <div class="overlay--wrapper ">
+                  <span class="title">{{ block.settings.collection.title }}</span>
+                  <span class="button">{{ block.settings.button | default:"SHOP ALL" }}</span>
+                </div>
+              </a>
+            </li>
+          {%- endif -%}
+        {% endfor %}
+        </ul>
+      </div>
+      
+      <div class="Drawer__Main" data-drawer-animated-left >
+        <div class="Drawer__Container">
+          <nav class="SidebarMenu__Nav SidebarMenu__Nav--primary" aria-label="{{ 'header.navigation.sidebar_title' | t }}">
+            {%- for link in main_menu.links -%}
+            
+              {%- assign downcased_link_title = link.title | downcase | strip -%}
+              {%- assign use_mega_menu = false -%}
+              {% capture menu_state %}
+                {% if link.title contains "[extended-1]" %}extended-1{% endif %}
+                {% if link.title contains "[extended-2]" %}extended-2{% endif %}
+              {% endcapture %}
+              
+              <div class="Collapsible" style="border: none;" data-menu="{{ downcased_link_title }}" data-state="{{ menu_state | strip }}">
+                {%- if link.links != blank -%}
+                  <button class="Collapsible__Button Heading u-h6" data-action="toggle-collapsible" {% if link.links != blank %}aria-expanded="false"{% endif %}>
+                      <div class="link--wrapper" style="position: relative;">
+                        <span class="label">{{- link.title | remove: "[extended-1]" | remove: "[extended-2]" | escape -}}</span> 
+                        <span class="Collapsible__Icon">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="8" viewBox="0 0 13 8" fill="none"><path fill="currentColor" d="M6.5 8 13 1.3 11.7 0 6.5 5.3 1.3 0 0 1.3 6.5 8Z"/></svg>
+                        </span>
+                      </div>
+                      
+                      <div class="mobile-mega" style="letter-spacing: normal; text-transform: none;">
+                        
+                        {%- if mega_menu_names contains downcased_link_title -%}
+                          {%- for block in section.blocks -%}
+                            {%- if block.type == 'mega_menu' -%}
+                              {%- assign downcased_mega_menu_name = block.settings.navigation_mega_menu | downcase -%}
+  
+                              {%- if downcased_mega_menu_name != downcased_link_title -%}
+                                {%- continue -%}
+                              {%- endif -%}
+  
+                              <p>{{ block.settings.text }}</p>
+                            {%- endif -%}
+                          {% endfor %}
+                        {%- endif -%}
+                      </div>
+                  </button>
+                
+                  <div class="Collapsible__Inner">
+                    <div class="Collapsible__Content">
+                      {%- for sub_link in link.links -%}
+                        <div class="Collapsible">
+                          {%- if sub_link.links != blank -%}
+                            <button class="Collapsible__Button Heading Link--primary u-h7" data-action="toggle-collapsible" {% if sub_link.links != blank %}aria-expanded="false"{% endif %}>
+                              <span class="label">{{- sub_link.title | escape -}}</span> <span class="Collapsible__Plus"></span>
+                            </button>
+
+                            <div class="Collapsible__Inner">
+                              <div class="Collapsible__Content">
+                                <ul class="Linklist Linklist--bordered Linklist--spacingLoose">
+                                  {%- for sub_sub_link in sub_link.links -%}
+                                    <li class="Linklist__Item">
+                                      <a href="{{ sub_sub_link.url }}" class="Link Link--primary {% if sub_sub_link.title contains "[bold]" %}text--bold{% endif %}"><span>{{ sub_sub_link.title | remove: "[bold]" | remove: "[title]" | escape }}</span></a>
+                                    </li>
+                                  {%- endfor -%}
+                                </ul>
+                              </div>
+                            </div>
+                          {%- else -%}
+                          <a href="{{ sub_link.url }}" class="Collapsible__Button Heading Link Link--primary u-h7 {% if sub_link.title contains "[bold]" %}text--bold{% endif %}"><span>{{ sub_link.title | remove: "[bold]" | remove: "[title]" | escape }}</span></a>
+                          {%- endif -%}
+                        </div>
+                      {%- endfor -%}
+                    </div>
+                  </div>
+                {%- else -%}
+                  <a href="{{ link.url }}" class="Collapsible__Button Heading Link Link--primary u-h6 {% if link.title contains "[bold]" %}text--bold{% endif %}"><span class="label">{{ link.title | remove: "[bold]" | remove: "[title]" | escape }}</span></a>
+                {%- endif -%}
+              </div>
+            {%- endfor -%}
+          </nav>
+
+          {%- assign secondary_menu = linklists[section.settings.secondary_menu] -%}
+          <nav class="SidebarMenu__Nav SidebarMenu__Nav--secondary">
+            {%- for link in secondary_menu.links -%}
+              {%- assign downcased_link_title = link.title | downcase | strip -%}
+              {%- assign use_mega_menu = false -%}
+              {% capture menu_state %}
+                {% if link.title contains "[extended-1]" %}extended-1{% endif %}
+                {% if link.title contains "[extended-2]" %}extended-2{% endif %}
+              {% endcapture %}
+              
+              <div class="Collapsible" style="border: none;" data-menu="{{ downcased_link_title }}" data-state="{{ menu_state | strip }}">
+                {%- if link.links != blank -%}
+                  <button class="Collapsible__Button Heading u-h6" data-action="toggle-collapsible" {% if link.links != blank %}aria-expanded="false"{% endif %}>
+                      <div class="link--wrapper" style="position: relative;">
+                        <span class="label">{{- link.title | remove: "[extended-1]" | remove: "[extended-2]" | escape -}}</span> 
+                        <span class="Collapsible__Icon">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="8" viewBox="0 0 13 8" fill="none"><path fill="currentColor" d="M6.5 8 13 1.3 11.7 0 6.5 5.3 1.3 0 0 1.3 6.5 8Z"/></svg>
+                        </span>
+                      </div>
+                  </button>
+                
+                  <div class="Collapsible__Inner">
+                    <div class="Collapsible__Content">
+                      {%- for sub_link in link.links -%}
+                        <div class="Collapsible">
+                          {%- if sub_link.links != blank -%}
+                            <button class="Collapsible__Button Heading Link--primary u-h7" data-action="toggle-collapsible" {% if sub_link.links != blank %}aria-expanded="false"{% endif %}>
+                              <span class="label">{{- sub_link.title | escape -}}</span> <span class="Collapsible__Plus"></span>
+                            </button>
+
+                            <div class="Collapsible__Inner">
+                              <div class="Collapsible__Content">
+                                <ul class="Linklist Linklist--bordered Linklist--spacingLoose">
+                                  {%- for sub_sub_link in sub_link.links -%}
+                                    <li class="Linklist__Item">
+                                      <a href="{{ sub_sub_link.url }}" class="Link Link--primary {% if sub_sub_link.title contains "[bold]" %}text--bold{% endif %}"><span>{{ sub_sub_link.title | remove: "[bold]" | remove: "[title]" | escape }}</span></a>
+                                    </li>
+                                  {%- endfor -%}
+                                </ul>
+                              </div>
+                            </div>
+                          {%- else -%}
+                          <a href="{{ sub_link.url }}" class="Collapsible__Button Heading Link Link--primary u-h7 {% if sub_link.title contains "[bold]" %}text--bold{% endif %}"><span>{{ sub_link.title | remove: "[bold]" | remove: "[title]" | escape }}</span></a>
+                          {%- endif -%}
+                        </div>
+                      {%- endfor -%}
+                    </div>
+                  </div>
+                {%- else -%}
+                  {% capture link_style %}
+                    {% if link.title contains "[bold]" %}text--bold{% endif %} {% if link.title contains "[underline]" %}text--underline{% endif %} {% if link.title contains "STARTER UNIVERSE" %}text--underline{% endif %}
+                  {% endcapture %}
+                  
+                  <a href="{{ link.url }}" class="Collapsible__Button Heading Link Link--primary u-h6 {{ link_style }}"><span class="label">{{ link.title | split: "[" | first | escape }}</span></a>
+                {%- endif -%}
+              </div>
+            {%- endfor -%}
+          </nav>
+        </div>
+      </div>
+
+      {% if show_review_section %}
+      <div class="Drawer__Reviews">
+        
+        <div>
+          {% if section.settings.reviews_heading != blank %}
+            <h3 class="text--center">{{ section.settings.reviews_heading }}</h3>
+          {% endif %}
+
+          <div class="reviews">
+            <div class="">
+              {%- for block in section.blocks -%}
+                {%- if block.type == 'review' -%}
+                  <div class="">
+                    <div class="item--inner">
+                      <div>
+                        <div class="image--wrapper"><img src="{{ block.settings.image | img_url: "300x" }}"/></div>
+                      </div>
+                      <div class="content">
+                        <div class="heading">{{ block.settings.heading }}</div>
+                        <div class="text">{{ block.settings.text }}</div>
+                        <div class="rating">
+                          <div class="stars">
+                            {% for i in (1..5) %}
+                            <span class="star"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"> <path fill="none" d="M0 0h24v24H0z"/> <path fill="none" d="M0 0h24v24H0z"/> <path d="m12 17.3 6.2 3.7-1.7-7L22 9.2l-7.2-.6L12 2 9.2 8.6 2 9.2 7.5 14l-1.7 7z"/> </svg></span>
+                            {% endfor %}  
+                          </div>
+                          <div class="name">{{ block.settings.label }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                {%- endif -%}
+              {% endfor %}
+              
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+                            
+      {%- if section.settings.button != blank -%}
+        <aside class="Drawer__Footer" data-drawer-animated-bottom>
+          <div class="button--wrapper">{{ section.settings.button }}</div>
+        </aside>
+      {%- endif -%}
+    </div>
+                              
+</div>
+</section>
+
+{% schema %}
+{
+  "name": "Sidebar menu",
+  "class": "section-sidebar-menu",
+  "settings": [
+    {
+      "type": "link_list",
+      "id": "primary_menu",
+      "label": "Primary menu 1",
+      "default": "main-menu"
+    },  
+    {
+      "type": "link_list",
+      "id": "secondary_menu",
+      "label": "Secondary menu",
+      "info": "This menu won't show dropdown items."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_social_media",
+      "label": "Show social media",
+      "default": true
+    },
+    {
+      "type": "richtext",
+      "id": "reviews_heading",
+      "label": "Reviews heading"
+    },
+    {
+      "type": "richtext",
+      "id": "button",
+      "label": "Footer button"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "mega_menu",
+      "name": "Mega menu",
+      "settings": [
+        {
+          "type": "text",
+          "id": "navigation_mega_menu",
+          "label": "Menu item",
+          "info": "Enter menu item to apply a mega menu dropdown. [Learn more](http://support.maestrooo.com/article/149-navigation-enabling-and-configuring-mega-menu)."
+        },
+        {
+          "type": "richtext",
+          "id": "text",
+          "label": "Megamenu text"
+        }
+      ]
+    },
+    {
+      "type": "collection",
+      "name": "Collection",
+      "limit": 2,
+      "settings": [
+        {
+          "type": "collection",
+          "id": "collection",
+          "label": "Collection"
+        },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Image"
+        },
+        {
+          "type": "text",
+          "id": "button",
+          "label": "Button Text",
+          "default": "SHOP ALL"
+        }
+      ]
+    },
+    {
+      "type": "review",
+      "name": "Review",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Image"
+        },
+        {
+          "type": "richtext",
+          "id": "heading",
+          "label": "Heading"
+        },
+        {
+          "type": "richtext",
+          "id": "text",
+          "label": "Text"
+        },
+        {
+          "type": "richtext",
+          "id": "label",
+          "label": "Label"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name":"Sidebar menu"
+    }
+  ]
+}
+{% endschema %}

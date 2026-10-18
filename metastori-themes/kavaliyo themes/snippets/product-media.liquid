@@ -1,0 +1,763 @@
+{% doc %}
+  Renders the product gallery and can limit media groups to the currently
+  selected color by using the assigned variant media.
+
+  @param {product} product - The current product.
+  @param {string} product_form_id - The associated product form ID.
+  @param {boolean} [enable_server_variant_media_filter] - Enables server-rendered variant media groups.
+{% enddoc %}
+
+{%- if product.media.size > 0 -%}
+  {%- assign default_variant = product.selected_or_first_available_variant -%}
+  {%- assign selected_media = default_variant.featured_media | default: product.featured_media -%}
+  {%- assign server_variant_media_requested = enable_server_variant_media_filter | default: false -%}
+  {%- assign server_variant_media_active = false -%}
+  {%- assign server_variant_media_valid = false -%}
+  {%- assign server_media_start = 1 -%}
+  {%- assign server_media_end = product.media.size -%}
+  {%- assign rendered_media_count = product.media.size -%}
+
+  {%- if server_variant_media_requested -%}
+    {%- capture server_variant_media_result -%}
+      {%- render 'variant-media-range', product: product, variant: default_variant -%}
+    {%- endcapture -%}
+    {%- assign server_variant_media_parts = server_variant_media_result | strip | split: '::' -%}
+
+    {%- if server_variant_media_parts.first == 'valid' -%}
+      {%- assign server_variant_media_valid = true -%}
+      {%- assign server_variant_media_active = true -%}
+      {%- assign server_media_start = server_variant_media_parts[1] | plus: 0 -%}
+      {%- assign server_media_end = server_variant_media_parts[2] | plus: 0 -%}
+      {%- assign rendered_media_count = server_media_end | minus: server_media_start | plus: 1 -%}
+
+      {%- assign selected_media_position = default_variant.featured_media.position | default: 0 | plus: 0 -%}
+      {%- if selected_media_position < server_media_start or selected_media_position > server_media_end -%}
+        {%- assign selected_media_index = server_media_start | minus: 1 -%}
+        {%- assign selected_media = product.media[selected_media_index] -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endif -%}
+
+  {%- comment -%}
+    IMPLEMENTATION NOTE: When server-rendered variant media is disabled, Focal's existing alt-tag grouping remains
+    unchanged: https://support.maestrooo.com/article/721-variant-images-set
+    When enabled, grouping uses only assigned variant media and their positions.
+  {%- endcomment -%}
+
+  {% assign filtered_media_ids = '' %}
+
+  {%- unless server_variant_media_requested -%}
+    {%- for media in product.media -%}
+      {%- if media.alt contains '#' -%}
+        {%- assign alt_parts = media.alt | split: '#' -%}
+
+        {%- assign media_group_parts = alt_parts.last | split: '_' -%}
+        {%- assign option = product.options_by_name[media_group_parts.first] -%}
+        {%- assign option_index = option.position | minus: 1 -%}
+        {%- assign option_value = default_variant.options[option_index] | downcase -%}
+
+        {%- assign downcase_group_value = media_group_parts.last | strip | downcase -%}
+
+        {%- if option_value != downcase_group_value -%}
+          {%- assign filtered_media_ids = filtered_media_ids | append: media.id | append: ',' -%}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endunless -%}
+
+  {%- assign filtered_media_ids = filtered_media_ids | split: ',' | compact -%}
+
+  {%- assign max_width = 0 -%}
+  {%- assign min_media_width = 1600 -%}
+  {%- assign largest_image_aspect_ratio = 999 -%}
+
+  {%- for media in product.media -%}
+    {%- if server_variant_media_active -%}
+      {%- if media.position < server_media_start or media.position > server_media_end -%}
+        {%- continue -%}
+      {%- endif -%}
+    {%- endif -%}
+    {%- assign max_width = max_width | at_least: media.preview_image.width -%}
+    {%- assign largest_image_aspect_ratio = largest_image_aspect_ratio | at_most: media.preview_image.aspect_ratio -%}
+  {%- endfor -%}
+
+  {%- assign max_width = max_width | at_least: min_media_width -%}
+
+  <div class="product-media-wrapper">
+    <nav
+      aria-label="{{ 'general.breadcrumb.title' | t }}"
+      class="breadcrumb text--xsmall"
+      data-pdp-breadcrumb
+      data-product-title="{{ product.title | escape }}"
+      data-product-collections='[{%- for coll in product.collections -%}{%- unless forloop.first -%},{%- endunless -%}{"url":{{ coll.url | json }},"title":{{ coll.title | json }}}{%- endfor -%}]'
+      {% if collection %}
+        data-collection-url="{{ collection.url }}"
+        data-collection-title="{{ collection.title | escape }}"
+      {% endif %}
+    >
+      <ol class="breadcrumb__list" role="list">
+        <li class="breadcrumb__item">
+          <a class="breadcrumb__link" href="{{ routes.root_url }}">{{ 'general.breadcrumb.home' | t }}</a>
+        </li>
+      </ol>
+    </nav>
+
+    {% comment %} {% render 'ed-pdp-media-badges', product: product %} {% endcomment %}
+
+    <product-media
+      filtered-ids="{{ filtered_media_ids | json }}"
+      form-id="{{ product_form_id }}"
+      {% if section.settings.enable_video_autoplay %}autoplay-video{% endif %}
+      thumbnails-position="{{ section.settings.desktop_thumbnails_position }}"
+      {% if settings.reveal_product_media %}reveal-on-scroll{% endif %}
+      product-handle="{{ product.handle }}"
+      {% if server_variant_media_requested %}server-variant-media{% endif %}
+      {% if server_variant_media_valid %}server-variant-media-active{% endif %}
+      class="product__media {% if rendered_media_count == 1 %}product__media--single-item{% endif %}"
+      style="--largest-image-aspect-ratio: {{ largest_image_aspect_ratio }}"
+    >
+      <div class="product__media-list-wrapper" style="max-width: {{ max_width }}px">
+  
+        {% render 'ed-pdp-whislist-icon', product: product %}
+  
+        {%- capture flickity_config -%}
+        {
+          "adaptiveHeight": false,
+          "dragThreshold": 10,
+          "initialIndex": ".is-initial-selected",
+          "fade": {% if section.settings.transition_effect == 'fade' %}true{% else %}false{% endif %},
+          "draggable": ">1",
+          "contain": true,
+          "cellSelector": ".product__media-item:not(.is-filtered)",
+          "percentPosition": false,
+          "pageDots": false,
+          "prevNextButtons": false
+        }
+        {%- endcapture -%}
+  
+        <flickity-carousel click-nav flickity-config="{{ flickity_config | escape }}" id="product-{{ section.id }}-{{ product.id }}-media-list" class="product__media-list">
+          {%- for media in product.media -%}
+            {%- if server_variant_media_active -%}
+              {%- if media.position < server_media_start or media.position > server_media_end -%}
+                {%- continue -%}
+              {%- endif -%}
+            {%- endif -%}
+
+            {%- assign alt = media.alt -%}
+            {%- assign is_media_filtered = false -%}
+            {%- assign media_id_as_string = media.id | append: '' -%}
+  
+            {% if media.alt contains '#' %}
+              {%- assign alt = product.title -%}
+            {%- endif -%}
+  
+            {%- if filtered_media_ids contains media_id_as_string and media.alt != product.title -%}
+              {%- assign is_media_filtered = true -%}
+            {%- endif -%}
+  
+            <div id="product-{{ section.id }}-{{ media.id }}" class="product__media-item {% if is_media_filtered %}is-filtered{% endif %} {% if selected_media.id == media.id %}is-initial-selected is-selected{% endif %}" data-media-type="{{ media.media_type }}" data-media-id="{{ media.id }}" data-original-position="{{ media.position | minus: 1 }}">
+              {%- case media.media_type -%}
+                {%- when 'image' -%}
+                  <div class="product__media-image-wrapper aspect-ratio aspect-ratio--natural" style="padding-bottom: {{ 100.0 | divided_by: media.aspect_ratio }}%; --aspect-ratio: {{ media.aspect_ratio }}">
+                    {%- assign is_selected_media = false -%}
+                    {%- assign should_reveal = false -%}
+                    {%- assign loading = 'lazy' -%}
+                    {%- assign fetch_priority = 'auto' -%}
+
+                    {%- if server_variant_media_requested -%}
+                      {%- assign fetch_priority = 'low' -%}
+                    {%- endif -%}
+
+                    {%- if selected_media.id == media.id -%}
+                      {%- assign loading = 'eager' -%}
+                      {%- assign fetch_priority = 'high' -%}
+                    {%- endif -%}
+
+                    {%- if selected_media.id == media.id -%}
+                      {%- assign is_selected_media = true -%}
+                    {%- endif -%}
+
+                    {%- if settings.reveal_product_media and is_selected_media -%}
+                      {%- assign should_reveal = true -%}
+                    {%- endif -%}
+  
+                    {%- if should_reveal -%}
+                      {{- media | image_url: width: media.width | image_tag: loading: loading, fetchpriority: fetch_priority, sizes: '(max-width: 999px) calc(100vw - 48px), 640px', widths: '400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800', reveal: true -}}
+                    {%- else -%}
+                      {{- media | image_url: width: media.width | image_tag: loading: loading, fetchpriority: fetch_priority, sizes: '(max-width: 999px) calc(100vw - 48px), 640px', widths: '400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800' -}}
+                    {%- endif -%}
+
+                    {% comment %} Featurd video{% endcomment %}
+                      {% if product.metafields.standard.featured_video_thumbnail != blank %}
+                        {% assign featured_video_thumbnail = product.metafields.standard.featured_video_thumbnail %}
+                        <button type="button" class="ed-video-thumbnail">
+                          <div class="ed-video-thumbnail-inner">
+                            {{-
+                              featured_video_thumbnail
+                              | image_url: width: featured_video_thumbnail.width
+                              | image_tag: sizes: '100vw', widths: '100,150', alt: featured_video_thumbnail.alt
+                            -}}
+
+                            <div class="ed-video-play-icon">
+                              <svg width="11" height="13" viewBox="0 0 11 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10.1373 5.78656C10.5182 6.00647 10.5182 6.55591 10.1373 6.77582L1.56799 11.7241C1.1871 11.944 0.710571 11.6688 0.710571 11.2289L0.710571 1.33343C0.710571 0.893621 1.1871 0.618411 1.56799 0.838317L10.1373 5.78656Z" stroke="white" stroke-width="1.14267"/>
+                              </svg>
+                            </div>
+                          </div>
+                          <div class="ed-video-thumbnail-overlay"></div>
+                        </button>
+                      {% endif %}
+                      {% comment %} END: Featurd video {% endcomment %}
+                  </div>
+  
+                {%- when 'video' -%}
+                  <native-video class="video-wrapper video-wrapper--native" style="--aspect-ratio: {{ media.aspect_ratio }}">
+                    {%- unless section.settings.enable_video_autoplay -%}
+                      <div class="video-wrapper__poster">
+                        {{ media.preview_image | image_url: width: media.preview_image.width | image_tag: loading: 'lazy', sizes: '(max-width: 999px) calc(100vw - 48px), 640px', widths: '400,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2200', class: 'video-wrapper__poster-image' }}
+  
+                        <div class="video-wrapper__poster-content">
+                          <button type="button" class="video-wrapper__play-button" title="{{ 'general.accessibility.play_video' | t | escape }}">
+                            {%- render 'icon' with 'play', width: 72, height: 72 -%}
+                          </button>
+                        </div>
+                      </div>
+                    {%- endunless -%}
+  
+                    <template>
+                      {{- media | video_tag: image_size: '1024x', controls: true, autoplay: true, muted: section.settings.enable_video_autoplay, loop: section.settings.enable_video_looping -}}
+                    </template>
+                  </native-video>
+  
+                {%- when 'external_video' -%}
+                  <external-video provider="{{ media.host | escape }}" class="video-wrapper">
+                    {%- unless section.settings.enable_video_autoplay -%}
+                      <div class="video-wrapper__poster">
+                        {{ media.preview_image | image_url: width: media.preview_image.width | image_tag: loading: 'lazy', sizes: '(max-width: 999px) calc(100vw - 48px), 640px', widths: '400,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2200', class: 'video-wrapper__poster-image' }}
+  
+                        <div class="video-wrapper__poster-content">
+                          <button type="button" class="video-wrapper__play-button" title="{{ 'general.accessibility.play_video' | t | escape }}">
+                            {%- render 'icon' with 'play', width: 72, height: 72 -%}
+                          </button>
+                        </div>
+                      </div>
+                    {%- endunless -%}
+  
+                    <template>
+                      {%- if media.host == 'youtube' -%}
+                        {{- media | external_video_url: enablejsapi: true, loop: section.settings.enable_video_looping, mute: section.settings.enable_video_autoplay, autoplay: true, playlist: media.external_id | external_video_tag -}}
+                      {%- elsif media.host == 'vimeo' -%}
+                        {{- media | external_video_url: autopause: true, loop: section.settings.enable_video_looping, muted: section.settings.enable_video_autoplay, autoplay: true | external_video_tag -}}
+                      {%- else -%}
+                        {{- media | external_video_tag: image_size: '1024x' -}}
+                      {%- endif -%}
+                    </template>
+                  </external-video>
+  
+                {%- when 'model' -%}
+                  <model-media product-handle="{{ product.handle }}" class="model-wrapper">
+                    {{- media | model_viewer_tag: image_size: '1024x', reveal: 'interaction', toggleable: true -}}
+                  </model-media>
+              {%- endcase -%}
+            </div>
+          {%- endfor -%}
+        </flickity-carousel>
+  
+        {%- if section.settings.enable_image_zoom -%}
+          <button {% if selected_media.media_type != 'image' %}hidden{% endif %} is="toggle-button" aria-controls="product-{{ section.id }}-{{ product.id }}-zoom" aria-expanded="false" class="tap-area product__zoom-button">
+            <span class="visually-hidden">{{ 'product.general.zoom' | t }}</span>
+            {%- render 'icon' with 'image-zoom' -%}
+          </button>
+        {%- endif -%}
+
+        
+        {%- if template.suffix != 'quick-buy-popover' and template.suffix != 'quick-buy-drawer' -%}
+          {% render 'pdp-media-featured-video', product: product %}
+        {%- endif -%}
+
+        {%- assign pdp_media_carousel_id = 'product-' | append: section.id | append: '-' | append: product.id | append: '-media-list' -%}
+        {% render 'ed-pdp-media-counter',
+          product: product,
+          filtered_media_ids: filtered_media_ids,
+          selected_media: selected_media,
+          carousel_id: pdp_media_carousel_id,
+          media_start: server_media_start,
+          media_end: server_media_end,
+          restrict_media_range: server_variant_media_active
+        %}
+      </div>
+  
+      {%- comment -%}Add the "view in your space" button, which allows to show the product in customer's environment (if the device supports it){%- endcomment -%}
+      {%- assign first_3d_model = product.media | where: 'media_type', 'model' | first -%}
+  
+      {%- if first_3d_model -%}
+        <button class="product__view-in-space button button--ternary button--full" data-shopify-xr data-shopify-model3d-id="{{ first_3d_model.id }}" data-shopify-model3d-default-id="{{ first_3d_model.id }}" data-shopify-title="{{ product.title | escape }}" data-shopify-xr-hidden>
+          {%- render 'icon', icon: 'media-view-in-space' -%} {{- 'product.general.view_in_space' | t -}}
+        </button>
+      {%- endif -%}
+  
+      {%- if rendered_media_count > 1 -%}
+        <flickity-controls controls="product-{{ section.id }}-{{ product.id }}-media-list" class="product__media-nav">
+          <button class="product__media-prev-next tap-area tap-aera--large {% if section.settings.show_thumbnails_on_mobile %}hidden-pocket{% endif %} {% unless section.settings.hide_thumbnails_on_desktop %}hidden-lap-and-up{% endunless %}" aria-label="{{ 'general.accessibility.previous' | t }}" data-action="prev">
+            {%- render 'icon' with 'chevron-left' -%}
+          </button>
+  
+          {%- unless section.settings.show_thumbnails_on_mobile -%}
+            <div class="dots-nav dots-nav--centered hide-scrollbar {% unless section.settings.hide_thumbnails_on_desktop %}hidden-lap-and-up{% endunless %}">
+              {%- for media in product.media -%}
+                {%- if server_variant_media_active -%}
+                  {%- if media.position < server_media_start or media.position > server_media_end -%}
+                    {%- continue -%}
+                  {%- endif -%}
+                {%- endif -%}
+
+                {%- assign is_media_filtered = false -%}
+                {%- assign media_id_as_string = media.id | append: '' -%}
+  
+                {%- if filtered_media_ids contains media_id_as_string -%}
+                  {%- assign is_media_filtered = true -%}
+                {%- endif -%}
+  
+                <button type="button" tabindex="-1" class="dots-nav__item {% if is_media_filtered %}is-filtered{% endif %} tap-area" {% if selected_media.id == media.id %}aria-current="true"{% endif %} aria-controls="product-{{ section.id }}-{{ media.id }}" data-media-id="{{ media.id }}" data-action="select">
+                    <span class="visually-hidden">{{ 'general.accessibility.go_to_slide' | t: num: forloop.index }}</span>
+                </button>
+              {%- endfor -%}
+            </div>
+          {%- endunless -%}
+
+          
+  
+          <scroll-shadow class="product__thumbnail-scroll-shadow {% unless section.settings.show_thumbnails_on_mobile %}hidden-pocket{% endunless %} {% if section.settings.hide_thumbnails_on_desktop %}hidden-lap-and-up{% endif %}">
+            <div class="product__thumbnail-list hide-scrollbar">
+              <div class="product__thumbnail-list-inner">
+                {%- for media in product.media -%}
+                  {%- if server_variant_media_active -%}
+                    {%- if media.position < server_media_start or media.position > server_media_end -%}
+                      {%- continue -%}
+                    {%- endif -%}
+                  {%- endif -%}
+
+                  {%- assign alt = media.alt -%}
+                  {%- assign is_media_filtered = false -%}
+                  {%- assign media_id_as_string = media.id | append: '' -%}
+  
+                  {% if media.alt contains '#' %}
+                    {%- assign alt = product.title -%}
+                  {%- endif -%}
+  
+                  {%- if filtered_media_ids contains media_id_as_string and media.alt != product.title -%}
+                    {%- assign is_media_filtered = true -%}
+                  {%- endif -%}
+  
+                  <button type="button" tabindex="-1" {% if settings.reveal_product_media and is_media_filtered == false %}reveal{% endif %} class="product__thumbnail-item {% if is_media_filtered %}is-filtered{% endif %} {% unless section.settings.show_thumbnails_on_mobile %}hidden-pocket{% endunless %}" {% if selected_media.id == media.id %}aria-current="true"{% endif %} aria-controls="product-{{ section.id }}-{{ media.id }}" data-media-id="{{ media.id }}" data-action="select">
+                    <div class="product__thumbnail">
+                      {{ media.preview_image | image_url: width: media.preview_image.width | image_tag: loading: 'lazy', sizes: '(max-width: 999px) 72px, 60px', widths: '60,72,120,144,180,216,240,288' }}
+  
+                      {%- case media.media_type -%}
+                        {%- when 'model' -%}
+                          <span class="product__thumbnail-badge">{% render 'icon', icon: 'media-model-badge', width: 18, height: 18 %}</span>
+  
+                        {%- when 'video' or 'external_video' -%}
+                          <span class="product__thumbnail-badge">{% render 'icon', icon: 'media-video-badge', width: 18, height: 18 %}</span>
+                      {%- endcase -%}
+                    </div>
+                  </button>
+                {%- endfor -%}
+              </div>
+            </div>
+          </scroll-shadow>
+  
+          
+          <button class="product__media-prev-next tap-area tap-aera--large {% if section.settings.show_thumbnails_on_mobile %}hidden-pocket{% endif %} {% unless section.settings.hide_thumbnails_on_desktop %}hidden-lap-and-up{% endunless %}" aria-label="{{ 'general.accessibility.next' | t }}" data-action="next">
+            {%- render 'icon' with 'chevron-right' -%}
+          </button>
+        </flickity-controls>
+      {%- endif -%}
+  
+      {%- if section.settings.enable_image_zoom -%}
+        {%- comment -%}This code MUST NOT be changed, and is part of the PhotoSwipe required interface{%- endcomment -%}
+        <product-image-zoom product-handle="{{ product.handle }}" id="product-{{ section.id }}-{{ product.id }}-zoom" class="pswp" tabindex="-1" role="dialog">
+          <div class="pswp__bg"></div>
+  
+          <div class="pswp__scroll-wrap">
+            <div class="pswp__container">
+              <div class="pswp__item"></div>
+              <div class="pswp__item"></div>
+              <div class="pswp__item"></div>
+            </div>
+  
+            <div class="pswp__ui pswp__ui--hidden">
+              <div class="pswp__top-bar">
+                <button class="pswp__button pswp__button--close prev-next-button" data-action="pswp-close" title="{{ 'general.accessibility.close' | t | escape }}" aria-label="{{ 'general.accessibility.close' | t | escape }}">{% render 'icon' with 'close' %}</button>
+              </div>
+  
+              <div class="pswp__prev-next-buttons hidden-pocket">
+                <button class="pswp__button prev-next-button prev-next-button--prev" data-action="pswp-prev" title="{{ 'general.accessibility.previous' | t | escape }}" aria-label="{{ 'general.accessibility.previous' | t | escape }}">{% render 'icon' with 'nav-arrow-left', direction_aware: true %}</button>
+                <button class="pswp__button prev-next-button prev-next-button--next" data-action="pswp-next" title="{{ 'general.accessibility.next' | t | escape }}" aria-label="{{ 'general.accessibility.next' | t | escape }}">{% render 'icon' with 'nav-arrow-right', direction_aware: true %}</button>
+              </div>
+  
+              <div class="pswp__dots-nav-wrapper hidden-lap-and-up">
+                <button class="tap-area tap-area--large" data-action="pswp-prev">
+                  <span class="visually-hidden">{{ 'general.accessibility.previous' | t }}</span>
+                  {%- render 'icon' with 'nav-arrow-left', direction_aware: true -%}
+                </button>
+  
+                <div class="dots-nav dots-nav--centered">
+                  <!-- This will be fill at runtime as the number of items will be dynamic -->
+                </div>
+  
+                <button class="tap-area tap-area--large" data-action="pswp-next">
+                  <span class="visually-hidden">{{ 'general.accessibility.next' | t }}</span>
+                  {%- render 'icon' with 'nav-arrow-right', direction_aware: true -%}
+                </button>
+              </div>
+            </div>
+          </div>
+        </product-image-zoom>
+      {%- endif -%}
+    </product-media>
+
+    <div class="hidden-pocket">
+      {% for block in section.blocks %}
+        {% if block.type == 'cro_cross_selling' %}
+          {% render 'cro-cross-selling', product: product, block: block, section: section, scroller: false %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+
+  <script>
+    (function() {
+      var MOBILE_MAX_WIDTH = 999;
+      var wishlistBox = null;
+      var listWrapper = null;
+      var carousel = null;
+      var flickityReady = false;
+      var layoutTimer = null;
+      var pendingSwat = null;
+      var productPayload = null;
+      var pendingAction = null;
+
+      function isMobile() {
+        return window.innerWidth <= MOBILE_MAX_WIDTH;
+      }
+
+      function usesFlickity() {
+        return carousel && carousel.childElementCount > 1;
+      }
+
+      function getWishlistBox() {
+        return document.getElementById('ed-pdp-wishlist');
+      }
+
+      function getWishlistButton() {
+        return document.getElementById('ed-pdp-wishlist-btn');
+      }
+
+      function getSelectedImageWrapper() {
+        if (!carousel) return null;
+        var selected =
+          carousel.querySelector('.product__media-item.is-selected') ||
+          carousel.querySelector('.product__media-item.is-initial-selected');
+        return selected ? selected.querySelector('.product__media-image-wrapper') : null;
+      }
+
+      function getVariantFromScript() {
+        var script = document.querySelector('script[data-variant]');
+        if (!script) return null;
+        try {
+          return JSON.parse(script.textContent);
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function buildProductPayload(variant) {
+        var box = getWishlistBox();
+        if (!box) return null;
+
+        var pageData = window.SwymPageData;
+        var variantData = variant || getVariantFromScript();
+
+        if (pageData && pageData.empi) {
+          return {
+            epi: variantData ? variantData.id : pageData.epi,
+            empi: pageData.empi,
+            du: pageData.du,
+            dt: pageData.dt,
+            iu: variantData && variantData.featured_image ? variantData.featured_image.src : pageData.iu,
+            pr: variantData ? variantData.price : pageData.pr
+          };
+        }
+
+        if (!variantData) return null;
+
+        return {
+          epi: variantData.id,
+          empi: Number(box.getAttribute('data-product-id')),
+          du: box.getAttribute('data-product-url') || location.pathname.split('?')[0],
+          dt: box.getAttribute('data-product-title') || '',
+          iu: variantData.featured_image
+            ? variantData.featured_image.src
+            : box.getAttribute('data-product-image') || '',
+          pr: variantData.price
+        };
+      }
+
+      function moveWishlistToSelected() {
+        if (!wishlistBox || !listWrapper) return;
+        var target = getSelectedImageWrapper();
+        if (target) {
+          target.appendChild(wishlistBox);
+          wishlistBox.classList.add('ed-wishlist-in-media');
+        } else {
+          restoreWishlist();
+        }
+      }
+
+      function restoreWishlist() {
+        if (!wishlistBox || !listWrapper) return;
+        listWrapper.insertBefore(wishlistBox, listWrapper.firstChild);
+        wishlistBox.classList.remove('ed-wishlist-in-media');
+      }
+
+      function applyLayout() {
+        if (isMobile()) {
+          if (usesFlickity() && !flickityReady) return;
+          moveWishlistToSelected();
+        } else {
+          restoreWishlist();
+        }
+      }
+
+      function scheduleLayoutUpdate() {
+        clearTimeout(layoutTimer);
+        layoutTimer = setTimeout(applyLayout, 50);
+      }
+
+      function onFlickityReady() {
+        flickityReady = true;
+        applyLayout();
+      }
+
+      function finishBinding(swat, btn) {
+        if (!btn || !productPayload) return;
+        if (btn.__edPdpWishlistBound) return;
+        btn.__edPdpWishlistBound = true;
+
+        function updateButtonState(isWishlisted) {
+          btn.classList.toggle('swym-added', isWishlisted);
+          btn.setAttribute(
+            'aria-label',
+            isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'
+          );
+        }
+
+        function checkState() {
+          swat.fetch(function(wishlisted) {
+            var found = wishlisted.some(function(item) {
+              return String(item.empi) === String(productPayload.empi) &&
+                String(item.epi) === String(productPayload.epi);
+            });
+            updateButtonState(found);
+          });
+        }
+
+        btn.addEventListener('click', function(event) {
+          event.preventDefault();
+          event.stopPropagation();
+
+          productPayload = buildProductPayload(getVariantFromScript());
+          if (!productPayload) return;
+
+          if (btn.classList.contains('swym-added')) {
+            swat.removeFromWishList(productPayload, function() {
+              updateButtonState(false);
+            });
+          } else {
+            swat.addToWishList(productPayload, function() {
+              updateButtonState(true);
+            });
+          }
+        });
+
+        if (swat.evtLayer && swat.JSEvents) {
+          swat.evtLayer.addEventListener(swat.JSEvents.variantChanged, function(evt) {
+            var variantData = evt && evt.detail && evt.detail.d;
+            if (!variantData) return;
+
+            var newVariantId = variantData.variant ? variantData.variant.id : null;
+            if (!newVariantId) return;
+
+            var variantInfo = window.SwymProductVariants && window.SwymProductVariants[newVariantId];
+            if (variantInfo) {
+              productPayload.epi = variantInfo.epi;
+              productPayload.pr = variantInfo.pr;
+              productPayload.iu = variantInfo.iu || productPayload.iu;
+            } else {
+              productPayload.epi = newVariantId;
+            }
+
+            checkState();
+          });
+        }
+
+        document.addEventListener('variant:changed', function(event) {
+          if (!event.detail || !event.detail.variant) return;
+          productPayload = buildProductPayload(event.detail.variant);
+          checkState();
+        });
+
+        if (pendingAction) {
+          if (pendingAction.action === 'add') {
+            swat.addToWishList(pendingAction.payload, function() {
+              updateButtonState(true);
+            });
+          } else {
+            swat.removeFromWishList(pendingAction.payload, function() {
+              updateButtonState(false);
+            });
+          }
+          pendingAction = null;
+        } else {
+          checkState();
+        }
+      }
+
+      function bindWishlistButton(swat) {
+        if (!swat) return;
+        pendingSwat = swat;
+
+        var btn = getWishlistButton();
+        if (!btn || btn.__edPdpWishlistBound) return;
+
+        productPayload = buildProductPayload(getVariantFromScript());
+        if (productPayload && productPayload.empi && productPayload.epi) {
+          finishBinding(swat, btn);
+          return;
+        }
+
+        var box = getWishlistBox();
+        var productUrl = box && box.getAttribute('data-product-url');
+        if (!productUrl || !swat.getProductDetails) return;
+
+        swat.getProductDetails({ du: productUrl }, function(productJson) {
+          var variant = getVariantFromScript();
+          productPayload = {
+            empi: productJson.empi || productJson.id,
+            epi: variant
+              ? variant.id
+              : productJson.epi ||
+                (productJson.variants && productJson.variants[0] ? productJson.variants[0].id : null),
+            du: productUrl,
+            dt: productJson.dt || productJson.title || box.getAttribute('data-product-title') || '',
+            iu: variant && variant.featured_image
+              ? variant.featured_image.src
+              : productJson.iu || box.getAttribute('data-product-image') || '',
+            pr: variant ? variant.price : productJson.pr || 0
+          };
+          finishBinding(swat, getWishlistButton());
+        });
+      }
+
+      function tryBindWishlist() {
+        if (pendingSwat) {
+          bindWishlistButton(pendingSwat);
+        } else if (window._swat) {
+          bindWishlistButton(window._swat);
+        }
+      }
+
+      window.SwymCallbacks = window.SwymCallbacks || [];
+      window.SwymCallbacks.push(bindWishlistButton);
+
+      function bindMediaCarousel() {
+        wishlistBox = getWishlistBox();
+        if (!wishlistBox) return false;
+
+        listWrapper = wishlistBox.closest('.product__media-list-wrapper');
+        if (!listWrapper) return false;
+
+        carousel = listWrapper.querySelector('.product__media-list');
+        if (!carousel) return false;
+
+        flickityReady = false;
+
+        if (!isMobile()) {
+          restoreWishlist();
+        } else if (!usesFlickity()) {
+          moveWishlistToSelected();
+        }
+
+        carousel.addEventListener('flickity:ready', onFlickityReady);
+        carousel.addEventListener('flickity:slide-changed', function() {
+          if (isMobile()) moveWishlistToSelected();
+        });
+        carousel.addEventListener('flickity:slide-settled', function() {
+          if (isMobile()) moveWishlistToSelected();
+        });
+
+        if (carousel.classList.contains('flickity-enabled')) {
+          onFlickityReady();
+        }
+
+        return true;
+      }
+
+      function init() {
+        wishlistBox = getWishlistBox();
+        if (!wishlistBox) return;
+
+        var btn = getWishlistButton();
+        if (btn) {
+          btn.addEventListener('click', function(e) {
+            if (pendingSwat || window._swat) {
+              return;
+            }
+            e.preventDefault();
+            e.stopPropagation();
+
+            var isAdded = btn.classList.toggle('swym-added');
+            btn.setAttribute('aria-label', isAdded ? 'Remove from wishlist' : 'Add to wishlist');
+
+            var payload = buildProductPayload(getVariantFromScript());
+            if (payload) {
+              pendingAction = {
+                action: isAdded ? 'add' : 'remove',
+                payload: payload
+              };
+            }
+          });
+        }
+
+        if (!bindMediaCarousel()) return;
+
+        window.matchMedia('(max-width: ' + MOBILE_MAX_WIDTH + 'px)').addListener(scheduleLayoutUpdate);
+        window.addEventListener('resize', scheduleLayoutUpdate);
+
+        tryBindWishlist();
+        window.addEventListener('load', tryBindWishlist);
+        setTimeout(tryBindWishlist, 500);
+        setTimeout(tryBindWishlist, 1500);
+        setTimeout(tryBindWishlist, 3000);
+      }
+
+      document.addEventListener('product:media-rerendered', function(event) {
+        if (!event.detail || event.detail.productRerenderId !== 'product-info-{{ product.id }}-{{ section.id }}') {
+          return;
+        }
+
+        bindMediaCarousel();
+        scheduleLayoutUpdate();
+        tryBindWishlist();
+      });
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+{%- endif -%}

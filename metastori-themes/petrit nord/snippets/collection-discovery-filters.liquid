@@ -1,0 +1,378 @@
+{%- comment -%}
+  Search & Discovery filters (collection + search).
+  Filter list/order/labels come from Shopify Admin → Apps → Search & Discovery.
+{%- endcomment -%}
+
+{%- liquid
+  assign discovery_filters = filters
+  if discovery_filters == blank
+    assign discovery_filters = collection.filters
+  endif
+
+  assign form_url = form_action
+  if form_url == blank
+    assign form_url = collection.url
+  endif
+
+  assign reset_url = form_url
+  if search_terms != blank
+    if search_type != blank
+      assign reset_url = form_url | append: '?q=' | append: search_terms | append: '&type=' | append: search_type
+    else
+      assign reset_url = form_url | append: '?q=' | append: search_terms | append: '&type=product'
+    endif
+  endif
+
+  assign active_count = 0
+  for filter in discovery_filters
+    assign active_count = active_count | plus: filter.active_values.size
+  endfor
+
+  assign color_keys = 'color,colour,couleur,colore,farbe,farg,farve,kleur,färge,färg' | split: ','
+  assign size_keys = 'size,taille,groesse,größe,storrelse,størrelse,maat,storlek,tamanho,taglia,size' | split: ','
+-%}
+
+{%- capture discovery_active_chips -%}
+  {%- for filter in discovery_filters -%}
+    {%- if filter.type == 'price_range' -%}
+      {%- if filter.min_value.value != blank or filter.max_value.value != blank -%}
+        {%- liquid
+          assign chip_min = filter.min_value.value | divided_by: 100.0
+          assign chip_max = filter.max_value.value | divided_by: 100.0
+          if filter.min_value.value != blank and filter.max_value.value != blank
+            assign chip_label = chip_min | append: ' – ' | append: chip_max
+          elsif filter.min_value.value != blank
+            assign chip_label = chip_min | prepend: '≥ '
+          else
+            assign chip_label = chip_max | prepend: '≤ '
+          endif
+        -%}
+        <button
+          type="button"
+          class="discovery-filters__chip"
+          data-discovery-remove-chip
+          data-filter-param="{{ filter.param_name | escape }}"
+          data-filter-type="price"
+        >
+          <span>{{ chip_label | escape }}</span>
+          <span class="discovery-filters__chip-x" aria-hidden="true">&times;</span>
+        </button>
+      {%- endif -%}
+    {%- else -%}
+      {%- for filter_value in filter.active_values -%}
+        <button
+          type="button"
+          class="discovery-filters__chip"
+          data-discovery-remove-chip
+          data-filter-param="{{ filter_value.param_name | escape }}"
+          data-filter-value="{{ filter_value.value | escape }}"
+        >
+          <span>{{ filter_value.label | escape }}</span>
+          <span class="discovery-filters__chip-x" aria-hidden="true">&times;</span>
+        </button>
+      {%- endfor -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endcapture -%}
+
+{%- if discovery_filters.size > 0 -%}
+  <div class="discovery-filters" data-discovery-filters data-section-id="{{ section.id }}">
+    <form
+      id="DiscoveryFiltersForm-{{ section.id }}"
+      class="discovery-filters__form"
+      action="{{ form_url }}"
+      method="get"
+    >
+      {%- if search_terms != blank -%}
+        <input type="hidden" name="q" value="{{ search_terms | escape }}">
+        <input type="hidden" name="type" value="{{ search_type | default: 'product' | escape }}">
+      {%- endif -%}
+
+      {%- if sort_by != blank -%}
+        <input type="hidden" name="sort_by" value="{{ sort_by | escape }}">
+      {%- elsif collection.sort_by != blank -%}
+        <input type="hidden" name="sort_by" value="{{ collection.sort_by | escape }}">
+      {%- endif -%}
+
+      <div class="discovery-filters__bar">
+        <span class="discovery-filters__label">{{ 'collection.filter.filters_label' | t }}</span>
+
+        <button
+          type="button"
+          class="discovery-filters__mobile-trigger"
+          data-discovery-open
+          aria-expanded="false"
+          aria-controls="DiscoveryFiltersPanel-{{ section.id }}"
+        >
+          <span>{{ 'collection.filter.all' | t }}</span>
+          {%- if active_count > 0 -%}
+            <span class="discovery-filters__count" data-discovery-mobile-count>{{ active_count }}</span>
+          {%- else -%}
+            <span class="discovery-filters__count" data-discovery-mobile-count hidden>0</span>
+          {%- endif -%}
+          <svg class="discovery-filters__mobile-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+            <path d="M1 14C0.447715 14 0 14.4477 0 15C0 15.5523 0.447715 16 1 16H5C5.55228 16 6 15.5523 6 15C6 14.4477 5.55228 14 5 14H1ZM1 2C0.447716 2 0 2.44772 0 3C0 3.55228 0.447715 4 1 4H9C9.55228 4 10 3.55228 10 3C10 2.44772 9.55228 2 9 2H1ZM9 18C9.55228 18 10 17.5523 10 17V16H17C17.5523 16 18 15.5523 18 15C18 14.4477 17.5523 14 17 14H10V13C10 12.4477 9.55228 12 9 12C8.44772 12 8 12.4477 8 13V17C8 17.5523 8.44772 18 9 18ZM5 6C4.44772 6 4 6.44772 4 7V8H1C0.447715 8 0 8.44772 0 9C0 9.55228 0.447715 10 1 10H4V11C4 11.5523 4.44772 12 5 12C5.55228 12 6 11.5523 6 11V7C6 6.44772 5.55228 6 5 6ZM17 10C17.5523 10 18 9.55228 18 9C18 8.44772 17.5523 8 17 8H9C8.44772 8 8 8.44772 8 9C8 9.55228 8.44772 10 9 10H17ZM12 5C12 5.55228 12.4477 6 13 6C13.5523 6 14 5.55228 14 5V4H17C17.5523 4 18 3.55228 18 3C18 2.44772 17.5523 2 17 2H14V1C14 0.447715 13.5523 0 13 0C12.4477 0 12 0.447715 12 1V5Z" fill="currentColor"/>
+          </svg>
+        </button>
+
+        <div class="discovery-filters__summary" data-discovery-summary {% if active_count == 0 %}hidden{% endif %}>
+          <div class="discovery-filters__chips" data-discovery-chips>
+            {{ discovery_active_chips }}
+          </div>
+          <a class="discovery-filters__summary-reset" href="{{ reset_url }}" data-discovery-reset>
+            {{ 'collection.filter.reset_filters' | t }}
+          </a>
+        </div>
+
+        <div
+          id="DiscoveryFiltersPanel-{{ section.id }}"
+          class="discovery-filters__groups"
+          data-discovery-panel
+        >
+          <div class="discovery-filters__panel-header">
+            <button type="button" class="discovery-filters__panel-close" data-discovery-close aria-label="{{ 'header.navigation.close_sidebar' | t }}">
+              <span aria-hidden="true">&times;</span>
+            </button>
+            <span class="discovery-filters__panel-title">{{ 'collection.filter.all' | t }}</span>
+          </div>
+
+          <div class="discovery-filters__drawer-chips" data-discovery-drawer-chips {% if active_count == 0 %}hidden{% endif %}>
+            <div class="discovery-filters__chips" data-discovery-chips>
+              {{ discovery_active_chips }}
+            </div>
+          </div>
+
+          <div class="discovery-filters__body">
+          {%- for filter in discovery_filters -%}
+            {%- liquid
+              assign filter_ui = 'list'
+              assign filter_label_down = filter.label | downcase | strip
+              assign filter_param_down = filter.param_name | downcase
+              assign presentation = filter.presentation | default: ''
+
+              if filter.type == 'price_range'
+                assign filter_ui = 'price'
+              elsif filter.type == 'boolean'
+                assign filter_ui = 'boolean'
+              elsif presentation == 'swatch' or presentation == 'image'
+                assign filter_ui = 'swatch'
+              endif
+
+              if filter_ui == 'list'
+                for key in color_keys
+                  if filter_label_down == key or filter_param_down contains key
+                    assign filter_ui = 'swatch'
+                    break
+                  endif
+                endfor
+              endif
+
+              if filter_ui == 'list'
+                for key in size_keys
+                  if filter_label_down == key or filter_param_down contains key
+                    assign filter_ui = 'size'
+                    break
+                  endif
+                endfor
+              endif
+
+              assign has_values = false
+              if filter.type == 'price_range'
+                assign has_values = true
+              elsif filter.values.size > 0
+                assign has_values = true
+              endif
+            -%}
+
+            {%- if has_values -%}
+              <div
+                class="discovery-filters__dropdown{% if filter.active_values.size > 0 %} is-selected{% endif %}"
+                data-discovery-dropdown
+                data-filter-type="{{ filter_ui }}"
+                data-filter-param="{{ filter.param_name | escape }}"
+              >
+                <div class="discovery-filters__heading">
+                  <div class="discovery-filters__heading-start">
+                    <button
+                      type="button"
+                      class="discovery-filters__title"
+                      data-discovery-toggle
+                      aria-expanded="false"
+                    >
+                      <span class="discovery-filters__title-main">
+                        <span class="discovery-filters__title-text">{{ filter.label | escape }}</span>
+                      </span>
+                      <span class="discovery-filters__title-aside" aria-hidden="true">
+                        <span class="discovery-filters__chevron"></span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      class="discovery-filters__reset-filter"
+                      data-discovery-reset-filter
+                      aria-label="{{ 'collection.filter.reset_filters' | t }}"
+                      {% if filter.active_values.size == 0 %}hidden{% endif %}
+                    >
+                      <span class="u-visually-hidden">{{ 'collection.filter.reset_filters' | t }}</span>
+                    </button>
+                  </div>
+                  <span class="discovery-filters__title-count" data-discovery-title-count {% if filter.active_values.size == 0 %}hidden{% endif %}>{{ filter.active_values.size }}</span>
+                </div>
+
+                <div class="discovery-filters__content" hidden>
+                  <div class="discovery-filters__content-head">
+                    <span class="discovery-filters__selected-label">
+                      <span data-discovery-selected-count>{{ filter.active_values.size }}</span>
+                      {{ 'collection.filter.selected' | t }}
+                    </span>
+                    <button
+                      type="button"
+                      class="discovery-filters__reset-filter discovery-filters__reset-filter--desktop"
+                      data-discovery-reset-filter
+                      {% if filter.active_values.size == 0 %}hidden{% endif %}
+                    >
+                      {{ 'collection.filter.reset_filters' | t }}
+                    </button>
+                  </div>
+                  {%- case filter_ui -%}
+                    {%- when 'price' -%}
+                      {%- liquid
+                        assign min_input = filter.min_value.value | divided_by: 100.0
+                        assign max_input = filter.max_value.value | divided_by: 100.0
+                        assign range_max_input = filter.range_max | divided_by: 100.0
+                      -%}
+                      <div class="discovery-filters__price">
+                        <label class="discovery-filters__price-field">
+                          <span>{{ 'collection.filter.from' | t }}</span>
+                          <input
+                            class="discovery-filters__price-input"
+                            type="number"
+                            inputmode="decimal"
+                            name="{{ filter.min_value.param_name }}"
+                            {%- if filter.min_value.value -%}
+                              value="{{ min_input }}"
+                            {%- endif -%}
+                            min="0"
+                            max="{{ range_max_input }}"
+                            placeholder="0"
+                          >
+                        </label>
+                        <label class="discovery-filters__price-field">
+                          <span>{{ 'collection.filter.to' | t }}</span>
+                          <input
+                            class="discovery-filters__price-input"
+                            type="number"
+                            inputmode="decimal"
+                            name="{{ filter.max_value.param_name }}"
+                            {%- if filter.max_value.value -%}
+                              value="{{ max_input }}"
+                            {%- endif -%}
+                            min="0"
+                            max="{{ range_max_input }}"
+                            placeholder="{{ range_max_input }}"
+                          >
+                        </label>
+                      </div>
+
+                    {%- when 'swatch' -%}
+                      <ul class="discovery-filters__list discovery-filters__list--swatch">
+                        {%- for filter_value in filter.values -%}
+                          {%- liquid
+                            assign input_id = 'Filter-' | append: filter.param_name | handle | append: '-' | append: forloop.index
+                            assign swatch_color = filter_value.swatch.color | default: blank
+                            if swatch_color == blank
+                              assign swatch_color = filter_value.label | replace: ' ', '' | downcase
+                            endif
+                            assign swatch_image = ''
+                            if filter_value.swatch.image
+                              assign swatch_image = filter_value.swatch.image | img_url: '96x96'
+                            elsif filter_value.image
+                              assign swatch_image = filter_value.image | img_url: '96x96'
+                            else
+                              assign swatch_file = filter_value.label | handle | append: '.png'
+                              if images[swatch_file] != blank
+                                assign swatch_image = images[swatch_file] | img_url: '96x96'
+                              endif
+                            endif
+                          -%}
+                          <li class="discovery-filters__item{% if filter_value.active %} is-active{% endif %}{% if filter_value.count == 0 and filter_value.active == false %} is-disabled{% endif %}">
+                            <input
+                              id="{{ input_id }}"
+                              class="discovery-filters__checkbox"
+                              type="checkbox"
+                              name="{{ filter_value.param_name }}"
+                              value="{{ filter_value.value | escape }}"
+                              {% if filter_value.active %}checked{% endif %}
+                              {% if filter_value.count == 0 and filter_value.active == false %}disabled{% endif %}
+                            >
+                            <label class="discovery-filters__swatch" for="{{ input_id }}" title="{{ filter_value.label | escape }}">
+                              <span
+                                class="discovery-filters__swatch-chip"
+                                style="{% if swatch_image != blank %}background-image: url({{ swatch_image }});{% endif %} background-color: {{ swatch_color }};"
+                              ></span>
+                              <span class="discovery-filters__swatch-name">{{ filter_value.label | escape }}</span>
+                            </label>
+                          </li>
+                        {%- endfor -%}
+                      </ul>
+
+                    {%- when 'size' -%}
+                      <ul class="discovery-filters__list discovery-filters__list--size">
+                        {%- for filter_value in filter.values -%}
+                          {%- assign input_id = 'Filter-' | append: filter.param_name | handle | append: '-' | append: forloop.index -%}
+                          <li class="discovery-filters__item{% if filter_value.active %} is-active{% endif %}{% if filter_value.count == 0 and filter_value.active == false %} is-disabled{% endif %}">
+                            <input
+                              id="{{ input_id }}"
+                              class="discovery-filters__checkbox"
+                              type="checkbox"
+                              name="{{ filter_value.param_name }}"
+                              value="{{ filter_value.value | escape }}"
+                              {% if filter_value.active %}checked{% endif %}
+                              {% if filter_value.count == 0 and filter_value.active == false %}disabled{% endif %}
+                            >
+                            <label class="discovery-filters__size" for="{{ input_id }}">{{ filter_value.label | escape }}</label>
+                          </li>
+                        {%- endfor -%}
+                      </ul>
+
+                    {%- else -%}
+                      <ul class="discovery-filters__list discovery-filters__list--text">
+                        {%- for filter_value in filter.values -%}
+                          {%- assign input_id = 'Filter-' | append: filter.param_name | handle | append: '-' | append: forloop.index -%}
+                          <li class="discovery-filters__item{% if filter_value.active %} is-active{% endif %}{% if filter_value.count == 0 and filter_value.active == false %} is-disabled{% endif %}">
+                            <input
+                              id="{{ input_id }}"
+                              class="discovery-filters__checkbox"
+                              type="checkbox"
+                              name="{{ filter_value.param_name }}"
+                              value="{{ filter_value.value | escape }}"
+                              {% if filter_value.active %}checked{% endif %}
+                              {% if filter_value.count == 0 and filter_value.active == false %}disabled{% endif %}
+                            >
+                            <label class="discovery-filters__text" for="{{ input_id }}">{{ filter_value.label | escape }}</label>
+                          </li>
+                        {%- endfor -%}
+                      </ul>
+                  {%- endcase -%}
+                </div>
+              </div>
+            {%- endif -%}
+          {%- endfor -%}
+          </div>
+
+          <div class="discovery-filters__footer">
+            <a class="discovery-filters__reset" href="{{ reset_url }}" data-discovery-reset>
+              <span>{{ 'collection.filter.reset_filters' | t }}</span>
+              <span class="discovery-filters__footer-icon" aria-hidden="true">&times;</span>
+            </a>
+            <button type="submit" class="discovery-filters__apply" data-discovery-apply>
+              <span>{{ 'collection.filter.done' | t }}</span>
+              <span class="discovery-filters__footer-icon" aria-hidden="true">&#10003;</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+    <div class="discovery-filters__overlay" data-discovery-close hidden></div>
+  </div>
+{%- endif -%}

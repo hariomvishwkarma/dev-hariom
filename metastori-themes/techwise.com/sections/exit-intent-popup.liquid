@@ -1,0 +1,500 @@
+{%- if request.page_type == 'product' -%}
+
+{%- liquid
+  assign overlay_color   = section.settings.overlay_color
+  assign overlay_opacity = section.settings.overlay_opacity | divided_by: 100.0
+  assign popup_bg        = section.settings.popup_background
+  assign heading_color   = section.settings.heading_color
+  assign body_color      = section.settings.body_color
+  assign close_color     = section.settings.close_color
+  assign btn_bg          = section.settings.button_background
+  assign btn_text        = section.settings.button_text_color
+  assign popup_radius    = section.settings.popup_border_radius
+  assign btn_radius      = section.settings.button_border_radius
+  assign heading_text    = section.settings.heading
+  assign body_text       = section.settings.body_text
+  assign cta_label       = section.settings.cta_label
+  assign show_desktop    = section.settings.show_on_desktop
+  assign show_mobile     = section.settings.show_on_mobile
+  assign min_time        = section.settings.min_time_on_page
+  assign cooldown_days   = section.settings.cooldown_days
+  assign image           = section.settings.image
+  assign image_layout    = section.settings.image_layout
+  assign image_position  = section.settings.image_position
+-%}
+
+{%- capture overlay_rgb -%}
+  {%- assign r = overlay_color | color_extract: 'red' -%}
+  {%- assign g = overlay_color | color_extract: 'green' -%}
+  {%- assign b = overlay_color | color_extract: 'blue' -%}
+  {{ r }},{{ g }},{{ b }}
+{%- endcapture -%}
+
+<style>
+  /* ── Overlay: fade in/out ── */
+  #exit-intent-overlay {
+    display: flex;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    background: rgba({{ overlay_rgb | strip }}, {{ overlay_opacity }});
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+  }
+  #exit-intent-overlay.is-open {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* ── Popup: scale + fade in/out ── */
+  #exit-intent-popup {
+    background: {{ popup_bg }};
+    border-radius: {{ popup_radius }}px;
+    max-width: 580px;
+    width: 92%;
+    min-height: 320px;
+    position: relative;
+    box-shadow: 0 16px 60px rgba(0,0,0,.22);
+    overflow: hidden;
+    transform: scale(0.88) translateY(24px);
+    opacity: 0;
+    transition: transform 0.38s cubic-bezier(0.34, 1.26, 0.64, 1), opacity 0.32s ease;
+  }
+  #exit-intent-overlay.is-open #exit-intent-popup {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+
+  /* ── No image / none layout ── */
+  #exit-intent-popup.layout--none {
+    text-align: center;
+  }
+  #exit-intent-content {
+    padding: 48px 40px;
+  }
+
+  /* ── Side layout (image left or right) ── */
+  #exit-intent-popup.layout--side {
+    display: flex;
+    max-width: 800px;
+    #exit-intent-popup.layout--side
+    align-items: stretch;
+    text-align: center;
+  }
+  #exit-intent-popup.layout--side #exit-intent-img-wrap {
+    flex: 0 0 46%;
+    min-height: 500px;
+    max-height: 800px;
+  }
+  #exit-intent-popup.layout--side.img--right {
+    flex-direction: row-reverse;
+  }
+  #exit-intent-popup.layout--side #exit-intent-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: left;
+  }
+
+  /* ── Full-cover layout ── */
+  #exit-intent-popup.layout--cover {
+    max-width: 600px;
+    min-height: 380px;
+  }
+  #exit-intent-popup.layout--cover #exit-intent-img-wrap {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+  #exit-intent-popup.layout--cover #exit-intent-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+  }
+
+  /* ── Image fills its wrapper ── */
+  #exit-intent-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* ── Close button ── */
+  #exit-intent-close {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      line-height: 1;
+      color: #000000;
+      z-index: 2;
+      transition: opacity .2s;
+      background: white;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 38px;
+  }
+  #exit-intent-close:hover { opacity: .6; }
+
+  /* ── Text ── */
+  #exit-intent-heading {
+    margin: 0 0 16px;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: {{ heading_color }};
+  }
+  #exit-intent-body {
+    margin: 0 0 32px;
+    font-size: 1.05rem;
+    line-height: 1.65;
+    color: {{ body_color }};
+  }
+
+  /* ── CTA ── */
+  #exit-intent-cta {
+    display: inline-block;
+    background: {{ btn_bg }};
+    color: {{ btn_text }};
+    border: none;
+    border-radius: {{ btn_radius }}px;
+    padding: 16px 32px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    max-width: 340px;
+    transition: opacity .2s, transform .15s;
+  }
+  #exit-intent-cta:hover { opacity: .85; transform: translateY(-1px); }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    #exit-intent-popup,
+    #exit-intent-popup.layout--cover { max-width: 94vw; min-height: 280px; }
+    #exit-intent-content { padding: 40px 24px; }
+    #exit-intent-popup.layout--side {
+      flex-direction: column !important;
+    }
+    #exit-intent-popup.layout--side #exit-intent-img-wrap {
+      flex: none;
+      min-height: 200px;
+      width: 100%;
+    }
+    #exit-intent-popup.layout--side #exit-intent-content { text-align: center; }
+    #exit-intent-heading { font-size: 1.4rem; }
+  }
+
+  {%- unless show_desktop %}
+    @media (min-width: 768px) { #exit-intent-overlay { display: none !important; } }
+  {%- endunless %}
+  {%- unless show_mobile %}
+    @media (max-width: 767px) { #exit-intent-overlay { display: none !important; } }
+  {%- endunless %}
+</style>
+
+{%- liquid
+  if image == blank
+    assign layout_class = 'layout--none'
+  elsif image_layout == 'cover'
+    assign layout_class = 'layout--cover'
+  else
+    assign layout_class = 'layout--side'
+    if image_position == 'right'
+      assign layout_class = layout_class | append: ' img--right'
+    endif
+  endif
+-%}
+
+<div id="exit-intent-overlay">
+  <div id="exit-intent-popup" class="{{ layout_class }}">
+    <button id="exit-intent-close" aria-label="Sluiten">&times;</button>
+
+    {%- if image != blank -%}
+      <div id="exit-intent-img-wrap">
+        {{- image | image_url: width: 600 | image_tag: loading: 'eager', alt: image.alt | escape -}}
+      </div>
+    {%- endif -%}
+
+    <div id="exit-intent-content">
+      <h2 id="exit-intent-heading">{{ heading_text | escape }}</h2>
+      <p id="exit-intent-body">{{ body_text | escape }}</p>
+      <button id="exit-intent-cta">{{ cta_label | escape }}</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var LS_KEY        = 'exit_intent_shown_at';
+  var MIN_MS        = {{ min_time | times: 1000 }};
+  var COOLDOWN_MS   = {{ cooldown_days | times: 86400000 }};
+
+  // --- Cooldown check (localStorage, survives session) ---
+  var lastShown = parseInt(localStorage.getItem(LS_KEY) || '0', 10);
+  if (Date.now() - lastShown < COOLDOWN_MS) return;
+
+  var overlay   = document.getElementById('exit-intent-overlay');
+  var pageStart = Date.now();
+  var ready     = false;  // becomes true after min time on page
+
+  setTimeout(function () { ready = true; }, MIN_MS);
+
+  function show() {
+    if (!ready) return;
+    if (Date.now() - parseInt(localStorage.getItem(LS_KEY) || '0', 10) < COOLDOWN_MS) return;
+    localStorage.setItem(LS_KEY, String(Date.now()));
+    overlay.classList.add('is-open');
+  }
+
+  function hide() {
+    overlay.classList.remove('is-open');
+  }
+
+  // Desktop: cursor exits through top of viewport
+  document.addEventListener('mouseleave', function (e) {
+    if (e.clientY <= 0) show();
+  });
+
+  // Mobile: back button — push dummy state so popstate fires before navigation
+  history.pushState({ exitIntentGuard: true }, '');
+  window.addEventListener('popstate', function (e) {
+    if (e.state && e.state.exitIntentGuard) {
+      show();
+      history.pushState({ exitIntentGuard: true }, '');
+    }
+  });
+
+  // Mobile: rapid upward scroll near top
+  var lastY   = window.scrollY;
+  var ticking = false;
+  window.addEventListener('scroll', function () {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () {
+      var currentY = window.scrollY;
+      if (lastY - currentY > 60 && currentY < 200) show();
+      lastY   = currentY;
+      ticking = false;
+    });
+  }, { passive: true });
+
+  document.getElementById('exit-intent-close').addEventListener('click', hide);
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) hide();
+  });
+
+  document.getElementById('exit-intent-cta').addEventListener('click', function () {
+    hide();
+    var btn = document.querySelector('product-form [type="submit"]:not([hidden])')
+           || document.querySelector('buy-buttons [type="submit"]')
+           || document.querySelector('[type="submit"][form]');
+    if (btn) {
+      btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(function () { btn.focus(); }, 400);
+    }
+  });
+})();
+</script>
+
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Exit-intent popup",
+  "class": "shopify-section--exit-intent-popup",
+  "enabled_on": {
+    "groups": ["custom.overlay"]
+  },
+  "limit": 1,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Text"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Wacht nog even…"
+    },
+    {
+      "type": "textarea",
+      "id": "body_text",
+      "label": "Body text",
+      "default": "Je bestelling doet automatisch mee aan onze Cashback Event. 10 klanten krijgen hun volledige aankoopbedrag terug."
+    },
+    {
+      "type": "text",
+      "id": "cta_label",
+      "label": "Button label",
+      "default": "Bestelling afronden"
+    },
+    {
+      "type": "header",
+      "content": "Image"
+    },
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "Image"
+    },
+    {
+      "type": "select",
+      "id": "image_layout",
+      "label": "Image layout",
+      "options": [
+        { "value": "side", "label": "Left / right beside text" },
+        { "value": "cover", "label": "Full background cover" }
+      ],
+      "default": "side",
+      "visible_if": "{{ section.settings.image != blank }}"
+    },
+    {
+      "type": "select",
+      "id": "image_position",
+      "label": "Image position",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "left",
+      "visible_if": "{{ section.settings.image != blank and section.settings.image_layout == 'side' }}"
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "overlay_color",
+      "label": "Overlay color",
+      "default": "#000000"
+    },
+    {
+      "type": "range",
+      "id": "overlay_opacity",
+      "label": "Overlay opacity (%)",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "default": 50
+    },
+    {
+      "type": "color",
+      "id": "popup_background",
+      "label": "Popup background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#111111"
+    },
+    {
+      "type": "color",
+      "id": "body_color",
+      "label": "Body text color",
+      "default": "#444444"
+    },
+    {
+      "type": "color",
+      "id": "close_color",
+      "label": "Close button color",
+      "default": "#555555"
+    },
+    {
+      "type": "color",
+      "id": "button_background",
+      "label": "Button background",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "header",
+      "content": "Border radius"
+    },
+    {
+      "type": "range",
+      "id": "popup_border_radius",
+      "label": "Popup border radius (px)",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "button_border_radius",
+      "label": "Button border radius (px)",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "default": 6
+    },
+    {
+      "type": "header",
+      "content": "Visibility"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_on_desktop",
+      "label": "Show on desktop",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_on_mobile",
+      "label": "Show on mobile",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Timing & frequency"
+    },
+    {
+      "type": "range",
+      "id": "min_time_on_page",
+      "label": "Minimum time on page before popup can fire (seconds)",
+      "info": "Popup will not trigger if the visitor has spent less than this many seconds on the page. Recommended: 10s.",
+      "min": 0,
+      "max": 60,
+      "step": 5,
+      "default": 10
+    },
+    {
+      "type": "range",
+      "id": "cooldown_days",
+      "label": "Cooldown between shows (days)",
+      "info": "Once shown, the popup will not appear again for this many days. Uses the visitor's browser storage.",
+      "min": 1,
+      "max": 30,
+      "step": 1,
+      "default": 7
+    }
+  ],
+  "presets": [
+    {
+      "name": "Exit-intent popup"
+    }
+  ]
+}
+{% endschema %}

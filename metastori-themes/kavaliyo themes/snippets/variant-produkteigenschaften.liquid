@@ -1,0 +1,126 @@
+{%- liquid
+  assign section_id = section.id | default: 'product'
+  assign selected_variant = product.selected_or_first_available_variant
+  assign field_map = 'Pflegehinweise::pflegehinweise||Material::material||Besonderheiten::besonderheiten||Farbe::farbe||Größe::groesse||Lieferumfang::lieferumfang||Gewicht::gewicht||Produktart::produktart||Fassungsvermögen::fassungsvermoegen||Maße::masse||Beschläge::beschlaege||Inhalt::inhalt||Besatz::besatz||Passform::passform||Inhaltsstoffe::inhaltsstoffe||Halsausschnitt::halsausschnitt||Steppung::steppung||Steinelemente::steinelemente||Bund::bund||Fütterungsempfehlung::fuetterungsempfehlung||Füllung::fuellung||Anwendungsempfehlung::anwendungsempfehlung||Produkthinweise::produkthinweise||Helmkonfiguration::helmkonfiguration||Trensenzubehör::trensenzubehoer||Gebiss::gebiss||Verschluss::verschluss||Technische Daten::technische_daten||Zielgruppe::zielgruppe'
+  assign field_entries = field_map | split: '||'
+-%}
+
+<div id="variant-produkteigenschaften-{{ section_id }}" class="variant-produkteigenschaften-wrapper" data-section-id="{{ section_id }}">
+  <ul class="variant-produkteigenschaften-list">
+    {%- for entry in field_entries -%}
+      {%- assign parts = entry | split: '::' -%}
+      {%- assign label = parts[0] -%}
+      {%- assign key = parts[1] -%}
+      {%- assign metafield_object = selected_variant.metafields.custom[key] -%}
+      {%- assign metafield_value = metafield_object.value | default: metafield_object -%}
+      {%- if metafield_value != blank -%}
+        <li class="variant-produkteigenschaften-list__item">
+          <span class="variant-produkteigenschaften-list__label">{{ label }}:</span>
+          <span class="variant-produkteigenschaften-list__value">{{ metafield_value }}</span>
+        </li>
+      {%- endif -%}
+    {%- endfor -%}
+  </ul>
+</div>
+
+<script type="application/json" id="variant-produkteigenschaften-data-{{ section_id }}">
+  {
+    "fields": [
+      {%- for entry in field_entries -%}
+        {%- assign parts = entry | split: '::' -%}
+        {
+          "label": {{ parts[0] | json }},
+          "key": {{ parts[1] | json }}
+        }{% unless forloop.last %},{% endunless %}
+      {%- endfor -%}
+    ],
+    "variants": {
+      {%- for variant in product.variants -%}
+        "{{ variant.id }}": {
+          {%- for entry in field_entries -%}
+            {%- assign parts = entry | split: '::' -%}
+            {%- assign key = parts[1] -%}
+            {%- assign value_object = variant.metafields.custom[key] -%}
+            {%- assign value = value_object.value | default: value_object -%}
+            "{{ key }}": {{ value | json }}{% unless forloop.last %},{% endunless %}
+          {%- endfor -%}
+        }{% unless forloop.last %},{% endunless %}
+      {%- endfor -%}
+    }
+  }
+</script>
+
+<script>
+  (function() {
+    var sectionId = {{ section_id | json }};
+    var root = document.getElementById('variant-produkteigenschaften-' + sectionId);
+    var dataNode = document.getElementById('variant-produkteigenschaften-data-' + sectionId);
+    if (!root || !dataNode) return;
+
+    var list = root.querySelector('.variant-produkteigenschaften-list');
+    if (!list) return;
+
+    var data;
+    try {
+      data = JSON.parse(dataNode.textContent || '{}');
+    } catch (error) {
+      return;
+    }
+
+    var fields = Array.isArray(data.fields) ? data.fields : [];
+    var variants = data.variants || {};
+
+    function toDisplayValue(value) {
+      if (value === null || value === undefined) return '';
+      if (Array.isArray(value)) return value.join(', ');
+      return String(value).trim();
+    }
+
+    function renderVariantFields(variantId) {
+      var variantData = variants[String(variantId)] || {};
+      list.innerHTML = '';
+
+      fields.forEach(function(field) {
+        var rawValue = variantData[field.key];
+        var displayValue = toDisplayValue(rawValue);
+        if (!displayValue) return;
+
+        var li = document.createElement('li');
+        li.className = 'variant-produkteigenschaften-list__item';
+
+        var label = document.createElement('span');
+        label.className = 'variant-produkteigenschaften-list__label';
+        label.textContent = field.label + ':';
+
+        var value = document.createElement('span');
+        value.className = 'variant-produkteigenschaften-list__value';
+        value.textContent = displayValue;
+
+        li.appendChild(label);
+        li.appendChild(document.createTextNode(' '));
+        li.appendChild(value);
+        list.appendChild(li);
+      });
+    }
+
+    document.addEventListener('variant:changed', function(event) {
+      var variant = event && event.detail && event.detail.variant;
+      if (!variant || !variant.id) return;
+      renderVariantFields(variant.id);
+    });
+  })();
+</script>
+
+<style>
+  ul.variant-produkteigenschaften-list {
+      list-style: none;
+      margin: 0;
+  }
+
+  li.variant-produkteigenschaften-list__item {
+      padding: 0px !important;
+  }
+  span.variant-produkteigenschaften-list__label {
+      font-weight: 600;
+  }
+</style>

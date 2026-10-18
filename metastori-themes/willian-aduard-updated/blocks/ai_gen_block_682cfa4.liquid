@@ -1,0 +1,329 @@
+{% doc %}
+  @prompt
+    Create a custom section with two media blocks side by side on desktop: a video on the left and an image on the right, both in a 4:5 aspect ratio. The video must support direct upload through the Shopify theme editor using Shopify’s native video picker, not an external URL field.
+    
+    Include separate range sliders in the section settings for top, right, bottom, and left padding, with independent controls for desktop and mobile.
+    
+    On mobile, stack the video and image vertically and display both as 1:1 squares.
+    , adter adding the video, it's showing weird text and a big grey box underneath. why is that?
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-media-split-{{ ai_gen_id }} {
+    display: block;
+    width: 100%;
+    padding-top: {{ block.settings.padding_top_desktop }}px;
+    padding-right: {{ block.settings.padding_right_desktop }}px;
+    padding-bottom: {{ block.settings.padding_bottom_desktop }}px;
+    padding-left: {{ block.settings.padding_left_desktop }}px;
+  }
+
+  .ai-media-split-container-{{ ai_gen_id }} {
+    display: flex;
+    gap: {{ block.settings.gap_desktop }}px;
+    width: 100%;
+  }
+
+  .ai-media-split-item-{{ ai_gen_id }} {
+    flex: 1;
+    position: relative;
+    width: 50%;
+  }
+
+  .ai-media-split-aspect-wrapper-{{ ai_gen_id }} {
+    position: relative;
+    width: 100%;
+    padding-bottom: 125%;
+    overflow: hidden;
+    background-color: #f4f4f4;
+  }
+
+  .ai-media-split-video-{{ ai_gen_id }},
+  .ai-media-split-image-{{ ai_gen_id }} {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ai-media-split-video-{{ ai_gen_id }}::-webkit-media-controls {
+    display: none !important;
+  }
+
+  .ai-media-split-video-{{ ai_gen_id }}::-webkit-media-controls-enclosure {
+    display: none !important;
+  }
+
+  .ai-media-split-placeholder-{{ ai_gen_id }} {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f4f4f4;
+  }
+
+  .ai-media-split-placeholder-{{ ai_gen_id }} svg {
+    width: 100%;
+    height: 100%;
+    max-width: 200px;
+    max-height: 200px;
+  }
+
+  .ai-media-split-empty-state-{{ ai_gen_id }} {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 20px;
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-media-split-{{ ai_gen_id }} {
+      padding-top: {{ block.settings.padding_top_mobile }}px;
+      padding-right: {{ block.settings.padding_right_mobile }}px;
+      padding-bottom: {{ block.settings.padding_bottom_mobile }}px;
+      padding-left: {{ block.settings.padding_left_mobile }}px;
+    }
+
+    .ai-media-split-container-{{ ai_gen_id }} {
+      flex-direction: column;
+      gap: {{ block.settings.gap_mobile }}px;
+    }
+
+    .ai-media-split-item-{{ ai_gen_id }} {
+      width: 100%;
+    }
+
+    .ai-media-split-aspect-wrapper-{{ ai_gen_id }} {
+      padding-bottom: 100%;
+    }
+  }
+{% endstyle %}
+
+<div class="ai-media-split-{{ ai_gen_id }}" {{ block.shopify_attributes }}>
+  <div class="ai-media-split-container-{{ ai_gen_id }}">
+    <div class="ai-media-split-item-{{ ai_gen_id }}">
+      <div class="ai-media-split-aspect-wrapper-{{ ai_gen_id }}">
+        {% if block.settings.video %}
+          <video
+            class="ai-media-split-video-{{ ai_gen_id }}"
+            {% if block.settings.video_autoplay %}autoplay{% endif %}
+            {% if block.settings.video_loop %}loop{% endif %}
+            {% if block.settings.video_muted %}muted{% endif %}
+            {% if block.settings.video_controls %}controls{% endif %}
+            playsinline
+            preload="metadata"
+          >
+            {% for source in block.settings.video.sources %}
+              <source src="{{ source.url }}" type="{{ source.mime_type }}">
+            {% endfor %}
+          </video>
+        {% else %}
+          <div class="ai-media-split-placeholder-{{ ai_gen_id }}">
+            {{ 'collection-1' | placeholder_svg_tag }}
+            <div class="ai-media-split-empty-state-{{ ai_gen_id }}">
+              Add a video
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="ai-media-split-item-{{ ai_gen_id }}">
+      <div class="ai-media-split-aspect-wrapper-{{ ai_gen_id }}">
+        {% if block.settings.image %}
+          <img
+            src="{{ block.settings.image | image_url: width: 1000 }}"
+            alt="{{ block.settings.image.alt | escape }}"
+            loading="lazy"
+            width="{{ block.settings.image.width }}"
+            height="{{ block.settings.image.height }}"
+            class="ai-media-split-image-{{ ai_gen_id }}"
+          >
+        {% else %}
+          <div class="ai-media-split-placeholder-{{ ai_gen_id }}">
+            {{ 'collection-2' | placeholder_svg_tag }}
+            <div class="ai-media-split-empty-state-{{ ai_gen_id }}">
+              Add an image
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Video and image split",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Video"
+    },
+    {
+      "type": "video",
+      "id": "video",
+      "label": "Video"
+    },
+    {
+      "type": "checkbox",
+      "id": "video_autoplay",
+      "label": "Autoplay",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "video_loop",
+      "label": "Loop",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "video_muted",
+      "label": "Mute",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "video_controls",
+      "label": "Show controls",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Image"
+    },
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "Image"
+    },
+    {
+      "type": "header",
+      "content": "Desktop spacing"
+    },
+    {
+      "type": "range",
+      "id": "gap_desktop",
+      "label": "Gap between media",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "padding_top_desktop",
+      "label": "Top padding",
+      "min": 0,
+      "max": 200,
+      "step": 5,
+      "unit": "px",
+      "default": 50
+    },
+    {
+      "type": "range",
+      "id": "padding_right_desktop",
+      "label": "Right padding",
+      "min": 0,
+      "max": 200,
+      "step": 5,
+      "unit": "px",
+      "default": 50
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_desktop",
+      "label": "Bottom padding",
+      "min": 0,
+      "max": 200,
+      "step": 5,
+      "unit": "px",
+      "default": 50
+    },
+    {
+      "type": "range",
+      "id": "padding_left_desktop",
+      "label": "Left padding",
+      "min": 0,
+      "max": 200,
+      "step": 5,
+      "unit": "px",
+      "default": 50
+    },
+    {
+      "type": "header",
+      "content": "Mobile spacing"
+    },
+    {
+      "type": "range",
+      "id": "gap_mobile",
+      "label": "Gap between media",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "padding_top_mobile",
+      "label": "Top padding",
+      "min": 0,
+      "max": 200,
+      "step": 5,
+      "unit": "px",
+      "default": 30
+    },
+    {
+      "type": "range",
+      "id": "padding_right_mobile",
+      "label": "Right padding",
+      "min": 0,
+      "max": 200,
+      "step": 5,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_mobile",
+      "label": "Bottom padding",
+      "min": 0,
+      "max": 200,
+      "step": 5,
+      "unit": "px",
+      "default": 30
+    },
+    {
+      "type": "range",
+      "id": "padding_left_mobile",
+      "label": "Left padding",
+      "min": 0,
+      "max": 200,
+      "step": 5,
+      "unit": "px",
+      "default": 20
+    }
+  ],
+  "presets": [
+    {
+      "name": "Video and image split"
+    }
+  ]
+}
+{% endschema %}

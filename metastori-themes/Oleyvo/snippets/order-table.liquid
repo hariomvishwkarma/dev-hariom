@@ -1,0 +1,127 @@
+<div class='xo-order-table'>
+  <xo-animate xo-cascade>
+    <div class='xo-order-table__head'>
+      <div class='xo-order-table__title'>{{ 'customer.order.title' | t: name: order.name }}</div>
+      {% assign order_date = order.created_at | date: '%b %d, %Y at %H:%M %P' %}
+      <p class='xo-order-table__date'>{{ 'customer.order.date_html' | t: date: order_date }}</p>
+      {%- if order.cancelled -%}
+        {%- assign cancelled_at = order.cancelled_at | time_tag: format: 'date_at_time' -%}
+        <p>{{ 'customer.order.cancelled_html' | t: date: cancelled_at }}</p>
+        <p>{{ 'customer.order.cancelled_reason' | t: reason: order.cancel_reason_label }}</p>
+      {%- endif -%}
+    </div>
+  </xo-animate>
+  <xo-animate xo-cascade>
+    <table class='xo-order-table__table'>
+      <thead class='xo-order-table__head'>
+        <tr class='xo-order-table__head-row'>
+          <th>{{ 'customer.order.product' | t }}</th>
+          <th>{{ 'customer.order.sku' | t }}</th>
+          <th>{{ 'customer.order.quantity' | t }}</th>
+          <th>{{ 'customer.order.price' | t }}</th>
+          <th>{{ 'customer.order.total' | t }}</th>
+        </tr>
+      </thead>
+      <tbody class='xo-order-table__body'>
+        {%- for line_item in order.line_items -%}
+          <tr class='xo-order-table__body-row'>
+            <td data-th='{{ 'customer.order.product' | t }}'>
+              {% render 'order-product', item: line_item %}
+            </td>
+            <td data-th='{{ 'customer.order.sku' | t }}'>{{ line_item.sku }}</td>
+            <td data-th='{{ 'customer.order.quantity' | t }}'>
+              {{ line_item.quantity }}
+            </td>
+            <td data-th='{{ 'customer.order.price' | t }}'>
+              {% render 'order-price', item: line_item %}
+            </td>
+            <td data-th='{{ 'customer.order.total' | t }}'>
+              {% render 'order-total', item: line_item %}
+            </td>
+          </tr>
+        {%- endfor -%}
+      </tbody>
+      <tfoot role='rowgroup' class='xo-order-table__foot'>
+        <tr role='row' class='xo-order-table__sub-total'>
+          <td id='RowSubtotal' role='rowheader' scope='row' colspan='4'>
+            {{ 'customer.order.sub_total' | t }}
+            ({{ order.item_count }}):
+          </td>
+          <td headers='RowSubtotal' role='cell' data-label='{{ 'customer.order.sub_total' | t }}'>
+            {{ order.line_items_subtotal_price | money }}
+          </td>
+        </tr>
+        {%- if order.cart_level_discount_applications != blank -%}
+          <tr role='row' class='xo-order-table__discount'>
+            {%- for discount_application in order.cart_level_discount_applications -%}
+              <td id='RowDiscount' role='rowheader' scope='row' colspan='4'>
+                {{ 'customer.order.discount' | t }}
+                {% render 'badge-discount', label: discount_application.title %}:
+              </td>
+              <td headers='RowDiscount' role='cell' data-label='{{ 'customer.order.discount' | t }}'>
+                <div>
+                  <span>-{{ discount_application.total_allocated_amount | money }}</span>
+                  {% render 'badge-discount', label: discount_application.title %}
+                </div>
+              </td>
+            {%- endfor -%}
+          </tr>
+        {%- endif -%}
+        {%- for shipping_method in order.shipping_methods -%}
+          <tr role='row' class='xo-order-table__shipping'>
+            <td id='RowShipping' role='rowheader' scope='row' colspan='4'>{{ 'customer.order.shipping' | t }} ({{ shipping_method.title }}):</td>
+            <td
+              headers='RowShipping'
+              role='cell'
+              data-label='{{ 'customer.order.shipping' | t }} ({{ shipping_method.title }})'
+            >
+              {{ shipping_method.price | money }}
+            </td>
+          </tr>
+        {%- endfor -%}
+        {%- for tax_line in order.tax_lines -%}
+          <tr role='row' class='xo-order-table__tax'>
+            <td id='RowTax' role='rowheader' scope='row' colspan='4'>
+              {{ 'customer.order.tax' | t }}:
+              {% comment %} ({{ tax_line.title }}{{ tax_line.rate | times: 100 }}%): {% endcomment %}
+            </td>
+            <td
+              headers='RowTax'
+              role='cell'
+              data-label='{{ 'customer.order.tax' | t }} ({{ tax_line.title }} {{ tax_line.rate | times: 100 }}%)'
+            >
+              {{ tax_line.price | money }}
+            </td>
+          </tr>
+        {%- endfor -%}
+        {%- if order.total_duties -%}
+          <tr role='row' class='xo-order-table__duties'>
+            <td id='RowDuties' role='rowheader' scope='row' colspan='4'>{{ 'customer.order.total_duties' | t }}:</td>
+            <td headers='RowDuties' role='cell' data-label='{{ 'customer.order.total_duties' | t }}'>
+              {{ order.total_duties | money }}
+            </td>
+          </tr>
+        {%- endif -%}
+        {%- if order.total_refunded_amount > 0 -%}
+          <tr role='row' class='xo-order-table__refund'>
+            <td id='RowTotalRefund' role='rowheader' scope='row' colspan='3'>{{ 'customer.order.total_refunded' | t }}:</td>
+            <td
+              headers='RowTotalRefund'
+              role='cell'
+              colspan='2'
+              data-label='{{ 'customer.order.total_refunded' | t }}'
+            >
+              -{{ order.total_refunded_amount | money_with_currency }}
+            </td>
+          </tr>
+        {%- endif -%}
+        <tr role='row' class='xo-order-table__total-price'>
+          <td id='RowTotal' role='rowheader' scope='row' colspan='3'>{{ 'customer.order.estimated_total' | t }}:</td>
+          <td headers='RowTotal' role='cell' colspan='2' data-label='{{ 'customer.order.estimated_total' | t }}'>
+            {{ order.total_net_amount | money_with_currency }}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </xo-animate>
+</div>

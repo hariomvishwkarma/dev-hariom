@@ -1,0 +1,1640 @@
+<div class="quiz-container">
+  <!-- Start Quiz Button -->
+  <div id="quiz-intro">
+    {% if section.settings.quiz_heading != '' %}
+      <h2>{{ section.settings.quiz_heading }}</h2>
+    {% endif %}
+    {% if section.settings.start_image %}
+      <img src="{{ section.settings.start_image | img_url: 'medium' }}" alt="Start Quiz">
+    {% endif %}
+    <button id="quiz-start">{{ section.settings.start_button_text }}</button>
+  </div>
+  <div id="quiz-progress-container" style="display: none;">
+    <div id="quiz-progress-bar"></div>
+  </div>
+  <!-- Quiz Questions (Initially Hidden) -->
+  <div id="quiz-content" style="display: none;">
+    {% for block in section.blocks %}
+      <div
+        class="quiz-question"
+        id="{{ block.settings.question_id }}"
+        style="display: {% if forloop.first %}block{% else %}none{% endif %};"
+      >
+        <h2>{{ block.settings.question_text }}</h2>
+        {% if block.settings.question_heading != '' %}
+          <p>{{ block.settings.question_heading }}</p>
+        {% endif %}
+        {% if block.settings.start_image_question %}
+          <img src="{{ block.settings.start_image_question | image_url }}" alt="Question Image">
+        {% endif %}
+        <div class="quiz-answers">
+          {% if block.settings.answer1_text != '' %}
+            <div class="quiz-answer-box" onclick="selectAnswer(this)">
+              {% if block.settings.start_image_ans_1 %}
+                <img src="{{ block.settings.start_image_ans_1 | image_url }}" alt="Question Image">
+              {% endif %}
+              <label>
+                <input
+                  type="radio"
+                  name="answer-{{ block.settings.question_id }}"
+                  class="quiz-answer"
+                  data-next="{{ block.settings.answer1_next }}"
+                  data-redirect="{{ block.settings.answer1_redirect }}"
+                >
+                <span>{{ block.settings.answer1_text }}</span>
+              </label>
+            </div>
+          {% endif %}
+
+          {% if block.settings.answer2_text != '' %}
+            <div class="quiz-answer-box" onclick="selectAnswer(this)">
+              {% if block.settings.start_image_ans_2 %}
+                <img src="{{ block.settings.start_image_ans_2 | image_url }}" alt="Question Image">
+              {% endif %}
+              <label>
+                <input
+                  type="radio"
+                  name="answer-{{ block.settings.question_id }}"
+                  class="quiz-answer"
+                  data-next="{{ block.settings.answer2_next }}"
+                  data-redirect="{{ block.settings.answer2_redirect }}"
+                >
+                <span>{{ block.settings.answer2_text }}</span>
+              </label>
+            </div>
+          {% endif %}
+
+          {% if block.settings.answer3_text != '' %}
+            <div class="quiz-answer-box" onclick="selectAnswer(this)">
+              {% if block.settings.start_image_ans_3 %}
+                <img src="{{ block.settings.start_image_ans_3 | image_url }}" alt="Question Image">
+              {% endif %}
+              <label>
+                <input
+                  type="radio"
+                  name="answer-{{ block.settings.question_id }}"
+                  class="quiz-answer"
+                  data-next="{{ block.settings.answer3_next }}"
+                  data-redirect="{{ block.settings.answer3_redirect }}"
+                >
+                <span>{{ block.settings.answer3_text }}</span>
+              </label>
+            </div>
+          {% endif %}
+          {% if block.settings.answer4_text != '' %}
+            <div class="quiz-answer-box" onclick="selectAnswer(this)">
+              {% if block.settings.start_image_ans_4 %}
+                <img src="{{ block.settings.start_image_ans_4 | image_url }}" alt="Question Image">
+              {% endif %}
+              <label>
+                <input
+                  type="radio"
+                  name="answer-{{ block.settings.question_id }}"
+                  class="quiz-answer"
+                  data-next="{{ block.settings.answer4_next }}"
+                  data-redirect="{{ block.settings.answer4_redirect }}"
+                >
+                <span>{{ block.settings.answer4_text }}</span>
+              </label>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+
+    <!-- Back & Next Buttons -->
+    <div class="quiz-navigation">
+      <button id="quiz-back" style="display: none;">← Previous</button>
+      <button id="quiz-next" disabled>Next →</button>
+    </div>
+    <button
+      id="quiz-retake"
+      class="quiz-restart"
+    >
+      {{ section.settings.retake_quiz_text }}
+    </button>
+  </div>
+  <div id="quiz-result" style="display: none;">
+    {% for block in section.blocks %}
+      {% if block.type == 'quiz_result1' %}
+        <h2>{{ block.settings.result_title }}</h2>
+        <h3>{{ block.settings.result_sub_title }}</h3>
+        <img src="{{ block.settings.result_image | img_url: 'master' }}" alt="ro-image" style="width:400px">
+
+        <p>{{ block.settings.result_sub_desc }}</p>
+
+        <ul class="productgrid--items products-per-row-2">
+          {% for product in block.settings.product_list %}
+            {% render 'quiz-product-grid', product: product %}
+            {% comment %}
+              <li>
+              <a href="{{ product.url }}">
+                <img src="{{ product.featured_image | img_url: 'small' }}" alt="{{ product.title }}">
+                <p>{{ product.title }}</p>
+                 <s class="font-size-small">{{ product.compare_at_price | money }}</s><p>{{ product.price | money }}</p>
+                <p>{{ product.description | strip_html | truncatewords: 20 }}</p>
+              </a>
+              <!-- <form method="post" action="/cart/add"> -->
+                <!-- <input type="hidden" name="id" value="{{ product.variants.first.id }}"> -->
+               <button data-product-url={{ product.url }} type="submit">MORE INFO</button>
+              <!-- </form> --></li>
+            {% endcomment %}
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endfor %}
+    <button class="quiz-preview">← Previous</button>
+    <button id="quiz-retake">{{ section.settings.retake_quiz_text }}</button>
+  </div>
+
+  {% for i in (2..15) %}
+    <div id="quiz-result{{ i }}" style="display: none;">
+      {% for block in section.blocks %}
+        {% assign result_type = 'quiz_result' | append: i %}
+        {% if block.type == result_type %}
+          {% assign title_key = 'result_title' | append: i %}
+          {% assign subtitle_key = 'result_sub_title' | append: i %}
+          {% assign desc_key = 'result_sub_desc' | append: i %}
+          {% assign product_key = 'product_list' | append: i %}
+          {% assign image_key = 'result_image' | append: i %}
+          <h2>{{ block.settings[title_key] }}</h2>
+          <h3>{{ block.settings[subtitle_key] }}</h3>
+          {% if block.settings[image_key] != blank %}
+            <img src="{{ block.settings[image_key] | img_url: 'master' }}" alt="ro-image" style="width:400px">
+          {% endif %}
+
+          <p>{{ block.settings[desc_key] }}</p>
+
+          <ul class="productgrid--items products-per-row-2">
+            {% for product in block.settings[product_key] %}
+              {% render 'quiz-product-grid', product: product %}
+              {% comment %}
+                <li>
+                <a href="{{ product.url }}">
+                  <img src="{{ product.featured_image | img_url: 'small' }}" alt="{{ product.title }}">
+                  <p>{{ product.title }}</p>
+                   <s class="font-size-small">{{ product.compare_at_price | money }}</s><p>{{ product.price | money }}</p>
+                  <p>{{ product.description | strip_html | truncatewords: 20 }}</p>
+                </a>
+                <!-- <form method="post" action="/cart/add"> -->
+                  <!-- <input type="hidden" name="id" value="{{ product.variants.first.id }}"> -->
+                 <button data-product-url={{ product.url }} type="submit">MORE INFO</button>
+                <!-- </form> --></li>
+              {% endcomment %}
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endfor %}
+      <button class="quiz-preview">← Previous</button>
+      <button id="quiz-retake{{ i }}">{{ section.settings.retake_quiz_text }}</button>
+    </div>
+  {% endfor %}
+</div>
+
+<style>
+  .font-size-small {
+    font-size: 13px;
+  }
+  #page-wrapper .sidebar-logos {
+    margin: 30px 0 !important;
+  }
+
+  #page-wrapper {
+    justify-content: space-between;
+  }
+  .custom-quiz-sec {
+    margin-top: 40px;
+    width: 60%;
+  }
+  button.quiz-restart {
+    background: none;
+    border: none;
+    color: #02a8d2;
+    text-decoration: underline !important;
+    margin-top: 20px;
+    padding: 12.2px 20px;
+  }
+  .quiz-restart:hover {
+    background: #fff;
+    border: 2px solid;
+    padding: 10px 20px;
+    text-decoration: none !important;
+  }
+  .quiz-question img {
+    width: 40%;
+  }
+  .quiz-answer-box.selected {
+    border: 2px solid #2d4b60;
+  }
+  .quiz-answer-box.selected input:checked {
+    /* outline: 2px solid black !important;
+                          background: black !important; */
+    color: white !important;
+  }
+  .quiz-container {
+    text-align: center;
+    max-width: 780px;
+    margin: auto;
+    background: #f7f7f7;
+    border-radius: 10px;
+    padding: 40px 30px;
+  }
+  button[id^="quiz-retake"] {
+    color: #02a8d2;
+    background: none;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  #quiz-intro {
+    text-align: center; /* Center align content */
+    margin: 30px auto;
+  }
+  #quiz-intro h2 p {
+    text-align: center;
+    margin: 30px auto;
+    color: #2d4b60;
+    font-size: 30px;
+  }
+
+  #quiz-intro img {
+    max-width: 400px;
+    height: auto;
+    border-radius: 10px;
+    display: block;
+    margin: 0 auto 35px;
+    width: 400px;
+  }
+  .quiz-question h2 {
+    font-size: 24px !important;
+    margin: 0px 0px 5px;
+    color: #2d4b60 !important;
+  }
+  .quiz-question p {
+    margin-top: 0px;
+    font-size: 14px;
+    color: #2d4b60;
+  }
+  #quiz-start {
+    background-color: #02a8d2;
+    color: white;
+    font-size: 22px;
+    padding: 12px 40px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    display: inline-block;
+  }
+  #quiz-back {
+    background: none;
+    color: #02a8d2;
+    border: none;
+    font-size: 16px;
+    line-height: 24px;
+  }
+  .quiz-preview {
+    background: none;
+    color: #02a8d2;
+    border: none;
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  .quiz-preview:hover {
+    padding: 12px 30px;
+
+    cursor: pointer;
+
+    border: 2px solid #02a8d2;
+    background: #fff;
+    color: #02a8d2;
+  }
+  #quiz-back:hover {
+    padding: 12px 30px;
+
+    cursor: pointer;
+
+    border: 2px solid #02a8d2;
+    background: #fff;
+    color: #02a8d2;
+  }
+
+  .quiz-question {
+    padding: 20px 0px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+  }
+
+  .quiz-answers label {
+    display: block;
+    margin: 10px 0;
+    cursor: pointer;
+  }
+
+  .quiz-answers input {
+    margin-right: 10px;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 15px;
+    height: 15px;
+  }
+
+  .quiz-navigation {
+    margin-top: 20px;
+  }
+
+  .quiz-navigation #quiz-next {
+    border: 2px solid #02a8d2;
+    padding: 12px 30px;
+    background: #007bff;
+
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  .quiz-navigation #quiz-next:disabled {
+    background: #fff;
+    cursor: not-allowed;
+    color: #02a8d2;
+  }
+
+  .quiz-answers {
+    margin-top: 30px;
+    /* display: flex;
+                                  justify-content: space-between; */
+    gap: 0px;
+    /* flex-wrap: wrap; */
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .quiz-answers:has(:nth-child(4)) {
+    grid-template-columns: repeat(
+      2,
+      1fr
+    ); /* Jab 4 items ho, to 2-2 columns me dikhao */
+  }
+  .quiz-answers:has(nth-child(1)) {
+    grid-template-columns: 180px; /* Jab sirf 1 column ho to fixed 180px width */
+  }
+  .quiz-answers:has(> :only-child) {
+    justify-content: center;
+    grid-template-columns: 180px;
+  }
+  .quiz-answer-box {
+    /* width: 31%; */
+    padding: 15px;
+    text-align: center;
+    border: 2px solid #d9d9d9;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+
+  .quiz-answer-box img {
+    width: 80px;
+    margin-bottom: 10px;
+  }
+
+  .quiz-answer-box label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  .quiz-answer-box label span {
+    margin-top: 5px;
+    font-size: 14px;
+    line-height: 20px;
+    color: #2d4b60;
+  }
+  #quiz-result ul {
+    row-gap: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    padding-left: 0px;
+    justify-content: space-between;
+  }
+  #quiz-result ul li a {
+    text-decoration: none;
+    color: #000;
+  }
+  #quiz-result ul li button {
+    background: #02a8d2;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+
+  #quiz-result ul li img {
+    /* width: 60%; */
+    margin: auto;
+  }
+  #quiz-result ul li {
+    width: 48%;
+    list-style: none;
+  }
+  #quiz-result ul li h2 {
+    font-size: 18px;
+    line-height: 26px;
+  }
+  #quiz-result ul li p {
+    font-size: 14px;
+    line-height: 24px;
+  }
+  #quiz-result2 ul {
+    row-gap: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    padding-left: 0px;
+    justify-content: space-between;
+  }
+  #quiz-result2 ul li a {
+    text-decoration: none;
+    color: #000;
+  }
+  #quiz-result2 ul li button {
+    background: #02a8d2;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+
+  #quiz-result2 ul li img {
+    /* width: 60%; */
+    margin: auto;
+  }
+  #quiz-result2 ul li {
+    width: 48%;
+    list-style: none;
+  }
+  #quiz-result2 ul li h2 {
+    font-size: 18px;
+    line-height: 26px;
+  }
+  #quiz-result2 ul li p {
+    font-size: 14px;
+    line-height: 24px;
+  }
+  #quiz-result3 ul,
+  #quiz-result4 ul,
+  #quiz-result5 ul,
+  #quiz-result6 ul {
+    row-gap: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    padding-left: 0px;
+    justify-content: space-between;
+  }
+
+  #quiz-result3 ul li a,
+  #quiz-result4 ul li a,
+  #quiz-result5 ul li a,
+  #quiz-result6 ul li a {
+    text-decoration: none;
+    color: #000;
+  }
+
+  #quiz-result3 ul li button,
+  #quiz-result4 ul li button,
+  #quiz-result5 ul li button,
+  #quiz-result6 ul li button {
+    background: #02a8d2;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+
+  #quiz-result3 ul li img,
+  #quiz-result4 ul li img,
+  #quiz-result5 ul li img,
+  #quiz-result6 ul li img {
+    /* width: 60%; */
+    margin: auto;
+  }
+
+  #quiz-result3 ul li,
+  #quiz-result4 ul li,
+  #quiz-result5 ul li,
+  #quiz-result6 ul li {
+    width: 48%;
+    list-style: none;
+  }
+
+  #quiz-result3 ul li h2,
+  #quiz-result4 ul li h2,
+  #quiz-result5 ul li h2,
+  #quiz-result6 ul li h2 {
+    font-size: 18px;
+    line-height: 26px;
+  }
+
+  #quiz-result3 ul li p,
+  #quiz-result4 ul li p,
+  #quiz-result5 ul li p,
+  #quiz-result6 ul li p {
+    font-size: 14px;
+    line-height: 24px;
+  }
+  /* Target all quiz-result1 to quiz-result15 using attribute selector */
+  [id^="quiz-result"] ul {
+    row-gap: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    padding-left: 0;
+    justify-content: space-between;
+  }
+
+  [id^="quiz-result"] ul li {
+    width: 48%;
+    list-style: none;
+  }
+
+  [id^="quiz-result"] ul li a {
+    text-decoration: none;
+    color: #000;
+  }
+
+  [id^="quiz-result"] ul li button {
+    background: #02a8d2;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  [id^="quiz-result"] ul li img {
+    /* width: 60%; */
+    margin: auto;
+    display: block;
+  }
+
+  [id^="quiz-result"] ul li h2 {
+    font-size: 18px;
+    line-height: 26px;
+  }
+
+  [id^="quiz-result"] ul li p {
+    font-size: 14px;
+    line-height: 24px;
+  }
+
+  .quiz-answer-box input:checked {
+    /* outline: 2px solid #007bff; */
+    border-radius: 10px;
+  }
+  #quiz-progress-container {
+    width: 100%;
+    background-color: #eee;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    height: 10px;
+    overflow: hidden;
+  }
+
+  #quiz-progress-bar {
+    width: 0%;
+    height: 100%;
+    background-color: #007bff;
+    transition: width 0.3s ease-in-out;
+  }
+  .special-deal a {
+    color: #fff !important;
+  }
+  a.to_product_link {
+    background: #ffa41c;
+    border-radius: 4px;
+    display: inline-block;
+    padding: 15px;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-top: 10px;
+  }
+  @media (max-width: 768px) {
+    .custom-quiz-sec {
+      width: 100%;
+    }
+    .quiz-container {
+      text-align: center;
+      max-width: 780px;
+      margin: auto 0px;
+      background: #f7f7f7;
+      border-radius: 10px;
+      padding: 25px 15px;
+    }
+    #quiz-intro h2 p {
+      text-align: center;
+      margin: 30px auto;
+      color: #2d4b60;
+      font-size: 24px;
+    }
+    #quiz-intro img {
+      max-width: max-content;
+      height: auto;
+      border-radius: 10px;
+      display: block;
+      margin: 0 auto 35px;
+      width: 100%;
+    }
+    #quiz-start {
+      background-color: #02a8d2;
+      color: white;
+      font-size: 18px;
+      padding: 10px 30px;
+    }
+  }
+  @media (max-width: 499px) {
+    #page-wrapper {
+      padding: 0 10px;
+    }
+    .quiz-container {
+      padding: 25px 5px;
+    }
+  }
+  .page--sidebar-section #page-wrapper .siite-page {
+    display: none;
+  }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("button[data-product-url]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        const url = button.getAttribute("data-product-url");
+        if (url) {
+          window.location.href = url;
+        }
+      });
+    });
+    let restartButton = document.getElementById("quiz-restart");
+    let quizIntro = document.getElementById("quiz-intro");
+    let quizContent = document.getElementById("quiz-content");
+    let progressContainer = document.getElementById("quiz-progress-container");
+    let progressBar = document.getElementById("quiz-progress-bar");
+    let startButton = document.getElementById("quiz-start");
+    let backButton = document.getElementById("quiz-back");
+    let nextButton = document.getElementById("quiz-next");
+    let resultBlocks = [
+      document.getElementById("quiz-result"),
+      document.getElementById("quiz-result2"),
+      document.getElementById("quiz-result3"),
+      document.getElementById("quiz-result4"),
+      document.getElementById("quiz-result5"),
+      document.getElementById("quiz-result6"),
+    ];
+
+    let selectedAnswer = null;
+    let questionHistory = [];
+    let currentQuestionIndex = 0;
+    let totalQuestions = document.querySelectorAll(".quiz-question").length;
+    let currentQuestion = document.querySelector(".quiz-question");
+
+    if (startButton) {
+      startButton.addEventListener("click", function () {
+        quizIntro.style.display = "none";
+        quizContent.style.display = "block";
+        progressContainer.style.display = "block";
+        updateProgress();
+      });
+    }
+
+    document.querySelectorAll(".quiz-answer").forEach((radio) => {
+      radio.addEventListener("change", function () {
+        selectedAnswer = this;
+        nextButton.removeAttribute("disabled");
+      });
+    });
+
+    if (nextButton) {
+      nextButton.addEventListener("click", function () {
+        if (!selectedAnswer) return;
+
+        let nextId = selectedAnswer.getAttribute("data-next");
+        let redirectUrl = selectedAnswer.getAttribute("data-redirect");
+
+        if (redirectUrl && redirectUrl !== "") {
+          window.location.href = redirectUrl;
+        } else if (nextId.startsWith("result")) {
+          // Hide quiz content & progress bar, show the correct result block
+          quizContent.style.display = "none";
+          progressContainer.style.display = "none";
+
+          let resultIndex = nextId.replace("result", ""); // Remove "result" prefix
+
+          // If nextId is exactly "result", set index to 0
+          resultIndex = resultIndex === "" ? 0 : parseInt(resultIndex, 10);
+
+          if (!isNaN(resultIndex) && resultBlocks[resultIndex]) {
+            console.log("Showing result index:", resultIndex);
+            resultBlocks[resultIndex].style.display = "block";
+          } else {
+            console.error("Result block not found for index:", resultIndex);
+          }
+        } else {
+          // Move to the next question
+          questionHistory.push(currentQuestion.id);
+          currentQuestion.style.display = "none";
+          currentQuestion = document.getElementById(nextId);
+
+          if (currentQuestion) {
+            currentQuestion.style.display = "block";
+            nextButton.setAttribute("disabled", "true");
+            selectedAnswer = null;
+            currentQuestionIndex++;
+            updateProgress();
+          }
+
+          if (questionHistory.length > 0) {
+            backButton.style.display = "inline-block";
+          }
+        }
+      });
+    }
+
+    if (backButton) {
+      backButton.addEventListener("click", function () {
+        if (questionHistory.length === 0) {
+          quizIntro.style.display = "block";
+          quizContent.style.display = "none";
+          progressContainer.style.display = "none";
+          backButton.style.display = "none";
+        } else {
+          let prevId = questionHistory.pop();
+          currentQuestion.style.display = "none";
+          currentQuestion = document.getElementById(prevId);
+          currentQuestion.style.display = "block";
+          nextButton.setAttribute("disabled", "true");
+          currentQuestionIndex--;
+          updateProgress();
+        }
+      });
+    }
+
+    function updateProgress() {
+      let progressPercent = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+      progressBar.style.width = progressPercent + "%";
+    }
+
+    // Handle retake buttons dynamically
+    document.querySelectorAll('[id^="quiz-retake"]').forEach((button) => {
+      button.addEventListener("click", function () {
+        window.location.reload();
+      });
+    });
+
+    document.querySelectorAll(".quiz-answer-box").forEach((box) => {
+      box.addEventListener("click", function () {
+        let radio = this.querySelector('input[type="radio"]');
+        if (radio) {
+          radio.checked = true;
+          radio.dispatchEvent(new Event("change"));
+        }
+      });
+    });
+
+    document.querySelectorAll(".quiz-answer").forEach((input) => {
+      input.addEventListener("change", function () {
+        document.querySelectorAll(".quiz-answer-box").forEach((box) => {
+          box.classList.remove("selected");
+        });
+        if (this.checked) {
+          this.closest(".quiz-answer-box").classList.add("selected");
+        }
+      });
+    });
+
+    window.addEventListener("pageshow", function (event) {
+      if (event.persisted || performance.navigation.type === 2) {
+        location.reload();
+      }
+    });
+    document.querySelectorAll(".quiz-preview").forEach((button) => {
+      button.addEventListener("click", function () {
+        // Hide all result sections
+        document.querySelectorAll('[id^="quiz-result"]').forEach((result) => {
+          result.style.display = "none";
+        });
+
+        // Show the quiz content again
+        document.getElementById("quiz-content").style.display = "block";
+        document.getElementById("quiz-progress-container").style.display =
+          "block";
+
+        // Re-enable navigation buttons
+        document.getElementById("quiz-back").style.display = "inline-block";
+        document.getElementById("quiz-next").removeAttribute("disabled");
+        //updateProgress();
+        // Scroll to the top of the page
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+  });
+</script>
+
+{% schema %}
+{
+  "name": "Quiz Section",
+  "class": "custom-quiz-sec",
+  "settings": [
+     {
+      "type": "richtext",
+      "id": "quiz_heading",
+      "label": "Heading"
+    },
+    {
+      "type": "image_picker",
+      "id": "start_image",
+      "label": "Start Quiz Image"
+    },
+    {
+      "type": "text",
+      "id": "start_button_text",
+      "label": "Start Button Text",
+      "default": "Start Quiz"
+    },
+      {
+          "type": "text",
+          "id": "retake_quiz_text",
+          "label": "Retake Quiz Button Text",
+          "default": "Re-Start Quiz"
+        }
+  ],
+  "blocks": [
+    {
+      "type": "question",
+      "name": "Quiz Question/Answers",
+      "settings": [
+        {
+          "type": "text",
+          "id": "question_text",
+          "label": "Question",
+          "default": "Are you on Mains / Public water supply?"
+        },
+         {
+          "type": "richtext",
+          "id": "question_heading",
+          "label": "Content"
+        },
+         {
+      "type": "image_picker",
+      "id": "start_image_question",
+      "label": "RO Image"
+    },
+        {
+  "type": "select",
+  "id": "question_id",
+  "label": "Choose Question ID",
+  "options": [
+            { "value": "q1", "label": "Question 1" },
+            { "value": "q2", "label": "Question 2" },
+            { "value": "q3", "label": "Question 3" },
+            { "value": "q4", "label": "Question 4" },
+            { "value": "q5", "label": "Question 5" },
+            { "value": "q6", "label": "Question 6" },
+            { "value": "q7", "label": "Question 7" },
+            { "value": "q8", "label": "Question 8" },
+            { "value": "q9", "label": "Question 9" },
+            { "value": "q10", "label": "Question 10" },
+            { "value": "q11", "label": "Question 11" },
+            { "value": "q12", "label": "Question 12" },
+            { "value": "q13", "label": "Question 13" },
+            { "value": "q14", "label": "Question 14" },
+            { "value": "q15", "label": "Question 15" }
+          ],
+          "default": "q1"
+        },
+        {
+          "type": "header",
+          "content": "Answers"
+        },
+         {
+        "type": "image_picker",
+        "id": "start_image_ans_1",
+        "label": "Image"
+      },
+        {
+          "type": "text",
+          "id": "answer1_text",
+          "label": "Answer 1 "
+        },
+        {
+          "type": "select",
+          "id": "answer1_next",
+          "label": "Lead To for Answer 1",
+         "options": [
+           { "value": "", "label": "Choose Lead To" },
+    { "value": "q1", "label": "Question 1" },
+    { "value": "q2", "label": "Question 2" },
+    { "value": "q3", "label": "Question 3" },
+    { "value": "q4", "label": "Question 4" },
+    { "value": "q5", "label": "Question 5" },
+    { "value": "q6", "label": "Question 6" },
+    { "value": "q7", "label": "Question 7" },
+    { "value": "q8", "label": "Question 8" },
+    { "value": "q9", "label": "Question 9" },
+    { "value": "q10", "label": "Question 10" },
+    { "value": "q11", "label": "Question 11" },
+    { "value": "q12", "label": "Question 12" },
+    { "value": "q13", "label": "Question 13" },
+    { "value": "q14", "label": "Question 14" },
+    { "value": "q15", "label": "Question 15" },
+    { "value": "result", "label": "Page Block 1" },
+   { "value": "result2", "label": "Page Block 2" },
+  { "value": "result3", "label": "Page Block 3" },
+  { "value": "result4", "label": "Page Block 4" },
+  { "value": "result5", "label": "Page Block 5" },
+  { "value": "result6", "label": "Page Block 6" },
+  { "value": "result7", "label": "Page Block 7" },
+  { "value": "result8", "label": "Page Block 8" },
+  { "value": "result9", "label": "Page Block 9" },
+  { "value": "result10", "label": "Page Block 10" },
+  { "value": "result11", "label": "Page Block 11" },
+  { "value": "result12", "label": "Page Block 12" },
+  { "value": "result13", "label": "Page Block 13" },
+  { "value": "result14", "label": "Page Block 14" },
+  { "value": "result15", "label": "Page Block 15" }
+  ],
+  "default": ""
+        },
+        {
+          "type": "url",
+          "id": "answer1_redirect",
+          "label": "Redirect Link for Answer 1"
+        },
+         {
+      "type": "image_picker",
+      "id": "start_image_ans_2",
+      "label": "Image"
+    },
+        {
+          "type": "text",
+          "id": "answer2_text",
+          "label": "Answer 2 Text"
+        },
+        {
+          "type": "select",
+          "id": "answer2_next",
+          "label": "Lead to for Answer 2",
+        "options": [
+          { "value": "", "label": "Choose Lead To" },
+    { "value": "q1", "label": "Question 1" },
+    { "value": "q2", "label": "Question 2" },
+    { "value": "q3", "label": "Question 3" },
+    { "value": "q4", "label": "Question 4" },
+    { "value": "q5", "label": "Question 5" },
+    { "value": "q6", "label": "Question 6" },
+    { "value": "q7", "label": "Question 7" },
+    { "value": "q8", "label": "Question 8" },
+    { "value": "q9", "label": "Question 9" },
+    { "value": "q10", "label": "Question 10" },
+    { "value": "q11", "label": "Question 11" },
+    { "value": "q12", "label": "Question 12" },
+    { "value": "q13", "label": "Question 13" },
+    { "value": "q14", "label": "Question 14" },
+    { "value": "q15", "label": "Question 15" },
+  { "value": "result", "label": "Page Block 1" },
+    { "value": "result2", "label": "Page Block 2" },
+  { "value": "result3", "label": "Page Block 3" },
+  { "value": "result4", "label": "Page Block 4" },
+  { "value": "result5", "label": "Page Block 5" },
+  { "value": "result6", "label": "Page Block 6" },
+  { "value": "result7", "label": "Page Block 7" },
+  { "value": "result8", "label": "Page Block 8" },
+  { "value": "result9", "label": "Page Block 9" },
+  { "value": "result10", "label": "Page Block 10" },
+  { "value": "result11", "label": "Page Block 11" },
+  { "value": "result12", "label": "Page Block 12" },
+  { "value": "result13", "label": "Page Block 13" },
+  { "value": "result14", "label": "Page Block 14" },
+  { "value": "result15", "label": "Page Block 15" }
+  ],
+  "default": ""
+        },
+        {
+          "type": "url",
+          "id": "answer2_redirect",
+          "label": "Redirect Link for Answer 2"
+        },
+         {
+      "type": "image_picker",
+      "id": "start_image_ans_3",
+      "label": "Image"
+    },
+         {
+          "type": "text",
+          "id": "answer3_text",
+          "label": "Answer 3 Text"
+        },
+        {
+          "type": "select",
+          "id": "answer3_next",
+          "label": "Lead to for Answer 3",
+         "options": [
+           { "value": "", "label": "Choose Lead To" },
+    { "value": "q1", "label": "Question 1" },
+    { "value": "q2", "label": "Question 2" },
+    { "value": "q3", "label": "Question 3" },
+    { "value": "q4", "label": "Question 4" },
+    { "value": "q5", "label": "Question 5" },
+    { "value": "q6", "label": "Question 6" },
+    { "value": "q7", "label": "Question 7" },
+    { "value": "q8", "label": "Question 8" },
+    { "value": "q9", "label": "Question 9" },
+    { "value": "q10", "label": "Question 10" },
+    { "value": "q11", "label": "Question 11" },
+    { "value": "q12", "label": "Question 12" },
+    { "value": "q13", "label": "Question 13" },
+    { "value": "q14", "label": "Question 14" },
+    { "value": "q15", "label": "Question 15" },
+    { "value": "result", "label": "Page Block 2" },
+    { "value": "result2", "label": "Page Block 2" },
+  { "value": "result3", "label": "Page Block 3" },
+  { "value": "result4", "label": "Page Block 4" },
+  { "value": "result5", "label": "Page Block 5" },
+  { "value": "result6", "label": "Page Block 6" },
+  { "value": "result7", "label": "Page Block 7" },
+  { "value": "result8", "label": "Page Block 8" },
+  { "value": "result9", "label": "Page Block 9" },
+  { "value": "result10", "label": "Page Block 10" },
+  { "value": "result11", "label": "Page Block 11" },
+  { "value": "result12", "label": "Page Block 12" },
+  { "value": "result13", "label": "Page Block 13" },
+  { "value": "result14", "label": "Page Block 14" },
+  { "value": "result15", "label": "Page Block 15" }
+  ],
+  "default": ""
+        },
+        {
+          "type": "url",
+          "id": "answer3_redirect",
+          "label": "Redirect Link for Answer 2"
+        },
+         {
+      "type": "image_picker",
+      "id": "start_image_ans_4",
+      "label": "Image"
+    },
+          {
+          "type": "text",
+          "id": "answer4_text",
+          "label": "Answer 4 Text"
+        },
+        {
+          "type": "select",
+          "id": "answer4_next",
+          "label": "Lead to for Answer 4",
+         "options": [
+           { "value": "", "label": "Choose Lead To" },
+    { "value": "q1", "label": "Question 1" },
+    { "value": "q2", "label": "Question 2" },
+    { "value": "q3", "label": "Question 3" },
+    { "value": "q4", "label": "Question 4" },
+    { "value": "q5", "label": "Question 5" },
+    { "value": "q6", "label": "Question 6" },
+    { "value": "q7", "label": "Question 7" },
+    { "value": "q8", "label": "Question 8" },
+    { "value": "q9", "label": "Question 9" },
+    { "value": "q10", "label": "Question 10" },
+    { "value": "q11", "label": "Question 11" },
+    { "value": "q12", "label": "Question 12" },
+    { "value": "q13", "label": "Question 13" },
+    { "value": "q14", "label": "Question 14" },
+    { "value": "q15", "label": "Question 15" },
+    { "value": "result", "label": "Page Block 1" },
+   { "value": "result2", "label": "Page Block 2" },
+  { "value": "result3", "label": "Page Block 3" },
+  { "value": "result4", "label": "Page Block 4" },
+  { "value": "result5", "label": "Page Block 5" },
+  { "value": "result6", "label": "Page Block 6" },
+  { "value": "result7", "label": "Page Block 7" },
+  { "value": "result8", "label": "Page Block 8" },
+  { "value": "result9", "label": "Page Block 9" },
+  { "value": "result10", "label": "Page Block 10" },
+  { "value": "result11", "label": "Page Block 11" },
+  { "value": "result12", "label": "Page Block 12" },
+  { "value": "result13", "label": "Page Block 13" },
+  { "value": "result14", "label": "Page Block 14" },
+  { "value": "result15", "label": "Page Block 15" }
+  ],
+  "default": ""
+        },
+        {
+          "type": "url",
+          "id": "answer4_redirect",
+          "label": "Redirect Link for Answer 2"
+        }
+      ]
+    },
+    {
+      "type": "quiz_result1",
+      "name": "Page Block 1",
+      "settings": [
+        {
+          "type": "text",
+          "id": "result_title",
+          "label": "Title",
+          "default": "Your Quiz Result"
+        },
+        {
+          "type": "richtext",
+          "id": "result_sub_title",
+          "label": "Sub Title"
+        },
+		{
+          "type": "richtext",
+          "id": "result_sub_desc",
+          "label": "Content"
+        },
+        {
+          "type": "image_picker",
+          "id": "result_image",
+          "label": "RO Image"
+        },
+       {
+      "type": "product_list",
+      "id": "product_list",
+      "label": "Select Products"
+    }
+
+      ]
+    },
+    {
+    "type": "quiz_result2",
+    "name": "Page Block 2",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title2",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title2",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc2",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image2",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list2",
+        "label": "Select Products"
+      }
+    ]
+  },
+  {
+    "type": "quiz_result3",
+    "name": "Page Block 3",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title3",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title3",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc3",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image3",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list3",
+        "label": "Select Products"
+      }
+    ]
+  },
+      {
+    "type": "quiz_result4",
+    "name": "Page Block 4",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title4",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title4",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc4",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image4",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list4",
+        "label": "Select Products"
+      }
+    ]
+      },
+
+      {
+    "type": "quiz_result5",
+    "name": "Page Block 5",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title5",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title5",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc5",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image5",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list5",
+        "label": "Select Products"
+      }
+    ]
+  },
+     {
+    "type": "quiz_result6",
+    "name": "Page Block 6",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title6",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title6",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc6",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image6",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list6",
+        "label": "Select Products"
+      }
+    ]
+  },
+    {
+    "type": "quiz_result7",
+    "name": "Page Block 7",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title7",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title7",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc7",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image7",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list7",
+        "label": "Select Products"
+      }
+    ]
+  },
+  {
+    "type": "quiz_result8",
+    "name": "Page Block 8",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title8",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title8",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc8",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image8",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list8",
+        "label": "Select Products"
+      }
+    ]
+  },
+  {
+    "type": "quiz_result9",
+    "name": "Page Block 9",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title9",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title9",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc9",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image9",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list9",
+        "label": "Select Products"
+      }
+    ]
+  },
+  {
+    "type": "quiz_result10",
+    "name": "Page Block 10",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title10",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title10",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc10",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image10",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list10",
+        "label": "Select Products"
+      }
+    ]
+  },
+  {
+    "type": "quiz_result11",
+    "name": "Page Block 11",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title11",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title11",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc11",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image11",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list11",
+        "label": "Select Products"
+      }
+    ]
+  },
+  {
+    "type": "quiz_result12",
+    "name": "Page Block 12",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title12",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title12",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc12",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image12",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list12",
+        "label": "Select Products"
+      }
+    ]
+  },
+  {
+    "type": "quiz_result13",
+    "name": "Page Block 13",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title13",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title13",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc13",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image13",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list13",
+        "label": "Select Products"
+      }
+    ]
+  },
+  {
+    "type": "quiz_result14",
+    "name": "Page Block 14",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title14",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title14",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc14",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image14",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list14",
+        "label": "Select Products"
+      }
+    ]
+  },
+  {
+    "type": "quiz_result15",
+    "name": "Page Block 15",
+    "settings": [
+      {
+        "type": "text",
+        "id": "result_title15",
+        "label": "Title",
+        "default": "Your Quiz Result"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_title15",
+        "label": "Sub Title"
+      },
+      {
+        "type": "richtext",
+        "id": "result_sub_desc15",
+        "label": "Content"
+      },
+      {
+          "type": "image_picker",
+          "id": "result_image15",
+          "label": "RO Image"
+        },
+      {
+        "type": "product_list",
+        "id": "product_list15",
+        "label": "Select Products"
+      }
+    ]
+  }
+  ],
+  "presets": [
+    {
+      "name": "Quiz",
+      "blocks": [
+        {
+          "type": "question"
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

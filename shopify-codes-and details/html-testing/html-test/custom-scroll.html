@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Custom Scrollbar</title>
+    <style>        .custom-scroll-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .custom-scroll-content {
+            height: 100%;
+            overflow-y: auto;
+            padding-right: 15px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        .custom-scroll-content::-webkit-scrollbar {
+            display: none;
+        }
+
+        .custom-scrollbar-track {
+            position: absolute;
+            right: 2px;
+            top: 2px;
+            bottom: 2px;
+            width: 6px;
+            background-color: rgba(0,0,0,0.1);
+            border-radius: 3px;
+        }
+
+        .custom-scrollbar-thumb {
+            position: absolute;
+            width: 100%;
+            background-color: rgba(0,0,0,0.4);
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .custom-scrollbar-thumb:hover,
+        .custom-scrollbar-thumb.dragging {
+            background-color: rgba(0,0,0,0.6);
+        }
+
+        /* Demo containers with different styles */
+        .demo-container {
+            width: 300px;
+            height: 300px;
+            margin: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            float: left;
+        }
+
+        .demo-container h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .content-item {
+            background-color: #f5f5f5;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        /* Instructions */
+        .instructions {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .instructions h2 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .instructions code {
+            background-color: #f5f5f5;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container custom-scroll-container">
+        <h3>Container 1 - Default</h3>
+        <div class="custom-scroll-content">
+            <div class="content-item">Item 1 - Lorem ipsum dolor sit amet</div>
+            <div class="content-item">Item 2 - Consectetur adipiscing elit</div>
+            <div class="content-item">Item 3 - Sed do eiusmod tempor incididunt</div>
+            <div class="content-item">Item 4 - Ut labore et dolore magna aliqua</div>
+            <div class="content-item">Item 5 - Ut enim ad minim veniam</div>
+            <div class="content-item">Item 6 - Quis nostrud exercitation ullamco</div>
+            <div class="content-item">Item 7 - Laboris nisi ut aliquip ex ea</div>
+            <div class="content-item">Item 8 - Commodo consequat duis aute</div>
+            <div class="content-item">Item 9 - Irure dolor in reprehenderit</div>
+            <div class="content-item">Item 10 - In voluptate velit esse cillum</div>
+        </div>
+    </div>
+
+    <script>
+        // Global Custom Scrollbar Class
+        class CustomScrollbar {
+            constructor(container) {
+                this.container = container;
+                this.init();
+            }
+
+            init() {
+                // Check if content wrapper exists, if not create it
+                let scrollContent = this.container.querySelector('.custom-scroll-content');
+                if (!scrollContent) {
+                    // Wrap existing content
+                    scrollContent = document.createElement('div');
+                    scrollContent.className = 'custom-scroll-content';
+                    while (this.container.firstChild) {
+                        scrollContent.appendChild(this.container.firstChild);
+                    }
+                    this.container.appendChild(scrollContent);
+                }
+                this.scrollContent = scrollContent;
+
+                // Create scrollbar elements
+                this.createScrollbar();
+                
+                // Set up event listeners
+                this.setupEventListeners();
+                
+                // Initial update
+                this.updateScrollbar();
+                
+                // Observe content changes
+                this.observeContentChanges();
+            }
+
+            createScrollbar() {
+                // Create track
+                this.track = document.createElement('div');
+                this.track.className = 'custom-scrollbar-track';
+                
+                // Create thumb
+                this.thumb = document.createElement('div');
+                this.thumb.className = 'custom-scrollbar-thumb';
+                
+                this.track.appendChild(this.thumb);
+                this.container.appendChild(this.track);
+            }
+
+            setupEventListeners() {
+                // Scroll event
+                this.scrollContent.addEventListener('scroll', () => this.updateScrollbar());
+                
+                // Mouse events
+                this.thumb.addEventListener('mousedown', (e) => this.startDrag(e));
+                document.addEventListener('mousemove', (e) => this.drag(e));
+                document.addEventListener('mouseup', () => this.endDrag());
+                
+                // Touch events
+                this.thumb.addEventListener('touchstart', (e) => this.startDrag(e), { passive: false });
+                document.addEventListener('touchmove', (e) => this.drag(e), { passive: false });
+                document.addEventListener('touchend', () => this.endDrag());
+                
+                // Window resize
+                window.addEventListener('resize', () => this.updateScrollbar());
+            }
+
+            updateScrollbar() {
+                if (this.isHorizontal) {
+                    this.updateHorizontalScrollbar();
+                } else {
+                    this.updateVerticalScrollbar();
+                }
+            }
+
+            updateVerticalScrollbar() {
+                const contentHeight = this.scrollContent.scrollHeight;
+                const containerHeight = this.scrollContent.clientHeight;
+                const scrollTop = this.scrollContent.scrollTop;
+                
+                // Hide scrollbar if content fits
+                if (contentHeight <= containerHeight) {
+                    this.track.style.display = 'none';
+                    return;
+                }
+                
+                this.track.style.display = 'block';
+                
+                // Calculate thumb size and position
+                const thumbHeight = Math.max((containerHeight / contentHeight) * containerHeight, 30);
+                const maxScrollTop = contentHeight - containerHeight;
+                const thumbPosition = (scrollTop / maxScrollTop) * (containerHeight - thumbHeight);
+                
+                this.thumb.style.height = thumbHeight + 'px';
+                this.thumb.style.top = thumbPosition + 'px';
+            }
+
+            startDrag(e) {
+                e.preventDefault();
+                this.isDragging = true;
+                this.thumb.classList.add('dragging');
+                
+                const clientPos = e.type.includes('touch') ? e.touches[0] : e;
+                if (this.isHorizontal) {
+                    this.startPos = clientPos.clientX - this.thumb.offsetLeft;
+                } else {
+                    this.startPos = clientPos.clientY - this.thumb.offsetTop;
+                }
+            }
+
+            drag(e) {
+                if (!this.isDragging) return;
+                
+                e.preventDefault();
+                const clientPos = e.type.includes('touch') ? e.touches[0] : e;
+                
+                if (this.isHorizontal) {
+                    this.dragHorizontal(clientPos.clientX);
+                } else {
+                    this.dragVertical(clientPos.clientY);
+                }
+            }
+
+            dragVertical(clientY) {
+                const deltaY = clientY - this.startPos;
+                const containerHeight = this.scrollContent.clientHeight;
+                const thumbHeight = this.thumb.offsetHeight;
+                const maxThumbTop = containerHeight - thumbHeight;
+                
+                let newThumbTop = Math.min(Math.max(0, deltaY), maxThumbTop);
+                this.thumb.style.top = newThumbTop + 'px';
+                
+                // Update scroll position
+                const scrollPercentage = newThumbTop / maxThumbTop;
+                const contentHeight = this.scrollContent.scrollHeight;
+                const maxScrollTop = contentHeight - containerHeight;
+                this.scrollContent.scrollTop = scrollPercentage * maxScrollTop;
+            }
+
+            endDrag() {
+                this.isDragging = false;
+                this.thumb.classList.remove('dragging');
+            }
+
+            observeContentChanges() {
+                // Use MutationObserver to update scrollbar when content changes
+                const observer = new MutationObserver(() => this.updateScrollbar());
+                observer.observe(this.scrollContent, {
+                    childList: true,
+                    subtree: true,
+                    characterData: true
+                });
+            }
+        }
+
+        // Initialize all containers with custom-scroll-container class
+        function initializeCustomScrollbars() {
+            const containers = document.querySelectorAll('.custom-scroll-container');
+            containers.forEach(container => {
+                // Skip if already initialized
+                if (!container.dataset.scrollbarInitialized) {
+                    new CustomScrollbar(container);
+                    container.dataset.scrollbarInitialized = 'true';
+                }
+            });
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', initializeCustomScrollbars);
+
+        // Re-initialize when new elements are added dynamically
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList') {
+                    initializeCustomScrollbars();
+                }
+            });
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        // Global function to manually initialize a container
+        window.initCustomScrollbar = function(container) {
+            if (container && !container.dataset.scrollbarInitialized) {
+                new CustomScrollbar(container);
+                container.dataset.scrollbarInitialized = 'true';
+            }
+        };
+    </script>
+</body>
+</html>

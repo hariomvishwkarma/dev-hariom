@@ -1,0 +1,445 @@
+{% comment %}
+  Rolling Countdown - Starts at Midnight (12:00 AM)
+  - Same timer for all users
+  - Resets every X days at 12:00 AM
+  - Option to show/hide timer added
+{% endcomment %}
+
+<div
+  class="announcement-countdown"
+  id="announcement-{{ section.id }}"
+  style="
+    background-color: {{ section.settings.bg_color }};
+    color: {{ section.settings.text_color }};
+    {% if section.settings.redirect_url != blank %}cursor: pointer;{% endif %}
+  "
+  data-redirect-url="{{ section.settings.redirect_url }}"
+  data-redirect-new-tab="{{ section.settings.redirect_new_tab }}"
+>
+  <div class="announcement-inner">
+
+    {%- if section.settings.announcement_text != blank or section.settings.button_label != blank -%}
+      <span class="announcement-text-group">
+        {%- if section.settings.announcement_text != blank -%}
+          <span class="announcement-text">{{ section.settings.announcement_text }}</span>
+        {%- endif -%}
+        {%- if section.settings.button_label != blank -%}
+          <a
+            href="{{ section.settings.button_link | default: '#' }}"
+            class="announcement-countdown__cta-btn"
+            style="background-color: {{ section.settings.button_bg_color }}; color: {{ section.settings.button_text_color }};"
+            {% if section.settings.button_link contains 'http' %}target="_blank" rel="noopener"{% endif %}
+            onclick="event.stopPropagation();"
+          >{{- section.settings.button_label -}}</a>
+        {%- endif -%}
+      </span>
+    {%- endif -%}
+
+    {% if section.settings.badge_text != blank %}
+      <span
+        class="announcement-badge"
+        style="
+          background-color: {{ section.settings.badge_bg_color }};
+          color: {{ section.settings.badge_text_color }};
+          cursor: pointer;
+          user-select: none;
+        "
+        title="Click to copy"
+      >
+        <span class="badge-label">{{ section.settings.badge_text }}</span>
+        <svg class="badge-copy-icon" width="11" height="11" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;margin-left:4px;opacity:0.5;">
+          <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M3 11V3a1 1 0 0 1 1-1h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <svg class="badge-check-icon" width="11" height="11" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;margin-left:4px;display:none;">
+          <polyline points="2,9 6,13 14,4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+    {% endif %}
+
+    {% if section.settings.show_timer %}
+      <div class="announcement-timer" id="timer-{{ section.id }}">
+        <span class="timer-block days-block" id="days-block-{{ section.id }}" style="display: none;">
+          <span class="timer-digits" id="days-{{ section.id }}">00</span>
+          <span class="timer-label">{{ section.settings.label_days | default: 'D' }}</span>
+        </span>
+        <span class="timer-sep days-sep" id="days-sep-{{ section.id }}" style="display: none;">:</span>
+
+        <span class="timer-block">
+          <span class="timer-digits" id="hours-{{ section.id }}">00</span>
+          <span class="timer-label">{{ section.settings.label_hours }}</span>
+        </span>
+        <span class="timer-sep">:</span>
+        <span class="timer-block">
+          <span class="timer-digits" id="minutes-{{ section.id }}">00</span>
+          <span class="timer-label">{{ section.settings.label_minutes }}</span>
+        </span>
+        <span class="timer-sep">:</span>
+        <span class="timer-block">
+          <span class="timer-digits" id="seconds-{{ section.id }}">00</span>
+          <span class="timer-label">{{ section.settings.label_seconds }}</span>
+        </span>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<style>
+  :root {
+    --announcement-countdown-is-sticky: {% if section.settings.enable_sticky %}1{% else %}0{% endif %};
+  }
+
+  {%- if section.settings.enable_sticky -%}
+    #shopify-section-{{ section.id }} { position: sticky; top: 0; z-index: 100; }
+    .shopify-section--header ~ #shopify-section-{{ section.id }} {
+      top: calc(var(--header-is-sticky, 0) * var(--header-is-visible, 0) * var(--header-height, 0px));
+    }
+  {%- endif -%}
+
+  #announcement-{{ section.id }} {
+    width: 100%; padding: 10px 16px; font-size: {{ section.settings.font_size }}px;
+    font-weight: 600; letter-spacing: 0.03em; box-sizing: border-box;
+  }
+  #announcement-{{ section.id }} .announcement-inner {
+    display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; text-align: center;
+  }
+  #announcement-{{ section.id }} .announcement-text {
+    font: var(--subheading-font-style) var(--subheading-font-weight) var(--subheading-font-size) / normal var(--subheading-font-family) !important;
+  }
+  #announcement-{{ section.id }} .announcement-badge {
+    display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 40px;
+    font-size: {{ section.settings.font_size | minus: 1 }}px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase; min-width: 95px; justify-content: center;
+  }
+  #announcement-{{ section.id }} .announcement-timer { display: flex; align-items: center; gap: 4px; }
+  #announcement-{{ section.id }} .timer-block { display: flex; align-items: center; gap: 2px; }
+  #announcement-{{ section.id }} .timer-digits {
+    font-variant-numeric: tabular-nums; font-weight: 600;
+    font: var(--subheading-font-style) var(--subheading-font-weight) var(--subheading-font-size) / normal var(--subheading-font-family) !important;
+    min-width: 22px; text-align: center;
+  }
+  #announcement-{{ section.id }} .timer-label {
+    font-size: {{ section.settings.font_size | minus: 3 }}px; font-weight: 600;
+    font: var(--subheading-font-style) var(--subheading-font-weight) var(--subheading-font-size) / normal var(--subheading-font-family) !important;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  #announcement-{{ section.id }} .timer-sep { font-weight: 600; margin: 0 1px; line-height: 1; }
+
+  /* === Text + Button inline group === */
+  .announcement-text-group {
+    display: inline;
+    text-align: center;
+  }
+
+  /* === CTA Button === */
+  .announcement-countdown__cta-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    padding: 5px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: 8px;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .announcement-countdown__cta-btn:hover {
+    opacity: 0.85;
+    transform: scale(1.03);
+  }
+  .announcement-countdown__cta-btn:active {
+    transform: scale(0.97);
+  }
+  @media (max-width: 749px) {
+    .announcement-countdown__cta-btn {
+      font-size: 12px;
+      padding: 4px 13px;
+      margin-left: 6px;
+    }
+    #announcement-{{ section.id }} .announcement-inner {
+      gap: 8px;
+    }
+  }
+</style>
+
+<script>
+  (function() {
+    var sectionId = '{{ section.id }}';
+    var bannerEl = document.getElementById('announcement-' + sectionId);
+    if (!bannerEl) return;
+
+    // Banner Click Logic
+    bannerEl.addEventListener('click', function(e) {
+      if (e.target.closest('.announcement-badge')) return;
+      var url = bannerEl.getAttribute('data-redirect-url');
+      if (!url) return;
+      var newTab = bannerEl.getAttribute('data-redirect-new-tab') === 'true';
+      newTab ? window.open(url, '_blank') : window.location.href = url;
+    });
+
+    // Badge Copy Logic
+    var badgeEl = bannerEl.querySelector('.announcement-badge');
+    if (badgeEl) {
+      badgeEl.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var labelEl = badgeEl.querySelector('.badge-label');
+        var text = labelEl.textContent.trim();
+        var copied = {{ section.settings.copied_text | json }};
+
+        if (badgeEl.dataset.copying === '1') return;
+        badgeEl.dataset.copying = '1';
+
+        function onSuccess() {
+          badgeEl.querySelector('.badge-copy-icon').style.display = 'none';
+          badgeEl.querySelector('.badge-check-icon').style.display = 'inline';
+          labelEl.textContent = copied;
+          setTimeout(function() {
+            badgeEl.querySelector('.badge-copy-icon').style.display = 'inline';
+            badgeEl.querySelector('.badge-check-icon').style.display = 'none';
+            labelEl.textContent = text;
+            badgeEl.dataset.copying = '0';
+          }, 1800);
+        }
+
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(onSuccess).catch(fallback);
+        } else {
+          fallback();
+        }
+
+        function fallback() {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+          document.body.appendChild(ta);
+          ta.focus(); ta.select();
+          try { document.execCommand('copy'); } catch(err) {}
+          document.body.removeChild(ta);
+          onSuccess();
+        }
+      });
+    }
+
+    // Timer Logic - Only run if timer element exists
+    var timerEl = document.getElementById('timer-' + sectionId);
+    if (timerEl) {
+      var showDays    = {{ section.settings.show_days | json }};
+      var rollingDays = parseInt('{{ section.settings.rolling_days }}') || 3;
+
+      function getNextCycleEndTime() {
+        var periodMs = rollingDays * 24 * 60 * 60 * 1000;
+        var referenceTime = new Date('2025-01-01T00:00:00').getTime();
+        var elapsed = Date.now() - referenceTime;
+        var cycles = Math.floor(elapsed / periodMs);
+        return referenceTime + (cycles + 1) * periodMs;
+      }
+
+      var endTime = getNextCycleEndTime();
+
+      function pad(n) { return n < 10 ? '0' + n : n; }
+
+      var daysEl    = document.getElementById('days-' + sectionId);
+      var hoursEl   = document.getElementById('hours-' + sectionId);
+      var minutesEl = document.getElementById('minutes-' + sectionId);
+      var secondsEl = document.getElementById('seconds-' + sectionId);
+      var daysBlock = document.getElementById('days-block-' + sectionId);
+      var daysSep   = document.getElementById('days-sep-' + sectionId);
+
+      function tick() {
+        var remaining = endTime - Date.now();
+        if (remaining <= 0) {
+          endTime = getNextCycleEndTime();
+          remaining = endTime - Date.now();
+        }
+
+        var totalSecs = Math.floor(remaining / 1000);
+        var d = Math.floor(totalSecs / 86400);
+        var h = Math.floor((totalSecs % 86400) / 3600);
+        var m = Math.floor((totalSecs % 3600) / 60);
+        var s = totalSecs % 60;
+
+        if (showDays && d > 0) {
+          if(daysEl) daysEl.textContent = pad(d);
+          if(daysBlock) daysBlock.style.display = 'flex';
+          if(daysSep) daysSep.style.display = 'inline';
+          if(hoursEl) hoursEl.textContent = pad(h);
+        } else {
+          if(daysBlock) daysBlock.style.display = 'none';
+          if(daysSep) daysSep.style.display = 'none';
+          if(hoursEl) hoursEl.textContent = pad(d * 24 + h);
+        }
+
+        if(minutesEl) minutesEl.textContent = pad(m);
+        if(secondsEl) secondsEl.textContent = pad(s);
+      }
+
+      tick();
+      setInterval(tick, 1000);
+    }
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Announcement Countdown",
+  "tag": "section",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_sticky",
+      "label": "Sticky Banner",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Banner Content"
+    },
+    {
+      "type": "text",
+      "id": "announcement_text",
+      "label": "Announcement Text",
+      "default": "Sale ends soon"
+    },
+    {
+      "type": "text",
+      "id": "badge_text",
+      "label": "Coupon Code",
+      "default": "SPRING"
+    },
+    {
+      "type": "text",
+      "id": "copied_text",
+      "label": "Copied Text",
+      "default": "Copied!"
+    },
+    {
+      "type": "header",
+      "content": "Click Redirect (Optional)"
+    },
+    {
+      "type": "url",
+      "id": "redirect_url",
+      "label": "Redirect URL"
+    },
+    {
+      "type": "checkbox",
+      "id": "redirect_new_tab",
+      "label": "Open in new tab",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Countdown Settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_timer",
+      "label": "Show Timer",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "rolling_days",
+      "label": "Timer Duration (Days)",
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "default": 3,
+      "info": "Countdown starts at 12:00 AM and resets every X days at midnight"
+    },
+    {
+      "type": "header",
+      "content": "Timer Display"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_days",
+      "label": "Show Days",
+      "default": true
+    },
+    { "type": "text", "id": "label_days",    "label": "Days Label",    "default": "D" },
+    { "type": "text", "id": "label_hours",   "label": "Hours Label",   "default": "H" },
+    { "type": "text", "id": "label_minutes", "label": "Minutes Label", "default": "M" },
+    { "type": "text", "id": "label_seconds", "label": "Seconds Label", "default": "S" },
+    {
+      "type": "header",
+      "content": "CTA Button"
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button Text",
+      "default": "Shop now",
+      "info": "Leave blank to hide the button"
+    },
+    {
+      "type": "url",
+      "id": "button_link",
+      "label": "Button Link"
+    },
+    {
+      "type": "color",
+      "id": "button_bg_color",
+      "label": "Button Background Color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button Text Color",
+      "default": "#0f2137"
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "bg_color",
+      "label": "Background Color",
+      "default": "#4aadab"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text Color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "badge_bg_color",
+      "label": "Badge Background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "badge_text_color",
+      "label": "Badge Text Color",
+      "default": "#333333"
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "range",
+      "id": "font_size",
+      "label": "Font Size (px)",
+      "min": 12,
+      "max": 22,
+      "step": 1,
+      "default": 14
+    }
+  ],
+  "presets": [{ "name": "Announcement Countdown" }]
+}
+{% endschema %}

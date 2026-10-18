@@ -1,0 +1,105 @@
+<div class="upsell-product">
+    <div class="upsell-product-img">
+      {% if product.images.first %}
+        {{ product.images.first | image_url: width: 300 | image_tag }}
+      {% endif %}
+    </div>
+    <div class="upsell-product-info">
+      <div class="upsell-product-info-inner">
+        <a href="{{ product.url }}">
+          <div class="upsell-product-title">{{ product.title }}</div>
+        </a>
+        
+        {% if settings.show_cart_upsell_rating %}
+          <div class="upsell-product-rating">
+            {%- render 'product-rating', product: product -%}
+          </div>
+        {% endif %}
+        {% if settings.show_cart_upsell_price %}
+          <div class="ed-price-list">
+            <div class="ed-price-list-inner">
+              {%- if product.selected_or_first_available_variant.compare_at_price > product.selected_or_first_available_variant.price -%}
+                <span class="price price--compare">
+                  <span class="visually-hidden">{{ 'product.general.regular_price' | t }}</span>
+
+                  {%- if settings.currency_code_enabled -%}
+                    {{- product.selected_or_first_available_variant.compare_at_price | money_without_currency -}}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }} {{ shop.currency }}
+                  {%- else -%}
+                    {{- product.selected_or_first_available_variant.compare_at_price | money_without_currency -}}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }}
+                  {%- endif -%}
+                </span>
+
+                <span class="price price--highlight price--large">
+                  <span class="visually-hidden">{{ 'product.general.sale_price' | t }}</span>
+
+                  {%- if settings.currency_code_enabled -%}
+                    {{- product.selected_or_first_available_variant.price | money_without_currency -}}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }} {{ shop.currency }}
+                  {%- else -%}
+                    {{- product.selected_or_first_available_variant.price | money_without_currency -}}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }}
+                  {%- endif -%}
+                </span>
+              {%- else -%}
+                <span class="price price--large">
+                  <span class="visually-hidden">{{ 'product.general.sale_price' | t }}</span>
+                  {%- if settings.currency_code_enabled -%}
+                    {{- product.selected_or_first_available_variant.price | money_without_currency -}}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }} {{ shop.currency }}
+                  {%- else -%}
+                    {{- product.selected_or_first_available_variant.price | money_without_currency -}}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }}
+                  {%- endif -%}
+                </span>
+              {%- endif -%}
+
+              {%- capture product_discounts -%}
+                {%- assign cheapest_variant = product.variants | sort: 'price' | first -%}
+            
+                {%- if settings.show_discount and product.available and product.price < product.compare_at_price and cheapest_variant.compare_at_price != blank -%}
+                  {%- if settings.discount_mode == 'percentage' -%}
+                    {%- assign savings = product.compare_at_price | minus: product.price | times: 100.0 | divided_by: product.compare_at_price | round | append: '%' -%}
+                  {%- else -%}
+                    {%- capture savings -%}{{ product.compare_at_price | minus: product.price | money_without_currency }}{{ shop.currency | replace: 'EUR', '€' | replace: 'eur', '€' | replace: 'USD', '$' | replace: 'usd', '$' }}{%- endcapture -%}
+                  {%- endif -%}
+            
+                  <span class="label label--highlight">{{ 'collection.product.discount_html' | t: savings: savings }}</span>
+                {%- endif -%}
+              {%- endcapture -%}
+
+              {{ product_discounts }}
+            </div>
+
+            <div class="tax-unit-price-wrap">
+              {%- render 'plenty-grundpreis-unit-price', variant: product.selected_or_first_available_variant, wrapper_class: 'price text--xsmall text--subdued' -%}
+
+              {%- if section.settings.show_taxes_included -%}
+                {%- if cart.taxes_included or shop.shipping_policy.body != blank -%}
+                  <p class="product-meta__taxes-included text--small">
+                    {%- if cart.taxes_included -%}
+                      {{ 'product.general.include_taxes' | t }}
+                    {%- endif -%}
+      
+                    {%- if shop.shipping_policy.body != blank -%}
+                      {{ 'product.general.shipping_policy_html' | t: link: shop.shipping_policy.url }}
+                    {%- endif -%}
+                  </p>
+                {%- endif -%}
+              {%- endif -%}
+
+              {%- if shipment_details_page != blank  -%}
+                <button type="button" is="toggle-button" class="product-form__option-link product-form__option-link--shipment link hidden-phone" aria-controls="product-{{ section.id }}-{{ product.id }}-shipment-drawer" aria-expanded="false">{{ 'product.general.shipment' | t }}</button>
+                <button type="button" is="toggle-button" class="product-form__option-link product-form__option-link--shipment link hidden-tablet-and-up" aria-controls="product-{{ section.id }}-{{ product.id }}-shipment-popover" aria-expanded="false">{{ 'product.general.shipment' | t }}</button>
+              {%- endif -%}
+            </div>
+          </div>
+          {% endif %}
+      </div>
+      <div
+        class="upsell-add-to-cart button button--primary button--text"
+        data-open-popup="{% if product.variants.size > 1 %}yes{% else %} no {% endif %}"
+  
+        data-vid="{{ product.first_available_variant.id }}"
+        data-product-id="{{ product.id }}"
+      >
+        {% render 'icon' with 'quick-atc-icon' %}
+      </div>
+    </div>
+  </div>
+  

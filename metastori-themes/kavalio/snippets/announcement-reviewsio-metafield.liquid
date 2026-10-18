@@ -1,0 +1,128 @@
+{% doc %}
+  Renders a local Reviews.io-style rating bar using shop metafields.
+
+  @param {object} block - Announcement bar trusted shops block.
+  @param {object} settings - Block settings containing the metafield references and optional review URL.
+{% enddoc %}
+
+{%- liquid
+  assign rating_reference = settings.rating_metafield | default: block.settings.rating_metafield | strip | remove: 'shop.metafields.'
+  assign count_reference = settings.count_metafield | default: block.settings.count_metafield | strip | remove: 'shop.metafields.'
+  assign reviews_url = settings.reviews_url | strip
+
+  assign rating_parts = rating_reference | split: '.'
+  assign rating_namespace = rating_parts | first
+  assign rating_key = rating_parts[1]
+  if rating_parts.size == 1
+    assign rating_namespace = 'custom'
+    assign rating_key = rating_parts | first
+  endif
+
+  assign count_parts = count_reference | split: '.'
+  assign count_namespace = count_parts | first
+  assign count_key = count_parts[1]
+  if count_parts.size == 1
+    assign count_namespace = 'custom'
+    assign count_key = count_parts | first
+  endif
+
+  assign rating_metafield = shop.metafields[rating_namespace][rating_key]
+  assign count_metafield = shop.metafields[count_namespace][count_key]
+  assign rating_value = rating_metafield.value
+  assign count_value = count_metafield.value
+
+  if rating_value.rating != blank
+    assign rating_value = rating_value.rating
+  endif
+
+  assign rating_number = rating_value | times: 1.0 | at_least: 0 | at_most: 5
+  assign rating_display = rating_number | round: 1 | append: ''
+  if localization.language.iso_code contains 'de'
+    assign rating_display = rating_display | replace: '.', ','
+    assign thousands_separator = '.'
+  else
+    assign thousands_separator = ','
+  endif
+
+  assign count_number = count_value | plus: 0 | round
+  assign count_string = count_number | append: ''
+  assign count_formatted = count_string
+  if count_string.size > 6
+    assign first_group_length = count_string.size | minus: 6
+    assign first_group = count_string | slice: 0, first_group_length
+    assign middle_group = count_string | slice: first_group_length, 3
+    assign last_group = count_string | slice: -3, 3
+    capture count_formatted
+      echo first_group
+      echo thousands_separator
+      echo middle_group
+      echo thousands_separator
+      echo last_group
+    endcapture
+  elsif count_string.size > 3
+    assign first_group_length = count_string.size | minus: 3
+    assign first_group = count_string | slice: 0, first_group_length
+    assign last_group = count_string | slice: -3, 3
+    capture count_formatted
+      echo first_group
+      echo thousands_separator
+      echo last_group
+    endcapture
+  endif
+
+  assign reviews_text = 'product.general.reviews_count' | t: count: count_number
+  assign reviews_text = reviews_text | replace: count_string, count_formatted
+  assign rating_percentage = rating_number | times: 100
+-%}
+
+{%- if rating_value != blank and count_value != blank -%}
+  {%- if reviews_url != blank -%}
+    <a
+      class="reviewsio-meta-link"
+      href="{{ reviews_url }}"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+  {%- endif -%}
+  <div class="reviewsio-meta-widget">
+    <img
+      class="reviewsio-meta-logo"
+      src="{{ 'reviewsio-logo-inverted.svg' | asset_url }}"
+      width="87"
+      height="14"
+      loading="eager"
+      alt="REVIEWS.io"
+    >
+    <span class="reviewsio-meta-stars" aria-label="{{ rating_display | escape }} / 5">
+      {%- for star_index in (1..5) -%}
+        {%- liquid
+          assign star_start = star_index | minus: 1 | times: 100
+          assign star_fill = rating_percentage | minus: star_start | at_least: 0 | at_most: 100
+          assign star_fill = star_fill | divided_by: 25 | floor | times: 25
+        -%}
+        <span class="reviewsio-meta-star" aria-hidden="true">
+          <svg viewBox="0 -960 1024 1024" focusable="false" aria-hidden="true">
+            {%- case star_fill -%}
+              {%- when 100 -%}
+                <path transform="scale(1 -1)" d="M515.949 861.008l-110.887-310.477h-295.682l242.090-181.101-86.852-321.552 251.331 192.193 251.331-192.193-86.86 321.552 242.098 181.101h-295.69l-110.879 310.477z"/>
+              {%- when 75 -%}
+                <path transform="scale(1 -1)" d="M515.949 861.008l-110.887-310.477h-295.682l242.090-181.101-86.852-321.552 251.331 192.193 251.331-192.193-86.86 321.552 242.098 181.101h-295.69l-110.879 310.477zM567.542 288.502l0.156 193.659 162.619 3.695-133.054-105.333 57.287-164.479-87.007 72.458z"/>
+              {%- when 50 -%}
+                <path transform="scale(1 -1)" d="M515.023 861.016l-110.879-310.477h-295.682l242.090-181.101-86.86-321.561 251.331 192.193 251.339-192.193-86.86 321.561 242.098 181.101h-295.69l-110.887 310.477zM515.023 330.625v338.19l51.757-186.655 162.619 3.703-133.063-105.341 57.295-164.479-138.609 114.582z"/>
+              {%- when 25 -%}
+                <path transform="scale(1 -1)" d="M515.023 861.016l-110.879-310.477h-295.682l242.090-181.101-86.86-321.561 251.331 192.193 251.339-192.193-86.86 321.561 242.098 181.101h-295.69l-110.887 310.477zM465.134 482.161l49.889 186.655 51.757-186.655 162.619 3.703-133.063-105.341 57.295-164.479-138.609 114.582-50.045-40.772 0.156 192.307z"/>
+              {%- else -%}
+                <path transform="scale(1 -1)" d="M515.023 861.016l-110.879-310.477h-295.682l242.090-181.101-86.86-321.561 251.331 192.193 251.339-192.193-86.86 321.561 242.098 181.101h-295.69l-110.887 310.477zM515.023 668.815l51.757-186.655 162.619 3.703-133.063-105.341 57.295-164.479-138.609 114.582-138.6-114.582 57.295 164.479-131.211 105.341 162.628-3.703 49.889 186.655z"/>
+            {%- endcase -%}
+          </svg>
+        </span>
+      {%- endfor -%}
+    </span>
+    <span class="reviewsio-meta-text">
+      <span>{{ rating_display }} / 5 &nbsp;&nbsp;</span><span>{{ reviews_text }}</span>
+    </span>
+  </div>
+  {%- if reviews_url != blank -%}
+    </a>
+  {%- endif -%}
+{%- endif -%}

@@ -1,0 +1,385 @@
+{% assign compare_at_price = 0 %}
+
+{% for variant in item.product.variants %}
+  {% if variant.id == item.variant.id and variant.compare_at_price > item.price %}
+    {% assign compare_at_price = variant.compare_at_price %}
+    {% break %}
+  {% endif %}
+{% endfor %}
+
+{%- assign item_has_discounts = false -%}
+{%- if item.line_level_discount_allocations.size > 0 -%}
+  {%- assign item_has_discounts = true -%}
+{%- endif -%}
+
+<li
+  class="cart-item"
+  data-cartitem
+  data-cartitem-id="{{ item.variant_id }}"
+  data-cartitem-key="{{ item.key }}"
+  data-cartitem-price="{{ item.price }}"
+  data-cartitem-sku="{{ item.sku }}">
+  <div class="cart-item--content-wrapper">
+    <figure class="cart-item--image-wrapper">
+      <a href="{{ item.url }}">
+        {% if item.image %}
+          {%
+            render 'rimg',
+            img: item.image,
+            alt: item.title,
+            size: '120x'
+          %}
+        {% else %}
+          {{ 'image' | placeholder_svg_tag: 'placeholder--image' }}
+        {% endif %}
+      </a>
+    </figure>
+    <div class="cart-item--inner">
+      <div class="cart-item--content">
+        <h2 class="cart-item--content-title">
+          <a href="{{ item.url }}">
+            {{ item.product.title }}
+          </a>
+        </h2>
+        {% unless item.product.has_only_default_variant %}
+          {% for option in item.product.options %}
+            <div class="cart-item--product-options">
+              <span class="cart-item--option-name">{{ option }}</span>
+              {{ item.variant.options[forloop.index0] }}
+            </div>
+          {% endfor %}
+        {% endunless %}
+        {% if item.selling_plan_allocation.selling_plan %}
+          <span class="cart-item--line-item-subscriptions">{{ item.selling_plan_allocation.selling_plan.name }}</span>
+        {% endif %}
+        {% capture total_quantity %}<span class="cart-item--total-quantity" data-total-quantity>{{ item.unit_price_measurement.quantity_value }}{{ item.unit_price_measurement.quantity_unit }}</span>{% endcapture %}
+        {% capture unit_price %}<span class="cart-item--unit-price-amount money" data-unit-price-amount>{{ item.unit_price | money }}</span>{% endcapture %}
+        {% capture unit_measure %}<span class="cart-item--unit-price-measure" data-unit-price-measure>{%- if item.unit_price_measurement.reference_value != 1 -%}{{ item.unit_price_measurement.reference_value }}{%- endif %}{{ item.unit_price_measurement.reference_unit }}</span>{% endcapture %}
+        {% if item.unit_price_measurement %}
+          <div class="cart-item--unit-price">
+            {{ 'product.general.price_per_unit_html' | t: total_quantity: total_quantity, unit_price: unit_price, unit_measure: unit_measure | strip_newlines }}
+          </div>
+        {% endif %}
+        {%- if item_has_discounts -%}
+          <ul class="discount-list" aria-label="{{ 'product.general.discounts' | t }}">
+            {% for discount_allocation in item.line_level_discount_allocations %}
+              <li class="discount-list-item">
+                {% render 'icon-library', id: 'icon-sale-tag' %}
+                {{ discount_allocation.discount_application.title }}
+                (-<span class="money">{{ discount_allocation.amount | money }}</span>)
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {% if show_sku %}
+          <div
+            class="
+              cart-item--sku
+              {% if item.sku == empty %}cart-item--sku-empty{% endif %}
+            "
+          >
+            {{ 'product.general.sku_html' | t: sku: item.sku | strip_newlines }}
+          </div>
+        {% endif %}
+        <div class="cart-item--bullet-points stock-bullet-point">
+          <div class="cart-item--bullet-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="10" viewBox="0 0 13 10" fill="none"> <path d="M12.3789 0.621094C12.543 0.803385 12.625 1.01302 12.625 1.25C12.625 1.48698 12.543 1.69661 12.3789 1.87891L5.37891 8.87891C5.19661 9.04297 4.98698 9.125 4.75 9.125C4.51302 9.125 4.30339 9.04297 4.12109 8.87891L0.621094 5.37891C0.457031 5.19661 0.375 4.98698 0.375 4.75C0.375 4.51302 0.457031 4.30339 0.621094 4.12109C0.803385 3.95703 1.01302 3.875 1.25 3.875C1.48698 3.875 1.69661 3.95703 1.87891 4.12109L4.72266 7.01953L11.1211 0.621094C11.3034 0.457031 11.513 0.375 11.75 0.375C11.987 0.375 12.1966 0.457031 12.3789 0.621094Z" fill="#001F3C"/> </svg>
+          </div>
+          <div class="cart-item--bullet-point-caption">In Stock</div>
+        </div>
+        <div class="cart-item--bullet-points">
+          <div class="cart-item--bullet-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="10" viewBox="0 0 13 10" fill="none"> <path d="M12.3789 0.621094C12.543 0.803385 12.625 1.01302 12.625 1.25C12.625 1.48698 12.543 1.69661 12.3789 1.87891L5.37891 8.87891C5.19661 9.04297 4.98698 9.125 4.75 9.125C4.51302 9.125 4.30339 9.04297 4.12109 8.87891L0.621094 5.37891C0.457031 5.19661 0.375 4.98698 0.375 4.75C0.375 4.51302 0.457031 4.30339 0.621094 4.12109C0.803385 3.95703 1.01302 3.875 1.25 3.875C1.48698 3.875 1.69661 3.95703 1.87891 4.12109L4.72266 7.01953L11.1211 0.621094C11.3034 0.457031 11.513 0.375 11.75 0.375C11.987 0.375 12.1966 0.457031 12.3789 0.621094Z" fill="#001F3C"/> </svg>
+          </div>
+          <div class="cart-item--bullet-point-caption">Same day dispatch before 3pm</div>
+        </div>
+        {% if settings.inventory_status %}
+          {% if item.variant.inventory_quantity > 0 and item.variant.inventory_quantity <= settings.low_stock_threshold %}
+            {%
+              render 'product-stock-level',
+              inventory_display: settings.inventory_display,
+              inventory_transfer: settings.inventory_transfer_notice,
+              variant: item.variant,
+              verbose: false,
+            %}
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+ <div
+    class="cart-item--quantity form-fields--qty"
+    data-quantity-wrapper
+    >
+    <div class="form-field form-field--qty-select {% if item.quantity < 10 %}visible{% else %}hidden{% endif %}">
+      <label class="form-field-title" for="quantity_{{ item.key | replace: ':', '_' }}" style="display:none;">
+        Qty
+      </label>
+      <div class="form-field-select-wrapper">
+        <div class="btnqtyy qtymin">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="3" viewBox="0 0 14 3" fill="none"> <path d="M13.5 1.5C13.4583 1.95833 13.2083 2.20833 12.75 2.25H1.25C0.791667 2.20833 0.541667 1.95833 0.5 1.5C0.541667 1.04167 0.791667 0.791667 1.25 0.75H12.75C13.2083 0.791667 13.4583 1.04167 13.5 1.5Z" fill="#001F3C"/> </svg>
+        </div>
+        <input
+          class="form-field-input form-field-select form-field-filled"
+          id="quantity_{{ item.key | replace: ':', '_' }}"
+          value="{{ item.quantity }}"
+          {% if item.quantity >= 10 %}tabindex="-1"{% endif %}
+          aria-label="{{ 'general.general.quantity' | t }}"
+          data-quantity-select
+          data-cartitem-quantity>
+        <div class="btnqtyy qtyplu">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="13" viewBox="0 0 14 13" fill="none"> <path d="M13.5 6.5C13.4583 6.95833 13.2083 7.20833 12.75 7.25H7.75V12.25C7.70833 12.7083 7.45833 12.9583 7 13C6.54167 12.9583 6.29167 12.7083 6.25 12.25V7.25H1.25C0.791667 7.20833 0.541667 6.95833 0.5 6.5C0.541667 6.04167 0.791667 5.79167 1.25 5.75H6.25V0.75C6.29167 0.291667 6.54167 0.0416667 7 0C7.45833 0.0416667 7.70833 0.291667 7.75 0.75V5.75H12.75C13.2083 5.79167 13.4583 6.04167 13.5 6.5Z" fill="#001F3C"/> </svg>
+        </div>
+      </div>
+    </div>
+    <div class="form-field form-field--qty-input {% if item.quantity < 10 %}hidden{% else %}visible{% endif %}">
+      <input
+        class="form-field-input form-field-number form-field-filled"
+        value="{{ item.quantity }}"
+        name="updates[]"
+        id="updates_{{ item.key }}"
+        type="text"
+        pattern="\d*"
+        {% if item.quantity < 10 %}tabindex="-1"{% endif %}
+        aria-label="{{ 'general.general.quantity' | t }}"
+        data-quantity-input
+        data-cartitem-quantity>
+      {% comment %} <label class="form-field-title" for="updates_{{ item.key }}">
+        {{ 'general.general.quantity' | t }}
+      </label> {% endcomment %}
+    </div>
+        <div class="cart-item--content-price-mobile">
+          {% comment %} <span class="cart-item--price-title">
+            {{ 'cart.general.price' | t }}
+          </span> {% endcomment %}
+          <div class="cart_item_prices">
+              <div class="money cart_item_final_price {% comment %}{% if compare_at_price != 0 %}cart-item--discount-price{% endif %}{% endcomment %}">
+                {%- if item_has_discounts -%}
+                  {{ item.final_price | money }}
+                {% elsif compare_at_price > item.price %}
+                  {{ item.original_price | money }}
+                {%- else -%}
+                  {{ item.original_price | money }}
+                {%- endif %}
+              </div>
+              {% if compare_at_price > item.price or item.original_price > item.final_price %}
+                <span class="visually-hidden">{{ 'product_price.price.original' | t }}</span>
+                <s class="{% comment %}cart-item--sale-price{% endcomment %} money cart_item_compare__price">
+                  {%- if item_has_discounts -%}
+                    {{ item.original_price | money }}
+                  {%- else -%}
+                    {{ compare_at_price | money }}
+                  {%- endif %}
+                </s>
+                <span class="visually-hidden">{{ 'product_price.price.current' | t }}</span>
+              {% endif %}
+          </div>
+          {% if compare_at_price > item.final_price %}
+            {% assign cart_item_discount = compare_at_price | minus: item.final_price | times: 100 | divided_by: compare_at_price %}
+            <div class="cart-item--sale-badge">
+              {{ settings.sale_badge_text }} - Save {{ cart_item_discount }}%
+            </div>
+          {% endif %}
+        </div>
+  </div> 
+  <div class="cart-item--content-price cart-item--content-price-desktop">
+    {% comment %} <span class="cart-item--price-title">
+      {{ 'cart.general.price' | t }}
+    </span> {% endcomment %}
+    <div class="cart_item_prices">
+        <div class="money cart_item_final_price {% comment %}{% if compare_at_price != 0 %}cart-item--discount-price{% endif %}{% endcomment %}">
+          {%- if item_has_discounts -%}
+            {{ item.final_price | money }}
+          {% elsif compare_at_price > item.price %}
+            {{ item.original_price | money }}
+          {%- else -%}
+            {{ item.original_price | money }}
+          {%- endif %}
+        </div>
+        {% if compare_at_price > item.price or item.original_price > item.final_price %}
+          <span class="visually-hidden">{{ 'product_price.price.original' | t }}</span>
+          <s class="{% comment %}cart-item--sale-price{% endcomment %} money cart_item_compare__price">
+            {%- if item_has_discounts -%}
+              {{ item.original_price | money }}
+            {%- else -%}
+              {{ compare_at_price | money }}
+            {%- endif %}
+          </s>
+          <span class="visually-hidden">{{ 'product_price.price.current' | t }}</span>
+        {% endif %}
+    </div>
+    {% if compare_at_price > item.final_price %}
+      {% assign cart_item_discount = compare_at_price | minus: item.final_price | times: 100 | divided_by: compare_at_price %}
+      <div class="cart-item--sale-badge">
+        {{ settings.sale_badge_text }} - Save {{ cart_item_discount }}%
+      </div>
+    {% endif %}
+  </div>
+  <div class="cart-item--info cart-item--remove-absolute">
+    {%- comment -%}
+    <div class="cart-item--total">
+      <span class="visually-hidden">{{ 'cart.general.total_line_price' | t }}</span>
+      {%- if item_has_discounts -%}
+        <span class="visually-hidden">{{ 'product_price.price.original' | t }}</span>
+        <s class="original-price money">{{ item.final_line_price | money }}</s>
+        <span class="visually-hidden">{{ 'product_price.price.current' | t }}</span>
+      {%- endif -%}
+      <div
+        class="money {% if item_has_discounts %}cart-item--discount-price{% endif %}"
+        aria-live="polite"
+        data-cartitem-total
+      >
+        {{ item.final_line_price | money }}
+      </div>
+    </div>
+    {%- endcomment -%}
+    <div class="cart-item--remove">
+      <a
+        href="{{ routes.cart_change_url }}?line={{ item_index }}&amp;quantity=0"
+        class="cart-item--remove-btn"
+        data-cartitem-remove
+        data-no-instant
+        aria-label="remove {{ item.product.title | escape }}"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"> <rect x="0.5" y="0.5" width="23" height="23" rx="11.5" fill="white"/> <rect x="0.5" y="0.5" width="23" height="23" rx="11.5" stroke="#001F3C"/> <path d="M15.8594 14.6465C16.0964 14.9342 16.0964 15.222 15.8594 15.5098C15.5716 15.7467 15.2839 15.7467 14.9961 15.5098L12 12.4883L8.97852 15.5098C8.69076 15.7467 8.40299 15.7467 8.11523 15.5098C7.87826 15.222 7.87826 14.9342 8.11523 14.6465L11.1367 11.625L8.11523 8.57812C7.87826 8.29036 7.87826 8.0026 8.11523 7.71484C8.40299 7.47786 8.69076 7.47786 8.97852 7.71484L12 10.7617L15.0215 7.74023C15.3092 7.50326 15.597 7.50326 15.8848 7.74023C16.1217 8.02799 16.1217 8.31576 15.8848 8.60352L12.8633 11.625L15.8594 14.6465Z" fill="#001F3C"/> </svg>
+        {% comment %}
+        {% render 'icon-delete-outline' %}
+        <div class="cart-item--remove-caption">Remove</div>{% endcomment %}
+      </a>
+    </div>
+  </div>
+
+  {%- liquid
+    assign dd = shop.metaobjects['discount_display_on_pdp']
+    assign entry = nil
+
+    if dd and dd.values
+      for e in dd.values
+        if e.add_product_s and e.add_product_s.value
+          for p in e.add_product_s.value
+            if p and p.id == item.product.id
+              assign entry = e
+              break
+            endif
+          endfor
+        endif
+        if entry
+          break
+        endif
+      endfor
+    endif
+  -%}
+  {%- if entry -%}
+    {%- assign base_price = item.original_price -%}
+    {%- assign current_qty = item.quantity -%}
+
+    {%- capture cart_rows -%}
+      {%- assign tiers_rendered = 0 -%}
+      {%- assign max_total_save = 0 -%}
+
+      {%- for i in (1..3) -%}
+        {%- assign text_key = 'quantity_' | append: i | append: '_text' -%}
+        {%- assign perc_key = 'quantity_' | append: i | append: '_discount_percent' -%}
+        {%- assign label = entry[text_key] | strip -%}
+        {%- assign perc  = entry[perc_key] -%}
+
+        {%- if label != blank and perc != blank -%}
+          {%- assign parts = label | split: ' ' -%}
+          {%- assign maybe_qty = parts | last | plus: 0 -%}
+          {%- assign tier_qty = maybe_qty -%}
+          {%- if tier_qty == 0 -%}{%- assign tier_qty = i | plus: 1 -%}{%- endif -%}
+
+          {%- if tier_qty > current_qty -%}
+            {%- assign perc_bp = perc | times: 100 | round: 0 -%}
+            {%- assign factor_bp = 10000 | minus: perc_bp -%}
+            {%- assign per_price = base_price | times: factor_bp | divided_by: 10000 -%}
+            {%- assign per_save = base_price | minus: per_price -%}
+            {%- assign total_save = per_save | times: tier_qty -%}
+            {%- assign tiers_rendered = tiers_rendered | plus: 1 -%}
+
+            {%- if total_save > max_total_save -%}
+              {%- assign max_total_save = total_save -%}
+            {%- endif -%}
+
+            <div class="volume_discount_block"
+                data-qty="{{ tier_qty }}"
+                data-perc-bp="{{ perc_bp }}"
+                data-base-price="{{ base_price }}"
+                role="button" tabindex="0"
+                aria-label="{{ label }} (sets quantity to {{ tier_qty }})">
+              <div class="offer_heading"><h6>{{ label }}</h6></div>
+              <div class="offer_price">
+                <h4>{{ per_price | money_without_trailing_zeros }} <small>Each</small></h4>
+                <span>Save {{ total_save | money_without_trailing_zeros }}</span>
+              </div>
+            </div>
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endcapture -%}
+
+    {%- if cart_rows != blank -%}
+    <div class="volume_discount_wrap cart-context" data-volume-pricing>
+      <div class="volume_discount_heading">
+        Add more and save up to {{ max_total_save | money_without_trailing_zeros }}
+      </div>
+      <div class="volume_discount_inner" data-volume-rows>
+        {{ cart_rows }}
+      </div>
+    </div>
+    {%- endif -%}
+
+    <script>
+      (function () {
+        // Click on a tier -> update that line's quantity input(s)
+        document.addEventListener('click', function (e) {
+          const tier = e.target.closest('[data-qty]');
+          if (!tier) return;
+
+          const line = tier.closest('[data-cartitem]');
+          if (!line) return;
+
+          const qty = parseInt(tier.getAttribute('data-qty'), 10);
+          if (!Number.isFinite(qty) || qty < 1) return;
+
+          const visibleInput =
+            line.querySelector('[data-quantity-select]') ||
+            line.querySelector('input.form-field-input[id^="quantity_"]') ||
+            line.querySelector('input[type="number"]');
+
+          const submitInput =
+            line.querySelector('[data-quantity-input]') ||
+            line.querySelector('input[name="updates[]"]');
+
+          const ref = visibleInput || submitInput;
+          const min = parseInt((ref && ref.getAttribute('min')) || '1', 10);
+          const maxAttr = ref && ref.getAttribute('max');
+          const max = maxAttr ? parseInt(maxAttr, 10) : Infinity;
+
+          const newQty = Math.min(Math.max(qty, min), max);
+
+          if (visibleInput) visibleInput.value = String(newQty);
+          if (submitInput && submitInput !== visibleInput) submitInput.value = String(newQty);
+
+          ['input','change'].forEach(type => {
+            if (visibleInput) visibleInput.dispatchEvent(new Event(type, { bubbles:true }));
+            if (submitInput && submitInput !== visibleInput) submitInput.dispatchEvent(new Event(type, { bubbles:true }));
+          });
+
+          const group = tier.closest('[data-volume-rows]') || line;
+          if (group) group.querySelectorAll('[data-qty].is-selected').forEach(n => n.classList.remove('is-selected'));
+          tier.classList.add('is-selected');
+        });
+
+        document.addEventListener('keydown', function (e) {
+          if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-qty]')) {
+            e.preventDefault();
+            e.target.click();
+          }
+        });
+      })();
+    </script>
+  {%- endif -%}
+
+
+</li>

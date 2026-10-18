@@ -1,0 +1,102 @@
+{%- comment -%}
+  Variant B inventory message. Same conditions as original inventory block.
+  Params: variant, block, future_date, product
+{%- endcomment -%}
+
+{%- assign lieferdatum_variant = variant.metafields.variant.Lieferdatum | date: '%s' -%}
+{%- assign now_variant = 'now' | date: '%s' -%}
+{%- assign diff_variant = lieferdatum_variant | minus: now_variant -%}
+
+{%- if diff_variant > 0 and variant.inventory_policy == 'continue' and variant.inventory_quantity <= 0 and variant.requires_shipping -%}
+  <span class="pdp-inventory-v2 pdp-inventory-v2--low">
+    <div class="pdp-inventory-v2__status">
+      <div class="pdp-inventory-v2__title-row">
+        <span class="pdp-inventory-v2__dot"></span>
+        <p class="pdp-inventory-v2__title">Voraussichtlich lieferbar ab {{ variant.metafields.variant.Lieferdatum | date: '%d.%m.%Y' }}.</p>
+      </div>
+    </div>
+  </span>
+{%- elsif variant.metafields.variant.Lieferzeit != blank and variant.inventory_policy == 'continue' and variant.inventory_quantity <= 0 and variant.requires_shipping -%}
+  <span class="pdp-inventory-v2 pdp-inventory-v2--low">
+    <div class="pdp-inventory-v2__status">
+      <div class="pdp-inventory-v2__title-row">
+        <span class="pdp-inventory-v2__dot"></span>
+        <p class="pdp-inventory-v2__title">Lieferzeit: {{ variant.metafields.variant.Lieferzeit }}</p>
+      </div>
+    </div>
+  </span>
+{%- elsif variant.available -%}
+  {%- if variant.inventory_management and variant.inventory_policy == 'deny' and variant.inventory_quantity <= block.settings.low_inventory_threshold and block.settings.low_inventory_threshold > 0 -%}
+    <span class="pdp-inventory-v2 pdp-inventory-v2--low">
+      <div class="pdp-inventory-v2__status">
+        <div class="pdp-inventory-v2__title-row">
+          <span class="pdp-inventory-v2__dot"></span>
+          <p class="pdp-inventory-v2__title">{{ block.settings.low_inventory | replace: '[count]', variant.inventory_quantity }}</p>
+        </div>
+      </div>
+    </span>
+  {%- else -%}
+    {%- if variant.inventory_policy == 'continue' and variant.inventory_quantity <= 0 and variant.requires_shipping -%}
+      {%- if variant.incoming and variant.next_incoming_date -%}
+        {%- capture next_incoming_date -%}{{ variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+        <span class="pdp-inventory-v2 pdp-inventory-v2--low">
+          <div class="pdp-inventory-v2__status">
+            <div class="pdp-inventory-v2__title-row">
+              <span class="pdp-inventory-v2__dot"></span>
+              <p class="pdp-inventory-v2__title">{{ 'product.form.incoming_stock' | t: next_incoming_date: next_incoming_date }}</p>
+            </div>
+          </div>
+        </span>
+      {%- else -%}
+        <span class="pdp-inventory-v2 pdp-inventory-v2--low">
+          <div class="pdp-inventory-v2__status">
+            <div class="pdp-inventory-v2__title-row">
+              <span class="pdp-inventory-v2__dot"></span>
+              <p class="pdp-inventory-v2__title">{{ block.settings.pre-order }}</p>
+            </div>
+          </div>
+        </span>
+      {%- endif -%}
+    {%- else -%}
+      <span class="pdp-inventory-v2 pdp-inventory-v2--high">
+        <div class="pdp-inventory-v2__status">
+          <div class="pdp-inventory-v2__title-row">
+            <span class="pdp-inventory-v2__dot"></span>
+            <p class="pdp-inventory-v2__title">{{ block.settings.text_in_stock_title_b | default: 'Artikel ist auf Lager' }}</p>
+          </div>
+          <p class="pdp-inventory-v2__subtitle">{{ block.settings.text_in_stock_subtitle_b | default: block.settings.text_in_stock | replace: '[date]', future_date }}</p>
+        </div>
+      </span>
+    {%- endif -%}
+  {%- endif -%}
+{%- elsif variant.incoming -%}
+  {%- if variant.next_incoming_date -%}
+    {%- capture next_incoming_date -%}{{ variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+    <span class="pdp-inventory-v2 pdp-inventory-v2--low">
+      <div class="pdp-inventory-v2__status">
+        <div class="pdp-inventory-v2__title-row">
+          <span class="pdp-inventory-v2__dot"></span>
+          <p class="pdp-inventory-v2__title">{{ 'product.form.incoming_stock' | t: next_incoming_date: next_incoming_date }}</p>
+        </div>
+      </div>
+    </span>
+  {%- else -%}
+    <span class="pdp-inventory-v2 pdp-inventory-v2--low">
+      <div class="pdp-inventory-v2__status">
+        <div class="pdp-inventory-v2__title-row">
+          <span class="pdp-inventory-v2__dot"></span>
+          <p class="pdp-inventory-v2__title">{{ block.settings.pre-order }}</p>
+        </div>
+      </div>
+    </span>
+  {%- endif -%}
+{%- else -%}
+  <span class="pdp-inventory-v2 pdp-inventory-v2--empty">
+    <div class="pdp-inventory-v2__status">
+      <div class="pdp-inventory-v2__title-row">
+        <span class="pdp-inventory-v2__dot"></span>
+        <p class="pdp-inventory-v2__title">{{ block.settings.empty_stock }}</p>
+      </div>
+    </div>
+  </span>
+{%- endif -%}

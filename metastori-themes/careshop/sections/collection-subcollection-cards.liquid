@@ -1,0 +1,576 @@
+{%- liquid
+  assign show_arrows = section.settings.show_arrows
+  assign card_max_width_desktop = section.settings.card_max_width_desktop
+  assign card_max_width_mobile = section.settings.card_max_width_mobile
+  assign padding_top_desktop = section.settings.padding_top_desktop
+  assign padding_bottom_desktop = section.settings.padding_bottom_desktop
+  assign padding_top_mobile = section.settings.padding_top_mobile
+  assign padding_bottom_mobile = section.settings.padding_bottom_mobile
+  assign card_bg = section.settings.card_background
+  assign card_text = section.settings.card_text_color
+
+  if card_bg == blank or card_bg == 'rgba(0,0,0,0)'
+    assign card_bg = '#e8edf2'
+  endif
+  if card_text == blank or card_text == 'rgba(0,0,0,0)'
+    assign card_text = '#1a1a1a'
+  endif
+
+  assign matched_menu = null
+  assign fallback_menu = null
+
+  for link in linklists['main-menu'].links
+    if matched_menu == null and link.url == collection.url
+      assign matched_menu = link
+      if link.links.size > 0
+        break
+      endif
+    endif
+
+    for sub_link in link.links
+      if matched_menu == null and sub_link.url == collection.url
+        assign matched_menu = sub_link
+        if sub_link.links.size > 0
+          break
+        endif
+      endif
+
+      for sub_sub_link in sub_link.links
+        if sub_sub_link.url == collection.url
+          assign fallback_menu = sub_sub_link
+        endif
+      endfor
+    endfor
+  endfor
+
+  if matched_menu and matched_menu.links.size == 0
+    assign matched_menu = null
+  endif
+
+  if matched_menu == null and fallback_menu
+    assign matched_menu = fallback_menu
+  endif
+-%}
+
+<style>
+  #shopify-section-{{ section.id }} .hp-subcol {
+    --hp-subcol-gap: 4px;
+    --hp-subcol-radius: 8px;
+    --hp-subcol-card-max-width: {{ card_max_width_mobile }}px;
+    --hp-subcol-arrow-size: 40px;
+    --hp-subcol-font-size: 15px;
+    --hp-subcol-card-bg: {{ card_bg }};
+    --hp-subcol-card-text: {{ card_text }};
+    padding-top: {{ padding_top_mobile }}px;
+    padding-bottom: {{ padding_bottom_mobile }}px;
+    {% if section.settings.section_bg != blank and section.settings.section_bg != 'rgba(0,0,0,0)' %}
+      background-color: {{ section.settings.section_bg }};
+    {% endif %}
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__inner {
+    position: relative;
+    padding-right: 0;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__track {
+    display: flex;
+    gap: var(--hp-subcol-gap);
+    justify-content: center;
+    align-items: stretch;
+    overflow-x: hidden;
+    scroll-snap-type: none;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__track::-webkit-scrollbar {
+    display: none;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol--overflowing .hp-subcol__track {
+    justify-content: flex-start;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__card {
+    flex: 0 0 var(--hp-subcol-card-max-width);
+    width: var(--hp-subcol-card-max-width);
+    min-width: var(--hp-subcol-card-max-width);
+    max-width: var(--hp-subcol-card-max-width);
+    height: auto;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    color: var(--hp-subcol-card-text);
+    background-color: var(--hp-subcol-card-bg);
+    border-radius: var(--hp-subcol-radius);
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__image {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    position: relative;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__image img {
+    display: block;
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__ki-label {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    pointer-events: none;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__image-placeholder {
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    background:
+      linear-gradient(45deg, #d9d9d9 25%, transparent 25%),
+      linear-gradient(-45deg, #d9d9d9 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #d9d9d9 75%),
+      linear-gradient(-45deg, transparent 75%, #d9d9d9 75%);
+    background-color: #f0f0f0;
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__title {
+    font-size: var(--hp-subcol-font-size);
+    font-weight: 400;
+    line-height: 1.2;
+    color: var(--hp-subcol-card-text);
+    padding: 12px 5px;
+    width: 100%;
+    height: auto;
+    min-height: calc((var(--hp-subcol-font-size) * 1.2 * 2) + 5px);
+    flex: 1 1 auto;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__arrows {
+    display: none;
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 2;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol--overflowing .hp-subcol__arrows {
+    display: {% if show_arrows %}flex{% else %}none{% endif %};
+    padding: 0 24px;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__arrow {
+    pointer-events: auto;
+    width: var(--hp-subcol-arrow-size);
+    height: var(--hp-subcol-arrow-size);
+    min-width: var(--hp-subcol-arrow-size);
+    min-height: var(--hp-subcol-arrow-size);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__arrow img,
+  #shopify-section-{{ section.id }} .hp-subcol__arrow svg {
+    display: block;
+    width: var(--hp-subcol-arrow-size);
+    height: var(--hp-subcol-arrow-size);
+    object-fit: contain;
+  }
+
+  #shopify-section-{{ section.id }} .hp-subcol__arrow[disabled] {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  @media screen and (min-width: 600px) {
+    #shopify-section-{{ section.id }} .hp-subcol {
+      --hp-subcol-card-max-width: {{ card_max_width_desktop }}px;
+    }
+
+    #shopify-section-{{ section.id }} .hp-subcol--overflowing .hp-subcol__arrows {
+      padding: 0 32px;
+    }
+  }
+
+  @media screen and (min-width: 1000px) {
+    #shopify-section-{{ section.id }} .hp-subcol {
+      padding-top: {{ padding_top_desktop }}px;
+      padding-bottom: {{ padding_bottom_desktop }}px;
+    }
+  }
+  .hp-subcol{
+    display: none;
+  }
+</style>
+
+{%- if matched_menu and matched_menu.links.size > 0 -%}
+  <div class="hp-subcol" data-hp-subcol>
+    <div class="container hp-subcol__inner">
+      <div class="hp-subcol__track" data-hp-subcol-track>
+        {%- for sub_link in matched_menu.links -%}
+          {%- liquid
+            assign sub_collection = sub_link.object
+            assign card_image = blank
+            assign card_alt = sub_link.title
+            assign show_ki_label = false
+
+            if sub_collection != blank
+              assign card_image = sub_collection.metafields.custom.subcollection_image.value
+              if card_image == blank
+                assign card_image = sub_collection.metafields.custom.subcollection_image
+              endif
+              if card_image != blank and card_image.alt != blank
+                assign card_alt = card_image.alt
+                if card_alt contains '| KI' or card_alt contains '|KI'
+                  assign show_ki_label = true
+                endif
+              endif
+            endif
+          -%}
+
+          <a
+            class="hp-subcol__card{% if sub_link.url == collection.url %} is-active{% endif %}"
+            href="{{ sub_link.url }}"
+          >
+            <div class="hp-subcol__image">
+              {%- if card_image != blank -%}
+                {{
+                  card_image
+                  | image_url: width: 380
+                  | image_tag:
+                    loading: 'lazy',
+                    widths: '190, 280, 380',
+                    sizes: '(max-width: 999px) 42vw, 190px',
+                    alt: card_alt
+                }}
+                {%- if show_ki_label -%}
+                  <span class="hp-subcol__ki-label" aria-hidden="true">KI</span>
+                {%- endif -%}
+              {%- else -%}
+                <span class="hp-subcol__image-placeholder" aria-hidden="true"></span>
+              {%- endif -%}
+            </div>
+            <div class="hp-subcol__title">
+              {{ sub_link.title | escape }}
+            </div>
+          </a>
+        {%- endfor -%}
+      </div>
+
+      {%- if show_arrows -%}
+        <div class="hp-subcol__arrows" data-hp-subcol-arrows>
+          <button
+            type="button"
+            class="hp-subcol__arrow hp-subcol__arrow--prev"
+            data-hp-subcol-prev
+            aria-label="{{ 'general.accessibility.previous' | t }}"
+          >
+            {%- if section.settings.arrow_prev != blank -%}
+              {{
+                section.settings.arrow_prev
+                | image_url: width: 80
+                | image_tag: loading: 'lazy', widths: '40, 80', sizes: '40px', alt: ''
+              }}
+            {%- else -%}
+              <svg
+                width="40"
+                height="40"
+                viewBox="0 0 40 40"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <circle cx="20" cy="20" r="20" fill="#ffffff"/>
+                <path d="M23 13L16 20L23 27" stroke="#333333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            {%- endif -%}
+          </button>
+
+          <button
+            type="button"
+            class="hp-subcol__arrow hp-subcol__arrow--next"
+            data-hp-subcol-next
+            aria-label="{{ 'general.accessibility.next' | t }}"
+          >
+            {%- if section.settings.arrow_next != blank -%}
+              {{
+                section.settings.arrow_next
+                | image_url: width: 80
+                | image_tag: loading: 'lazy', widths: '40, 80', sizes: '40px', alt: ''
+              }}
+            {%- else -%}
+              <svg
+                width="40"
+                height="40"
+                viewBox="0 0 40 40"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <circle cx="20" cy="20" r="20" fill="#ffffff"/>
+                <path d="M17 13L24 20L17 27" stroke="#333333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            {%- endif -%}
+          </button>
+        </div>
+      {%- endif -%}
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var root = document.getElementById('shopify-section-{{ section.id }}');
+      if (!root) return;
+
+      var sectionEl = root.querySelector('[data-hp-subcol]');
+      var track = root.querySelector('[data-hp-subcol-track]');
+      var prevBtn = root.querySelector('[data-hp-subcol-prev]');
+      var nextBtn = root.querySelector('[data-hp-subcol-next]');
+      if (!sectionEl || !track) return;
+
+      function getStep() {
+        var card = track.querySelector('.hp-subcol__card');
+        if (!card) return 160;
+        var styles = window.getComputedStyle(track);
+        var gap = parseFloat(styles.columnGap || styles.gap) || 4;
+        return card.getBoundingClientRect().width + gap;
+      }
+
+      function getContentWidth() {
+        var cards = track.querySelectorAll('.hp-subcol__card');
+        if (!cards.length) return 0;
+
+        var styles = window.getComputedStyle(track);
+        var gap = parseFloat(styles.columnGap || styles.gap) || 0;
+        var total = 0;
+
+        for (var i = 0; i < cards.length; i++) {
+          total += cards[i].getBoundingClientRect().width;
+          if (i < cards.length - 1) total += gap;
+        }
+
+        return total;
+      }
+
+      function updateOverflow() {
+        var available = track.clientWidth;
+        var content = getContentWidth();
+        var overflowing = content > available + 2;
+        sectionEl.classList.toggle('hp-subcol--overflowing', overflowing);
+
+        if (!overflowing && track.scrollLeft !== 0) {
+          track.scrollLeft = 0;
+        }
+      }
+
+      function updateButtons() {
+        if (!prevBtn || !nextBtn) return;
+        var maxScroll = track.scrollWidth - track.clientWidth;
+        prevBtn.disabled = track.scrollLeft <= 2 || maxScroll <= 0;
+        nextBtn.disabled = track.scrollLeft >= maxScroll - 2 || maxScroll <= 0;
+      }
+
+      function refresh() {
+        updateOverflow();
+        updateButtons();
+      }
+
+      if (prevBtn && nextBtn) {
+        prevBtn.addEventListener('click', function () {
+          track.scrollBy({ left: -getStep(), behavior: 'smooth' });
+        });
+
+        nextBtn.addEventListener('click', function () {
+          track.scrollBy({ left: getStep(), behavior: 'smooth' });
+        });
+      }
+
+      track.addEventListener('scroll', updateButtons, { passive: true });
+      window.addEventListener('resize', refresh);
+
+      if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(refresh).observe(track);
+      }
+
+      refresh();
+    })();
+  </script>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Collection Sub Cards",
+  "tag": "section",
+  "class": "shopify-section--collection-subcollection-cards",
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "Titles and links come from main-menu children of the current collection. Images use collection metafield custom.subcollection_image."
+    },
+    {
+      "type": "header",
+      "content": "Cards"
+    },
+    {
+      "type": "range",
+      "id": "card_max_width_desktop",
+      "label": "Card max width (desktop)",
+      "min": 100,
+      "max": 400,
+      "step": 4,
+      "unit": "px",
+      "default": 188
+    },
+    {
+      "type": "range",
+      "id": "card_max_width_mobile",
+      "label": "Card max width (mobile)",
+      "min": 100,
+      "max": 320,
+      "step": 4,
+      "unit": "px",
+      "default": 160
+    },
+    {
+      "type": "color",
+      "id": "card_background",
+      "label": "Card background",
+      "default": "#e8edf2"
+    },
+    {
+      "type": "color",
+      "id": "card_text_color",
+      "label": "Card text color",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "header",
+      "content": "Padding"
+    },
+    {
+      "type": "range",
+      "id": "padding_top_desktop",
+      "label": "Top padding (desktop)",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_desktop",
+      "label": "Bottom padding (desktop)",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "padding_top_mobile",
+      "label": "Top padding (mobile)",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom_mobile",
+      "label": "Bottom padding (mobile)",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "header",
+      "content": "Section colors"
+    },
+    {
+      "type": "color",
+      "id": "section_bg",
+      "label": "Section background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "header",
+      "content": "Arrows"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_arrows",
+      "label": "Show arrows when overflowing",
+      "default": true
+    },
+    {
+      "type": "image_picker",
+      "id": "arrow_prev",
+      "label": "Previous arrow (SVG)",
+      "info": "Upload an SVG or PNG. Displayed at 40×40px."
+    },
+    {
+      "type": "image_picker",
+      "id": "arrow_next",
+      "label": "Next arrow (SVG)",
+      "info": "Upload an SVG or PNG. Displayed at 40×40px."
+    }
+  ],
+  "presets": [
+    {
+      "name": "Collection Sub Cards"
+    }
+  ]
+}
+{% endschema %}

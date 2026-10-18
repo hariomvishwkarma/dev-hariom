@@ -1,0 +1,172 @@
+{%- comment -%}
+  Free shipping line below inventory. Rendered from inventory block.
+  Params: block, product, product_form_id, section
+{%- endcomment -%}
+
+{%- liquid
+  assign low_inventory_threshold = block.settings.low_inventory_threshold | default: 0
+  assign threshold_cents = block.settings.free_shipping_threshold | times: 100
+  assign current_variant = product.selected_or_first_available_variant
+  assign show_free_shipping = false
+
+  assign lieferdatum_variant = current_variant.metafields.variant.Lieferdatum | date: '%s'
+  assign now_variant = 'now' | date: '%s'
+  assign diff_variant = lieferdatum_variant | minus: now_variant
+
+  if diff_variant > 0 and current_variant.inventory_policy == 'continue' and current_variant.inventory_quantity <= 0 and current_variant.requires_shipping
+    assign in_standard_stock = false
+  elsif current_variant.metafields.variant.Lieferzeit != blank and current_variant.inventory_policy == 'continue' and current_variant.inventory_quantity <= 0 and current_variant.requires_shipping
+    assign in_standard_stock = false
+  elsif current_variant.available
+    if current_variant.inventory_management and current_variant.inventory_policy == 'deny' and current_variant.inventory_quantity <= low_inventory_threshold and low_inventory_threshold > 0
+      assign in_standard_stock = false
+    elsif current_variant.inventory_policy == 'continue' and current_variant.inventory_quantity <= 0 and current_variant.requires_shipping
+      assign in_standard_stock = false
+    else
+      assign in_standard_stock = true
+    endif
+  else
+    assign in_standard_stock = false
+  endif
+
+  if in_standard_stock and current_variant.price >= threshold_cents
+    assign show_free_shipping = true
+  endif
+-%}
+
+<style>
+  #shopify-section-{{ section.id }} pdp-free-shipping-info {
+    margin: 0;
+    padding: 0;
+    display: block;
+  }
+
+  #shopify-section-{{ section.id }} pdp-free-shipping-info.hidden {
+    display: none !important;
+  }
+
+  #shopify-section-{{ section.id }} .pdp-inv-ab__row--ship {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1.4;
+    color: {{ block.settings.shipping_text_color }} !important;
+  }
+
+  #shopify-section-{{ section.id }} .pdp-inv-ab__row--ship * {
+    color: {{ block.settings.shipping_text_color }} !important;
+  }
+
+  #shopify-section-{{ section.id }} .pdp-inv-ab__icon {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    display: block;
+    object-fit: contain;
+  }
+
+  #shopify-section-{{ section.id }} .pdp-inv-ab__text {
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1.4;
+    font-weight: 400;
+  }
+</style>
+
+<pdp-free-shipping-info
+  form-id="{{ product_form_id }}"
+  class="pdp-free-shipping-info{% unless show_free_shipping %} hidden{% endunless %}"
+>
+  <div
+    class="pdp-inv-ab__row pdp-inv-ab__row--ship"
+    data-free-shipping-row
+  >
+    <img
+      class="pdp-inv-ab__icon"
+      src="{{ block.settings.check_icon | escape }}"
+      alt=""
+      width="16"
+      height="16"
+      loading="lazy"
+    >
+    <p class="pdp-inv-ab__text">{{ block.settings.free_shipping_text }}</p>
+  </div>
+
+  <script type="application/json">
+    {
+      {%- for variant in product.variants -%}
+        {%- liquid
+          assign variant_show_free_shipping = false
+
+          assign variant_lieferdatum = variant.metafields.variant.Lieferdatum | date: '%s'
+          assign variant_now = 'now' | date: '%s'
+          assign variant_diff = variant_lieferdatum | minus: variant_now
+
+          if variant_diff > 0 and variant.inventory_policy == 'continue' and variant.inventory_quantity <= 0 and variant.requires_shipping
+            assign variant_in_standard_stock = false
+          elsif variant.metafields.variant.Lieferzeit != blank and variant.inventory_policy == 'continue' and variant.inventory_quantity <= 0 and variant.requires_shipping
+            assign variant_in_standard_stock = false
+          elsif variant.available
+            if variant.inventory_management and variant.inventory_policy == 'deny' and variant.inventory_quantity <= low_inventory_threshold and low_inventory_threshold > 0
+              assign variant_in_standard_stock = false
+            elsif variant.inventory_policy == 'continue' and variant.inventory_quantity <= 0 and variant.requires_shipping
+              assign variant_in_standard_stock = false
+            else
+              assign variant_in_standard_stock = true
+            endif
+          else
+            assign variant_in_standard_stock = false
+          endif
+
+          if variant_in_standard_stock and variant.price >= threshold_cents
+            assign variant_show_free_shipping = true
+          endif
+        -%}
+        "{{ variant.id }}": {{ variant_show_free_shipping }}{%- unless forloop.last -%},{%- endunless -%}
+      {%- endfor -%}
+    }
+  </script>
+</pdp-free-shipping-info>
+
+<script>
+  (function () {
+    if (customElements.get('pdp-free-shipping-info')) {
+      return;
+    }
+
+    customElements.define(
+      'pdp-free-shipping-info',
+      class PdpFreeShippingInfo extends HTMLElement {
+        connectedCallback() {
+          const scriptTag = this.querySelector('script[type="application/json"]');
+          if (!scriptTag) {
+            return;
+          }
+
+          this.variantData = JSON.parse(scriptTag.textContent);
+
+          const formId = this.getAttribute('form-id');
+          const form = formId ? document.getElementById(formId) : null;
+          form?.addEventListener('variant:changed', this._onVariantChanged.bind(this));
+        }
+
+        _onVariantChanged(event) {
+          const variant = event.detail?.variant;
+          if (!variant || !this.variantData) {
+            return;
+          }
+
+          if (this.variantData[variant.id]) {
+            this.classList.remove('hidden');
+          } else {
+            this.classList.add('hidden');
+          }
+        }
+      }
+    );
+  })();
+</script>

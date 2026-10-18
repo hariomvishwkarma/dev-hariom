@@ -1,0 +1,238 @@
+{% comment %} ============================================================
+  microdata-schema.liquid
+  Central JSON-LD structured data — rendered once in <head> via theme.liquid.
+  Uses request.page_type to output only the schemas relevant to the current page.
+  ============================================================ {% endcomment %}
+
+{% comment %} --- Organization: every page --- {% endcomment %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": {{ shop.name | json }},
+  {%- if settings.logo %}
+  "logo": {{ settings.logo | image_url: width: 500 | prepend: "https:" | json }},
+  {%- endif %}
+  "sameAs": [
+    {{ settings.social_twitter_link | json }},
+    {{ settings.social_facebook_link | json }},
+    {{ settings.social_pinterest_link | json }},
+    {{ settings.social_instagram_link | json }},
+    {{ settings.social_tiktok_link | json }},
+    {{ settings.social_tumblr_link | json }},
+    {{ settings.social_snapchat_link | json }},
+    {{ settings.social_youtube_link | json }},
+    {{ settings.social_vimeo_link | json }}
+  ],
+  "url": {{ request.origin | json }}
+}
+</script>
+
+{% comment %} --- CafeOrCoffeeShop (LocalBusiness): every page --- {% endcomment %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CafeOrCoffeeShop",
+  "name": "Onda Origins Cafe & Roastery",
+  "url": {{ request.origin | json }},
+  "telephone": "+12063139765",
+  "image": "https://cdn.shopify.com/s/files/1/0569/3851/6215/files/Onda_Origins_Columbia_City_Coffee_Shop.jpg",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "5600 Rainier Ave S",
+    "addressLocality": "Seattle",
+    "addressRegion": "WA",
+    "postalCode": "98118",
+    "addressCountry": "US"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 47.5518,
+    "longitude": -122.2804
+  },
+  "openingHoursSpecification": [
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"],
+      "opens": "06:30",
+      "closes": "17:00"
+    },
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Saturday","Sunday"],
+      "opens": "07:00",
+      "closes": "17:00"
+    }
+  ],
+  "servesCuisine": "Coffee",
+  "priceRange": "$$",
+  "sameAs": [
+    {{ settings.social_instagram_link | json }},
+    {{ settings.social_facebook_link | json }}
+  ]
+}
+</script>
+
+{% comment %} --- WebSite + SearchAction: homepage only --- {% endcomment %}
+{%- if request.page_type == 'index' -%}
+  {%- assign search_target = request.origin | append: routes.search_url | append: '?q={search_term_string}' -%}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": {{ shop.name | json }},
+    "url": {{ request.origin | json }},
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {{ search_target | json }},
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+{%- endif -%}
+
+{% comment %} --- CollectionPage + BreadcrumbList + ItemList: collection pages --- {% endcomment %}
+{%- if request.page_type == 'collection' -%}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": {{ collection.title | json }},
+    "description": {{ collection.description | strip_html | truncate: 200 | json }},
+    "url": {{ request.origin | append: collection.url | json }},
+    "breadcrumb": {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": {{ request.origin | json }}
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": {{ collection.title | json }},
+          "item": {{ request.origin | append: collection.url | json }}
+        }
+      ]
+    },
+    "mainEntity": {
+      "@type": "ItemList",
+      "itemListElement": [
+        {%- for product in collection.products limit: 10 -%}
+          {
+            "@type": "ListItem",
+            "position": {{ forloop.index }},
+            "name": {{ product.title | json }},
+            "url": {{ request.origin | append: product.url | json }}
+          }{% unless forloop.last %},{% endunless %}
+        {%- endfor -%}
+      ]
+    }
+  }
+  </script>
+{%- endif -%}
+
+{% comment %} --- Blog + BreadcrumbList: blog listing pages --- {% endcomment %}
+{%- if request.page_type == 'blog' -%}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    "name": {{ blog.title | json }},
+    "url": {{ request.origin | append: blog.url | json }},
+    "breadcrumb": {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": {{ request.origin | json }}
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": {{ blog.title | json }},
+          "item": {{ request.origin | append: blog.url | json }}
+        }
+      ]
+    },
+    "blogPost": [
+      {%- for article in blog.articles limit: 10 -%}
+        {
+          "@type": "BlogPosting",
+          "headline": {{ article.title | json }},
+          "url": {{ request.origin | append: article.url | json }},
+          "datePublished": {{ article.published_at | date: '%Y-%m-%dT%H:%M:%SZ' | json }},
+          "author": {
+            "@type": "Person",
+            "name": {{ article.author | json }}
+          }
+        }{% unless forloop.last %},{% endunless %}
+      {%- endfor -%}
+    ]
+  }
+  </script>
+{%- endif -%}
+
+{% comment %} --- BreadcrumbList: article pages (Article schema rendered by main-article.liquid via Shopify filter) --- {% endcomment %}
+{%- if request.page_type == 'article' -%}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": {{ request.origin | json }}
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": {{ blog.title | json }},
+        "item": {{ request.origin | append: blog.url | json }}
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": {{ article.title | json }},
+        "item": {{ request.origin | append: article.url | json }}
+      }
+    ]
+  }
+  </script>
+{%- endif -%}
+
+{% comment %} --- WebPage + BreadcrumbList: generic pages --- {% endcomment %}
+{%- if request.page_type == 'page' -%}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": {{ page.title | json }},
+    "description": {{ page.content | strip_html | truncate: 200 | json }},
+    "url": {{ request.origin | append: page.url | json }},
+    "breadcrumb": {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": {{ request.origin | json }}
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": {{ page.title | json }},
+          "item": {{ request.origin | append: page.url | json }}
+        }
+      ]
+    }
+  }
+  </script>
+{%- endif -%}

@@ -1,0 +1,112 @@
+ {% assign mf_preorder_text = product.metafields.custom.preorder_text.value %}
+  {% comment %}<div class="tax-note">{{ 'deutschland.tax_note_html' | t }}</div>{% endcomment %}
+  {% comment %} <div class="tax-note">
+    {% if mf_preorder_text != blank %}
+      {{ 'deutschland.delivery_time' | t }}{{ mf_preorder_text }}
+    {% else %}
+      {%- assign lieferinfo = false -%}              
+      {%- for tag in product.tags -%}
+        {%- if tag contains 'lieferinfo-' -%}
+          {{ tag | remove: 'lieferinfo-' }}
+          {%- assign lieferinfo = true -%}  
+        {%- endif -%}
+      {%- endfor -%}               
+      {%- if lieferinfo == false -%}
+        {{ 'deutschland.delivery_time' | t }}{{ 'deutschland.delivery_note_html' | t }}
+      {%- endif -%}
+    {% endif %}
+  </div> {% endcomment %}
+<div id="removed_sticky"></div>
+{%- form 'product', product, id: form_id, class: 'product-single__form' -%}
+ 
+  {%- liquid
+    assign enable_dynamic_buttons = false
+    if show_dynamic_checkout and template != 'product.preorder'
+      assign enable_dynamic_buttons = true
+    endif
+  -%}
+
+  {%- if enable_dynamic_buttons -%}
+    <div class="payment-buttons">
+  {%- endif -%}
+
+    {%- liquid
+      assign default_text = 'products.product.add_to_cart' | t
+      assign button_text = 'products.product.add_to_cart' | t
+      if template contains 'preorder' or mf_preorder_text != blank
+        assign default_text = 'products.product.preorder' | t
+        assign button_text = 'products.product.preorder' | t
+      endif
+      unless current_variant.available
+        assign button_text = 'products.product.sold_out' | t
+      endunless
+    -%}
+
+    {% if mf_preorder_text != blank %}
+      <input type="hidden" name="properties[Lieferzeit]" value="{{ mf_preorder_text }}">
+    {% endif %}
+
+  <div class="sticky_add_to_cart">
+    <div class="product__quantity">
+                        <label for="Quantity-{{ section_id }}-{{ product.id }}">{{ 'products.product.quantity' | t }}</label>
+                        <div class="js-qty__wrapper">
+                          <input type="text" id="Quantity-{{ section_id }}-{{ product.id }}"
+                            class="js-qty__num"
+                            value="1"
+                            min="1"
+                            aria-label="quantity"
+                            pattern="[0-9]*"
+                            form="{{ form_id }}"
+                            name="quantity">
+                          <button type="button"
+                            class="js-qty__adjust js-qty__adjust--minus"
+                            aria-label="{{ 'cart.general.reduce_quantity' | t }}">
+                              <svg aria-hidden="true" focusable="false" role="presentation" class="icon icon-minus" viewBox="0 0 64 64"><path class="cls-1" d="M55 32H9"/></svg>
+                              <span class="icon__fallback-text" aria-hidden="true">&minus;</span>
+                          </button>
+                          <button type="button"
+                            class="js-qty__adjust js-qty__adjust--plus"
+                            aria-label="{{ 'cart.general.increase_quantity' | t }}">
+                              <svg aria-hidden="true" focusable="false" role="presentation" class="icon icon-plus" viewBox="0 0 64 64"><path class="cls-1" d="M32 9v46m23-23H9"/></svg>
+                              <span class="icon__fallback-text" aria-hidden="true">+</span>
+                          </button>
+                        </div>
+                      </div>
+    <button
+      {% if product.empty? %}type="button"{% else %}type="submit"{% endif %}
+      name="add"
+      data-add-to-cart
+      class="btn btn--full add-to-cart{% if enable_dynamic_buttons and product.selling_plan_groups == empty %} btn--secondary{% endif %}"
+      {% unless current_variant.available %} disabled="disabled"{% endunless %}>
+      <svg xmlns="http://www.w3.org/2000/svg" width="25" height="24" viewBox="0 0 25 24" fill="none"> <path d="M9.58575 6.75C9.58575 3.84375 11.0558 1.5 12.867 1.5C14.6783 1.5 16.1445 3.85875 16.1445 6.75M6.027 6.75H19.7183L21.0645 20.5237H4.677L6.027 6.75Z" stroke="white" stroke-width="1.26562" stroke-miterlimit="10"></path> </svg>
+      <span data-add-to-cart-text data-default-text="{{ default_text }}">
+        {{ button_text }}
+      </span>
+    </button>
+
+    {%- if enable_dynamic_buttons -%}
+      {{ form | payment_button }}
+    {%- endif -%}
+
+  {%- if enable_dynamic_buttons -%}
+    </div>
+  {%- endif -%}
+                              </div>
+  <div class="shopify-payment-terms product__policies">{{ form | payment_terms }}</div>
+
+  <select name="id" data-product-select class="product-single__variants no-js">
+    {%- for variant in product.variants -%}
+      {%- if variant.available -%}
+        <option {% if variant == product.selected_or_first_available_variant %}
+          selected="selected"{% endif %}
+          value="{{ variant.id }}">
+          {{ variant.title }} - {{ variant.price | money_with_currency }}
+        </option>
+      {%- else -%}
+        <option disabled="disabled">
+          {{ variant.title }} - {{ 'products.product.sold_out' | t }}
+        </option>
+      {%- endif -%}
+    {%- endfor -%}
+  </select>
+{%- endform -%} 

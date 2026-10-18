@@ -1,0 +1,128 @@
+{%- comment -%}
+  PDP inventory A/B test — Variant B styles and preorder handler. All CSS/JS in this file.
+{%- endcomment -%}
+
+<style>
+   .product-form__inventory-wrapper.pdp-inventory-ab--variant-a {
+    display: none !important;
+  }
+  .product-form__inventory-wrapper.pdp-inventory-ab--variant-b {
+    display: block !important;
+  } 
+  #shopify-section-{{ section.id }} .pdp-inventory-ab-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 0 0 12px;
+  }
+
+  #shopify-section-{{ section.id }} product-inventory.pdp-inventory-ab--variant-b {
+    display: block !important;
+    margin: 0;
+  }
+
+  #shopify-section-{{ section.id }} .pdp-inventory-v2__status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  #shopify-section-{{ section.id }} .pdp-inventory-v2__title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #shopify-section-{{ section.id }} .pdp-inventory-v2__dot {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    margin: 0;
+    border-radius: 50%;
+    background-color: #50E21F;
+  }
+
+  #shopify-section-{{ section.id }} .pdp-inventory-v2--low .pdp-inventory-v2__dot {
+    background-color: {{ block.settings.inventory_low_color }};
+  }
+
+  #shopify-section-{{ section.id }} .pdp-inventory-v2--empty .pdp-inventory-v2__dot {
+    background-color: {{ block.settings.inventory_out_of_stock_color }};
+  }
+
+  #shopify-section-{{ section.id }} .pdp-inventory-v2__title {
+    margin: 0 !important;
+    padding: 0;
+    color: #323942;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  #shopify-section-{{ section.id }} .pdp-inventory-v2__subtitle {
+    margin: 0 !important;
+    padding: 0;
+    color: #323942;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.4;
+  }
+</style>
+
+<script>
+  (function () {
+    const sectionId = {{ section.id | json }};
+    const sectionSelector = '#shopify-section-' + sectionId;
+    const highColor = {{ block.settings.inventory_high_color | json }};
+    const lowColor = {{ block.settings.inventory_low_color | json }};
+
+    const buildPreorderMarkup = (text, isLow) => {
+      const modifier = isLow ? 'low' : 'high';
+      const dotColor = isLow ? lowColor : highColor;
+
+      return `
+        <span class="pdp-inventory-v2 pdp-inventory-v2--${modifier}">
+          <div class="pdp-inventory-v2__status">
+            <div class="pdp-inventory-v2__title-row">
+              <span class="pdp-inventory-v2__dot" style="background-color:${dotColor}"></span>
+              <p class="pdp-inventory-v2__title">${text}</p>
+            </div>
+          </div>
+        </span>
+      `;
+    };
+
+    document.addEventListener('variant:changed', function (event) {
+      const inventory = document.querySelector(sectionSelector + ' product-inventory.pdp-inventory-ab--variant-b');
+      if (!inventory || !event.detail?.variant) {
+        return;
+      }
+
+      const variant = event.detail.variant;
+      const preorderEl = document.querySelector('.custom-preorder-variant-' + variant.id);
+
+      if (!preorderEl) {
+        return;
+      }
+
+      const preorderData = preorderEl.getAttribute('data');
+      if (!preorderData) {
+        return;
+      }
+
+      // Metafield is often just "3-6 Werktage" — prefix label for Variant B
+      if (!preorderData.startsWith('Voraussichtlich') && !preorderData.startsWith('Lieferzeit')) {
+        preorderData = 'Lieferzeit: ' + preorderData;
+      }
+
+      window.requestAnimationFrame(function () {
+        inventory.querySelector('span')?.remove();
+        inventory.insertAdjacentHTML('afterbegin', buildPreorderMarkup(preorderData, true));
+      });
+    });
+  })();
+</script>

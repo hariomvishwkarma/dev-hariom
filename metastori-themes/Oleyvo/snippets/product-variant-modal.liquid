@@ -1,0 +1,85 @@
+{% if variant_modal_placement != 'default' %}
+  {% assign tag_name = 'xo-modal-trigger' %}
+{% else %}
+  {% assign tag_name = 'xo-toggle-trigger' %}
+{% endif %}
+
+<div class='xo-product-variant-modal{% if settings.enable_border_radius %} xo-product-variant-modal--radius{% endif %}{% if settings.variant_modal_placement_color %} color-{{ settings.variant_modal_placement_color }}{% endif %}'>
+  <div class='xo-product-variant-modal__content'>
+    <{{ tag_name }} class='xo-product-variant-modal__close' xo-name='product-variant-modal-{{ product.id }}-{{ section.id }}'>
+      {% render 'icon', name: 'close', size: '2.4rem' %}
+    </{{ tag_name }}>
+    <div class='xo-product-variant-modal__text'>
+      <h3 class='xo-product-variant-modal__title h6{% if variant_modal_placement == 'default' %} xo-product-variant-modal__title--hide{% endif %}'>{{ product.title }}</h3>
+
+      <div class='xo-product-variant-modal__price'>
+        <div class='xo-product-variant-modal__price-inner'>
+          <div xo-binding='price'>
+            {%- render 'price', product: product, show_badge: show_badge, use_variant: true, reverse: true -%}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if product.options_with_values[0].name != 'Title' %}
+      <div class='xo-product-variant-modal__variant-list'>
+        {% for option in product.options_with_values %}
+          {% if option.name == 'Color' %}
+            {% render 'product-variant', option: option, style: 'boxed', product: product %}
+          {% else %}
+            {% render 'product-variant', option: option, style: 'boxed', product: product %}
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% render 'cart-add-error' %}
+
+    <div class='xo-product-variant-modal__quantity'>
+      {% assign form_id = 'product_variant_modal_id-' | append: section.id | append: '-' | append: product.id %}
+      {% render 'quantity', form_id: form_id %}
+    </div>
+
+    <xo-cart-add
+      class='xo-product-variant-modal__add-modal'
+      xo-product-id='{{ product.selected_or_first_available_variant.id }}'
+      sold-out='false'
+      xo-binding='addToCartText:.xo-btn__text, soldOut[sold-out]'
+      {% if product.selected_or_first_available_variant.available == false %}
+        xo-disabled
+      {% endif %}
+    >
+      {% if product.selected_or_first_available_variant.available %}
+        {% assign button_text = 'products.product.add_to_cart' | t %}
+        {% assign button_text_unavailable = 'products.product.unavailable' | t %}
+        {% render 'button', style: 'secondary', text: button_text, size: 'md', block: true, text_unavailable: button_text_unavailable %}
+      {%- else -%}
+        {% assign button_text = 'products.product.sold_out' | t %}
+        {% assign button_text_unavailable = 'products.product.unavailable' | t %}
+        {% render 'button', style: 'secondary', text: button_text, size: 'md', block: true, text_unavailable: button_text_unavailable %}
+      {% endif %}
+    </xo-cart-add>
+
+    <div class='xo-product-variant-modal__buy-now{% if settings.enable_border_radius %} xo-product-variant-modal__buy-now--radius{% endif %}'>
+      {% assign form_id = 'product_form_id-' | append: section.id %}
+      {%- form 'product', product, id: form_id, novalidate: 'novalidate', data-type: 'add-to-cart-form' -%}
+        <input
+          type='hidden'
+          name='id'
+          value='{{ product.selected_or_first_available_variant.id }}'
+          xo-binding='variantId:[value]'
+        >
+
+        {% comment %} button này dùng để query của app subscription, không xoá {% endcomment %}
+        <button
+          type='submit'
+          class='xo-visually-hidden'
+          aria-label='Button subcription'
+        ></button>
+
+        {{ form | payment_button }}
+        {{ form | payment_terms }}
+      {%- endform -%}
+    </div>
+  </div>
+</div>

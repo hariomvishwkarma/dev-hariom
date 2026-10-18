@@ -1,0 +1,259 @@
+{% liquid
+  assign product_selling_plan = product.selected_or_first_available_selling_plan_allocation
+  assign product_price_adjustments = product_selling_plan.selling_plan.price_adjustments
+  assign subscribe_only = false
+
+  if product_selling_plan.price == product_selling_plan.compare_at_price
+    assign subscribe_label = 'Subscribe'
+    assign subscribe_only = true
+  else
+    assign subscribe_label = 'Subscribe & Save'
+  endif
+
+  if product_price_adjustments[0].value != 0
+    assign subscribe_no_savings = false
+    if product_price_adjustments[0].value_type == 'percentage'
+      assign subscribe_offer = product_price_adjustments[0].value | append: '%'
+    elsif product_price_adjustments[0].value_type == 'fixed_amount' or product_price_adjustments[0].value_type == 'price'
+      assign subscribe_offer = product_price_adjustments[0].value | money_without_trailing_zeros
+    endif
+  else
+    assign subscribe_no_savings = true
+  endif
+%}
+{%- assign product_form_id = 'product-form-' | append: section.id | append: product.selected_selling_plan.id -%}
+
+{%- if product.selling_plan_groups != blank -%}
+  <div class="product-form__input o">
+    <selling-plans
+      id="selling-plan-{{ section.id }}"
+      data-sellingplangroup="{{ product.selected_selling_plan.id }}"
+      class="block mb-8 pt-2 space-y-2 no-js-hidden"
+      data-section="{{ section.id }}"
+      data-product-form-id="{{ product_form_id }}"
+      {% if product.selected_variant %}
+        data-variant="{{ product.selected_variant.id }}"
+      {% endif %}
+      data-url="{{ product.url }}{% if product.selected_variant %}?variant={{ product.selected_variant.id }}{% endif %}"
+    >
+      <p class="form__label">Select Frequency</p>
+      <div class="mb-6">
+        {%- unless product.requires_selling_plan -%}
+          <div class="c-radio relative">
+            <input
+              type="radio"
+              id="selling_group_{{ product.id }}_onetime"
+              name="selling_group_{{ product.id }}"
+              class="sr-only selling-group peer"
+              value="One-time Purchase"
+              {% unless product.selected_selling_plan %}
+                checked="checked"
+              {% endunless %}
+            >
+            <div class="absolute left-0 top-4 !hidden peer-checked:!block">
+              <div class="h-5 w-5 flex items-center justify-center bg-accent-1 rounded-full border border-accent-1">
+                <svg
+                  class="flex-none"
+                  width="12"
+                  height="10"
+                  viewBox="0 0 12 10"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path fill-rule="evenodd" clip-rule="evenodd"
+                    d="M0 5.19231L1.2 3.84615L4.28571 7.30769L10.8 0L12 1.34615L4.28571 10L0 5.19231Z" fill="#ffffff" />
+                </svg>
+              </div>
+            </div>
+            <div class="absolute left-0 top-4 !block peer-checked:!hidden">
+              <div class="h-5 w-5 rounded-full border border-border">&nbsp;</div>
+            </div>
+            <label class="z-[1] relative block" for="selling_group_{{ product.id }}_onetime">
+              <div
+                class="label pl-8 p-4 pr-0 flex items-center text-body-1 font-medium"
+              >
+                One-Time Purchase
+                <span class="ml-auto text-right">
+                  {%- if product.selected_selling_plan -%}
+                    {{ product_selling_plan.compare_at_price | money_without_trailing_zeros }}
+                  {%- else -%}
+                    {{ product.selected_or_first_available_variant.price | money_without_trailing_zeros }}
+
+                    
+                  {%- endif -%}
+                </span>
+              </div>
+            </label>
+            <div class="bg-cream/50 absolute m-auto w-full h-full left-0 flex items-center justify-center right-0 top-0 bottom-0 loading-overlay__spinner hidden">
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                class="spinner w-4 h-4"
+                viewBox="0 0 66 66"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle class="path" fill="none" stroke-width="6" cx="33" cy="33" r="30"></circle>
+              </svg>
+            </div>
+          </div>
+        {%- endunless -%}
+        <div class="c-radio relative">
+          <input
+            type="radio"
+            id="selling_group_{{ product.id }}_subscribe"
+            name="selling_group_{{ product.id }}"
+            class="sr-only peer selling-group"
+            value="Subscribe & Save"
+            {% if product.selected_selling_plan %}
+              checked="checked"
+            {% endif %}
+          >
+          <div class="absolute left-0 top-2 !hidden peer-checked:!block">
+            <div class="h-5 w-5 flex items-center justify-center bg-accent-1 rounded-full border border-accent-1">
+              <svg
+                class="flex-none"
+                width="12"
+                height="10"
+                viewBox="0 0 12 10"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path fill-rule="evenodd" clip-rule="evenodd"
+                  d="M0 5.19231L1.2 3.84615L4.28571 7.30769L10.8 0L12 1.34615L4.28571 10L0 5.19231Z" fill="#ffffff" />
+              </svg>
+            </div>
+          </div>
+          <div class="absolute left-0 top-2 !block peer-checked:!hidden">
+            <div class="h-5 w-5 rounded-full border border-black">&nbsp;</div>
+          </div>
+          <label class="z-[1] relative block" for="selling_group_{{ product.id }}_subscribe">
+            <div class="label pl-8 pt-2 pr-0 px-4 flex items-center text-body-1 font-medium">
+              {{ subscribe_label }}
+              {% comment %} {{ subscribe_offer -}} {% endcomment %}
+              <span class="ml-auto text-right"
+                ><s class="opacity-50 font-normal mr-2">
+                  {%- if product.selected_selling_plan -%}
+                    {{ product_selling_plan.compare_at_price | money_without_trailing_zeros -}}
+                  {%- else -%}
+                    {{ product.selected_or_first_available_variant.price | money_without_trailing_zeros -}}
+                  {%- endif -%}
+                </s>
+
+
+                {{ product_selling_plan.price | money_without_trailing_zeros }}
+
+              </span>
+            </div>
+          </label>
+
+          <div class="pl-8 pr-4 pb-4 !hidden peer-checked:!block">
+              <div class="select">
+              <select
+                {% if product.selected_selling_plan %}
+                {% else %}
+                  disabled
+                {% endif %}
+                class="select__select bg-transparent my-4"
+              >
+                {%- for selling_plan_group in product.selling_plan_groups -%}
+                  {%- if forloop.index == 2 -%}
+                    {%- assign default_plan = true -%}
+                  {%- else -%}
+                    {%- assign default_plan = false -%}
+                  {%- endif -%}
+                  {%- for selling_plan in selling_plan_group.selling_plans -%}
+                    <option
+                      id="selling_group_{{ selling_plan_group.id }}_{{ selling_plan.id }}"
+                      name="selling_plan"
+                      value="{{ selling_plan.id }}"
+                      {% if product.selected_selling_plan %}
+                        {% if selling_plan.selected %}
+                          selected
+                          checked
+                        {% endif %}
+                      {% else %}
+                        {% if default_plan %}
+                          selected
+                          checked
+                        {% endif %}
+                      {% endif %}
+                    >
+                      {{ selling_plan.name }}
+                    </option>
+                  {%- endfor -%}
+                {%- endfor -%}
+              </select>
+              </div>
+
+
+              <ul class="text-body-3 space-y-1">
+                <li class="flex gap-2 items-center">
+                  <svg
+                    class="flex-none"
+                    width="12"
+                    height="10"
+                    viewBox="0 0 12 10"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path fill-rule="evenodd" clip-rule="evenodd"
+                      d="M0 5.19231L1.2 3.84615L4.28571 7.30769L10.8 0L12 1.34615L4.28571 10L0 5.19231Z" fill="#3F3F3F" />
+                  </svg>
+                  Save {{ subscribe_offer }}
+                  when you subscribe
+                </li>
+                <li class="flex gap-2 items-center">
+                  <svg
+                    class="flex-none"
+                    width="12"
+                    height="10"
+                    viewBox="0 0 12 10"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path fill-rule="evenodd" clip-rule="evenodd"
+                      d="M0 5.19231L1.2 3.84615L4.28571 7.30769L10.8 0L12 1.34615L4.28571 10L0 5.19231Z" fill="#3F3F3F" />
+                  </svg>
+                  Free shipping on all orders over {{ settings.free_shipping_threshold | times: 100 |  money_without_trailing_zeros }}
+                </li>
+                <li class="flex gap-2 items-center">
+                  <svg
+                    class="flex-none"
+                    width="12"
+                    height="10"
+                    viewBox="0 0 12 10"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path fill-rule="evenodd" clip-rule="evenodd"
+                      d="M0 5.19231L1.2 3.84615L4.28571 7.30769L10.8 0L12 1.34615L4.28571 10L0 5.19231Z" fill="#3F3F3F" />
+                  </svg>
+                  Cancel or pause any time
+                </li>
+              </ul>
+            </div>
+          <div class="bg-cream/50 absolute m-auto w-full h-full left-0 flex items-center justify-center right-0 top-0 bottom-0 loading-overlay__spinner hidden">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              class="spinner w-4 h-4"
+              viewBox="0 0 66 66"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle class="path" fill="none" stroke-width="6" cx="33" cy="33" r="30"></circle>
+            </svg>
+          </div>
+        </div>
+ 
+      </div>
+      <script type="application/json">
+        {{ product.variants | json }}
+      </script>
+    </selling-plans>
+  </div>
+  <script>
+    const sellingPlans = document.querySelectorAll('selling-plans');
+  </script>
+  {% for selling_plan_group in product.selling_plan_groups %}
+  {% endfor %}
+{%- endif -%}

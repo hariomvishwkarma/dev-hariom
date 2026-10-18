@@ -1,0 +1,600 @@
+<style>
+  @media (min-width: 1024px) {
+    .hero__wrapper-rich-text-with-image {
+        max-width: 100%;
+        margin: 0 auto;
+    }
+  }
+  .template-index  .rich-text .hero__wrapper {
+    max-width: 100%;
+  }
+</style>
+{% assign has_content = false %}
+{%- for block in section.blocks -%}
+  {% if block.type == 'text' and block.settings.text != '' %}
+    {% assign has_content = true %}
+    {% break %}
+  {% endif %}
+  {% if block.type == 'heading' and block.settings.heading != '' %}
+    {% assign has_content = true %}
+    {% break %}
+  {% endif %}
+{% endfor %}
+
+{% assign background_rgb = section.settings.background_color | color_to_rgb %}
+{% assign text_rgb = section.settings['color-body-text'] | color_to_rgb %}
+
+{%- comment -%} Detect if any heading block has the main button enabled {%- endcomment -%}
+{% assign heading_button_enabled = false %}
+{%- for block in section.blocks -%}
+  {% if block.type == 'heading' and block.settings.enable_button %}
+    {% assign heading_button_enabled = true %}
+    {% break %}
+  {% endif %}
+{%- endfor -%}
+
+{%- comment -%} Detect if any heading block has a custom button label filled {%- endcomment -%}
+{% assign custom_button_enabled = false %}
+{%- for block in section.blocks -%}
+  {% if block.type == 'heading' and block.settings.custom_btn_two_label != blank %}
+    {% assign custom_button_enabled = true %}
+    {% break %}
+  {% endif %}
+{%- endfor -%}
+
+{%- comment -%} Use the custom heading layout if EITHER a main button or a custom button is set {%- endcomment -%}
+{% assign use_custom_heading_layout = false %}
+{% if heading_button_enabled or custom_button_enabled %}
+  {% assign use_custom_heading_layout = true %}
+{% endif %}
+
+{% if request.design_mode or has_content %}
+  <style>
+        [data-section-id="{{ section.id }}"]
+        {
+            {% if background_rgb != 'rgba(0, 0, 0, 0.0)' %}
+              --color-custom-background: {{ section.settings.background_color }};
+            {% endif %}
+
+            {% if text_rgb != 'rgba(0, 0, 0, 0.0)' %}
+              --color-custom-text: {{ section.settings.color-body-text }};
+            {% endif %}
+
+            {% if section.settings.margin-top %}
+                --section-gap-top: {{ section.settings.margin-top }}px;
+            {% endif %}
+
+            {% if section.settings.margin-bottom %}
+                --section-gap-bottom: {{ section.settings.margin-bottom }}px;
+            {% endif %}
+
+        }
+
+    {%- for block in section.blocks -%}
+        [data-block-id="{{ block.id }}"]
+        {
+
+              --font-headline-scale-desk: {{ block.settings.size_heading | divided_by: 100.0 }};
+
+              --font-headline-scale: {{ block.settings.size_heading_mobile | divided_by: 100.0 }};
+
+              --font-base-line-height: {{ block.settings.line_height }};
+
+              --font-base-transform: {{ block.settings.font_uppercase }};
+
+
+        }
+    {%- endfor -%}
+
+    {%- if use_custom_heading_layout -%}
+    .rich-text__heading-with-button {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      width: 100%;
+    }
+
+    .rich-text__heading-with-button .rich-text__heading-content {
+      text-align: left;
+      flex: 1;
+    }
+
+    .rich-text__heading-buttons {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .rich-text__heading-button {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .rich-text__heading-content h2 {
+        font-size: 35px;
+        color: #ffffff;
+        line-height: 1.4;
+        font-weight: 100;
+    }
+
+    {%- comment -%} Custom arrow-link button styling {%- endcomment -%}
+    .custom-btn--link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: #ffffff;
+      font-size: 16px;
+      line-height: 1;
+      white-space: nowrap;
+      transition: gap 0.3s ease, opacity 0.3s ease;
+      text-decoration: none !important;
+    }
+
+    .custom-btn__arrow {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    @media screen and (max-width: 749px) {
+      .rich-text__heading-content h2 {
+        font-size: 21px;
+        text-align: center;
+      }
+      .rich-text__heading-with-button {
+        flex-direction: column;
+        gap: 12px;
+      }
+      .rich-text__heading-buttons {
+        justify-content: center;
+      }
+    }
+
+    {%- comment -%} Per-block button color overrides {%- endcomment -%}
+    {%- for block in section.blocks -%}
+      {%- if block.type == 'heading' and block.settings.enable_button -%}
+        {%- assign btn_bg_rgb = block.settings.button_bg_color | color_to_rgb -%}
+        {%- assign btn_text_rgb = block.settings.button_text_color | color_to_rgb -%}
+        {%- assign btn_outline_rgb = block.settings.button_outline_color | color_to_rgb -%}
+        [data-block-id="{{ block.id }}"] .rich-text__heading-button .btn {
+          {%- if btn_bg_rgb != 'rgba(0, 0, 0, 0.0)' %}
+          background-color: {{ block.settings.button_bg_color }};
+          border-color: {{ block.settings.button_bg_color }};
+          {%- endif %}
+          {%- if btn_text_rgb != 'rgba(0, 0, 0, 0.0)' %}
+          color: {{ block.settings.button_text_color }};
+          {%- endif %}
+          {%- if block.settings.button_style == 'outline' %}
+          background-color: transparent;
+          {%- if btn_outline_rgb != 'rgba(0, 0, 0, 0.0)' %}
+          border-color: {{ block.settings.button_outline_color }};
+          color: {{ block.settings.button_outline_color }};
+          {%- endif %}
+          {%- endif %}
+        }
+        [data-block-id="{{ block.id }}"] .rich-text__heading-button .btn {
+            background-color: #ff9900;
+            border-color: #ff9900;
+            color: #000000;
+            padding: 10px 15px;
+            border-radius: 10px;
+            transition: .5s;
+        }
+        [data-block-id="{{ block.id }}"] .rich-text__heading-button .btn:hover {
+          {%- if block.settings.button_style == 'outline' %}
+          {%- if btn_outline_rgb != 'rgba(0, 0, 0, 0.0)' %}
+          background-color: {{ block.settings.button_outline_color }};
+          color: {{ block.settings.button_bg_color | default: '#ffffff' }};
+          {%- endif %}
+          {%- elsif btn_bg_rgb != 'rgba(0, 0, 0, 0.0)' %}
+          background-color: {{ block.settings.button_hover_color | color_darken: 10 }};
+          {%- endif %}
+        }
+      {%- endif -%}
+    {%- endfor -%}
+    {%- endif -%}
+    .rich-text__heading-buttons {
+      display: none;
+    }
+  </style>
+
+  <div
+    data-section-id="{{ section.id }}"
+    class="{% if settings.animations %} scroll-trigger animate--slide-in {% endif %} {% if settings.disabled_animations_on_mobile %} disabled-on-mobile {% endif %} rich-text"
+  >
+    <div class="hero__wrapper-rich-text-with-image">
+      <div class="hero__wrapper">
+        {%- if use_custom_heading_layout -%}
+          {%- comment -%}
+            Render each heading block in a single row: content on the left,
+            and a button group (main button and/or custom button) on the right.
+            Buttons render only when set, so an empty button never appears.
+          {%- endcomment -%}
+          {%- for block in section.blocks -%}
+            {%- if block.type == 'heading' -%}
+              <div class="rich-text__heading-with-button" data-block-id="{{ block.id }}" {{ block.shopify_attributes }}>
+                {%- if block.settings.subheading != blank -%}
+                  <div class="rich-text__heading-content">
+                    {{ block.settings.subheading }}
+                  </div>
+                {%- endif -%}
+
+                {%- if block.settings.custom_subheading != blank -%}
+                  <div class="rich-text-custom-subheading-with-button">
+                    <div class="rich-text-custom-subheading">
+                      {{ block.settings.custom_subheading }}
+                    </div>
+                    {%- if block.settings.custom_btn_two_label != blank -%}
+                      <div class="rich-text__heading-button">
+                        <a
+                          href="{{ block.settings.custom_btn_two_link | default: '#' }}"
+                          class="custom-btn custom-btn--link"
+                          aria-label="{{ block.settings.custom_btn_two_label }}"
+                        >
+                          <span class="custom-btn__label" style="font-size: 13px; font-weight: 400;">{{ block.settings.custom_btn_two_label }}</span>
+                          <span class="custom-btn__arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 11 11"><path fill="currentColor" fill-rule="evenodd" d="M5.5 0 11 5.5 5.5 11 4.406 9.906l3.631-3.632H0V4.726h8.037L4.406 1.094 5.5 0Z" clip-rule="evenodd"></path></svg></span>
+                        </a>
+                      </div>
+                    {%- endif -%}
+                  </div>
+                {%- endif -%}
+
+                {%- if block.settings.enable_button or block.settings.custom_btn_two_label != blank -%}
+                  <div class="rich-text__heading-buttons">
+                    {%- if block.settings.enable_button -%}
+                      <div class="rich-text__heading-button">
+                        {%- if block.settings.button_link != blank -%}
+                          <a href="{{ block.settings.button_link }}" class="btn btn--primary">
+                            {{ block.settings.button_text | default: 'Learn More' }}
+                          </a>
+                        {%- else -%}
+                          <button type="button" class="btn btn--primary">
+                            {{ block.settings.button_text | default: 'Learn More' }}
+                          </button>
+                        {%- endif -%}
+                      </div>
+                    {%- endif -%}
+                  </div>
+                {%- endif -%}
+              </div>
+            {%- endif -%}
+          {%- endfor -%}
+
+          {%- comment -%} Render remaining non-heading (text) blocks via the hero snippet {%- endcomment -%}
+          {% assign non_heading_blocks = section.blocks | where: 'type', 'text' %}
+          {% if non_heading_blocks.size > 0 %}
+            {% render 'hero',
+              type: 'blocks',
+              desktop_text_horizontal_position: section.settings.desktop_text_horizontal_position,
+              desktop_text_vertical_position: 'center',
+              blocks: non_heading_blocks,
+              rich_text_with_image: true,              
+              h1_true: section.settings.h1_true
+            %}
+          {% endif %}
+        {%- else -%}
+          {% render 'hero',
+            type: 'blocks',
+            desktop_text_horizontal_position: section.settings.desktop_text_horizontal_position,
+            desktop_text_vertical_position: 'center',
+            blocks: section.blocks,
+            rich_text_with_image: true,
+          h1_true: section.settings.h1_true
+          %}
+        {%- endif -%}
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+{% schema %}
+{
+  "name": "t:sections.rich-text-with-image.name",
+  "tag": "section",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "h1_true",
+      "label": "H1 true"
+    },
+    {
+      "type": "select",
+      "id": "desktop_text_horizontal_position",
+      "options": [
+        {
+          "value": "left",
+          "label": "t:sections.rich-text-with-image.settings.desktop_text_horizontal_position.left.label"
+        },
+        {
+          "value": "center",
+          "label": "t:sections.rich-text-with-image.settings.desktop_text_horizontal_position.center.label"
+        },
+        {
+          "value": "right",
+          "label": "t:sections.rich-text-with-image.settings.desktop_text_horizontal_position.right.label"
+        }
+      ],
+      "default": "center",
+      "label": "t:sections.rich-text-with-image.settings.desktop_text_horizontal_position.label"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.global.colors",
+      "info": "t:sections.global.colors-info"
+    },
+    {
+      "type": "color",
+      "id": "color-body-text",
+      "default": "transparent",
+      "label": "t:sections.settings.settings.text-color.label"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "default": "transparent",
+      "label": "t:sections.settings.settings.background-color.label"
+    },
+    {
+      "type": "header",
+      "content": "t:sections.global.section_spacing"
+    },
+    {
+      "type": "range",
+      "id": "margin-top",
+      "min": 0,
+      "max": 100,
+      "unit": "px",
+      "step": 4,
+      "default": 20,
+      "label": "t:sections.settings.settings.distance-top.label"
+    },
+    {
+      "type": "range",
+      "id": "margin-bottom",
+      "min": 0,
+      "max": 100,
+      "unit": "px",
+      "step": 4,
+      "default": 20,
+      "label": "t:sections.settings.settings.distance-bottom.label",
+      "info": "t:sections.settings.settings.distance-bottom.info"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "heading",
+      "name": "t:sections.rich-text-with-image.blocks.subheading.name",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "richtext",
+          "id": "subheading",
+          "default": "<p>Customize Your Visual Layout</p>",
+          "label": "t:sections.settings.settings.subheading.label"
+        },
+        {
+          "type": "inline_richtext",
+          "id": "custom_subheading",
+          "label": "Custom subheading"
+        },
+        {
+          "type": "select",
+          "id": "font_uppercase",
+          "default": "none",
+          "options": [
+            {
+              "value": "none",
+              "label": "none"
+            },
+            {
+              "value": "uppercase",
+              "label": "Uppercase"
+            }
+          ],
+          "label": "t:settings_schema.typography.settings.type_body_font_uppercase.label"
+        },
+        {
+          "type": "checkbox",
+          "id": "disable_on_mobile",
+          "label": "t:sections.global.disable_on_mobile",
+          "default": false
+        },
+        {
+          "type": "header",
+          "content": "Button"
+        },
+        {
+          "type": "checkbox",
+          "id": "enable_button",
+          "label": "Enable button",
+          "default": false,
+          "info": "When enabled, heading aligns left and button appears on the right"
+        },
+        {
+          "type": "text",
+          "id": "button_text",
+          "label": "Button text",
+          "default": "Shop Now"
+        },
+        {
+          "type": "url",
+          "id": "button_link",
+          "label": "Button link"
+        },
+        {
+          "type": "select",
+          "id": "button_style",
+          "label": "Button style",
+          "default": "filled",
+          "options": [
+            {
+              "value": "filled",
+              "label": "Filled"
+            },
+            {
+              "value": "outline",
+              "label": "Outline"
+            }
+          ]
+        },
+        {
+          "type": "color",
+          "id": "button_bg_color",
+          "label": "Button background color",
+          "default": "transparent"
+        },
+        {
+          "type": "color",
+          "id": "button_text_color",
+          "label": "Button text color",
+          "default": "transparent"
+        },
+        {
+          "type": "color",
+          "id": "button_outline_color",
+          "label": "Button outline color",
+          "default": "transparent",
+          "info": "Outline style only — sets border, text, and hover fill color."
+        },
+        {
+          "type": "color",
+          "id": "button_hover_color",
+          "label": "Button hover color",
+          "default": "transparent",
+          "info": "Outline style only — sets border, text, and hover fill color."
+        },
+        {
+          "type": "header",
+          "content": "Custom Buttons"
+        },
+        {
+          "type": "text",
+          "id": "custom_btn_two_label",
+          "label": "Custom button 2 – Text"
+        },
+        {
+          "type": "url",
+          "id": "custom_btn_two_link",
+          "label": "Custom button 2 – Link"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "name": "t:sections.rich-text-with-image.blocks.text.name",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "textarea",
+          "id": "text",
+          "default": "Type PICTURE1 to insert the first icon – place it where you want a visual cue. Insert PICTURE2 by typing it where a second visual element is needed. Use PICTURE3 for adding a third icon – ensure it has its own space.",
+          "label": "t:sections.settings.settings.text.label"
+        },
+        {
+          "type": "select",
+          "id": "font_uppercase",
+          "default": "none",
+          "options": [
+            {
+              "value": "none",
+              "label": "none"
+            },
+            {
+              "value": "uppercase",
+              "label": "Uppercase"
+            }
+          ],
+          "label": "t:settings_schema.typography.settings.type_body_font_uppercase.label"
+        },
+        {
+          "type": "checkbox",
+          "id": "disable_on_mobile",
+          "label": "t:sections.global.disable_on_mobile",
+          "default": false
+        },
+        {
+          "type": "range",
+          "id": "size_heading",
+          "min": 50,
+          "max": 500,
+          "step": 10,
+          "default": 100,
+          "label": "t:sections.settings.settings.size-heading.label",
+          "unit": "%"
+        },
+        {
+          "type": "range",
+          "id": "size_heading_mobile",
+          "min": 80,
+          "max": 300,
+          "step": 10,
+          "default": 100,
+          "label": "t:sections.settings.settings.size-heading-mobile.label",
+          "unit": "%"
+        },
+        {
+          "type": "range",
+          "id": "line_height",
+          "min": 1,
+          "max": 2,
+          "step": 0.1,
+          "default": 1.5,
+          "label": "t:settings_schema.typography.settings.typo_line_height.label"
+        },
+        {
+          "type": "image_picker",
+          "id": "picture1",
+          "label": "t:sections.rich-text-with-image.blocks.heading.settings.picture1.label",
+          "info": "t:sections.rich-text-with-image.blocks.heading.settings.picture1.info"
+        },
+        {
+          "type": "url",
+          "id": "button_link1",
+          "label": "t:sections.rich-text-with-image.blocks.heading.settings.link1.label"
+        },
+        {
+          "type": "image_picker",
+          "id": "picture2",
+          "label": "t:sections.rich-text-with-image.blocks.heading.settings.picture2.label",
+          "info": "t:sections.rich-text-with-image.blocks.heading.settings.picture2.info"
+        },
+        {
+          "type": "url",
+          "id": "button_link2",
+          "label": "t:sections.rich-text-with-image.blocks.heading.settings.link2.label"
+        },
+        {
+          "type": "image_picker",
+          "id": "picture3",
+          "label": "t:sections.rich-text-with-image.blocks.heading.settings.picture3.label",
+          "info": "t:sections.rich-text-with-image.blocks.heading.settings.picture3.info"
+        },
+        {
+          "type": "url",
+          "id": "button_link3",
+          "label": "t:sections.rich-text-with-image.blocks.heading.settings.link3.label"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.rich-text-with-image.presets.name",
+      "category": "t:sections.categories.text",
+      "blocks": [
+        {
+          "type": "heading"
+        },
+        {
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "disabled_on": {
+    "groups": ["header", "footer"]
+  }
+}
+{% endschema %}

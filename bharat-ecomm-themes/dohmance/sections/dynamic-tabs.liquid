@@ -1,0 +1,558 @@
+{% render 'wavy-border', section: section %}
+{%- comment -%}
+  Dynamic radio-dot tabs
+  ----------------------
+  Recreates the "● The Classics  ○ Flavour of The Month  ○ Build Your Own Box" selector.
+
+  - Every tab is a BLOCK, so merchants can add, remove, rename and reorder
+    tabs in the theme editor.
+  - Each tab can optionally show a collection's products, a heading, text and a button.
+  - Styling (colours, sizes, alignment) is controlled from section settings.
+{%- endcomment -%}
+
+{%- liquid
+  assign tab_count = section.blocks.size
+  assign default_index = section.settings.default_tab | minus: 1
+  if default_index >= tab_count
+    assign default_index = 0
+  endif
+  if default_index < 0
+    assign default_index = 0
+  endif
+-%}
+
+{%- style -%}
+  #DynamicTabs-{{ section.id }} {
+    --dt-text: {{ section.settings.text_color }};
+    --dt-dot: {{ section.settings.dot_color }};
+    --dt-bg: {{ section.settings.background }};
+    --dt-font-size: {{ section.settings.label_size }}px;
+    --dt-gap: {{ section.settings.tab_gap }}px;
+    --dt-cols-desktop: {{ section.settings.columns_desktop }};
+    --dt-cols-mobile: {{ section.settings.columns_mobile }};
+    padding-top: {{ section.settings.padding_top }}px;
+    padding-bottom: {{ section.settings.padding_bottom }}px;
+  }
+{%- endstyle -%}
+
+<div
+  id="DynamicTabs-{{ section.id }}"
+  class="dyn-tabs dyn-tabs--{{ section.settings.alignment }}"
+  data-dyn-tabs
+>
+  <div class="dyn-tabs__inner page-width">
+    {%- if section.settings.heading != blank -%}
+      <h2 class="dyn-tabs__heading">{{ section.settings.heading | escape }}</h2>
+    {%- endif -%}
+
+    {%- if tab_count > 0 -%}
+      <div
+        class="dyn-tabs__nav"
+        role="tablist"
+        aria-label="{{ section.settings.heading | default: section.settings.aria_label | escape }}"
+      >
+        {%- for block in section.blocks -%}
+          {%- liquid
+            assign is_active = false
+            if forloop.index0 == default_index
+              assign is_active = true
+            endif
+          -%}
+          <button
+            type="button"
+            class="dyn-tabs__tab"
+            role="tab"
+            id="DynTab-{{ block.id }}"
+            aria-selected="{{ is_active }}"
+            aria-controls="DynPanel-{{ block.id }}"
+            tabindex="{% if is_active %}0{% else %}-1{% endif %}"
+            data-dyn-tab
+            {{ block.shopify_attributes }}
+          >
+            <span class="dyn-tabs__dot" aria-hidden="true"></span>
+            <span class="dyn-tabs__label">{{ block.settings.label | escape }}</span>
+          </button>
+        {%- endfor -%}
+      </div>
+
+      <div class="dyn-tabs__panels">
+        {%- for block in section.blocks -%}
+          {%- liquid
+            assign is_active = false
+            if forloop.index0 == default_index
+              assign is_active = true
+            endif
+            assign collection = block.settings.collection
+            assign has_content = false
+            if collection != blank or block.settings.title != blank or block.settings.text != blank or block.settings.button_label != blank
+              assign has_content = true
+            endif
+          -%}
+          <div
+            class="dyn-tabs__panel"
+            role="tabpanel"
+            id="DynPanel-{{ block.id }}"
+            aria-labelledby="DynTab-{{ block.id }}"
+            data-dyn-panel
+            {% unless is_active %}hidden{% endunless %}
+          >
+            {%- if has_content -%}
+              {%- if block.settings.title != blank or block.settings.text != blank -%}
+                <div class="dyn-tabs__intro">
+                  {%- if block.settings.title != blank -%}
+                    <h3 class="dyn-tabs__title">{{ block.settings.title | escape }}</h3>
+                  {%- endif -%}
+                  {%- if block.settings.text != blank -%}
+                    <div class="dyn-tabs__text rte">{{ block.settings.text }}</div>
+                  {%- endif -%}
+                </div>
+              {%- endif -%}
+
+              {%- if collection != blank and collection.products.size > 0 -%}
+                <ul class="dyn-tabs__grid" role="list">
+                  {%- for product in collection.products limit: block.settings.product_limit -%}
+                    <li class="dyn-tabs__card">
+                      <a href="{{ product.url }}" class="dyn-tabs__card-link">
+                        <div class="dyn-tabs__media">
+                          {%- if product.featured_media != blank -%}
+                            {{
+                              product.featured_media
+                              | image_url: width: 600
+                              | image_tag:
+                                loading: 'lazy',
+                                widths: '200, 300, 400, 600',
+                                sizes: '(min-width: 750px) 25vw, 50vw',
+                                alt: product.featured_media.alt
+                            }}
+                          {%- else -%}
+                            {{ 'product-1' | placeholder_svg_tag: 'dyn-tabs__placeholder' }}
+                          {%- endif -%}
+                        </div>
+                        <span class="dyn-tabs__card-title">{{ product.title | escape }}</span>
+                        <span class="dyn-tabs__card-price">
+                          {%- if product.compare_at_price > product.price -%}
+                            <s>{{ product.compare_at_price | money }}</s>
+                          {%- endif -%}
+                          {{ product.price | money }}
+                        </span>
+                      </a>
+                    </li>
+                  {%- endfor -%}
+                </ul>
+              {%- elsif collection != blank -%}
+                <p class="dyn-tabs__empty">{{ 'sections.collection_template.empty' | t | default: 'No products found in this collection.' }}</p>
+              {%- endif -%}
+
+              {%- if block.settings.button_label != blank and block.settings.button_link != blank -%}
+                <a href="{{ block.settings.button_link }}" class="dyn-tabs__button button">
+                  {{ block.settings.button_label | escape }}
+                </a>
+              {%- endif -%}
+            {%- endif -%}
+          </div>
+        {%- endfor -%}
+      </div>
+    {%- endif -%}
+  </div>
+</div>
+
+{%- stylesheet -%}
+  .dyn-tabs {
+    background: var(--dt-bg, transparent);
+    color: var(--dt-text, #1f1f1f);
+  }
+  
+  .dyn-tabs__inner {
+    margin-inline: auto;
+    padding-inline: 1.5rem;
+  }
+  .dyn-tabs--left { text-align: left; }
+  .dyn-tabs--center { text-align: center; }
+  .dyn-tabs--right { text-align: right; }
+
+  .dyn-tabs__heading {
+    margin: 0 0 1.25rem;
+  }
+
+  /* ---------- Tab row ---------- */
+  .dyn-tabs__nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem var(--dt-gap, 40px);
+  }
+  .dyn-tabs--center .dyn-tabs__nav { justify-content: center; }
+  .dyn-tabs--right .dyn-tabs__nav { justify-content: flex-end; }
+
+  .dyn-tabs__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.35em 0;
+    margin: 0;
+    background: none;
+    pointer-events: none;
+    border: 0;
+    border-radius: 0;
+    color: inherit;
+    font: inherit;
+    font-size: var(--dt-font-size, 18px);
+    line-height: 1.2;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .dyn-tabs__tab:focus-visible {
+    outline: 2px solid var(--dt-dot, currentColor);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+
+  /* The radio-style dot */
+  .dyn-tabs__dot {
+    flex: none;
+    box-sizing: border-box;
+    width: 0.85em;
+    height: 0.85em;
+    border: 1.5px solid var(--dt-dot, currentColor);
+    border-radius: 50%;
+    background: transparent;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+  }
+  .dyn-tabs__tab[aria-selected='true'] .dyn-tabs__dot {
+    background: var(--dt-dot, currentColor);
+  }
+  .dyn-tabs__tab:not([aria-selected='true']):hover .dyn-tabs__dot {
+    transform: scale(1.12);
+  }
+
+  .dyn-tabs__label {
+    font-weight: 500;
+  }
+  .dyn-tabs__tab[aria-selected='true'] .dyn-tabs__label {
+    font-weight: 700;
+  }
+
+  /* ---------- Panels ---------- */
+  .dyn-tabs__panels { margin-top: 2rem; }
+  .dyn-tabs__panel[hidden] { display: none; }
+
+  .dyn-tabs__intro { margin-bottom: 1.5rem; }
+  .dyn-tabs__title { margin: 0 0 0.5rem; }
+
+  .dyn-tabs__grid {
+    display: grid;
+    grid-template-columns: repeat(var(--dt-cols-mobile, 2), minmax(0, 1fr));
+    gap: 1.25rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+  }
+  @media (min-width: 750px) {
+    .dyn-tabs__grid {
+      grid-template-columns: repeat(var(--dt-cols-desktop, 4), minmax(0, 1fr));
+      gap: 1.75rem;
+    }
+  }
+
+  .dyn-tabs__card-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: inherit;
+    text-decoration: none;
+  }
+  .dyn-tabs__media {
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 8px;
+  }
+  .dyn-tabs__media img,
+  .dyn-tabs__media svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .dyn-tabs__card-title { font-weight: 600; }
+  .dyn-tabs__card-price s { opacity: 0.6; margin-right: 0.35em; }
+
+  .dyn-tabs__button { margin-top: 1.75rem; }
+  .dyn-tabs__empty { opacity: 0.7; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dyn-tabs__dot { transition: none; }
+  }
+{%- endstylesheet -%}
+
+{%- javascript -%}
+  (function () {
+    function init(root) {
+      if (!root || root.dataset.dynTabsReady) return;
+      root.dataset.dynTabsReady = 'true';
+
+      var tabs = Array.prototype.slice.call(root.querySelectorAll('[data-dyn-tab]'));
+      var panels = Array.prototype.slice.call(root.querySelectorAll('[data-dyn-panel]'));
+
+      function select(index, focus) {
+        tabs.forEach(function (tab, i) {
+          var active = i === index;
+          tab.setAttribute('aria-selected', active ? 'true' : 'false');
+          tab.tabIndex = active ? 0 : -1;
+          if (panels[i]) panels[i].hidden = !active;
+          if (active && focus) tab.focus();
+        });
+      }
+
+      tabs.forEach(function (tab, i) {
+        tab.addEventListener('click', function () { select(i, false); });
+        tab.addEventListener('keydown', function (e) {
+          var next = null;
+          if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (i + 1) % tabs.length;
+          else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (i - 1 + tabs.length) % tabs.length;
+          else if (e.key === 'Home') next = 0;
+          else if (e.key === 'End') next = tabs.length - 1;
+          if (next !== null) {
+            e.preventDefault();
+            select(next, true);
+          }
+        });
+      });
+
+      /* Theme editor: jump to a tab when its block is selected */
+      root.addEventListener('shopify:block:select', function (e) {
+        var idx = tabs.findIndex(function (t) { return t.id === 'DynTab-' + e.detail.blockId; });
+        if (idx > -1) select(idx, false);
+      });
+    }
+
+    function initAll() {
+      document.querySelectorAll('[data-dyn-tabs]').forEach(init);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initAll);
+    } else {
+      initAll();
+    }
+    document.addEventListener('shopify:section:load', initAll);
+  })();
+{%- endjavascript -%}
+
+{% schema %}
+{
+  "name": "Dynamic tabs",
+  "tag": "section",
+  "class": "section-dynamic-tabs",
+  "max_blocks": 6,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading (optional)"
+    },
+    {
+      "type": "text",
+      "id": "aria_label",
+      "label": "Accessibility label",
+      "default": "Choose a box type"
+    },
+    {
+      "type": "range",
+      "id": "default_tab",
+      "label": "Tab selected on load",
+      "min": 1,
+      "max": 6,
+      "step": 1,
+      "default": 1
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "select",
+      "id": "alignment",
+      "label": "Alignment",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "range",
+      "id": "tab_gap",
+      "label": "Space between tabs",
+      "min": 12,
+      "max": 80,
+      "step": 4,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "columns_desktop",
+      "label": "Product columns (desktop)",
+      "min": 2,
+      "max": 5,
+      "step": 1,
+      "default": 4
+    },
+    {
+      "type": "range",
+      "id": "columns_mobile",
+      "label": "Product columns (mobile)",
+      "min": 1,
+      "max": 3,
+      "step": 1,
+      "default": 2
+    },
+    {
+      "type": "header",
+      "content": "Style"
+    },
+    {
+      "type": "range",
+      "id": "label_size",
+      "label": "Tab text size",
+      "min": 12,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text",
+      "default": "#1f1f1f"
+    },
+    {
+      "type": "color",
+      "id": "dot_color",
+      "label": "Dot",
+      "default": "#1f1f1f"
+    },
+    {
+      "type": "color",
+      "id": "background",
+      "label": "Background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Top padding",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "Bottom padding",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "header",
+      "content": "Wavy border"
+    },
+    { "type": "checkbox", "id": "wavy_border_top", "label": "Top wavy border", "default": false },
+    { "type": "checkbox", "id": "wavy_border_bottom", "label": "Bottom wavy border", "default": false },
+    { "type": "checkbox", "id": "wavy_border_left", "label": "Left wavy border", "default": false },
+    { "type": "checkbox", "id": "wavy_border_right", "label": "Right wavy border", "default": false },
+    { "type": "range", "id": "wavy_border_gap", "label": "Gap between border and content", "min": 0, "max": 40, "step": 2, "unit": "px", "default": 16, "visible_if": "{{ section.settings.wavy_border_left or section.settings.wavy_border_right }}" },
+    {
+      "type": "color",
+      "id": "wavy_border_color",
+      "label": "Wavy border color",
+      "visible_if": "{{ section.settings.wavy_border_top or section.settings.wavy_border_bottom or section.settings.wavy_border_left or section.settings.wavy_border_right }}"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "tab",
+      "name": "Tab",
+      "settings": [
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Tab label",
+          "default": "New tab"
+        },
+        {
+          "type": "header",
+          "content": "Tab content (optional)"
+        },
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Heading"
+        },
+        {
+          "type": "richtext",
+          "id": "text",
+          "label": "Text"
+        },
+        {
+          "type": "collection",
+          "id": "collection",
+          "label": "Show products from collection"
+        },
+        {
+          "type": "range",
+          "id": "product_limit",
+          "label": "Max products",
+          "min": 2,
+          "max": 24,
+          "step": 1,
+          "default": 8
+        },
+        {
+          "type": "text",
+          "id": "button_label",
+          "label": "Button label"
+        },
+        {
+          "type": "url",
+          "id": "button_link",
+          "label": "Button link"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Dynamic tabs",
+      "blocks": [
+        {
+          "type": "tab",
+          "settings": { "label": "The Classics" }
+        },
+        {
+          "type": "tab",
+          "settings": { "label": "Flavour of The Month" }
+        },
+        {
+          "type": "tab",
+          "settings": { "label": "Build Your Own Box" }
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

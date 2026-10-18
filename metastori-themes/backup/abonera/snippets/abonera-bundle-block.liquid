@@ -1,0 +1,962 @@
+{% comment %}
+  ============================================================
+  ABONERA BUNDLE SUBSCRIPTION — SNIPPET
+  ------------------------------------------------------------
+  Custom bundle UI (color, size, pack, purchase type, frequency,
+  trust, microcopy) rendered as a block inside main-product.
+
+  ARCHITECTURE:
+  This block does NOT own its own variant change logic. It
+  PROXIES clicks to the section's existing <variant-options>
+  radios so the native variant flow runs (URL update, gallery
+  update, [name="id"] update, price block update, etc.).
+
+  The block additionally manages a hidden `selling_plan` input
+  on the section's form so subscriptions submit correctly.
+
+  The section's `variant_picker` block MUST be present in the
+  template, but its CSS can be hidden if you don't want the
+  default UI visible. The cleanest approach is in product.bundle.json
+  to include `variant_picker` but render it visually hidden via
+  block setting OR just leave the picker visible — block clicks
+  it through, so it stays in sync.
+
+  Required render params:
+    block            — section block
+    product          — current product
+    section          — current section
+    product_form_id  — section's product form id
+
+  Required product metafields:
+    custom.value_display_mode    → "percent" | "nok_saved" | "per_pair"
+    custom.most_popular_pack     → integer (e.g. 15)
+    custom.recommended_frequency → string matching plan name (e.g. "6 mnd")
+    custom.tagline               → optional short product tagline
+
+  Pack card thumbnails: assign a featured image per variant in Shopify admin
+  (Products → variant → image). Each pack row shows the image for the variant
+  matching current color + size + pack. Color/size options have no thumbnails.
+  ============================================================
+{% endcomment %}
+
+{{ 'abonera-bundle-pdp.css' | asset_url | stylesheet_tag }}
+
+{%- liquid
+  assign value_display_mode = product.metafields.custom.value_display_mode | default: 'percent'
+  assign most_popular_pack  = product.metafields.custom.most_popular_pack  | default: 15
+  assign recommended_frequency = product.metafields.custom.recommended_frequency | default: 'Deliver every 4 months'
+
+  assign color_option_index = -1
+  assign size_option_index  = -1
+  assign pack_option_index  = -1
+
+  for option in product.options_with_values
+    assign opt_name = option.name | downcase
+    if opt_name contains 'farge' or opt_name contains 'color' or opt_name contains 'colour'
+      assign color_option_index = forloop.index0
+      assign color_option_name = option.name
+    elsif opt_name contains 'størrelse' or opt_name contains 'storrelse' or opt_name contains 'size'
+      assign size_option_index = forloop.index0
+      assign size_option_name = option.name
+    elsif opt_name contains 'pakke' or opt_name contains 'pack'
+      assign pack_option_index = forloop.index0
+      assign pack_option_name = option.name
+    endif
+  endfor
+
+  assign current_variant = product.selected_or_first_available_variant
+
+  assign value_percent_txt = 'spar __PERCENT__%'
+  assign value_nok_saved_txt = 'spar __SAVED__ kr'
+  assign value_per_pair_txt = '__PER_PAIR__ kr per par'
+  assign microcopy_tpl = 'Første levering nå · neste om __MONTHS__ måneder'
+  assign cta_suffix_tpl = ' – __PRICE__'
+
+  assign selected_color = block.settings.selected_color | default: '#1e4cd9'
+  assign selected_color_soft = selected_color | color_modify: 'alpha', 0.12
+-%}
+
+<bundle-pdp-widget
+  id="BundlePDP-{{ section.id }}-{{ block.id }}"
+  class="abp"
+  style="--abp-selected: {{ selected_color }}; --abp-selected-soft: {{ selected_color_soft }};"
+  data-section-id="{{ section.id }}"
+  data-product-id="{{ product.id }}"
+  data-product-handle="{{ product.handle }}"
+  data-form-id="{{ product_form_id }}"
+  data-color-index="{{ color_option_index }}"
+  data-size-index="{{ size_option_index }}"
+  data-pack-index="{{ pack_option_index }}"
+  data-color-option-name="{{ color_option_name | escape }}"
+  data-size-option-name="{{ size_option_name | escape }}"
+  data-pack-option-name="{{ pack_option_name | escape }}"
+  data-value-mode="{{ value_display_mode }}"
+  data-most-popular="{{ most_popular_pack }}"
+  data-recommended-frequency="{{ recommended_frequency | escape }}"
+  {{ block.shopify_attributes }}
+>
+  {%- comment -%} ---------- TAGLINE ---------- {%- endcomment -%}
+  {% if block.settings.show_tagline %}
+    {% assign tagline_text = product.metafields.custom.tagline | default: block.settings.tagline_fallback %}
+    {% if tagline_text != blank %}
+      <p class="abp__tagline">{{ tagline_text }}</p>
+    {% endif %}
+  {% endif %}
+
+  {%- comment -%} ---------- VARIANT DATA (JSON) ---------- {%- endcomment -%}
+  <script type="application/json" class="abp__variant-data">
+    [
+      {%- for v in product.variants -%}
+        {
+          "id": {{ v.id }},
+          "available": {{ v.available }},
+          "price": {{ v.price }},
+          "compare_at_price": {{ v.compare_at_price | default: v.price }},
+          "options": {{ v.options | json }},
+          {%- assign variant_image = v.featured_image | default: product.featured_image -%}
+          "image": {% if variant_image %}{{ variant_image | image_url: width: 160 | json }}{% else %}null{% endif %},
+          "image_alt": {{ variant_image.alt | default: product.title | escape | json }},
+          "selling_plan_allocations": [
+            {%- for a in v.selling_plan_allocations -%}
+              {
+                "selling_plan_id": {{ a.selling_plan.id }},
+                "selling_plan_name": {{ a.selling_plan.name | json }},
+                "price": {{ a.price }},
+                "compare_at_price": {{ a.compare_at_price | default: v.price }}
+              }{% unless forloop.last %},{% endunless %}
+            {%- endfor -%}
+          ]
+        }{% unless forloop.last %},{% endunless %}
+      {%- endfor -%}
+    ]
+  </script>
+
+  {%- comment -%} ---------- COPY (labels) ---------- {%- endcomment -%}
+  <script type="application/json" class="abp__copy">
+    {
+      "value_modes": {
+        "percent":   {{ value_percent_txt   | json }},
+        "nok_saved": {{ value_nok_saved_txt | json }},
+        "per_pair":  {{ value_per_pair_txt  | json }}
+      },
+      "microcopy_template":  {{ microcopy_tpl  | json }},
+      "cta_suffix_template": {{ cta_suffix_tpl | json }}
+    }
+  </script>
+
+  {%- comment -%} ---------- COLOR SELECTOR (proxies to section variant_picker) ---------- {%- endcomment -%}
+  {% if color_option_index >= 0 %}
+    {% assign color_option = product.options_with_values[color_option_index] %}
+    <fieldset class="abp__group" data-group="color">
+      <legend class="abp__label">{{ color_option_name }}</legend>
+      <div class="abp__options abp__options--two">
+        {% for value in color_option.values %}
+          {% assign input_id = 'abp-color-' | append: section.id | append: '-' | append: block.id | append: '-' | append: forloop.index %}
+          <input
+            type="radio"
+            name="abp-color-{{ section.id }}-{{ block.id }}"
+            id="{{ input_id }}"
+            value="{{ value | escape }}"
+            class="abp__radio"
+            data-proxy-option="color"
+            {% if value == current_variant.options[color_option_index] %}checked{% endif %}
+          >
+          <label for="{{ input_id }}" class="abp__option">
+            <span class="abp__option-label">{{ value }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+  {% endif %}
+
+  {%- comment -%} ---------- SIZE SELECTOR (proxies to section variant_picker) ---------- {%- endcomment -%}
+  {% if size_option_index >= 0 %}
+    {% assign size_option = product.options_with_values[size_option_index] %}
+    <fieldset class="abp__group" data-group="size">
+      <legend class="abp__label">{{ size_option_name }}</legend>
+      <div class="abp__options abp__options--two">
+        {% for value in size_option.values %}
+          {% assign input_id = 'abp-size-' | append: section.id | append: '-' | append: block.id | append: '-' | append: forloop.index %}
+          <input
+            type="radio"
+            name="abp-size-{{ section.id }}-{{ block.id }}"
+            id="{{ input_id }}"
+            value="{{ value | escape }}"
+            class="abp__radio"
+            data-proxy-option="size"
+            {% if value == current_variant.options[size_option_index] %}checked{% endif %}
+          >
+          <label for="{{ input_id }}" class="abp__option">
+            <span class="abp__option-label">{{ value }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+  {% endif %}
+
+  {%- comment -%} ---------- PACK SELECTOR (proxies to section variant_picker) ---------- {%- endcomment -%}
+  {% if pack_option_index >= 0 %}
+    {% assign pack_option = product.options_with_values[pack_option_index] %}
+    <fieldset class="abp__group" data-group="pack">
+      <legend class="abp__label">{{ pack_option_name }}</legend>
+      <div class="abp__packs">
+        {% for value in pack_option.values %}
+          {%- liquid
+            assign pack_num_str = value
+            assign pack_num = pack_num_str | replace: 'par', '' | replace: 'pack', '' | replace: '-', '' | strip | plus: 0
+            assign is_popular = false
+            if pack_num == most_popular_pack
+              assign is_popular = true
+            endif
+            assign input_id = 'abp-pack-' | append: section.id | append: '-' | append: block.id | append: '-' | append: forloop.index
+            assign is_checked = false
+            if value == current_variant.options[pack_option_index]
+              assign is_checked = true
+            elsif is_popular and current_variant.options[pack_option_index] == blank
+              assign is_checked = true
+            endif
+
+            assign pack_thumb_variant = nil
+            for v in product.variants
+              if v.options[pack_option_index] != value
+                continue
+              endif
+              assign thumb_match = true
+              if color_option_index >= 0 and v.options[color_option_index] != current_variant.options[color_option_index]
+                assign thumb_match = false
+              endif
+              if size_option_index >= 0 and v.options[size_option_index] != current_variant.options[size_option_index]
+                assign thumb_match = false
+              endif
+              if thumb_match
+                assign pack_thumb_variant = v
+                break
+              endif
+            endfor
+            if pack_thumb_variant
+              assign pack_thumb_image = pack_thumb_variant.featured_image | default: product.featured_image
+            else
+              assign pack_thumb_image = product.featured_image
+            endif
+          -%}
+          <input
+            type="radio"
+            name="abp-pack-{{ section.id }}-{{ block.id }}"
+            id="{{ input_id }}"
+            value="{{ value | escape }}"
+            data-pack-quantity="{{ pack_num }}"
+            data-is-popular="{{ is_popular }}"
+            class="abp__radio"
+            data-proxy-option="pack"
+            {% if is_checked %}checked{% endif %}
+          >
+          <label for="{{ input_id }}" class="abp__pack {% if is_popular %}abp__pack--popular{% endif %}">
+            {% if is_popular %}
+              <span class="abp__pack-badge">{{ block.settings.popular_badge | default: 'Mest populær' }}</span>
+            {% endif %}
+            <div class="abp__pack-inner">
+              <div class="abp__pack-media" data-pack-media {% unless pack_thumb_image %}hidden{% endunless %}>
+                <img
+                  class="abp__pack-image"
+                  data-pack-image
+                  {% if pack_thumb_image %}
+                    src="{{ pack_thumb_image | image_url: width: 160 }}"
+                    srcset="{{ pack_thumb_image | image_url: width: 80 }} 80w, {{ pack_thumb_image | image_url: width: 160 }} 160w"
+                    sizes="80px"
+                    alt="{{ pack_thumb_image.alt | default: product.title | escape }}"
+                    width="80"
+                    height="80"
+                    loading="lazy"
+                  {% endif %}
+                >
+              </div>
+              <div class="abp__pack-body">
+                <div class="abp__pack-left">
+                  <div class="abp__pack-name">{{ value }}</div>
+                  <div class="abp__pack-value" data-pack-value></div>
+                  {% if is_popular and block.settings.popular_note != blank %}
+                    <div class="abp__pack-note">{{ block.settings.popular_note }}</div>
+                  {% endif %}
+                </div>
+                <div class="abp__pack-right">
+                  <del class="abp__pack-compare" data-pack-compare></del>
+                  <div class="abp__pack-price" data-pack-price></div>
+                </div>
+              </div>
+            </div>
+            <div class="abp__pack-selected">{{ block.settings.selected_label | default: '✓ Valgt' }}</div>
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+  {% endif %}
+
+  {%- comment -%} ---------- PURCHASE TYPE TOGGLE ---------- {%- endcomment -%}
+  <fieldset class="abp__group" data-group="purchase-type">
+    <legend class="abp__label">{{ block.settings.purchase_type_label | default: 'KJØPSFORM' }}</legend>
+    <div class="abp__options abp__options--two">
+      <input
+        type="radio"
+        name="abp-purchase-type-{{ section.id }}-{{ block.id }}"
+        id="abp-pt-sub-{{ section.id }}-{{ block.id }}"
+        value="subscription"
+        class="abp__radio"
+        checked
+      >
+      <label for="abp-pt-sub-{{ section.id }}-{{ block.id }}" class="abp__option abp__option--stacked">
+        <span class="abp__option-label">{{ block.settings.subscription_label | default: 'Abonnement' }}</span>
+        <span class="abp__option-sub" data-sub-savings>{{ block.settings.subscription_savings | default: 'spar 15%' }}</span>
+      </label>
+
+      <input
+        type="radio"
+        name="abp-purchase-type-{{ section.id }}-{{ block.id }}"
+        id="abp-pt-once-{{ section.id }}-{{ block.id }}"
+        value="one-time"
+        class="abp__radio"
+      >
+      <label for="abp-pt-once-{{ section.id }}-{{ block.id }}" class="abp__option abp__option--stacked">
+        <span class="abp__option-label">{{ block.settings.onetime_label | default: 'Engangskjøp' }}</span>
+        <span class="abp__option-sub" data-onetime-price></span>
+      </label>
+    </div>
+  </fieldset>
+
+  {%- comment -%} ---------- FREQUENCY SELECTOR ---------- {%- endcomment -%}
+  <div class="abp__frequency" data-frequency-wrap>
+    <span class="abp__frequency-label">{{ block.settings.frequency_label | default: 'Påfyll hver:' }}</span>
+    <div class="abp__frequency-options">
+      {% assign rendered_plans = '' %}
+      {% for allocation in current_variant.selling_plan_allocations %}
+        {% assign plan_name = allocation.selling_plan.name | strip %}
+        {% unless rendered_plans contains plan_name %}
+          {% assign rendered_plans = rendered_plans | append: '|' | append: plan_name %}
+          {% assign input_id = 'abp-freq-' | append: section.id | append: '-' | append: block.id | append: '-' | append: forloop.index %}
+          {% assign is_recommended = false %}
+          {% if plan_name == recommended_frequency %}
+            {% assign is_recommended = true %}
+          {% endif %}
+          <input
+            type="radio"
+            name="abp-frequency-{{ section.id }}-{{ block.id }}"
+            id="{{ input_id }}"
+            value="{{ allocation.selling_plan.id }}"
+            data-plan-name="{{ plan_name | escape }}"
+            class="abp__radio"
+            {% if is_recommended %}checked{% endif %}
+          >
+          <label for="{{ input_id }}" class="abp__freq-option">
+            {{ plan_name }}
+            {% if is_recommended %}
+              <span class="abp__freq-rec">{{ block.settings.recommended_label | default: 'Anbefalt' }}</span>
+            {% endif %}
+          </label>
+        {% endunless %}
+      {% endfor %}
+    </div>
+  </div>
+
+  {%- comment -%} ---------- TRUST INFO ---------- {%- endcomment -%}
+  {% if block.settings.trust_richtext != blank %}
+    <div class="abp__trust">
+      {{ block.settings.trust_richtext }}
+    </div>
+  {% endif %}
+
+  {%- comment -%} ---------- MICROCOPY (moved below ATC by JS) ---------- {%- endcomment -%}
+  <p class="abp__microcopy" data-microcopy data-microcopy-template="{{ microcopy_tpl | escape }}" hidden>
+    {{ microcopy_tpl | replace: '__MONTHS__', '6' }}
+  </p>
+</bundle-pdp-widget>
+
+<script>
+(function () {
+  'use strict';
+  if (window.__bundlePdpWidgetDefined) return;
+  window.__bundlePdpWidgetDefined = true;
+
+  class BundlePDPWidget extends HTMLElement {
+    connectedCallback() {
+      // ── Config ──────────────────────────────────────────────────────────
+      this.sectionId       = this.dataset.sectionId;
+      this.formId          = this.dataset.formId;
+      this.colorIndex      = parseInt(this.dataset.colorIndex, 10);
+      this.sizeIndex       = parseInt(this.dataset.sizeIndex, 10);
+      this.packIndex       = parseInt(this.dataset.packIndex, 10);
+      this.colorOptionName = this.dataset.colorOptionName;
+      this.sizeOptionName  = this.dataset.sizeOptionName;
+      this.packOptionName  = this.dataset.packOptionName;
+      this.valueMode       = this.dataset.valueMode || 'percent';
+      this.recommendedFreq = this.dataset.recommendedFrequency || '';
+      this._readyRetryCount = 0;
+      this._readyRetryMax = 20;
+
+      // ── Data ────────────────────────────────────────────────────────────
+      this.copy     = this._parseJSON('.abp__copy') || {};
+      this.variants = this._parseJSON('.abp__variant-data') || [];
+
+      // ── Block radios ────────────────────────────────────────────────────
+      this.colorInputs = this.querySelectorAll('input[name^="abp-color-"]');
+      this.sizeInputs  = this.querySelectorAll('input[name^="abp-size-"]');
+      this.packInputs  = this.querySelectorAll('input[name^="abp-pack-"]');
+      this.ptInputs    = this.querySelectorAll('input[name^="abp-purchase-type-"]');
+
+      // freqInputs is re-queried after each refresh, do NOT cache here
+      this.freqWrap       = this.querySelector('[data-frequency-wrap]');
+      this.freqOptionsWrap = this.querySelector('.abp__frequency-options');
+      this.microcopyEl    = this.querySelector('[data-microcopy]');
+      this.onetimePriceEl = this.querySelector('[data-onetime-price]');
+      this.subSavingsEl   = this.querySelector('[data-sub-savings]');
+
+      this._initializeWhenReady();
+    }
+
+    _initializeWhenReady() {
+      this.form = document.getElementById(this.formId);
+      if (!this.form) {
+        if (this._readyRetryCount++ < this._readyRetryMax) {
+          setTimeout(() => this._initializeWhenReady(), 50);
+          return;
+        }
+        console.warn('[bundle-pdp] form not found after retries:', this.formId);
+        return;
+      }
+
+      this.variantOptionsEl = document.querySelector(
+        `variant-options[data-section="${this.sectionId}"]`
+      );
+      if (!this.variantOptionsEl) {
+        this.variantOptionsEl = document.querySelector(
+          `variant-options[data-product-handle="${this.dataset.productHandle}"]`
+        ) || document.querySelector('variant-options');
+      }
+
+      this.ctaButton = this.form.querySelector('button[type="submit"]');
+      this._placeMicrocopyBelowAtc();
+
+      this._ensureSellingPlanInput();
+
+      // ── Bind block radios ────────────────────────────────────────────────
+      this._bind(this.colorInputs, (e) => this._proxyToSection('color', e.target.value));
+      this._bind(this.sizeInputs,  (e) => this._proxyToSection('size',  e.target.value));
+      this._bind(this.packInputs,  (e) => this._proxyToSection('pack',  e.target.value));
+      this._bind(this.ptInputs,    ()  => this._onPurchaseTypeChange());
+
+      // ── Listen for variant changes driven by section ─────────────────────
+      this._listenForSectionVariantChange();
+
+      // ── Initial sync / render ────────────────────────────────────────────
+      this._syncBlockRadiosToSectionVariant();
+      this._applyPurchaseTypeVisibility();
+      this._refreshFrequencyOptions();
+      this._afterVariantUpdated();
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    _parseJSON(selector) {
+      const el = this.querySelector(selector);
+      if (!el) return null;
+      try { return JSON.parse(el.textContent); } catch (e) { return null; }
+    }
+
+    _bind(list, handler) {
+      list.forEach((el) => el.addEventListener('change', handler));
+    }
+
+    _selectedEl(namePrefix) {
+      return this.querySelector(`input[name^="${namePrefix}-"]:checked`);
+    }
+
+    _selected(namePrefix) {
+      const el = this._selectedEl(namePrefix);
+      return el ? el.value : null;
+    }
+
+    // Frequency inputs are re-rendered, so always query live
+    _selectedFreqEl() {
+      return this.querySelector('input[name^="abp-frequency-"]:checked');
+    }
+    _selectedFreqId() {
+      const el = this._selectedFreqEl();
+      return el ? el.value : null;
+    }
+
+    // ── Section form setup ───────────────────────────────────────────────────
+
+    _placeMicrocopyBelowAtc() {
+      if (!this.microcopyEl || !this.ctaButton) return;
+      if (this.microcopyEl.dataset.abpPlaced === 'true') return;
+
+      const anchor = this.ctaButton.closest('.wt-product__add-to-cart_form--wrapper')
+        || this.ctaButton;
+      anchor.insertAdjacentElement('afterend', this.microcopyEl);
+      this.microcopyEl.dataset.abpPlaced = 'true';
+    }
+
+    _ensureSellingPlanInput() {
+      this.sellingPlanInput = this.form.querySelector('input[name="selling_plan"]');
+      if (!this.sellingPlanInput) {
+        this.sellingPlanInput = document.createElement('input');
+        this.sellingPlanInput.type  = 'hidden';
+        this.sellingPlanInput.name  = 'selling_plan';
+        this.sellingPlanInput.value = '';
+        this.form.appendChild(this.sellingPlanInput);
+      }
+      this.variantIdInput = this.form.querySelector('input[name="id"]');
+    }
+
+    // ── Proxy block click → section variant-options radio ────────────────────
+    //
+    // The section's native variant-options element owns the variant state
+    // (URL, [name="id"], gallery, price block). We click through to it so
+    // all that logic runs untouched. Our own UI just mirrors the result.
+
+    _normalize(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
+    _proxyToSection(kind, value) {
+      if (!this.variantOptionsEl) {
+        this._fallbackVariantSelect();
+        return;
+      }
+
+      const optionName = kind === 'color' ? this.colorOptionName
+                       : kind === 'size'  ? this.sizeOptionName
+                       : this.packOptionName;
+      if (!optionName) return;
+
+      const normalizedValue = this._normalize(value);
+      const normalizedName  = this._normalize(optionName);
+
+      // Find the section's radio whose `name` matches this option
+      const radios = this.variantOptionsEl.querySelectorAll('input[type="radio"]');
+      let target = null;
+      radios.forEach((r) => {
+        if (this._normalize(r.name) === normalizedName && this._normalize(r.value) === normalizedValue) {
+          target = r;
+        }
+      });
+
+      if (target) {
+        if (!target.checked) {
+          target.checked = true;
+        }
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+        try {
+          target.click();
+        } catch (error) {
+          // Click may fail on hidden radios in some browsers; change events are already dispatched.
+        }
+      } else {
+        this._fallbackVariantSelect();
+      }
+
+      // Debounce our own post-change update in case the section fires no event
+      this._scheduleVariantUpdate();
+    }
+
+    _fallbackVariantSelect() {
+      const variant = this._resolveSelectedVariant();
+      if (variant && this.variantIdInput) {
+        this.variantIdInput.value = variant.id;
+        this.variantIdInput.dispatchEvent(new Event('input', { bubbles: true }));
+        this.variantIdInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      this._scheduleVariantUpdate();
+    }
+
+    // ── Listen for section variant changes ────────────────────────────────────
+    //
+    // Shopify themes update [name="id"] by setting the .value property (NOT the
+    // attribute), so MutationObserver on 'value' attribute does NOT fire.
+    // We cover all cases:
+    //   1. variantOptionsEl 'change' event   → fires when section radio is clicked
+    //   2. document 'variant:changed' event  → custom event some themes dispatch
+    //   3. MutationObserver on [name="id"]   → covers themes that DO setAttribute
+    //   4. Polling fallback after proxy      → our own _scheduleVariantUpdate()
+
+    _listenForSectionVariantChange() {
+      const onSettled = () => {
+        this._syncBlockRadiosToSectionVariant();
+        this._refreshFrequencyOptions();
+        this._afterVariantUpdated();
+      };
+
+      // 1. Section variant-options radio change
+      if (this.variantOptionsEl) {
+        this.variantOptionsEl.addEventListener('change', () => {
+          clearTimeout(this._variantTimer);
+          this._variantTimer = setTimeout(onSettled, 50);
+        });
+      }
+
+      // 2. Theme-level custom event (ReCharge, some Shopify themes)
+      document.addEventListener('variant:changed', () => {
+        clearTimeout(this._variantTimer);
+        this._variantTimer = setTimeout(onSettled, 50);
+      });
+
+      document.addEventListener('variantChangeEnd', () => {
+        clearTimeout(this._variantTimer);
+        this._variantTimer = setTimeout(onSettled, 50);
+      });
+
+      // 3. MutationObserver fallback (themes that setAttribute)
+      if (this.variantIdInput) {
+        new MutationObserver(() => {
+          clearTimeout(this._variantTimer);
+          this._variantTimer = setTimeout(onSettled, 50);
+        }).observe(this.variantIdInput, { attributes: true, attributeFilter: ['value'] });
+      }
+
+      // Store settled callback for _scheduleVariantUpdate
+      this._onVariantSettled = onSettled;
+    }
+
+    // Debounced self-trigger (used after proxy clicks)
+    _scheduleVariantUpdate() {
+      clearTimeout(this._variantTimer);
+      this._variantTimer = setTimeout(this._onVariantSettled || (() => {}), 80);
+    }
+
+    // ── Sync block radios ← section variant ──────────────────────────────────
+
+    _syncBlockRadiosToSectionVariant() {
+      // Read variant ID from the section's hidden [name="id"] input
+      const id = this.variantIdInput && this.variantIdInput.value;
+      if (!id) return;
+      const variant = this.variants.find((v) => String(v.id) === String(id));
+      if (!variant) return;
+
+      const setChecked = (inputs, value) => {
+        const normalizedValue = this._normalize(value);
+        inputs.forEach((el) => {
+          el.checked = this._normalize(el.value) === normalizedValue;
+        });
+      };
+      if (this.colorIndex >= 0) setChecked(this.colorInputs, variant.options[this.colorIndex]);
+      if (this.sizeIndex  >= 0) setChecked(this.sizeInputs,  variant.options[this.sizeIndex]);
+      if (this.packIndex  >= 0) setChecked(this.packInputs,  variant.options[this.packIndex]);
+    }
+
+    // ── Frequency options: re-render from selected variant's selling plans ────
+    //
+    // Called whenever the variant changes so the frequency pills always reflect
+    // the plans available for the current color/size/pack combination.
+
+    _refreshFrequencyOptions() {
+      if (!this.freqOptionsWrap) return;
+
+      let variant = null;
+      if (this.variantIdInput && this.variantIdInput.value) {
+        variant = this.variants.find(
+          (v) => String(v.id) === String(this.variantIdInput.value)
+        );
+      }
+      if (!variant) variant = this._resolveSelectedVariant();
+      if (!variant) return;
+
+      const allocations = variant.selling_plan_allocations || [];
+      const prevPlanId  = this._selectedFreqId(); // preserve selection if plan still exists
+      const recLabel    = (this.querySelector('.abp__freq-rec') || {}).textContent || 'Anbefalt';
+
+      const seen    = new Set();
+      const freqName = `abp-frequency-${this.sectionId}-${this.id}`;
+
+      this.freqOptionsWrap.innerHTML = '';
+
+      let checkedOne = false;
+      allocations.forEach((a, i) => {
+        const planName = (a.selling_plan_name || '').trim();
+        if (seen.has(planName)) return;
+        seen.add(planName);
+
+        const inputId  = `${freqName}-${i}`;
+        const isRec    = planName === this.recommendedFreq;
+        const wasChosen = String(a.selling_plan_id) === String(prevPlanId);
+        const shouldCheck = wasChosen || (!checkedOne && isRec);
+
+        const input = document.createElement('input');
+        input.type      = 'radio';
+        input.name      = freqName;
+        input.id        = inputId;
+        input.value     = String(a.selling_plan_id);
+        input.dataset.planName = planName;
+        input.className = 'abp__radio';
+        if (shouldCheck) { input.checked = true; checkedOne = true; }
+        input.addEventListener('change', () => this._afterVariantUpdated());
+
+        const label = document.createElement('label');
+        label.htmlFor   = inputId;
+        label.className = 'abp__freq-option';
+        label.textContent = planName;
+
+        if (isRec) {
+          const badge = document.createElement('span');
+          badge.className   = 'abp__freq-rec';
+          badge.textContent = recLabel;
+          label.appendChild(badge);
+        }
+
+        this.freqOptionsWrap.appendChild(input);
+        this.freqOptionsWrap.appendChild(label);
+      });
+
+      // If nothing was pre-checked (new variant has different plans), check first
+      if (!checkedOne) {
+        const first = this.freqOptionsWrap.querySelector('input[type="radio"]');
+        if (first) first.checked = true;
+      }
+    }
+
+    // ── Variant lookup ────────────────────────────────────────────────────────
+
+    _optionMatches(variantValue, selectedValue) {
+      return this._normalize(variantValue) === this._normalize(selectedValue);
+    }
+
+    _resolveSelectedVariant() {
+      const color = this._selectedEl('abp-color') ? this._selectedEl('abp-color').value : null;
+      const size  = this._selectedEl('abp-size')  ? this._selectedEl('abp-size').value  : null;
+      const pack  = this._selectedEl('abp-pack')  ? this._selectedEl('abp-pack').value  : null;
+
+      return this.variants.find((v) => {
+        const opts = v.options || [];
+        const mColor = this.colorIndex < 0 || this._optionMatches(opts[this.colorIndex], color);
+        const mSize  = this.sizeIndex  < 0 || this._optionMatches(opts[this.sizeIndex], size);
+        const mPack  = this.packIndex  < 0 || this._optionMatches(opts[this.packIndex], pack);
+        return mColor && mSize && mPack;
+      }) || null;
+    }
+
+    _findAllocation(variant, sellingPlanId) {
+      if (!variant || !sellingPlanId) return null;
+      return (variant.selling_plan_allocations || [])
+        .find((a) => String(a.selling_plan_id) === String(sellingPlanId)) || null;
+    }
+
+    _resolvePackComparePrice(variant, alloc, displayPrice) {
+      const candidates = [];
+      if (alloc && alloc.compare_at_price > displayPrice) {
+        candidates.push(alloc.compare_at_price);
+      }
+      if (variant.price > displayPrice) {
+        candidates.push(variant.price);
+      }
+      if (variant.compare_at_price > displayPrice) {
+        candidates.push(variant.compare_at_price);
+      }
+      return candidates.length ? Math.max(...candidates) : 0;
+    }
+
+    // ── Formatting ────────────────────────────────────────────────────────────
+
+    _formatNOK(cents) {
+      return Math.round(cents / 100).toLocaleString('nb-NO') + ' kr';
+    }
+
+    _formatValueLabel(price, compareRef, packQty) {
+      const saved = compareRef - price;
+      if (saved <= 0 || compareRef <= 0) return '';
+      const percent  = Math.round((saved / compareRef) * 100);
+      const savedNOK = Math.round(saved / 100);
+      const perPair  = Math.round((price / 100) / Math.max(packQty, 1));
+      const template = (this.copy.value_modes || {})[this.valueMode] || '__PERCENT__%';
+      return template
+        .replace('__PERCENT__', percent)
+        .replace('__SAVED__',   savedNOK.toLocaleString('nb-NO'))
+        .replace('__PER_PAIR__', perPair);
+    }
+
+    // ── Purchase type ─────────────────────────────────────────────────────────
+
+    _applyPurchaseTypeVisibility() {
+      const isSub = this._selected('abp-purchase-type') === 'subscription';
+      if (this.freqWrap)    this.freqWrap.style.display    = isSub ? '' : 'none';
+      if (this.microcopyEl) {
+        this.microcopyEl.hidden = !isSub;
+        this.microcopyEl.style.display = isSub ? '' : 'none';
+      }
+    }
+
+    _onPurchaseTypeChange() {
+      this._applyPurchaseTypeVisibility();
+      this._afterVariantUpdated();
+    }
+
+    // ── Main render: prices + selling_plan input + CTA + microcopy ────────────
+    //
+    // Called every time variant, purchase type, or frequency changes.
+
+    _afterVariantUpdated() {
+      const isSub  = this._selected('abp-purchase-type') === 'subscription';
+      const planId = this._selectedFreqId();
+
+      // Canonical selected variant: prefer section's [name="id"] as truth
+      let selectedVariant = null;
+      if (this.variantIdInput && this.variantIdInput.value) {
+        selectedVariant = this.variants.find(
+          (v) => String(v.id) === String(this.variantIdInput.value)
+        );
+      }
+      if (!selectedVariant) selectedVariant = this._resolveSelectedVariant();
+
+      const refColor = selectedVariant ? selectedVariant.options[this.colorIndex] : null;
+      const refSize  = selectedVariant ? selectedVariant.options[this.sizeIndex]  : null;
+
+      // ── Render each pack card ────────────────────────────────────────────
+      this.packInputs.forEach((input) => {
+        const cardPackVal = input.value;
+        const cardPackQty = parseInt(input.dataset.packQuantity, 10) || 1;
+
+        const variant = this.variants.find((v) => {
+          const opts = v.options || [];
+          const mColor = this.colorIndex < 0 || this._optionMatches(opts[this.colorIndex], refColor);
+          const mSize  = this.sizeIndex  < 0 || this._optionMatches(opts[this.sizeIndex], refSize);
+          const mPack  = this.packIndex  < 0 || this._optionMatches(opts[this.packIndex], cardPackVal);
+          return mColor && mSize && mPack;
+        });
+
+        const card = this.querySelector(`label[for="${input.id}"]`);
+        if (!card) return;
+
+        const priceEl   = card.querySelector('[data-pack-price]');
+        const compareEl = card.querySelector('[data-pack-compare]');
+        const valueEl   = card.querySelector('[data-pack-value]');
+        const imgEl     = card.querySelector('[data-pack-image]');
+        const mediaEl   = card.querySelector('[data-pack-media]');
+
+        if (!variant) {
+          if (priceEl)   priceEl.textContent = '—';
+          if (compareEl) { compareEl.textContent = ''; compareEl.style.display = 'none'; }
+          if (valueEl)   valueEl.textContent = '';
+          if (mediaEl)   mediaEl.hidden = true;
+          card.classList.add('abp__pack--unavailable');
+          return;
+        }
+        card.classList.remove('abp__pack--unavailable');
+
+        if (imgEl && mediaEl) {
+          if (variant.image) {
+            imgEl.src = variant.image;
+            imgEl.alt = variant.image_alt || '';
+            mediaEl.hidden = false;
+          } else {
+            imgEl.removeAttribute('src');
+            mediaEl.hidden = true;
+          }
+        }
+
+        let displayPrice, comparePrice;
+        const alloc = isSub
+          ? (this._findAllocation(variant, planId)
+            || (variant.selling_plan_allocations || [])[0]
+            || null)
+          : null;
+
+        if (isSub) {
+          displayPrice = alloc ? alloc.price : variant.price;
+          comparePrice = this._resolvePackComparePrice(variant, alloc, displayPrice);
+        } else {
+          displayPrice = variant.price;
+          comparePrice = variant.compare_at_price > variant.price
+            ? variant.compare_at_price : 0;
+        }
+
+        if (priceEl) priceEl.textContent = this._formatNOK(displayPrice);
+
+        if (compareEl) {
+          if (comparePrice && comparePrice > displayPrice) {
+            compareEl.textContent     = this._formatNOK(comparePrice);
+            compareEl.style.display   = '';
+          } else {
+            compareEl.textContent     = '';
+            compareEl.style.display   = 'none';
+          }
+        }
+
+        if (valueEl) {
+          const ref = isSub
+            ? (comparePrice || variant.price)
+            : (variant.compare_at_price || 0);
+          valueEl.textContent = this._formatValueLabel(displayPrice, ref, cardPackQty);
+        }
+      });
+
+      // ── selling_plan hidden input ─────────────────────────────────────────
+      // Only set when subscription is active AND the selected plan is valid
+      // for the selected variant. Clear otherwise so one-time goes through.
+      if (isSub && planId && selectedVariant) {
+        const alloc = this._findAllocation(selectedVariant, planId);
+        this.sellingPlanInput.value = alloc ? String(planId) : '';
+      } else {
+        this.sellingPlanInput.value = '';
+      }
+
+      // ── One-time price hint (shown in purchase-type label) ────────────────
+      if (this.onetimePriceEl) {
+        this.onetimePriceEl.textContent = selectedVariant
+          ? this._formatNOK(selectedVariant.price) : '';
+      }
+
+      // ── Subscription savings hint ─────────────────────────────────────────
+      if (this.subSavingsEl && selectedVariant && isSub) {
+        const alloc = this._findAllocation(selectedVariant, planId)
+          || (selectedVariant.selling_plan_allocations || [])[0];
+        if (alloc && alloc.compare_at_price > alloc.price) {
+          const pct = Math.round(
+            ((alloc.compare_at_price - alloc.price) / alloc.compare_at_price) * 100
+          );
+          const tpl = (this.copy.value_modes || {}).percent || 'spar __PERCENT__%';
+          this.subSavingsEl.textContent = tpl.replace('__PERCENT__', pct);
+        }
+      }
+
+      // ── ATC button price suffix ───────────────────────────────────────────
+      this._updateCTA(selectedVariant, isSub, planId);
+
+      // ── Microcopy ─────────────────────────────────────────────────────────
+      if (isSub && this.microcopyEl) {
+        const freqEl  = this._selectedFreqEl();
+        const planName = freqEl ? (freqEl.dataset.planName || '') : '';
+        const months  = (planName.match(/\d+/) || [''])[0];
+        const tpl     = this.microcopyEl.dataset.microcopyTemplate || '';
+        this.microcopyEl.textContent = tpl.replace('__MONTHS__', months);
+      }
+    }
+
+    _updateCTA(variant, isSub, planId) {
+      if (!this.ctaButton) return;
+
+      let price = 0;
+      if (variant) {
+        if (isSub) {
+          const alloc = this._findAllocation(variant, planId)
+            || (variant.selling_plan_allocations || [])[0];
+          price = alloc ? alloc.price : variant.price;
+        } else {
+          price = variant.price;
+        }
+      }
+
+      let priceSpan = this.ctaButton.querySelector('[data-abp-cta-price]');
+      if (!priceSpan) {
+        priceSpan = document.createElement('span');
+        priceSpan.setAttribute('data-abp-cta-price', '');
+        priceSpan.className = 'abp__cta-price';
+        this.ctaButton.appendChild(priceSpan);
+      }
+
+      const tpl = (this.copy && this.copy.cta_suffix_template) || ' – __PRICE__';
+      priceSpan.textContent = variant ? tpl.replace('__PRICE__', this._formatNOK(price)) : '';
+    }
+  }
+
+  if (!customElements.get('bundle-pdp-widget')) {
+    customElements.define('bundle-pdp-widget', BundlePDPWidget);
+  }
+})();
+</script>

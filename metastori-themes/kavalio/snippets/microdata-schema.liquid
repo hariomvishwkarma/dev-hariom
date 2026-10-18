@@ -1,0 +1,375 @@
+{%- comment -%}
+This snippet structures the micro-data using JSON-LD specification. Starting from Focal 11.2, we are using
+the structured_data built-in filter. ProductGroup output is enriched with image, variesBy, AggregateOffer,
+and variant color/size from option values. Availability is rewritten via variant-buy-allowed.
+{%- endcomment -%}
+
+{%- if request.page_type == 'product' -%}
+  {%- comment -%}
+    Shopify structured_data uses variant.available (includes supplier stock).
+    Rewrite InStock → OutOfStock when variant-buy-allowed is false (e.g. LSS = NEIN).
+    Enrich ProductGroup with image, variesBy, AggregateOffer, and variant color/size.
+  {%- endcomment -%}
+  {%- capture product_structured_data -%}{{- product | structured_data -}}{%- endcapture -%}
+
+  {%- assign instock_token_http = '"availability":"http:\/\/schema.org\/InStock"' -%}
+  {%- assign oos_token_http = '"availability":"http:\/\/schema.org\/OutOfStock"' -%}
+  {%- assign instock_token_https = '"availability":"https:\/\/schema.org\/InStock"' -%}
+  {%- assign oos_token_https = '"availability":"https:\/\/schema.org\/OutOfStock"' -%}
+
+  {%- for availability_pass in (1..2) -%}
+    {%- if availability_pass == 1 -%}
+      {%- assign instock_token = instock_token_http -%}
+      {%- assign oos_token = oos_token_http -%}
+    {%- else -%}
+      {%- assign instock_token = instock_token_https -%}
+      {%- assign oos_token = oos_token_https -%}
+    {%- endif -%}
+
+    {%- assign sd_parts = product_structured_data | split: instock_token -%}
+    {%- if sd_parts.size > 1 -%}
+      {%- assign sd_rebuilt = '' -%}
+      {%- assign sd_prev_part = '' -%}
+
+      {%- for sd_part in sd_parts -%}
+        {%- unless forloop.first -%}
+          {%- assign force_oos = false -%}
+
+          {%- for variant in product.variants -%}
+            {%- assign variant_marker = '?variant=' | append: variant.id | append: '#' -%}
+            {%- assign variant_marker_end = '?variant=' | append: variant.id | append: '"' -%}
+            {%- if sd_prev_part contains variant_marker or sd_prev_part contains variant_marker_end -%}
+              {%- capture variant_buy_allowed_str -%}{%- render 'variant-buy-allowed', variant: variant -%}{%- endcapture -%}
+              {%- assign variant_buy_allowed_str = variant_buy_allowed_str | strip -%}
+              {%- if variant_buy_allowed_str != 'true' -%}
+                {%- assign force_oos = true -%}
+              {%- endif -%}
+              {%- break -%}
+            {%- endif -%}
+          {%- endfor -%}
+
+          {%- if force_oos -%}
+            {%- assign sd_rebuilt = sd_rebuilt | append: oos_token -%}
+          {%- else -%}
+            {%- assign sd_rebuilt = sd_rebuilt | append: instock_token -%}
+          {%- endif -%}
+        {%- endunless -%}
+
+        {%- assign sd_rebuilt = sd_rebuilt | append: sd_part -%}
+        {%- assign sd_prev_part = sd_part -%}
+      {%- endfor -%}
+
+      {%- assign product_structured_data = sd_rebuilt -%}
+    {%- endif -%}
+  {%- endfor -%}
+
+  {%- if product_structured_data contains '"@type":"ProductGroup"' -%}
+    {%- assign color_label_list = 'general.label.color' | t | replace: ', ', ',' | downcase | split: ',' -%}
+    {%- assign size_label_list = 'general.label.size' | t | replace: ', ', ',' | downcase | split: ',' -%}
+    {%- assign color_option_index = 0 -%}
+    {%- assign size_option_index = 0 -%}
+
+    {%- for option in product.options_with_values -%}
+      {%- assign option_downcase = option.name | strip | downcase -%}
+      {%- if color_label_list contains option_downcase
+        or option_downcase == 'color'
+        or option_downcase == 'colour'
+        or option_downcase == 'farbe'
+      -%}
+        {%- assign color_option_index = option.position -%}
+      {%- endif -%}
+      {%- if size_label_list contains option_downcase
+        or option_downcase == 'size'
+        or option_downcase == 'größe'
+        or option_downcase == 'groesse'
+        or option_downcase == 'grösse'
+      -%}
+        {%- assign size_option_index = option.position -%}
+      {%- endif -%}
+    {%- endfor -%}
+
+    {%- comment -%} Store convention: option1 = color, option2 = size when labels are unknown {%- endcomment -%}
+    {%- if color_option_index == 0 and size_option_index == 0 -%}
+      {%- if product.options.size >= 2 -%}
+        {%- assign color_option_index = 1 -%}
+        {%- assign size_option_index = 2 -%}
+      {%- elsif product.options.size == 1 -%}
+        {%- assign color_option_index = 1 -%}
+      {%- endif -%}
+    {%- endif -%}
+
+    {%- assign varies_by_json = '' -%}
+    {%- if color_option_index > 0 and size_option_index > 0 -%}
+      {%- assign varies_by_json = '["color","size"]' -%}
+    {%- elsif color_option_index > 0 -%}
+      {%- assign varies_by_json = '["color"]' -%}
+    {%- elsif size_option_index > 0 -%}
+      {%- assign varies_by_json = '["size"]' -%}
+    {%- endif -%}
+
+    {%- assign pg_any_buy_allowed = false -%}
+    {%- for variant in product.variants -%}
+      {%- capture pg_buy_allowed_str -%}{%- render 'variant-buy-allowed', variant: variant -%}{%- endcapture -%}
+      {%- assign pg_buy_allowed_str = pg_buy_allowed_str | strip -%}
+      {%- if pg_buy_allowed_str == 'true' -%}
+        {%- assign pg_any_buy_allowed = true -%}
+        {%- break -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- if pg_any_buy_allowed -%}
+      {%- assign pg_aggregate_availability = 'https://schema.org/InStock' -%}
+    {%- else -%}
+      {%- assign pg_aggregate_availability = 'https://schema.org/OutOfStock' -%}
+    {%- endif -%}
+
+    {%- assign pg_currency = cart.currency.iso_code | default: shop.currency -%}
+    {%- assign pg_low_price = product.price_min | divided_by: 100.0 -%}
+    {%- assign pg_high_price = product.price_max | divided_by: 100.0 -%}
+    {%- assign pg_head = product_structured_data | split: '"hasVariant":' | first -%}
+    {%- assign pg_image_url = '' -%}
+    {%- if product.featured_image -%}
+      {%- assign pg_image_url = product.featured_image | image_url: width: 1920 -%}
+      {%- unless pg_image_url contains '://' -%}
+        {%- assign pg_image_url = pg_image_url | prepend: 'https:' -%}
+      {%- endunless -%}
+    {%- endif -%}
+
+    {%- capture pg_group_extras -%}
+      {%- unless pg_head contains '"image":' -%}
+        {%- if pg_image_url != blank -%}
+          "image":{{ pg_image_url | json }},
+        {%- endif -%}
+      {%- endunless -%}
+      {%- unless pg_head contains '"variesBy"' -%}
+        {%- if varies_by_json != blank -%}
+          "variesBy":{{ varies_by_json }},
+        {%- endif -%}
+      {%- endunless -%}
+      {%- unless pg_head contains '"AggregateOffer"' or pg_head contains '"offers":' -%}
+        "offers":{"@type":"AggregateOffer","priceCurrency":{{ pg_currency | json }},"lowPrice":{{ pg_low_price | json }},"highPrice":{{ pg_high_price | json }},"offerCount":{{ product.variants.size | json }},"availability":{{ pg_aggregate_availability | json }}},
+      {%- endunless -%}
+    {%- endcapture -%}
+    {%- assign pg_group_extras = pg_group_extras | strip -%}
+
+    {%- if pg_group_extras != blank -%}
+      {%- assign has_variant_replacement = pg_group_extras | append: '"hasVariant":' -%}
+      {%- assign product_structured_data = product_structured_data | replace_first: '"hasVariant":', has_variant_replacement -%}
+    {%- endif -%}
+
+    {%- comment -%} Inject color/size onto each variant Product (before its offers object) {%- endcomment -%}
+    {%- assign offers_key = '"offers":{"@id":"' -%}
+    {%- for variant in product.variants -%}
+      {%- assign color_val = '' -%}
+      {%- assign size_val = '' -%}
+
+      {%- case color_option_index -%}
+        {%- when 1 -%}{%- assign color_val = variant.option1 -%}
+        {%- when 2 -%}{%- assign color_val = variant.option2 -%}
+        {%- when 3 -%}{%- assign color_val = variant.option3 -%}
+      {%- endcase -%}
+      {%- case size_option_index -%}
+        {%- when 1 -%}{%- assign size_val = variant.option1 -%}
+        {%- when 2 -%}{%- assign size_val = variant.option2 -%}
+        {%- when 3 -%}{%- assign size_val = variant.option3 -%}
+      {%- endcase -%}
+
+      {%- if color_val != blank or size_val != blank -%}
+        {%- assign offer_id_fragment = '?variant=' | append: variant.id | append: '#offer' -%}
+        {%- assign split_by_offer = product_structured_data | split: offer_id_fragment -%}
+
+        {%- if split_by_offer.size > 1 -%}
+          {%- assign before_offer = split_by_offer.first -%}
+          {%- assign offers_chunks = before_offer | split: offers_key -%}
+          {%- if offers_chunks.size > 1 -%}
+            {%- assign color_json = color_val | json -%}
+            {%- assign size_json = size_val | json -%}
+            {%- assign variant_props = '' -%}
+            {%- if color_val != blank -%}
+              {%- assign variant_props = variant_props | append: '"color":' | append: color_json | append: ',' -%}
+            {%- endif -%}
+            {%- if size_val != blank -%}
+              {%- assign variant_props = variant_props | append: '"size":' | append: size_json | append: ',' -%}
+            {%- endif -%}
+
+            {%- assign rebuilt_before = '' -%}
+            {%- for chunk in offers_chunks -%}
+              {%- if forloop.first -%}
+                {%- assign rebuilt_before = chunk -%}
+              {%- elsif forloop.last -%}
+                {%- assign rebuilt_before = rebuilt_before | append: variant_props | append: offers_key | append: chunk -%}
+              {%- else -%}
+                {%- assign rebuilt_before = rebuilt_before | append: offers_key | append: chunk -%}
+              {%- endif -%}
+            {%- endfor -%}
+
+            {%- assign product_structured_data = rebuilt_before | append: offer_id_fragment -%}
+            {%- for part in split_by_offer -%}
+              {%- unless forloop.first -%}
+                {%- assign product_structured_data = product_structured_data | append: part -%}
+                {%- unless forloop.last -%}
+                  {%- assign product_structured_data = product_structured_data | append: offer_id_fragment -%}
+                {%- endunless -%}
+              {%- endunless -%}
+            {%- endfor -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+
+  {%- comment -%}
+    Server-side aggregateRating from Reviews.io metafields.
+    Polaris enable_rich_snippets stays false to avoid a second Product schema.
+  {%- endcomment -%}
+  {%- unless product_structured_data contains '"aggregateRating"' -%}
+    {%- liquid
+      assign review_rating_mf = product.metafields.reviewscouk.rating
+      assign review_count_mf = product.metafields.reviewscouk.total
+      assign review_rating_value = review_rating_mf.value | default: review_rating_mf
+      if review_rating_value.rating != blank
+        assign review_rating_value = review_rating_value.rating
+      elsif review_rating_value.value != blank
+        assign review_rating_value = review_rating_value.value
+      endif
+      assign review_count_value = review_count_mf.value | default: review_count_mf
+      assign schema_review_count = review_count_value | plus: 0 | round | at_least: 0
+      assign schema_rating_value = review_rating_value | times: 1.0
+    -%}
+
+    {%- if schema_review_count > 0 and schema_rating_value > 0 -%}
+      {%- assign schema_rating_value = schema_rating_value | at_least: 0 | at_most: 5 -%}
+      {%- capture aggregate_rating_json -%}
+        "aggregateRating":{"@type":"AggregateRating","ratingValue":{{ schema_rating_value | json }},"reviewCount":{{ schema_review_count | json }},"bestRating":5,"worstRating":1},
+      {%- endcapture -%}
+
+      {%- if product_structured_data contains '"@type":"ProductGroup"' -%}
+        {%- assign type_marker = '"@type":"ProductGroup"' -%}
+      {%- else -%}
+        {%- assign type_marker = '"@type":"Product"' -%}
+      {%- endif -%}
+
+      {%- assign type_with_rating = type_marker | append: ',' | append: aggregate_rating_json -%}
+      {%- assign product_structured_data = product_structured_data | replace_first: type_marker, type_with_rating -%}
+    {%- endif -%}
+  {%- endunless -%}
+
+  <script type="application/ld+json">
+    {{- product_structured_data -}}
+  </script>
+{%- elsif request.page_type == 'article' -%}
+  <script type="application/ld+json">
+    {{- article | structured_data -}}
+  </script>
+{%- endif -%}
+
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [{
+        "@type": "ListItem",
+        "position": 1,
+        "name": {{ 'general.breadcrumb.home' | t | json }},
+        "item": "{{ shop.url }}"
+      }
+
+      {%- if request.page_type == 'product' -%}
+        {%- if collection -%}
+          ,{
+            "@type": "ListItem",
+            "position": 2,
+            "name": {{ collection.title | json }},
+            "item": "{{ shop.url }}{{ collection.url }}"
+          }, {
+            "@type": "ListItem",
+            "position": 3,
+            "name": {{ product.title | json }},
+            "item": "{{ shop.url }}{{ product.url }}"
+          }
+        {%- else -%}
+          ,{
+            "@type": "ListItem",
+            "position": 2,
+            "name": {{ product.title | json }},
+            "item": "{{ shop.url }}{{ product.url }}"
+          }
+        {%- endif -%}
+      {%- elsif request.page_type == 'collection' -%}
+          ,{
+            "@type": "ListItem",
+            "position": 2,
+            "name": {{ collection.title | json }},
+            "item": "{{ shop.url }}{{ collection.url }}"
+          }
+      {%- elsif request.page_type == 'blog' -%}
+          ,{
+            "@type": "ListItem",
+            "position": 2,
+            "name": {{ blog.title | json }},
+            "item": "{{ shop.url }}{{ blog.url }}"
+          }
+      {%- elsif request.page_type == 'article' -%}
+          ,{
+            "@type": "ListItem",
+            "position": 2,
+            "name": {{ blog.title | json }},
+            "item": "{{ shop.url }}{{ blog.url }}"
+          }, {
+            "@type": "ListItem",
+            "position": 3,
+            "name": {{ blog.title | json }},
+            "item": "{{ shop.url }}{{ article.url }}"
+          }
+      {%- elsif request.page_type == 'page' -%}
+        ,{
+            "@type": "ListItem",
+            "position": 2,
+            "name": {{ page.title | json }},
+            "item": "{{ shop.url }}{{ page.url }}"
+          }
+      {%- endif -%}
+    ]
+  }
+</script>
+
+{%- if request.page_type == 'index' -%}
+  {%- assign potential_action_target = request.origin | append: routes.search_url | append: "?q={search_term_string}" -%}
+
+  <script type="application/ld+json">
+  [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": {{ shop.name | json }},
+      "url": {{ shop.url | append: page.url | json }},
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {{ potential_action_target | json }},
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": {{ shop.name | json }},
+      {%- if shop.brand.logo -%}
+        "logo": {{ shop.brand.logo | image_url: width: shop.brand.logo.width | prepend: "https:" | json }},
+      {%- endif -%}
+      {%- if shop.brand.short_description -%}
+        "description": {{ shop.brand.short_description | json }},
+      {%- endif -%}
+      {%- if shop.brand.slogan -%}
+        "slogan": {{ shop.brand.slogan | json }},
+      {%- endif -%}
+      {%- if shop.brand.metafields.social_links.size > 0 -%}
+        "sameAs": [
+          {%- for social_link in shop.brand.metafields.social_links -%}
+            {{- social_link.last.value | json -}}{%- unless forloop.last -%},{%- endunless -%}
+          {%- endfor -%}
+        ],
+      {%- endif -%}
+      "url": {{ shop.url | append: page.url | json }}
+    }
+  ]
+  </script>
+{%- endif -%}
